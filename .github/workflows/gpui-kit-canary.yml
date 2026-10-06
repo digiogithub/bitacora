@@ -29,7 +29,7 @@ jobs:
       candidate: ${{ steps.v.outputs.candidate }}
       skip: ${{ steps.v.outputs.skip }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: v
         shell: bash
         env:
@@ -63,11 +63,11 @@ jobs:
     outputs:
       result: ${{ steps.res.outputs.result }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install Linux system dependencies
         if: runner.os == 'Linux'
         run: script/install-linux-deps.sh
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions-rust-lang/setup-rust-toolchain@v2
         with:
           cache-shared-key: canary-${{ matrix.os }}
           cache-save-if: false
@@ -97,7 +97,7 @@ jobs:
         run: |
           echo "result=${OUTCOME}" >> "$GITHUB_OUTPUT"
           grep -E -m 20 '^(error|warning: unused)' -A 6 build.log > errors-${{ matrix.os }}.txt || true
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: canary-errors-${{ matrix.os }}
@@ -109,7 +109,7 @@ jobs:
     if: always() && needs.resolve.outputs.skip != 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: canary-errors-*
           path: errors
