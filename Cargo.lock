@@ -790,6 +790,7 @@ dependencies = [
  "bitacora-config",
  "bitacora-core",
  "bitacora-index",
+ "bitacora-markdown",
  "bitacora-mcp",
  "bitacora-sync",
  "bitacora-watch",

@@ -97,6 +97,9 @@ fn start(cx: &mut App, args: &Args, dirs: &AppDirs) -> anyhow::Result<()> {
     let config = WorkspaceConfig {
         graph_name: args.graph_name(),
         layout_file: Some(dirs.workspace_file()),
+        recent_file: Some(dirs.recent_graphs_file()),
+        index_data_dir: None,
+        initial_page: args.page.clone(),
     };
     let options = WindowOptions {
         titlebar: Some(TitlebarOptions {
@@ -132,7 +135,11 @@ fn start(cx: &mut App, args: &Args, dirs: &AppDirs) -> anyhow::Result<()> {
         async {}
     })
     .detach();
-    workspace.update(cx, |ws, cx| ws.start_demo_producers(cx));
+    if let Some(graph) = args.graph.clone() {
+        handle.update(cx, |_, window, cx| {
+            workspace.update(cx, |ws, cx| ws.open_graph(graph, window, cx));
+        })?;
+    }
 
     handle.update(cx, |_, window, cx| {
         if let Some(specs) = window.gpu_specs() {

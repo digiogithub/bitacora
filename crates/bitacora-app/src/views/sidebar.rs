@@ -51,6 +51,12 @@ impl LeftSidebar {
         }
     }
 
+    /// Sets the graph name shown in the header.
+    pub fn set_graph_name(&mut self, name: Option<String>, cx: &mut Context<Self>) {
+        self.graph_name = name;
+        cx.notify();
+    }
+
     /// Whether the sidebar is shown.
     pub fn is_visible(&self) -> bool {
         self.visible

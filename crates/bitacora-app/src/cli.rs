@@ -12,6 +12,11 @@ pub struct Args {
     #[arg(long, value_name = "PATH")]
     pub graph: Option<PathBuf>,
 
+    /// Page to show after opening the graph: a path relative to the graph (`pages/x.md`) or a
+    /// page file name without extension. Defaults to the newest journal.
+    #[arg(long, value_name = "PAGE")]
+    pub page: Option<String>,
+
     /// Default log filter (overridden by `RUST_LOG`), e.g. `debug` or `info,bitacora_app=trace`.
     #[arg(long, value_name = "LEVEL")]
     pub log_level: Option<String>,

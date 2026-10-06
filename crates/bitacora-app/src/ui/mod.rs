@@ -17,9 +17,9 @@ pub use gpui_kit::prelude::*;
 pub use gpui_kit::{
     Action, Anchor, AnyElement, AnyView, AnyWindowHandle, App, AppContext, Application, AsyncApp,
     Bounds, ClickEvent, Context, Entity, EntityId, EventEmitter, FocusHandle, Focusable, Global,
-    Hsla, KeyBinding, KeyBindingContextPredicate, Pixels, Point, Render, SharedString, Size,
-    Subscription, Task, TitlebarOptions, WeakEntity, Window, WindowAppearance, WindowBounds,
-    WindowOptions, div, point, px, size,
+    Hsla, KeyBinding, KeyBindingContextPredicate, PathPromptOptions, Pixels, Point, Render,
+    SharedString, Size, StyledImage, Subscription, Task, TitlebarOptions, WeakEntity, Window,
+    WindowAppearance, WindowBounds, WindowOptions, div, point, px, size,
 };
 
 /// Defines unit actions (re-exported so views never name the kit crate).
@@ -27,7 +27,8 @@ pub use gpui_kit::actions;
 
 /// Styled components used by the shell.
 pub use gpui_kit::component::{
-    ActiveTheme, Icon, IconName, Root, Selectable, Sizable, StyledExt, WindowExt, h_flex, v_flex,
+    ActiveTheme, Disableable, Icon, IconName, Root, Selectable, Sizable, StyledExt, WindowExt,
+    h_flex, v_flex,
 };
 
 /// Buttons.
@@ -50,6 +51,11 @@ pub mod sidebar {
 /// Status bar chrome.
 pub mod status_bar {
     pub use gpui_kit::component::status_bar::StatusBar;
+}
+
+/// Progress bar.
+pub mod progress {
+    pub use gpui_kit::component::progress::Progress;
 }
 
 /// Theme registry and modes.
@@ -82,6 +88,11 @@ pub enum Level {
 pub fn notify(window: &mut Window, cx: &mut App, level: Level, message: impl Into<SharedString>) {
     use gpui_kit::component::notification::Notification;
     let message = message.into();
+    // Windows without a `Root` (headless tests) cannot show toasts; keep the message in the log.
+    if window.root::<Root>().flatten().is_none() {
+        tracing::info!(?level, %message, "notification without a Root window");
+        return;
+    }
     let note = match level {
         Level::Info => Notification::info(message),
         Level::Success => Notification::success(message),
@@ -142,11 +153,12 @@ pub fn open_main_window<V: Render>(
 pub mod text_edit {
     pub use gpui_kit::{
         AvailableSpace, ClipboardItem, CursorStyle, Element, ElementId, ElementInputHandler,
-        EntityInputHandler, Font, FontWeight, GlobalElementId, InspectorElementId, IntoElement,
-        LayoutId, ListAlignment, ListOffset, ListState, Modifiers, MouseButton, MouseDownEvent,
-        MouseMoveEvent, MouseUpEvent, PaintQuad, Rgba, StrikethroughStyle, Style, StyledText,
-        TextAlign, TextLayout, TextRun, UTF16Selection, UnderlineStyle, WrappedLine, fill, hsla,
-        list, relative, rgba,
+        EntityInputHandler, Font, FontStyle, FontWeight, GlobalElementId, HighlightStyle,
+        InspectorElementId, InteractiveText, IntoElement, LayoutId, ListAlignment, ListOffset,
+        ListState, Modifiers, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, ObjectFit,
+        PaintQuad, Rgba, StrikethroughStyle, Style, StyledImage, StyledText, TextAlign, TextLayout,
+        TextRun, UTF16Selection, UnderlineStyle, WrappedLine, fill, hsla, img, list, relative,
+        rgba,
     };
 }
 
