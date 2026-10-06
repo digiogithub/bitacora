@@ -27,6 +27,11 @@ anyhow.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
+sha2.workspace = true
+ureq.workspace = true
+tar.workspace = true
+flate2.workspace = true
+zip.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
