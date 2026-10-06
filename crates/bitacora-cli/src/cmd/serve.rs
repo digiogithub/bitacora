@@ -7,6 +7,7 @@ use std::time::Duration;
 
 use anyhow::Context as _;
 use bitacora_mcp::McpConfig;
+use bitacora_runtime::instance::{Acquire, InstanceKind, Primary};
 use bitacora_runtime::{McpOptions, RuntimeConfig, Session, SyncOptions};
 use clap::Args;
 
@@ -121,8 +122,30 @@ pub fn start(args: ServeArgs) -> anyhow::Result<Running> {
     })
 }
 
+/// Takes the per-user instance lock in `dir`; fails with a clear message when the desktop app
+/// or another headless server already owns the graph and the MCP port (BIT-US-0086).
+pub fn acquire_instance(dir: &std::path::Path) -> anyhow::Result<Box<Primary>> {
+    match Primary::acquire(dir, InstanceKind::Headless, false)? {
+        Acquire::Primary(guard) => Ok(guard),
+        Acquire::Running(info) => {
+            let who = match info.kind {
+                InstanceKind::App => "the Bitacora desktop app",
+                InstanceKind::Headless => "another `bitacora-cli serve`",
+            };
+            anyhow::bail!(
+                "{who} is already running for this user (pid {}) and owns the MCP port; \
+                 use its MCP endpoint or quit it first",
+                info.pid
+            )
+        }
+    }
+}
+
 /// Run until Ctrl-C.
 pub fn run(args: ServeArgs) -> anyhow::Result<()> {
+    let dir = bitacora_runtime::instance::default_dir()
+        .context("cannot determine the data directory for the instance lock")?;
+    let _instance = acquire_instance(&dir)?;
     let running = start(args)?;
     eprintln!("MCP endpoint: {}", running.endpoint());
     eprintln!("Token file:   {}", running.token_path.display());

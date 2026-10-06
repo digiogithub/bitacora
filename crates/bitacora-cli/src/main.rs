@@ -39,7 +39,22 @@ impl Command {
     }
 }
 
+/// Installs the crash-report panic hook (BIT-US-0111); the report path is printed on panic.
+fn install_crash_hook() {
+    use bitacora_runtime::crash::{CrashConfig, GraphRoots, install_panic_hook};
+    let Some(data_dir) = bitacora_runtime::instance::default_dir() else {
+        return;
+    };
+    install_panic_hook(CrashConfig {
+        dir: data_dir.join("crashes"),
+        log_dir: None,
+        binary: "bitacora-cli".to_owned(),
+        graphs: GraphRoots::default(),
+    });
+}
+
 fn main() -> ExitCode {
+    install_crash_hook();
     let cli = Cli::parse();
     match cli.command {
         Command::Serve(args) => match cmd::serve::run(args) {

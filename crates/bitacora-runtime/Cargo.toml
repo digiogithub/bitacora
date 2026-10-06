@@ -19,10 +19,13 @@ bitacora-watch.workspace = true
 bitacora-sync.workspace = true
 bitacora-mcp.workspace = true
 thiserror.workspace = true
+serde.workspace = true
+jiff.workspace = true
+serde_json.workspace = true
+getrandom.workspace = true
+directories.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
-serde_json.workspace = true
-jiff.workspace = true
 bitacora-testkit.workspace = true
 tempfile.workspace = true

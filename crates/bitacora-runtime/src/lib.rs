@@ -17,7 +17,9 @@
 //!   status; the engine gets index-backed `locate_block` and journal-template hooks;
 //! * [`Session::shutdown`] stops everything in order within a time budget.
 
+pub mod crash;
 mod glue;
+pub mod instance;
 mod live;
 mod rename_lookup;
 mod restore;

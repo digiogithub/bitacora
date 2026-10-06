@@ -139,3 +139,20 @@ delete:
   asset_kept: "\"%{name}\" is still used by %{count} block(s); the file was kept"
   failed: "Cannot delete: %{error}"
   not_a_page: Open a page first
+crash:
+  notice: Bitacora closed unexpectedly last time
+  review: Review report
+  title: Crash report
+  explain: "Nothing was sent anywhere. Review the report below; opening an issue shows a prefilled form in your browser that you can edit before submitting. Esc dismisses."
+  open_issue: Open GitHub issue
+  copy: Copy report
+update:
+  check_updates: Check for updates...
+  up_to_date: Bitacora is up to date
+  check_failed: "Could not check for updates: %{error}"
+  available: "Bitacora %{version} is available"
+  download: Download
+  downloading: "Downloading Bitacora %{version} in the background"
+  ready: "Bitacora %{version} is ready to install"
+  restart: Restart now
+  apply_failed: "Could not apply the update: %{error}"

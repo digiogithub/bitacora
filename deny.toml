@@ -53,6 +53,7 @@ ignore = [
     { id = "RUSTSEC-2025-0134", reason = "rustls-pemfile unmaintained; transitive via gpui-kit" },
     { id = "RUSTSEC-2026-0206", reason = "rustybuzz unmaintained; transitive via gpui-pre" },
     { id = "RUSTSEC-2026-0192", reason = "ttf-parser unmaintained; transitive via gpui-pre" },
+    { id = "RUSTSEC-2024-0388", reason = "derivative unmaintained (proc-macro, no runtime code); transitive via velopack (ADR-018)" },
 ]
 
 [sources]

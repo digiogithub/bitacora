@@ -897,6 +897,7 @@ impl Workspace {
             }),
             PaletteCommand::ToggleTheme => theme::toggle(cx, Some(window)),
             PaletteCommand::Reindex => self.reindex(window, cx),
+            PaletteCommand::CheckForUpdates => crate::update::check_now(window.window_handle(), cx),
             PaletteCommand::DeletePage => {
                 let page = match self.main.read(cx).route() {
                     Some(Route::Page(name)) => Some(name.clone()),

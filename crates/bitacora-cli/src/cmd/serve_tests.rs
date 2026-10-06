@@ -269,3 +269,21 @@ fn permission_flags_default_off_and_enable_write_tools_and_api() {
     assert!(names.iter().any(|n| n == "rename_page"), "{names:?}");
     assert_ne!(api, 404);
 }
+
+#[test]
+fn serve_refuses_when_the_desktop_app_owns_the_instance() {
+    use bitacora_runtime::instance::{Acquire, InstanceKind, Primary};
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let app = match Primary::acquire(tmp.path(), InstanceKind::App, true).expect("app") {
+        Acquire::Primary(p) => p,
+        Acquire::Running(_) => panic!("fresh dir"),
+    };
+    let err = super::serve::acquire_instance(tmp.path()).expect_err("must refuse");
+    let msg = format!("{err:#}");
+    assert!(
+        msg.contains("desktop app") && msg.contains("MCP port"),
+        "{msg}"
+    );
+    drop(app);
+    assert!(super::serve::acquire_instance(tmp.path()).is_ok());
+}

@@ -101,11 +101,13 @@ pub enum PaletteCommand {
     SwitchGraph,
     /// Move the page on screen to `logseq/.recycle/` (asks first).
     DeletePage,
+    /// Check GitHub Releases for a newer version (BIT-US-0100).
+    CheckForUpdates,
 }
 
 impl PaletteCommand {
     /// Every command, in palette order.
-    pub const ALL: [Self; 10] = [
+    pub const ALL: [Self; 11] = [
         Self::GoJournals,
         Self::GoAllPages,
         Self::GoBack,
@@ -116,6 +118,7 @@ impl PaletteCommand {
         Self::Reindex,
         Self::DeletePage,
         Self::SwitchGraph,
+        Self::CheckForUpdates,
     ];
 
     /// The label shown (and matched against the query).
@@ -131,6 +134,7 @@ impl PaletteCommand {
             Self::Reindex => t!("palette.cmd_reindex"),
             Self::SwitchGraph => t!("palette.cmd_switch_graph"),
             Self::DeletePage => t!("palette.cmd_delete_page"),
+            Self::CheckForUpdates => t!("update.check_updates"),
         }
         .to_string()
     }
@@ -146,6 +150,7 @@ impl PaletteCommand {
             Self::Reindex => IconName::LoaderCircle,
             Self::SwitchGraph => IconName::Folder,
             Self::DeletePage => IconName::Close,
+            Self::CheckForUpdates => IconName::LoaderCircle,
         }
     }
 }
