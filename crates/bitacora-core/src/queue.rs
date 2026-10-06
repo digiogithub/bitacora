@@ -35,8 +35,9 @@ use uuid::Uuid;
 
 use crate::editor::TakeDisk;
 use crate::editor::{
-    BlockId, Cmd, CommitError, FileStore, FlushReport, Op, RenameError, RenameReport,
-    RenameRequest, Transaction, TxId, Workspace, WrittenFile,
+    BlockId, Cmd, CommitError, ConflictNotice, EditingConflict, ExternalEvent, ExternalOutcome,
+    FileStore, FlushReport, Op, RenameError, RenameReport, RenameRequest, Transaction, TxId,
+    Workspace, WrittenFile,
 };
 use crate::graph::PageKey;
 use crate::graph_path::GraphPath;
@@ -111,6 +112,17 @@ pub enum Request {
         /// Deleted files.
         paths: Vec<GraphPath>,
     },
+    /// The file of a loaded page changed on disk (BIT-US-0068, BIT-US-0069): a clean page is
+    /// reloaded keeping its block ids, a dirty one gets the external edits merged block by block
+    /// (3-way, base = the bytes last read or written). A real conflict keeps our content, stops
+    /// writes for the page and is announced with [`QueueEvent::PageConflicted`]; nothing is lost
+    /// and no conflict markers are written.
+    ExternalChange {
+        /// The loaded page.
+        key: PageKey,
+        /// The new file content.
+        bytes: Vec<u8>,
+    },
 }
 
 /// Successful result of a [`Request`].
@@ -128,6 +140,8 @@ pub enum Response {
     Resolved(FlushReport, Option<TakeDisk>),
     /// Pages dropped because their file was deleted externally.
     Removed(Vec<PageKey>),
+    /// What an [`Request::ExternalChange`] did.
+    External(ExternalOutcome),
 }
 
 /// Why a request failed.
@@ -148,6 +162,10 @@ pub enum QueueError {
     /// A page has unsaved edits, so it was not reloaded.
     #[error("page {0:?} has unsaved edits")]
     PageDirty(PageKey),
+    /// The page has an unresolved on-disk conflict: writes to it are refused until the user
+    /// chooses keep mine / take disk.
+    #[error("page {0:?} has an unresolved on-disk conflict")]
+    PageConflicted(PageKey),
     /// A file changed on disk since the caller read it; nothing was applied.
     #[error("`{0}` changed on disk since it was read")]
     Stale(String),
@@ -418,6 +436,13 @@ pub enum QueueEvent {
     Recreated(Vec<PageKey>),
     /// Pages removed because their file was deleted externally (remove from the index).
     PagesRemoved(Vec<PageKey>),
+    /// External edits were merged into a page with unsaved edits; it is written next.
+    PageMerged(PageKey),
+    /// Both sides changed the same thing: the page keeps our content, is not written, and the
+    /// notice carries the data for "keep mine / take disk / show diff" (BIT-US-0070).
+    PageConflicted(Arc<ConflictNotice>),
+    /// The block being edited in the UI ([`CommandQueue::set_editing_block`]) changed on disk.
+    EditingBlockChanged(EditingConflict),
 }
 
 /// Observer of [`QueueEvent`]s. Runs on the consumer thread: keep it quick.
@@ -558,6 +583,8 @@ enum Msg {
 struct Inner {
     audit: Mutex<VecDeque<AuditEntry>>,
     snapshots: SnapshotMap,
+    editing: Mutex<Option<BlockId>>,
+    conflicts: Mutex<HashMap<PageKey, Arc<ConflictNotice>>>,
 }
 
 /// Producer handle: cheap to clone, usable from any thread.
@@ -612,6 +639,8 @@ impl CommandQueue {
         let inner = Arc::new(Inner {
             audit: Mutex::new(VecDeque::new()),
             snapshots: Arc::new(RwLock::new(HashMap::new())),
+            editing: Mutex::new(None),
+            conflicts: Mutex::new(HashMap::new()),
         });
         let sched = config.debounce.map(WriteQueue::new);
         let worker = Worker {
@@ -728,6 +757,25 @@ impl CommandQueue {
             .keys()
             .cloned()
             .collect()
+    }
+
+    /// Tells the queue which block the UI is editing (`None` when no block has the caret). An
+    /// external change to its text is reported as [`QueueEvent::EditingBlockChanged`]; its id
+    /// stays valid across reloads.
+    pub fn set_editing_block(&self, id: Option<BlockId>) {
+        *lock(&self.inner.editing) = id;
+    }
+
+    /// The pending "page changed on disk" notice of `key`, if the page is conflicted.
+    #[must_use]
+    pub fn conflict(&self, key: &PageKey) -> Option<Arc<ConflictNotice>> {
+        lock(&self.inner.conflicts).get(key).cloned()
+    }
+
+    /// Notices of every conflicted page.
+    #[must_use]
+    pub fn conflicts(&self) -> Vec<Arc<ConflictNotice>> {
+        lock(&self.inner.conflicts).values().cloned().collect()
     }
 
     /// A copy of the audit ring (oldest first).
@@ -886,7 +934,47 @@ impl Worker {
         self.seq
     }
 
+    /// Announces what external changes applied since the last call did (also those applied
+    /// inside a flush), publishes the affected pages and refreshes the conflict notices.
+    fn drain_external(&mut self) {
+        let events = self.ws.take_external_events();
+        let mut keys = Vec::new();
+        for ev in events {
+            match ev {
+                ExternalEvent::Reloaded(k) => {
+                    keys.push(k.clone());
+                    self.emit(&QueueEvent::PageReloaded(k));
+                }
+                ExternalEvent::Merged(k) => {
+                    keys.push(k.clone());
+                    self.schedule(std::slice::from_ref(&k));
+                    self.emit(&QueueEvent::PageMerged(k));
+                }
+                ExternalEvent::Conflicted(n) => {
+                    if let Some(s) = self.sched.as_mut() {
+                        s.parked(&n.key);
+                    }
+                    self.emit(&QueueEvent::PageConflicted(n));
+                }
+                ExternalEvent::EditingBlockChanged(c) => {
+                    self.emit(&QueueEvent::EditingBlockChanged(c));
+                }
+            }
+        }
+        if !keys.is_empty() {
+            self.seq += 1;
+            self.publish(&keys);
+        }
+        let current: HashMap<PageKey, Arc<ConflictNotice>> = self
+            .ws
+            .pages()
+            .filter_map(|p| Some((p.key.clone(), Arc::clone(self.ws.conflict(&p.key)?))))
+            .collect();
+        *lock(&self.inner.conflicts) = current;
+    }
+
     fn after_flush(&mut self, report: &FlushReport) {
+        self.drain_external();
         let keys: Vec<PageKey> = report
             .written
             .iter()
@@ -960,11 +1048,17 @@ impl Worker {
         match req {
             Request::Run { label, cmd } => {
                 let tx = self.ws.run(label, &cmd)?;
-                self.committed(source, tx)
+                self.committed_checked(source, tx)
             }
             Request::Commit { label, ops } => {
                 let tx = self.ws.commit(label, ops)?;
-                self.committed(source, tx)
+                self.committed_checked(source, tx)
+            }
+            Request::ExternalChange { key, bytes } => {
+                self.ws.set_editing_block(*lock(&self.inner.editing));
+                let out = self.ws.apply_external(&key, &bytes);
+                self.drain_external();
+                Ok(Response::External(out))
             }
             Request::RenamePage(req) => {
                 let plan = self.ws.plan_rename(&*self.store, &req)?;
@@ -996,6 +1090,24 @@ impl Worker {
                     return Err(QueueError::PageDirty(key));
                 }
                 let replaced = self.ws.page(&key).is_some();
+                let same_place = self
+                    .ws
+                    .page(&key)
+                    .is_some_and(|p| p.title == title && p.path == path);
+                if same_place {
+                    // Keep the session block ids across the reload (BIT-US-0068).
+                    self.ws.set_editing_block(*lock(&self.inner.editing));
+                    let _ = self.ws.apply_external(&key, &bytes);
+                    self.ws.take_external_events().into_iter().for_each(|e| {
+                        if let ExternalEvent::EditingBlockChanged(c) = e {
+                            self.emit(&QueueEvent::EditingBlockChanged(c));
+                        }
+                    });
+                    self.seq += 1;
+                    self.publish(std::slice::from_ref(&key));
+                    self.emit(&QueueEvent::PageReloaded(key));
+                    return Ok(Response::Loaded);
+                }
                 self.ws.load_page(key.clone(), &title, path, &bytes);
                 self.seq += 1;
                 self.publish(std::slice::from_ref(&key));
@@ -1047,6 +1159,27 @@ impl Worker {
                 Ok(Response::Removed(gone))
             }
         }
+    }
+
+    /// [`Worker::committed`] after refusing MCP writes to a conflicted page (the transaction is
+    /// rolled back; BIT-SP-0005.R16).
+    fn committed_checked(
+        &mut self,
+        source: Source,
+        tx: Transaction,
+    ) -> Result<Response, QueueError> {
+        if source == Source::Mcp
+            && let Some(k) = tx
+                .pages
+                .iter()
+                .find(|k| self.ws.conflict(k).is_some())
+                .cloned()
+        {
+            // Roll the refused write back; a failing inverse leaves the page dirty, never lost.
+            let _ = self.ws.undo(&tx);
+            return Err(QueueError::PageConflicted(k));
+        }
+        self.committed(source, tx)
     }
 
     fn committed(&mut self, source: Source, tx: Transaction) -> Result<Response, QueueError> {
@@ -1134,8 +1267,10 @@ impl Worker {
                             .page(&k)
                             .map(|p| p.title.clone())
                             .unwrap_or_default();
-                        self.ws
-                            .load_page(k.clone(), &title, Some(path.clone()), content);
+                        if !self.ws.reload_keeping_ids(&k, content) {
+                            self.ws
+                                .load_page(k.clone(), &title, Some(path.clone()), content);
+                        }
                         touched.push((k, true));
                     }
                 }

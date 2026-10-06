@@ -19,6 +19,7 @@ use std::io;
 use std::time::SystemTime;
 
 use super::backup;
+use super::external::ExternalOutcome;
 use super::model::DiskSnapshot;
 use super::workspace::Workspace;
 use crate::graph::PageKey;
@@ -338,6 +339,11 @@ impl Workspace {
         let Some(path) = page.path.clone() else {
             return;
         };
+        if self.conflicted.contains_key(key) {
+            // Parked until the user resolves the notice (BIT-US-0070).
+            report.conflicts.push(key.clone());
+            return;
+        }
         let (old_path, base) = (page.disk_path.clone(), page.disk.clone());
         let ser = page.serialize_checked();
         if !ser.ok {
@@ -366,6 +372,17 @@ impl Workspace {
         };
         let current: Option<Vec<u8>> = match on_disk {
             DiskState::Changed => {
+                // The file moved on since we read it: merge the external edits into the page
+                // (BIT-US-0069); a real conflict leaves the page parked, nothing is written.
+                if let Ok(Some(cur)) = store.read(check_path)
+                    && matches!(
+                        self.apply_external(key, &cur),
+                        ExternalOutcome::Merged { .. }
+                    )
+                {
+                    self.flush_page(key, store, report, now);
+                    return;
+                }
                 report.conflicts.push(key.clone());
                 return;
             }
@@ -459,6 +476,10 @@ impl Workspace {
         now: SystemTime,
     ) -> FlushReport {
         let mut report = FlushReport::default();
+        if self.page(key).is_none() {
+            return report;
+        }
+        self.conflicted.remove(key);
         let Some(page) = self.page(key) else {
             return report;
         };
@@ -523,7 +544,9 @@ impl Workspace {
         match store.read(&path) {
             Ok(Some(bytes)) => {
                 let stat = store.stat(&path).ok().flatten();
-                self.load_page(key.clone(), &title, Some(path), &bytes);
+                if !self.reload_keeping_ids(key, &bytes) {
+                    self.load_page(key.clone(), &title, Some(path), &bytes);
+                }
                 if let Some(p) = self.pages_mut().get_mut(key) {
                     p.set_disk_stat(stat);
                 }
