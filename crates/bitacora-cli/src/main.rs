@@ -25,6 +25,8 @@ enum Command {
     Sync(cmd::sync::SyncArgs),
     /// Diagnose the environment and the graph.
     Doctor(cmd::doctor::DoctorArgs),
+    /// Replace this binary with the newest GitHub release (checksum-verified).
+    SelfUpdate(cmd::self_update::SelfUpdateArgs),
 }
 
 impl Command {
@@ -35,6 +37,7 @@ impl Command {
             Command::Reindex(_) => "reindex",
             Command::Sync(_) => "sync",
             Command::Doctor(_) => "doctor",
+            Command::SelfUpdate(_) => "self-update",
         }
     }
 }
@@ -87,6 +90,16 @@ fn main() -> ExitCode {
                 }
             }
         }
+        Command::SelfUpdate(args) => match cmd::self_update::run(&args) {
+            Ok(o) => {
+                cmd::self_update::print(&o);
+                ExitCode::SUCCESS
+            }
+            Err(e) => {
+                eprintln!("bitacora-cli self-update: {e:#}");
+                ExitCode::FAILURE
+            }
+        },
         Command::Doctor(args) => match cmd::doctor::run(&args) {
             Ok(report) => match cmd::doctor::print(&report, args.graph.json) {
                 Ok(()) if report.healthy() => ExitCode::SUCCESS,

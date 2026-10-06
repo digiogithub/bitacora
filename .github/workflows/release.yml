@@ -1,0 +1,196 @@
+name: release
+
+# Tag-driven release (BIT-US-0097). Pushing `vX.Y.Z` (or `vX.Y.Z-beta.N` / `-rc.N`) builds the
+# desktop bundles, the `bitacora-cli` archives and the Flatpak, writes SHA256SUMS and release notes
+# and creates a DRAFT GitHub Release. A maintainer reviews and publishes it by hand.
+# Pre-release tags are marked as pre-releases (the beta update channel).
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  meta:
+    name: validate tag
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+      channel: ${{ steps.check.outputs.channel }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.98.1
+      - id: check
+        name: Tag must equal the workspace version
+        run: cargo xtask release-check "$GITHUB_REF_NAME" | tee -a "$GITHUB_OUTPUT"
+
+  bundles:
+    needs: meta
+    uses: ./.github/workflows/bundle.yml
+    secrets: inherit
+
+  flatpak:
+    needs: meta
+    uses: ./.github/workflows/flatpak.yml
+
+  cli:
+    name: cli (${{ matrix.target }})
+    needs: meta
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04, target: x86_64-unknown-linux-gnu, ext: tar.gz }
+          - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu, ext: tar.gz }
+          - { os: macos-latest, target: aarch64-apple-darwin, ext: tar.gz }
+          - { os: macos-latest, target: x86_64-apple-darwin, ext: tar.gz }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc, ext: zip }
+    env:
+      VERSION: ${{ needs.meta.outputs.version }}
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TRUSTED_SIGNING_ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.98.1
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: cli-${{ matrix.target }}
+
+      - name: Build bitacora-cli
+        run: cargo build --release --locked -p bitacora-cli --target ${{ matrix.target }}
+
+      # The headless binary must not link GPU/windowing libraries (BIT-US-0110).
+      - name: Check shared-library dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          ldd "target/${{ matrix.target }}/release/bitacora-cli" | tee ldd.txt
+          if grep -Ei 'libX11|libxcb|libxkbcommon|libwayland|libvulkan|libfontconfig|libGL|libasound' ldd.txt; then
+            echo "::error::bitacora-cli links GUI/GPU libraries"; exit 1
+          fi
+
+      - name: Sign and notarize (macOS, optional)
+        if: runner.os == 'macOS' && env.APPLE_CERTIFICATE != '' && env.APPLE_SIGNING_IDENTITY != ''
+        run: |
+          echo "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p ci "$RUNNER_TEMP/ci.keychain"
+          security default-keychain -s "$RUNNER_TEMP/ci.keychain"
+          security unlock-keychain -p ci "$RUNNER_TEMP/ci.keychain"
+          security import "$RUNNER_TEMP/cert.p12" -k "$RUNNER_TEMP/ci.keychain" \
+            -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k ci "$RUNNER_TEMP/ci.keychain"
+          bin="target/${{ matrix.target }}/release/bitacora-cli"
+          codesign --force --options runtime --timestamp --sign "$APPLE_SIGNING_IDENTITY" "$bin"
+          codesign --verify --strict --verbose=2 "$bin"
+          if [ -n "$APPLE_ID" ] && [ -n "$APPLE_PASSWORD" ] && [ -n "$APPLE_TEAM_ID" ]; then
+            ditto -c -k "$bin" "$RUNNER_TEMP/notarize.zip"
+            xcrun notarytool submit "$RUNNER_TEMP/notarize.zip" \
+              --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait
+          fi
+
+      - name: Sign (Windows, Azure Trusted Signing, optional)
+        if: runner.os == 'Windows' && env.AZURE_CLIENT_ID != '' && env.AZURE_TRUSTED_SIGNING_ENDPOINT != ''
+        uses: azure/trusted-signing-action@v0.5.1
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+          trusted-signing-account-name: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ secrets.AZURE_TRUSTED_SIGNING_PROFILE }}
+          files-folder: target/${{ matrix.target }}/release
+          files-folder-filter: bitacora-cli.exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
+      - name: Archive
+        shell: bash
+        run: |
+          name="bitacora-cli-${VERSION}-${{ matrix.target }}"
+          mkdir -p "dist/$name"
+          exe=bitacora-cli
+          if [ "${{ runner.os }}" = "Windows" ]; then exe=bitacora-cli.exe; fi
+          cp "target/${{ matrix.target }}/release/$exe" "dist/$name/"
+          cp LICENSE "dist/$name/"
+          cd dist
+          if [ "${{ matrix.ext }}" = "zip" ]; then
+            7z a -tzip "$name.zip" "$name" >/dev/null
+          else
+            tar -czf "$name.tar.gz" "$name"
+          fi
+          rm -rf "$name"
+          ls -l
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cli-${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: draft release
+    needs: [meta, bundles, flatpak, cli]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    env:
+      VERSION: ${{ needs.meta.outputs.version }}
+      CHANNEL: ${{ needs.meta.outputs.channel }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # release notes need the previous tag
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.98.1
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Collect release assets
+        run: |
+          mkdir -p release
+          find artifacts -type f -exec cp {} release/ \;
+          cp packaging/install/install.sh packaging/install/install.ps1 release/
+          cargo xtask sha256sums release
+          cat release/SHA256SUMS
+
+      - name: Release notes from conventional commits
+        run: cargo xtask release-notes "$VERSION" --to "$GITHUB_REF_NAME" > RELEASE_NOTES.md
+
+      - name: Build provenance attestations
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            release/*
+            !release/SHA256SUMS
+
+      - name: Create the draft release
+        run: |
+          flags=(--draft --title "Bitacora $VERSION" --notes-file RELEASE_NOTES.md --verify-tag)
+          if [ "$CHANNEL" = "beta" ]; then flags+=(--prerelease); fi
+          gh release create "$GITHUB_REF_NAME" release/* "${flags[@]}"

@@ -1,0 +1,60 @@
+# Flatpak manifest for Bitacora (BIT-US-0112).
+#
+# Build locally (from the repository root):
+#   python3 flatpak-cargo-generator.py Cargo.lock -o packaging/flatpak/cargo-sources.json
+#   flatpak-builder --user --install --force-clean build-dir packaging/flatpak/es.digio.bitacora.yml
+# `cargo-sources.json` (every crate, pinned by checksum) is generated, not committed; the
+# `flatpak` workflow produces it with flatpak-builder-tools' flatpak-cargo-generator.py.
+# For Flathub, replace the `dir` source below by the tagged git source (see docs/design/release-process.md).
+app-id: es.digio.bitacora
+runtime: org.freedesktop.Platform
+runtime-version: "24.08"
+sdk: org.freedesktop.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+  - org.freedesktop.Sdk.Extension.llvm19
+command: bitacora
+
+finish-args:
+  # Wayland first, X11 as fallback; GPU access for the Vulkan renderer.
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --share=ipc
+  - --device=dri
+  # Git sync over HTTPS/SSH and the MCP endpoint on 127.0.0.1 (host MCP clients reach it
+  # because the network namespace is shared).
+  - --share=network
+  - --socket=ssh-auth
+  # Credential storage (keyring) through the Secret Service portal/service.
+  - --talk-name=org.freedesktop.secrets
+  # Graph folders are normally granted through the file chooser portal; Documents is the common
+  # default location for a Logseq graph and is granted for convenience.
+  - --filesystem=xdg-documents
+
+build-options:
+  append-path: /usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm19/bin
+  env:
+    CARGO_HOME: /run/build/bitacora/cargo
+    CARGO_NET_OFFLINE: "true"
+
+modules:
+  - name: bitacora
+    buildsystem: simple
+    build-commands:
+      - cargo --offline fetch --locked
+      - cargo --offline build --release --locked -p bitacora-app
+      - install -Dm755 target/release/bitacora -t /app/bin
+      - install -Dm644 packaging/flatpak/es.digio.bitacora.desktop -t /app/share/applications
+      - install -Dm644 packaging/flatpak/es.digio.bitacora.metainfo.xml -t /app/share/metainfo
+      - install -Dm644 packaging/icons/bitacora.svg /app/share/icons/hicolor/scalable/apps/es.digio.bitacora.svg
+      - install -Dm644 packaging/icons/128x128.png /app/share/icons/hicolor/128x128/apps/es.digio.bitacora.png
+      - install -Dm644 packaging/icons/256x256.png /app/share/icons/hicolor/256x256/apps/es.digio.bitacora.png
+      - install -Dm644 packaging/icons/512x512.png /app/share/icons/hicolor/512x512/apps/es.digio.bitacora.png
+    sources:
+      - type: dir
+        path: ../..
+        skip:
+          - target
+          - .git
+          - .claude
+      - cargo-sources.json

@@ -827,11 +827,16 @@ dependencies = [
  "bitacora-sync",
  "bitacora-testkit",
  "clap",
+ "flate2",
  "rusqlite",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
+ "tar",
  "tempfile",
  "tokio",
+ "ureq",
+ "zip",
 ]
 
 [[package]]
@@ -9072,6 +9077,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "tar"
+version = "0.4.46"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3f6221d9a6003c78398e3b239969f352578258df48c8eb051caadae0015bc840"
+dependencies = [
+ "filetime",
+ "libc",
+]
+
+[[package]]
 name = "tauri-winrt-notification"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11257,6 +11272,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "cargo_metadata",
+ "serde_json",
  "sha2 0.10.9",
  "walkdir",
 ]
