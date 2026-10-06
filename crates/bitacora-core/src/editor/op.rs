@@ -150,6 +150,16 @@ pub enum Op {
         /// The removed page, filled by `apply`.
         captured: Option<Box<Page>>,
     },
+    /// Moves a non-page file (an asset) to `logseq/.recycle/` at the next flush.
+    DeleteAsset {
+        /// Graph-relative path of the file.
+        path: GraphPath,
+    },
+    /// Undo of [`Op::DeleteAsset`]: cancels the pending recycle, or moves the recycled copy back.
+    RestoreAsset {
+        /// Graph-relative path of the file.
+        path: GraphPath,
+    },
     /// Renames the file of a page (the title is unchanged).
     RenameFile {
         /// Page.
@@ -322,6 +332,22 @@ impl Op {
                 *captured = Some(Box::new(p));
                 Ok(())
             }
+            Self::DeleteAsset { path } => {
+                if ws.page_for_path(path).is_some() {
+                    return Err(OpError::Invalid("a page file is deleted with DeletePage"));
+                }
+                ws.unqueue_restore(path);
+                ws.queue_delete(path.clone(), None);
+                Ok(())
+            }
+            Self::RestoreAsset { path } => {
+                if ws.pending_deletes().contains_key(path) {
+                    ws.unqueue_delete(path);
+                } else {
+                    ws.queue_restore(path.clone());
+                }
+                Ok(())
+            }
             Self::RenameFile { page, from, to } => {
                 if ws.writable_page(page)?.path != *from {
                     return stale("path differs from `from`");
@@ -414,6 +440,8 @@ impl Op {
                     restored: Some(p.clone()),
                 }
             }
+            Self::DeleteAsset { path } => Self::RestoreAsset { path: path.clone() },
+            Self::RestoreAsset { path } => Self::DeleteAsset { path: path.clone() },
             Self::RenameFile { page, from, to } => Self::RenameFile {
                 page: page.clone(),
                 from: to.clone(),

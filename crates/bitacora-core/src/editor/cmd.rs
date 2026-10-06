@@ -2,13 +2,14 @@
 //! (`docs/design/block-editor.md` §3.2). This is the skeleton; further commands are added by the
 //! editing stories.
 
-use bitacora_markdown::edit::properties::set_property;
+use bitacora_markdown::edit::properties::{set_front_matter_property, set_property};
 use bitacora_markdown::edit::state::{CollapseMode, set_collapsed};
 
 use super::model::{BlockId, Position, Subtree};
 use super::op::Op;
 use super::workspace::Workspace;
 use crate::graph::PageKey;
+use crate::graph_path::GraphPath;
 
 /// Where [`Cmd::MoveBlocks`] puts the blocks relative to the target.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -88,6 +89,27 @@ pub enum Cmd {
         /// Value.
         value: String,
     },
+    /// Set a page property: `key:: value` in the un-bulleted pre-block (created when the page has
+    /// none), or `key: value` inside YAML front matter. Never creates front matter.
+    SetPageProperty {
+        /// Page.
+        page: PageKey,
+        /// Key.
+        key: String,
+        /// Value.
+        value: String,
+    },
+    /// Delete a page: its file is moved to `logseq/.recycle/` (BIT-US-0089).
+    DeletePage {
+        /// Page.
+        page: PageKey,
+    },
+    /// Delete an asset file (an image or attachment a block points to): moved to
+    /// `logseq/.recycle/`. The caller asks for confirmation first.
+    DeleteAsset {
+        /// Graph-relative path (`assets/x.png`).
+        path: GraphPath,
+    },
 }
 
 /// Why a command did nothing.
@@ -117,6 +139,9 @@ pub enum Refusal {
     /// The page is read-only.
     #[error("page is read-only")]
     ReadOnly,
+    /// The path belongs to a page; delete pages with `DeletePage`.
+    #[error("path is a page file, not an asset")]
+    NotAnAsset,
     /// A line of the text would re-parse as a new block (e.g. `x\n- y`), so it cannot live in one
     /// block. Logseq reads an indented `- ` line as a nested bullet too.
     #[error("text has a line that starts like a list item and cannot be stored in one block")]
@@ -191,12 +216,51 @@ pub fn plan(ws: &Workspace, cmd: &Cmd) -> Result<Vec<Op>, Refusal> {
             }
             Ok(ops)
         }
+        Cmd::SetPageProperty { page, key, value } => set_page_property(ws, page, key, value),
+        Cmd::DeletePage { page } => {
+            check_writable(ws, page)?;
+            Ok(vec![Op::DeletePage {
+                page: page.clone(),
+                captured: None,
+            }])
+        }
+        Cmd::DeleteAsset { path } => {
+            if ws.page_for_path(path).is_some() {
+                return Err(Refusal::NotAnAsset);
+            }
+            Ok(vec![Op::DeleteAsset { path: path.clone() }])
+        }
         Cmd::SetProperty { id, key, value } => {
             let b = ws.block(*id).ok_or(Refusal::UnknownBlock(*id))?;
             let new = set_property(&b.text, key, value);
             set_text(ws, *id, new).map(|o| vec![o])
         }
     }
+}
+
+fn set_page_property(
+    ws: &Workspace,
+    page: &PageKey,
+    key: &str,
+    value: &str,
+) -> Result<Vec<Op>, Refusal> {
+    check_writable(ws, page)?;
+    let p = ws.page(page).ok_or(Refusal::ReadOnly)?;
+    let before = p.preamble.clone();
+    let current = before.as_deref().filter(|t| !t.trim().is_empty());
+    let after = match current {
+        Some(t) if t.trim_start().starts_with("---") => set_front_matter_property(t, key, value),
+        Some(t) => set_property(t, key, value),
+        None => set_property("", key, value),
+    };
+    if before.as_deref() == Some(after.as_str()) {
+        return Err(Refusal::NoChange);
+    }
+    Ok(vec![Op::SetPreamble {
+        page: page.clone(),
+        before,
+        after: Some(after),
+    }])
 }
 
 fn check_text(text: &str) -> Result<(), Refusal> {

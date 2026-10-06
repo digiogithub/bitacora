@@ -23,6 +23,7 @@ use super::model::DiskSnapshot;
 use super::workspace::Workspace;
 use crate::graph::PageKey;
 use crate::graph_path::GraphPath;
+use crate::recycle::recycle_path;
 
 pub use super::fsio::FsStore;
 
@@ -62,6 +63,38 @@ pub trait FileStore {
     /// # Errors
     /// I/O errors other than "not found".
     fn remove(&mut self, path: &GraphPath) -> io::Result<()>;
+    /// Moves a file to `logseq/.recycle/` (Logseq-compatible name, an existing entry is
+    /// overwritten) instead of erasing it. Returns the recycle path, `None` when the file does
+    /// not exist. The default copies then removes; real stores rename.
+    ///
+    /// # Errors
+    /// I/O errors other than "not found".
+    fn recycle(&mut self, path: &GraphPath) -> io::Result<Option<GraphPath>> {
+        let Some(bytes) = self.read(path)? else {
+            return Ok(None);
+        };
+        let dest = recycle_path(path);
+        self.write(&dest, &bytes)?;
+        self.remove(path)?;
+        Ok(Some(dest))
+    }
+    /// Undo of [`FileStore::recycle`]: moves the recycled copy of `path` back. Returns `false`
+    /// (and changes nothing) when there is no recycled copy or `path` exists again.
+    ///
+    /// # Errors
+    /// I/O errors other than "not found".
+    fn unrecycle(&mut self, path: &GraphPath) -> io::Result<bool> {
+        if self.read(path)?.is_some() {
+            return Ok(false);
+        }
+        let src = recycle_path(path);
+        let Some(bytes) = self.read(&src)? else {
+            return Ok(false);
+        };
+        self.write(path, &bytes)?;
+        self.remove(&src)?;
+        Ok(true)
+    }
     /// File names (not paths) directly inside `dir`; empty when it does not exist.
     ///
     /// # Errors
@@ -124,8 +157,10 @@ pub struct WrittenFile {
 pub struct FlushReport {
     /// Files written.
     pub written: Vec<WrittenFile>,
-    /// Files removed.
+    /// Files removed from their place (moved to `logseq/.recycle/`, see `recycled`).
     pub deleted: Vec<GraphPath>,
+    /// `(original, recycle path)` of every file moved to `logseq/.recycle/`.
+    pub recycled: Vec<(GraphPath, GraphPath)>,
     /// Pages left dirty because their file changed on disk since we read it (never overwritten).
     pub conflicts: Vec<PageKey>,
     /// Pages left dirty because of I/O or self-check errors (page, message).
@@ -191,6 +226,16 @@ impl Workspace {
         only: Option<&[PageKey]>,
     ) -> FlushReport {
         let mut report = FlushReport::default();
+        let restores: Vec<_> = self.pending_restores().iter().cloned().collect();
+        for path in restores {
+            match store.unrecycle(&path) {
+                Ok(_) => self.finish_restore(&path),
+                Err(e) => {
+                    let k = PageKey::from_title(path.as_str());
+                    fail(&mut report, &k, &path, e.to_string());
+                }
+            }
+        }
         let deletes: Vec<_> = self
             .pending_deletes()
             .iter()
@@ -200,9 +245,11 @@ impl Workspace {
             match store.read(&path) {
                 Ok(None) => self.finish_delete(&path),
                 Ok(Some(cur)) if expected.as_deref().is_none_or(|e| e == cur.as_slice()) => {
-                    match store.remove(&path) {
-                        Ok(()) => {
+                    // Deleted files are recycled, never erased (BIT-US-0089).
+                    match store.recycle(&path) {
+                        Ok(dest) => {
                             self.finish_delete(&path);
+                            report.recycled.extend(dest.map(|d| (path.clone(), d)));
                             report.deleted.push(path);
                         }
                         Err(e) => {
@@ -460,6 +507,7 @@ impl Workspace {
 fn merge_reports(into: &mut FlushReport, from: FlushReport) {
     into.written.extend(from.written);
     into.deleted.extend(from.deleted);
+    into.recycled.extend(from.recycled);
     into.conflicts.extend(from.conflicts);
     into.failed.extend(from.failed);
     into.unwritten.extend(from.unwritten);

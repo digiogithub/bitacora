@@ -25,6 +25,8 @@ const FORBIDDEN: &[&str] = &[
 /// (crate, path relative to the crate's `src`) pairs that may mutate the file system.
 const ALLOWED: &[(&str, &str)] = &[
     ("bitacora-core", "editor/fsio.rs"),
+    // Creates the skeleton of a brand-new graph, only inside an empty folder (BIT-US-0099).
+    ("bitacora-core", "new_graph.rs"),
     // `reindex --force` deletes the SQLite cache files, never graph files.
     ("bitacora-cli", "cmd/reindex.rs"),
     // Test-only: copies a fixture graph into a temp dir.

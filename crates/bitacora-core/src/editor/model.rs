@@ -247,9 +247,23 @@ pub struct Page {
     pub dirty: bool,
     /// Never written by Bitacora (`.org`).
     pub read_only: bool,
+    /// Lazy-creation state (BIT-US-0028): why a never-written page may stay without a file.
+    pub lazy: LazyCreation,
     pre_origin: Option<(Node, u64, u64)>,
     base: Document,
     generation: u64,
+}
+
+/// What a page that was never written may hold without getting a file. Both parts only matter
+/// while the page has no [`Page::disk`] snapshot.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct LazyCreation {
+    /// Pre-block text added automatically at creation (legacy `title::`); it does not count as
+    /// content.
+    pub auto_preamble: Option<String>,
+    /// Serialized template content of a freshly created journal; a page that still serializes to
+    /// exactly this (modulo surrounding whitespace) is pristine and is not written.
+    pub pristine: Option<String>,
 }
 
 impl Page {
@@ -267,6 +281,7 @@ impl Page {
             disk: None,
             dirty: false,
             read_only: false,
+            lazy: LazyCreation::default(),
             pre_origin: None,
             base: Document::parse(Vec::new()),
             generation: 0,
@@ -521,10 +536,45 @@ impl Page {
         }
     }
 
-    /// True when the page has to be written (content changed or file renamed).
+    /// True when the page has to be written (content changed or file renamed). A page that was
+    /// never written and holds no real content ([`Page::is_virtual`]) is not.
     #[must_use]
     pub fn needs_write(&self) -> bool {
-        !self.read_only && (self.dirty || (self.path.is_some() && self.path != self.disk_path))
+        !self.read_only
+            && ((self.dirty && !self.is_virtual())
+                || (self.path.is_some() && self.path != self.disk_path && self.disk.is_some()))
+    }
+
+    /// True when every block is blank and the preamble is empty or the automatic one.
+    #[must_use]
+    pub fn is_blank(&self) -> bool {
+        let pre_blank = self.preamble.as_ref().is_none_or(|p| {
+            p.trim().is_empty() || self.lazy.auto_preamble.as_ref().is_some_and(|a| a == p)
+        });
+        pre_blank && self.blocks.values().all(|b| b.text.trim().is_empty())
+    }
+
+    /// A page without a file that still has no real content: it is only in memory (and in the
+    /// index) and must not be written. Once written the page is never virtual again, even if it
+    /// is emptied.
+    #[must_use]
+    pub fn is_virtual(&self) -> bool {
+        if self.disk.is_some() {
+            return false;
+        }
+        if self.is_blank() {
+            return true;
+        }
+        self.lazy
+            .pristine
+            .as_ref()
+            .is_some_and(|t| String::from_utf8_lossy(&self.serialize()).trim() == t.trim())
+    }
+
+    /// Records the current content as the pristine (template) state of a journal.
+    pub fn set_pristine_from_content(&mut self) {
+        let bytes = self.serialize();
+        self.lazy.pristine = Some(String::from_utf8_lossy(&bytes).into_owned());
     }
 
     /// Records that `bytes` (the output of [`Page::serialize`]) are now on disk: replaces the merge
