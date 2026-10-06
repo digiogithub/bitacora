@@ -389,6 +389,10 @@ buffer, marks the block "conflicted", and offers a choice when the edit is commi
 - Autopair: `[] {} () `` ~~ ** __ ^^ == ++` with Logseq's rules (`editor.cljs:1565-1616`, `:2849-2948`), including
   "typing the closing char skips over it" and "Backspace deletes the pair".
 
+> Spike result (ADR-002): the custom element, cross-block keyboard model and unfocused click-to-caret mapping described
+> above were prototyped in `crates/bitacora-app/src/spike/block_editor/`; findings, performance numbers and the manual
+> IME checklist ([[ime-test-checklist]]) are in [[block-editor-spike-report]].
+
 ### 7.3 Modes and key contexts
 
 GPUI key contexts mirror Logseq's shortcut handler groups:
