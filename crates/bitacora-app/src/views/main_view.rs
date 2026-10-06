@@ -219,6 +219,8 @@ impl MainView {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        self.journals
+            .update(cx, |j, cx| j.set_session_link(Some(link.clone()), cx));
         self.page
             .update(cx, |p, cx| p.set_session_link(Some(link), window, cx));
     }
@@ -231,6 +233,8 @@ impl MainView {
     ) {
         self.page
             .update(cx, |p, cx| p.on_editing_conflict(conflict, cx));
+        self.journals
+            .update(cx, |j, cx| j.on_editing_conflict(conflict, cx));
     }
 
     /// Reloads what is shown (the startup index reconcile finished).

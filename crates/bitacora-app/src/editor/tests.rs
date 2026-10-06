@@ -112,6 +112,18 @@ fn open_page<'a>(
     &'a mut VisualTestContext,
 ) {
     setup(cx);
+    open_page_without_setup(cx, env, page)
+}
+
+fn open_page_without_setup<'a>(
+    cx: &'a mut TestAppContext,
+    env: &Env,
+    page: &str,
+) -> (
+    Entity<PageView>,
+    Entity<OutlineEditor>,
+    &'a mut VisualTestContext,
+) {
     let (view, cx) = cx.add_window_view(|_, cx| PageView::new(cx));
     cx.simulate_resize(size(px(900.), px(700.)));
     let link = env.link.clone();
@@ -869,4 +881,180 @@ fn page_load_never_rewrites_untouched_blocks(cx: &mut TestAppContext) {
         env.disk(HOME),
         "- keep   \n  Keep:: Me\n\t- sub  \n- edit me!\n- last\n"
     );
+}
+
+#[gpui_test]
+fn row_callbacks_zoom_fold_and_toggle_done(cx: &mut TestAppContext) {
+    let env = Env::new(&[(HOME, "- a\n\t- a1\n- b\n")]);
+    let (view, ed, cx) = open_page(cx, &env, "Home");
+    let hooks = |cx: &mut VisualTestContext, row: usize| {
+        cx.update(|_, cx| OutlineEditor::row_edit(&ed, row, cx))
+            .expect("hooks")
+    };
+    // Bullet: zoom into the block.
+    let h = hooks(cx, 2);
+    cx.update(|window, cx| (h.on_bullet)(window, cx));
+    let b = ids(&ed, cx)[0];
+    assert_eq!(ed.read_with(cx, |e, _| e.zoom_root()), Some(b));
+    assert_eq!(view.read_with(cx, |v, _| v.rows().len()), 1);
+    ed.update(cx, |e, cx| e.zoom_to(None, cx));
+    // Arrow: fold the block (persisted).
+    let h = hooks(cx, 0);
+    cx.update(|window, cx| (h.on_toggle)(window, cx));
+    assert_eq!(env.disk(HOME), "- a\n  collapsed:: true\n\t- a1\n- b\n");
+    // Checkbox: toggle done.
+    let h = hooks(cx, 2);
+    cx.update(|window, cx| (h.on_checkbox)(window, cx));
+    assert_eq!(env.snapshot_texts("Home")[2].1, "DONE b");
+    // Text click: edit at the offset.
+    let h = hooks(cx, 0);
+    cx.update(|window, cx| (h.on_text)(1, false, window, cx));
+    assert_eq!(editing_row(&ed, cx), Some(0));
+}
+
+#[gpui_test]
+fn journal_days_are_editable_in_the_feed(cx: &mut TestAppContext) {
+    use crate::views::journals::JournalsView;
+    use bitacora_core::date::Date;
+    let env = Env::new(&[
+        ("journals/2025_03_09.md", "- standup notes\n"),
+        ("journals/2025_03_08.md", "- yesterday\n"),
+    ]);
+    setup(cx);
+    let day = Date::new(2025, 3, 9).expect("date");
+    let (feed, cx) =
+        cx.add_window_view(|_, _| JournalsView::with_clock(std::rc::Rc::new(move || Some(day))));
+    cx.simulate_resize(size(px(900.), px(700.)));
+    let link = env.link.clone();
+    feed.update(cx, |v, cx| v.set_session_link(Some(link), cx));
+    let handle = env.handle.clone();
+    feed.update(cx, |v, cx| v.show(handle, None, cx));
+    cx.executor().allow_parking();
+    let today = day.journal_day();
+    for _ in 0..400 {
+        cx.run_until_parked();
+        if feed.read_with(cx, |v, _| v.editor_for(today).is_some()) {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    let ed = feed
+        .read_with(cx, |v, _| v.editor_for(today).cloned())
+        .expect("today is editable");
+    edit(&ed, 0, Caret::End, cx);
+    cx.simulate_input("!");
+    cx.simulate_keystrokes("enter");
+    cx.simulate_input("second");
+    flush(&ed, cx);
+    assert_eq!(
+        env.disk("journals/2025_03_09.md"),
+        "- standup notes!\n- second\n"
+    );
+    // The other day is untouched.
+    assert_eq!(env.disk("journals/2025_03_08.md"), "- yesterday\n");
+}
+
+#[gpui_test]
+fn every_default_binding_is_valid_and_user_overrides_are_validated(cx: &mut TestAppContext) {
+    cx.update(|cx| {
+        crate::ui::init(cx);
+        let report = crate::keymap::load_checked(cx, crate::keymap::DEFAULT_KEYMAP).expect("parse");
+        assert!(report.problems.is_empty(), "{:?}", report.problems);
+        assert!(report.bound > 80, "bound {}", report.bound);
+    });
+    // The editor sections cover the four contexts.
+    let sections = crate::keymap::parse(crate::keymap::DEFAULT_KEYMAP).expect("parse");
+    for ctx in ["Outliner", "BlockSelection", "BlockEditor", "Autocomplete"] {
+        assert!(
+            sections
+                .iter()
+                .any(|s| s.context.as_deref().is_some_and(|c| c.starts_with(ctx))),
+            "no section for {ctx}"
+        );
+    }
+    // A user keymap rebinds Mod+Enter and its bad entries are reported and ignored.
+    let env = Env::new(&[(HOME, "- a\n")]);
+    let user = r#"[{"context": "BlockEditor", "bindings": {
+        "ctrl-enter": "outliner::InsertNewline",
+        "ctrl-j": "outliner::NoSuchAction"}},
+        {"context": "((", "bindings": {"ctrl-k": "outliner::Undo"}}]"#;
+    let report = cx.update(|cx| {
+        crate::ui::init(cx);
+        theme::install(cx, AppSettings::default(), None);
+        crate::keymap::load_with_user_report(cx, Some(user)).expect("report")
+    });
+    assert_eq!(report.problems.len(), 2, "{:?}", report.problems);
+    let (_view, ed, cx) = open_page_without_setup(cx, &env, "Home");
+    edit(&ed, 0, Caret::End, cx);
+    cx.simulate_keystrokes("ctrl-enter");
+    assert_eq!(
+        buffer(&ed, cx).as_deref(),
+        Some("a\n"),
+        "the user binding applies"
+    );
+    // Malformed JSON is an error that the app reports and ignores.
+    cx.update(|_, cx| {
+        let report = crate::keymap::load_with_user_report(cx, Some("{")).expect("report");
+        assert_eq!(report.problems.len(), 1);
+    });
+}
+
+#[gpui_test]
+fn text_keys_inside_the_edited_block(cx: &mut TestAppContext) {
+    let env = Env::new(&[(HOME, "- alpha beta gamma\n- next\n")]);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    edit(&ed, 0, Caret::End, cx);
+    // Word motion, word selection and word deletion.
+    cx.simulate_keystrokes("ctrl-left");
+    assert_eq!(ed.read_with(cx, |e, _| e.cursor_offset()), 11);
+    cx.simulate_keystrokes("ctrl-shift-left");
+    assert_eq!(ed.read_with(cx, |e, _| e.selection_range()), 6..11);
+    cx.simulate_keystrokes("ctrl-right");
+    assert_eq!(ed.read_with(cx, |e, _| e.cursor_offset()), 10);
+    cx.simulate_keystrokes("ctrl-backspace");
+    assert_eq!(buffer(&ed, cx).as_deref(), Some("alpha  gamma"));
+    cx.simulate_keystrokes("home ctrl-delete");
+    assert_eq!(buffer(&ed, cx).as_deref(), Some("  gamma"));
+    // Select all text, copy, cut, paste and raw paste.
+    cx.simulate_keystrokes("ctrl-a ctrl-c");
+    assert_eq!(
+        cx.read_from_clipboard().and_then(|c| c.text()),
+        Some("  gamma".to_owned())
+    );
+    cx.simulate_keystrokes("ctrl-x");
+    assert_eq!(buffer(&ed, cx).as_deref(), Some(""));
+    cx.simulate_keystrokes("ctrl-v ctrl-shift-v");
+    assert_eq!(buffer(&ed, cx).as_deref(), Some("  gamma  gamma"));
+    // Shift+Home/End and Shift+Up/Down select inside and across the block edge.
+    cx.simulate_keystrokes("home shift-end");
+    assert_eq!(ed.read_with(cx, |e, _| e.selection_range()), 0..14);
+    cx.simulate_keystrokes("right shift-left shift-left");
+    assert_eq!(ed.read_with(cx, |e, _| e.selection_range()), 12..14);
+    cx.simulate_keystrokes("shift-up");
+    assert_eq!(ed.read_with(cx, |e, _| e.selection_range()), 0..14);
+    cx.simulate_keystrokes("end shift-down");
+    assert_eq!(ed.read_with(cx, |e, _| e.selection_range()), 14..14);
+}
+
+#[gpui_test]
+fn alt_arrows_zoom_and_ctrl_semicolon_toggles_all(cx: &mut TestAppContext) {
+    let env = Env::new(&[(HOME, "- p\n\t- c\n\t\t- g\n- q\n\t- q1\n")]);
+    let (view, ed, cx) = open_page(cx, &env, "Home");
+    edit(&ed, 1, Caret::End, cx);
+    cx.simulate_keystrokes("alt-right");
+    assert_eq!(view.read_with(cx, |v, _| v.rows().len()), 2);
+    cx.simulate_keystrokes("alt-left");
+    assert_eq!(
+        view.read_with(cx, |v, _| v.rows().len()),
+        3,
+        "zoomed out to the parent"
+    );
+    cx.simulate_keystrokes("alt-left");
+    assert_eq!(view.read_with(cx, |v, _| v.rows().len()), 5);
+    edit(&ed, 0, Caret::End, cx);
+    cx.simulate_keystrokes("ctrl-;");
+    assert_eq!(view.read_with(cx, |v, _| v.visible_count()), 2);
+    cx.simulate_keystrokes("ctrl-;");
+    assert_eq!(view.read_with(cx, |v, _| v.visible_count()), 5);
+    assert_eq!(env.disk(HOME), "- p\n\t- c\n\t\t- g\n- q\n\t- q1\n");
 }

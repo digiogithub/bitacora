@@ -13,15 +13,17 @@ use bitacora_index::IndexEvent;
 use rust_i18n::t;
 
 use crate::data::{self, GraphHandle, JournalDay};
+use crate::editor::{self, EditorEvent, OutlineEditor};
 use crate::nav::OpenIn;
 use crate::nav::Scroll;
 use crate::render::inline::NavTarget;
 use crate::render::model::{Row, toggle_row, visible_rows};
+use crate::session::SessionLink;
 use crate::ui::text_edit::{FontWeight, ListAlignment, ListOffset, ListState, list};
 use crate::ui::{
-    ActiveTheme as _, AnyElement, App, Context, EventEmitter, InteractiveElement as _, IntoElement,
-    ParentElement as _, Render, StatefulInteractiveElement as _, Styled as _, Task, Window, div,
-    h_flex, px, v_flex,
+    ActiveTheme as _, AnyElement, App, AppContext as _, Context, EventEmitter,
+    InteractiveElement as _, IntoElement, ParentElement as _, Render,
+    StatefulInteractiveElement as _, Styled as _, Task, Window, div, h_flex, px, v_flex,
 };
 use crate::views::block_view::{Nav, RowActions, render_block_row};
 use crate::views::page_view::PageEvent;
@@ -80,6 +82,11 @@ pub struct JournalsView {
     clock_task: Option<Task<()>>,
     refresh_task: Option<Task<()>>,
     day_tasks: Vec<Task<()>>,
+    /// Live session: the days become editable (BIT-US-0030).
+    link: Option<SessionLink>,
+    /// One editor per day (keyed by `yyyyMMdd`), created when the day is drawn.
+    editors: std::collections::HashMap<u32, crate::ui::Entity<OutlineEditor>>,
+    editor_subs: Vec<crate::ui::Subscription>,
 }
 
 impl std::fmt::Debug for JournalsView {
@@ -116,6 +123,83 @@ impl JournalsView {
             clock_task: None,
             refresh_task: None,
             day_tasks: Vec::new(),
+            link: None,
+            editors: std::collections::HashMap::new(),
+            editor_subs: Vec::new(),
+        }
+    }
+
+    /// Connects the feed to the live session: days drawn from now on are editable.
+    pub fn set_session_link(&mut self, link: Option<SessionLink>, cx: &mut Context<Self>) {
+        self.editors.clear();
+        self.editor_subs.clear();
+        self.link = link;
+        if self.handle.is_some() {
+            self.list_state.reset(self.entries.len());
+        }
+        cx.notify();
+    }
+
+    /// The editor of day `day` (`yyyyMMdd`), if it was created.
+    pub fn editor_for(&self, day: u32) -> Option<&crate::ui::Entity<OutlineEditor>> {
+        self.editors.get(&day)
+    }
+
+    /// The block being edited changed on disk: every day editor looks at it.
+    pub fn on_editing_conflict(
+        &mut self,
+        conflict: &bitacora_core::editor::EditingConflict,
+        cx: &mut Context<Self>,
+    ) {
+        for ed in self.editors.values() {
+            let (block, mine, disk) =
+                (conflict.block, conflict.mine.clone(), conflict.disk.clone());
+            ed.update(cx, |e, cx| e.on_editing_conflict(block, mine, disk, cx));
+        }
+    }
+
+    /// Creates (once) the editor of entry `ix` when its page exists in core.
+    fn ensure_editor(&mut self, ix: usize, window: &mut Window, cx: &mut Context<Self>) {
+        let (Some(link), Some(handle)) = (self.link.clone(), self.handle.clone()) else {
+            return;
+        };
+        let Some(entry) = self.entries.get(ix) else {
+            return;
+        };
+        let day = entry.day.day;
+        if self.editors.contains_key(&day) || entry.state != DayState::Loaded {
+            return;
+        }
+        let Some(key) = editor::ensure_loaded(&link.queue, &handle, &entry.day.title) else {
+            return;
+        };
+        let hidden =
+            bitacora_core::editor::HiddenKeys::with_extra(link.config.block_hidden_properties());
+        let queue = link.queue.clone();
+        let ed = cx.new(|cx| OutlineEditor::new(queue, hidden, true, window, cx));
+        ed.update(cx, |e, cx| {
+            e.set_handle(handle);
+            e.set_page(key, cx);
+        });
+        self.editor_subs
+            .push(cx.subscribe(&ed, move |view, _, event, cx| {
+                view.on_day_editor_event(day, event, cx);
+            }));
+        self.editor_subs
+            .push(cx.observe(&ed, |_, _, cx| cx.notify()));
+        self.editors.insert(day, ed);
+    }
+
+    fn on_day_editor_event(&mut self, day: u32, event: &EditorEvent, cx: &mut Context<Self>) {
+        let Some(ix) = self.entries.iter().position(|e| e.day.day == day) else {
+            return;
+        };
+        match event {
+            EditorEvent::Entered(_) => {}
+            EditorEvent::Row(_) | EditorEvent::Structure => {
+                self.list_state.remeasure_items(ix..ix + 1);
+                cx.notify();
+            }
         }
     }
 
@@ -275,6 +359,10 @@ impl JournalsView {
         self.today = Some(today);
         self.has_more = more;
         self.entries = entries;
+        // Editable days follow core: pick up changes made by other programs or by sync.
+        for ed in self.editors.values() {
+            ed.update(cx, |e, cx| e.refresh(cx));
+        }
         self.list_state.reset(self.entries.len());
         if let Some(scroll) = restore {
             self.restore_scroll(scroll);
@@ -398,11 +486,17 @@ impl JournalsView {
         }
     }
 
-    fn render_entry(&mut self, ix: usize, _: &mut Window, cx: &mut Context<Self>) -> AnyElement {
+    fn render_entry(
+        &mut self,
+        ix: usize,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
         if ix + 3 >= self.entries.len() && self.has_more {
             self.load_more_days(cx);
         }
         self.load_day(ix, cx);
+        self.ensure_editor(ix, window, cx);
         let theme = cx.theme().clone();
         let this = cx.entity();
         let nav: Nav = {
@@ -427,7 +521,11 @@ impl JournalsView {
                     title_this.update(cx, |v, cx| v.open_entry(ix, cx));
                 }),
         );
-        let visible = visible_rows(&entry.rows);
+        // An editable day shows core's rows; the others the index rows.
+        let day_editor = self.editors.get(&entry.day.day).cloned();
+        let live_rows: Option<Vec<Row>> = day_editor.as_ref().map(|e| e.read(cx).rows().to_vec());
+        let rows: &[Row] = live_rows.as_deref().unwrap_or(&entry.rows);
+        let visible = visible_rows(rows);
         if entry.state == DayState::Loaded && visible.is_empty() {
             col = col.child(
                 div()
@@ -441,6 +539,9 @@ impl JournalsView {
         }
         for r in visible {
             let toggle_this = this.clone();
+            let edit = day_editor
+                .as_ref()
+                .and_then(|ed| OutlineEditor::row_edit(ed, r, cx));
             let actions = RowActions {
                 nav: nav.clone(),
                 toggle: Some(Rc::new(move |_, cx| {
@@ -448,17 +549,17 @@ impl JournalsView {
                 })),
                 referrers: None,
                 focus: None,
-                edit: None,
+                edit,
             };
             col = col.child(render_block_row(
                 ((ix + 1) << 20) | (r & 0xF_FFFF),
-                &entry.rows[r],
+                &rows[r],
                 root.as_deref(),
                 &theme,
                 &actions,
             ));
         }
-        if entry.truncated {
+        if entry.truncated && day_editor.is_none() {
             let title_this = this.clone();
             col = col.child(
                 div()
@@ -489,7 +590,10 @@ impl JournalsView {
                 v_flex()
                     .w_full()
                     .max_w(px(900.))
-                    .child(col)
+                    .child(match &day_editor {
+                        Some(ed) => editor::element::wrap(col.into_any_element(), ed, cx),
+                        None => col.into_any_element(),
+                    })
                     .children(separator),
             )
             .into_any_element()

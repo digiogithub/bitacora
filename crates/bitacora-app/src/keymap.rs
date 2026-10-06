@@ -36,42 +36,78 @@ pub fn parse(json: &str) -> Result<Vec<Section>, KeymapError> {
     Ok(serde_json::from_str(json)?)
 }
 
-/// Binds every entry of `json`; entries that fail (unknown action, bad keystroke)
-/// are logged and skipped. Returns the number of bindings installed.
-pub fn load(cx: &mut App, json: &str) -> Result<usize, KeymapError> {
+/// What loading a keymap did.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct LoadReport {
+    /// Bindings installed.
+    pub bound: usize,
+    /// Entries that were reported and ignored (unknown action, invalid keystroke or context).
+    pub problems: Vec<String>,
+}
+
+/// Binds every entry of `json`; entries that fail (unknown action, bad keystroke) are logged,
+/// listed in the report and skipped.
+pub fn load_checked(cx: &mut App, json: &str) -> Result<LoadReport, KeymapError> {
     let sections = parse(json)?;
     let mut bindings = Vec::new();
+    let mut problems = Vec::new();
     for section in &sections {
         for (keys, action_name) in &section.bindings {
             let action = match cx.build_action(action_name, None) {
                 Ok(action) => action,
                 Err(err) => {
                     tracing::warn!(action = %action_name, "keymap: unknown action: {err}");
+                    problems.push(format!("`{keys}`: unknown action {action_name}"));
                     continue;
                 }
             };
             match ui::key_binding(keys, action, section.context.as_deref()) {
                 Ok(binding) => bindings.push(binding),
-                Err(err) => tracing::warn!(keys = %keys, "keymap: invalid binding: {err}"),
+                Err(err) => {
+                    tracing::warn!(keys = %keys, "keymap: invalid binding: {err}");
+                    problems.push(format!("`{keys}`: {err}"));
+                }
             }
         }
     }
-    let count = bindings.len();
+    let bound = bindings.len();
     cx.bind_keys(bindings);
-    Ok(count)
+    Ok(LoadReport { bound, problems })
+}
+
+/// Binds every entry of `json`; returns the number of bindings installed.
+pub fn load(cx: &mut App, json: &str) -> Result<usize, KeymapError> {
+    load_checked(cx, json).map(|r| r.bound)
+}
+
+/// Loads the default keymap, then an optional user keymap on top of it (later bindings win).
+/// Problems of the user keymap are reported in the result and ignored.
+pub fn load_with_user_report(
+    cx: &mut App,
+    user_json: Option<&str>,
+) -> Result<LoadReport, KeymapError> {
+    let mut report = load_checked(cx, DEFAULT_KEYMAP)?;
+    crate::editor::bind_platform_keys(cx);
+    if let Some(user) = user_json {
+        match load_checked(cx, user) {
+            Ok(r) => {
+                report.bound += r.bound;
+                report.problems.extend(r.problems);
+            }
+            Err(err) => {
+                tracing::warn!("ignoring user keymap: {err}");
+                report
+                    .problems
+                    .push(format!("keymap.json is not valid: {err}"));
+            }
+        }
+    }
+    Ok(report)
 }
 
 /// Loads the default keymap, then an optional user keymap on top of it.
 pub fn load_with_user(cx: &mut App, user_json: Option<&str>) -> Result<usize, KeymapError> {
-    let mut count = load(cx, DEFAULT_KEYMAP)?;
-    crate::editor::bind_platform_keys(cx);
-    if let Some(user) = user_json {
-        match load(cx, user) {
-            Ok(n) => count += n,
-            Err(err) => tracing::warn!("ignoring user keymap: {err}"),
-        }
-    }
-    Ok(count)
+    load_with_user_report(cx, user_json).map(|r| r.bound)
 }
 
 #[cfg(test)]

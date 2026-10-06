@@ -126,7 +126,7 @@ pub fn platform_bindings() -> Vec<(String, &'static str, &'static str)> {
     ];
     // Alt+Left/Right zoom out/in; on macOS Alt is the word-motion modifier.
     #[cfg(not(target_os = "macos"))]
-    for context in ["BlockEditor", "BlockSelection"] {
+    for context in ["Outliner", "BlockEditor", "BlockSelection"] {
         out.push(("alt-right".to_owned(), "outliner::ZoomIn", context));
         out.push(("alt-left".to_owned(), "outliner::ZoomOut", context));
     }

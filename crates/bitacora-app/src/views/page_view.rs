@@ -1377,7 +1377,41 @@ impl PageView {
         let theme = cx.theme().clone();
         let header = &self.header;
         let mut col = v_flex().px(px(24.)).pt(px(16.)).pb(px(8.)).gap_2();
-        if !header.zoom.is_empty() {
+        let live_crumbs = self
+            .editor
+            .as_ref()
+            .filter(|_| self.live)
+            .map(|e| e.read(cx).crumbs())
+            .filter(|c| !c.is_empty());
+        if let (Some(crumbs), Some(ed)) = (live_crumbs, self.editor.clone()) {
+            // Zoomed into a block of the editable page: page > ancestors > block.
+            let mut line = h_flex().gap_1().flex_wrap().items_center().text_sm();
+            for (n, (label, target)) in crumbs.into_iter().enumerate() {
+                if n > 0 {
+                    line = line.child(
+                        div()
+                            .text_color(theme.muted_foreground)
+                            .child(CRUMB_SEPARATOR),
+                    );
+                }
+                let ed = ed.clone();
+                line = line.child(
+                    div()
+                        .id(("zoom-crumb", n))
+                        .text_color(theme.info)
+                        .cursor_pointer()
+                        .child(if label.is_empty() {
+                            "(empty)".to_owned()
+                        } else {
+                            label
+                        })
+                        .on_click(move |_, _, cx| {
+                            ed.update(cx, |e, cx| e.zoom_to(target, cx));
+                        }),
+                );
+            }
+            col = col.child(line);
+        } else if !header.zoom.is_empty() {
             col = col.child(self.render_link_row(&header.zoom, nav, &theme, 0));
         } else {
             if !header.namespace.is_empty() {

@@ -111,8 +111,9 @@ fn start(cx: &mut App, args: &Args, dirs: &AppDirs, services: Services) -> anyho
         AppSettings::load(&dirs.settings_file()),
         Some(dirs.settings_file()),
     );
-    let bound = keymap::load_with_user(cx, None)?;
-    tracing::debug!(bindings = bound, "keymap loaded");
+    let user_keymap = std::fs::read_to_string(dirs.keymap_file()).ok();
+    let keymap_report = keymap::load_with_user_report(cx, user_keymap.as_deref())?;
+    tracing::debug!(bindings = keymap_report.bound, "keymap loaded");
     cx.on_action(|_: &Quit, cx| cx.quit());
     register_panels(cx);
     // Closing the last window ends the app unless "keep running in background" is on; Quit
@@ -178,6 +179,18 @@ fn start(cx: &mut App, args: &Args, dirs: &AppDirs, services: Services) -> anyho
 
     let smoke = args.smoke_test;
     handle.update(cx, |_, window, cx| {
+        if !keymap_report.problems.is_empty() {
+            ui::notify(
+                window,
+                cx,
+                ui::Level::Warning,
+                format!(
+                    "keymap.json: {} entries ignored ({})",
+                    keymap_report.problems.len(),
+                    keymap_report.problems[0]
+                ),
+            );
+        }
         if let Some(specs) = window.gpu_specs() {
             tracing::info!(
                 device = %specs.device_name,

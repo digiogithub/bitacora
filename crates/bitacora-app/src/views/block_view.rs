@@ -378,6 +378,9 @@ pub fn render_block_row(
                 cb = div()
                     .id(("checkbox", id))
                     .cursor_pointer()
+                    .on_mouse_down(crate::ui::text_edit::MouseButton::Left, |_, _, cx| {
+                        cx.stop_propagation();
+                    })
                     .on_click(move |_, window, cx| hook(window, cx))
                     .child(cb)
                     .into_any_element();
