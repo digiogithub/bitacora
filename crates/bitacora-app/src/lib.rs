@@ -18,6 +18,7 @@ pub mod app;
 pub mod cli;
 pub mod crash;
 pub mod data;
+pub mod editor;
 pub mod events;
 pub mod graph_ops;
 pub mod graph_state;

@@ -84,6 +84,19 @@ pub struct ImageRef {
     pub height: Option<f32>,
 }
 
+/// Where a piece of the display text comes from in the block source (click-to-caret,
+/// BIT-US-0030).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SrcSeg {
+    /// Byte range in [`TextLayout::text`].
+    pub display: Range<usize>,
+    /// Byte range of the source text it renders.
+    pub source: Range<usize>,
+    /// The display text is the source text byte for byte (offsets map one to one); otherwise the
+    /// piece is a replacement (hidden markup, a resolved block ref) and offsets snap to its ends.
+    pub exact: bool,
+}
+
 /// Display text with its styled and clickable ranges.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct TextLayout {
@@ -95,6 +108,8 @@ pub struct TextLayout {
     pub links: Vec<(Range<usize>, NavTarget)>,
     /// Images, in order of appearance.
     pub images: Vec<ImageRef>,
+    /// Map from display ranges back to the block source (absolute offsets in the block text).
+    pub src: Vec<SrcSeg>,
 }
 
 impl TextLayout {
@@ -104,12 +119,31 @@ impl TextLayout {
     }
 
     fn push(&mut self, text: &str, role: Role, emphasis: Emphasis, target: Option<NavTarget>) {
+        self.push_src(text, role, emphasis, target, None);
+    }
+
+    /// Like `push`, recording where the text comes from in the source.
+    fn push_src(
+        &mut self,
+        text: &str,
+        role: Role,
+        emphasis: Emphasis,
+        target: Option<NavTarget>,
+        src: Option<Range<usize>>,
+    ) {
         if text.is_empty() {
             return;
         }
         let start = self.text.len();
         self.text.push_str(text);
         let range = start..self.text.len();
+        if let Some(source) = src {
+            self.src.push(SrcSeg {
+                display: range.clone(),
+                exact: source.len() == range.len(),
+                source,
+            });
+        }
         if role != Role::Plain || emphasis != Emphasis::default() {
             self.styled.push(StyledRange {
                 range: range.clone(),
@@ -125,6 +159,30 @@ impl TextLayout {
     /// Appends a line break.
     pub fn push_newline(&mut self) {
         self.text.push('\n');
+    }
+
+    /// The source offset that matches display offset `at` (a click), or `None` for a layout
+    /// without source information. Plain text maps one to one; replaced markup (`**`, link
+    /// targets, resolved block refs) snaps to the nearer end of the source it stands for.
+    pub fn source_offset(&self, at: usize) -> Option<usize> {
+        let seg = self
+            .src
+            .iter()
+            .find(|s| s.display.start <= at && at < s.display.end)
+            .or_else(|| self.src.iter().rev().find(|s| s.display.end <= at))
+            .or_else(|| self.src.first())?;
+        if at >= seg.display.end {
+            return Some(seg.source.end);
+        }
+        if seg.exact {
+            return Some(seg.source.start + (at - seg.display.start));
+        }
+        let half = seg.display.len() / 2;
+        Some(if at - seg.display.start < half.max(1) {
+            seg.source.start
+        } else {
+            seg.source.end
+        })
     }
 
     /// The navigation target at byte offset `at`, if any.
@@ -163,12 +221,37 @@ pub fn layout_lines<'a>(
     lines: impl IntoIterator<Item = &'a str>,
     resolver: &dyn BlockResolver,
 ) -> TextLayout {
+    let mut at = 0;
+    layout_lines_at(
+        lines.into_iter().map(|l| {
+            let start = at;
+            at += l.len() + 1;
+            (l, start)
+        }),
+        resolver,
+    )
+}
+
+/// Renders source lines given with the offset where each starts in the block text, so
+/// [`TextLayout::source_offset`] answers in block-text offsets.
+pub fn layout_lines_at<'a>(
+    lines: impl IntoIterator<Item = (&'a str, usize)>,
+    resolver: &dyn BlockResolver,
+) -> TextLayout {
     let mut out = TextLayout::default();
-    for (i, line) in lines.into_iter().enumerate() {
+    let mut previous_end = 0;
+    for (i, (line, start)) in lines.into_iter().enumerate() {
         if i > 0 {
+            let at = out.text.len();
             out.push_newline();
+            out.src.push(SrcSeg {
+                display: at..at + 1,
+                source: previous_end..start.max(previous_end),
+                exact: false,
+            });
         }
-        append_line(&mut out, line, resolver);
+        previous_end = start + line.len();
+        append_line(&mut out, line, start, resolver);
     }
     out
 }
@@ -178,7 +261,12 @@ pub fn layout_line(line: &str, resolver: &dyn BlockResolver) -> TextLayout {
     layout_lines([line], resolver)
 }
 
-fn append_line(out: &mut TextLayout, line: &str, resolver: &dyn BlockResolver) {
+/// Renders one source line that starts at `start` in the block text.
+pub fn layout_line_at(line: &str, start: usize, resolver: &dyn BlockResolver) -> TextLayout {
+    layout_lines_at([(line, start)], resolver)
+}
+
+fn append_line(out: &mut TextLayout, line: &str, base: usize, resolver: &dyn BlockResolver) {
     let tokens = scan_line(line, 0, line.len());
     let mut cursor = 0;
     let plain = Emphasis::default();
@@ -188,43 +276,69 @@ fn append_line(out: &mut TextLayout, line: &str, resolver: &dyn BlockResolver) {
             continue;
         }
         if span.start > cursor {
-            emphasis_text(out, &line[cursor..span.start], plain);
+            emphasis_text(out, &line[cursor..span.start], base + cursor, plain);
         }
         cursor = span.end;
         let slice = |s: Span| &line[s.start..s.end];
+        let whole = base + span.start..base + span.end;
         match token {
             InlineToken::Code(s) => {
                 let inner = slice(*s).trim_matches('`');
-                out.push(inner, Role::Code, plain, None);
+                out.push_src(inner, Role::Code, plain, None, Some(whole));
             }
-            InlineToken::Math(s) => out.push(slice(*s), Role::Math, plain, None),
-            InlineToken::Html(s) => out.push(slice(*s), Role::Dim, plain, None),
+            InlineToken::Math(s) => out.push_src(slice(*s), Role::Math, plain, None, Some(whole)),
+            InlineToken::Html(s) => out.push_src(slice(*s), Role::Dim, plain, None, Some(whole)),
             InlineToken::Url(s) => {
                 let raw = slice(*s);
                 let url = raw.trim_start_matches('<').trim_end_matches('>');
-                out.push(raw, Role::Link, plain, Some(NavTarget::Url(url.to_owned())));
+                out.push_src(
+                    raw,
+                    Role::Link,
+                    plain,
+                    Some(NavTarget::Url(url.to_owned())),
+                    Some(whole),
+                );
             }
             InlineToken::PageRef(p) => {
                 let name = slice(p.name).to_owned();
-                out.push(
+                out.push_src(
                     slice(p.span),
                     Role::PageRef,
                     plain,
                     Some(NavTarget::Page(name)),
+                    Some(whole),
                 );
             }
             InlineToken::Tag(t) => {
                 let name = slice(t.name).to_owned();
                 let shown = format!("#{name}");
-                out.push(&shown, Role::Tag, plain, Some(NavTarget::Page(name)));
+                out.push_src(
+                    &shown,
+                    Role::Tag,
+                    plain,
+                    Some(NavTarget::Page(name)),
+                    Some(whole),
+                );
             }
             InlineToken::BlockRef(b) => {
                 let id = slice(b.id).to_ascii_lowercase();
                 match b.valid.then(|| resolver.resolve(&id)).flatten() {
                     Some(title) => {
-                        out.push(&title, Role::BlockRef, plain, Some(NavTarget::Block(id)));
+                        out.push_src(
+                            &title,
+                            Role::BlockRef,
+                            plain,
+                            Some(NavTarget::Block(id)),
+                            Some(whole),
+                        );
                     }
-                    None => out.push(slice(b.span), Role::BlockRefDangling, plain, None),
+                    None => out.push_src(
+                        slice(b.span),
+                        Role::BlockRefDangling,
+                        plain,
+                        None,
+                        Some(whole),
+                    ),
                 }
             }
             InlineToken::Link(l) => {
@@ -257,14 +371,16 @@ fn append_line(out: &mut TextLayout, line: &str, resolver: &dyn BlockResolver) {
                             NavTarget::Url(slice(*s).to_owned())
                         }
                     };
-                    out.push(label, Role::Link, plain, Some(target));
+                    out.push_src(label, Role::Link, plain, Some(target), Some(whole));
                 }
             }
-            InlineToken::Macro(m) => out.push(slice(m.span), Role::Placeholder, plain, None),
+            InlineToken::Macro(m) => {
+                out.push_src(slice(m.span), Role::Placeholder, plain, None, Some(whole));
+            }
         }
     }
     if cursor < line.len() {
-        emphasis_text(out, &line[cursor..], plain);
+        emphasis_text(out, &line[cursor..], base + cursor, plain);
     }
 }
 
@@ -279,9 +395,18 @@ const DELIMS: [(&str, Apply); 6] = [
     ("_", |e| e.italic = true),
 ];
 
-/// Renders plain text between tokens, applying emphasis delimiters.
-fn emphasis_text(out: &mut TextLayout, text: &str, base: Emphasis) {
+/// Renders plain text between tokens, applying emphasis delimiters. `at` is the offset of
+/// `text` in the block text.
+fn emphasis_text(out: &mut TextLayout, text: &str, at: usize, base: Emphasis) {
+    // The pending plain text equals the source from `plain_from` on, except where an escape
+    // removed a backslash (those flush the pending text first).
     let mut plain = String::new();
+    let mut plain_from = at;
+    let flush = |out: &mut TextLayout, plain: &mut String, from: usize| {
+        let range = from..from + plain.len();
+        out.push_src(plain, Role::Plain, base, None, Some(range));
+        plain.clear();
+    };
     let mut i = 0;
     'outer: while i < text.len() {
         let rest = &text[i..];
@@ -290,8 +415,13 @@ fn emphasis_text(out: &mut TextLayout, text: &str, base: Emphasis) {
             && let Some(next) = rest[1..].chars().next()
             && next.is_ascii_punctuation()
         {
-            plain.push(next);
-            i += 1 + next.len_utf8();
+            flush(out, &mut plain, plain_from);
+            let width = 1 + next.len_utf8();
+            let mut one = String::new();
+            one.push(next);
+            out.push_src(&one, Role::Plain, base, None, Some(at + i..at + i + width));
+            i += width;
+            plain_from = at + i;
             continue;
         }
         for (delim, apply) in DELIMS {
@@ -306,19 +436,19 @@ fn emphasis_text(out: &mut TextLayout, text: &str, base: Emphasis) {
                 continue;
             }
             if let Some(close) = find_close(text, body_start, delim) {
-                out.push(&plain, Role::Plain, base, None);
-                plain.clear();
+                flush(out, &mut plain, plain_from);
                 let mut inner = base;
                 apply(&mut inner);
-                emphasis_text(out, &text[body_start..close], inner);
+                emphasis_text(out, &text[body_start..close], at + body_start, inner);
                 i = close + delim.len();
+                plain_from = at + i;
                 continue 'outer;
             }
         }
         plain.push(ch);
         i += ch.len_utf8();
     }
-    out.push(&plain, Role::Plain, base, None);
+    flush(out, &mut plain, plain_from);
 }
 
 fn find_close(text: &str, from: usize, delim: &str) -> Option<usize> {
@@ -438,6 +568,39 @@ mod tests {
     fn multiline_layout_joins_lines() {
         let l = layout_lines(["one **b**", "two"], &NoBlocks);
         assert_eq!(l.text, "one b\ntwo");
+    }
+
+    #[test]
+    fn display_offsets_map_back_to_source_offsets() {
+        // Plain text maps one to one, hidden markers are skipped.
+        let src = "a **bold** z";
+        let l = layout_line(src, &NoBlocks);
+        assert_eq!(l.text, "a bold z");
+        assert_eq!(l.source_offset(0), Some(0));
+        assert_eq!(l.source_offset(2), Some(4), "b of bold");
+        assert_eq!(l.source_offset(4), Some(6), "d of bold");
+        assert_eq!(l.source_offset(7), Some(11), "z");
+        assert_eq!(l.source_offset(l.text.len()), Some(src.len()), "end");
+        // A page ref shows its brackets: exact.
+        let src = "see [[Alpha]] ok";
+        let l = layout_line(src, &NoBlocks);
+        assert_eq!(l.source_offset(8), Some(8));
+        // `#[[multi word]]` is shown as `#multi word`: inside it snaps to an end.
+        let src = "x #[[multi word]] y";
+        let l = layout_line(src, &NoBlocks);
+        assert_eq!(l.text, "x #multi word y");
+        assert_eq!(l.source_offset(3), Some(2));
+        assert_eq!(l.source_offset(12), Some(src.find(" y").unwrap_or(0)));
+        // An escaped character stands for its backslash too.
+        let l = layout_line("a \\*b", &NoBlocks);
+        assert_eq!(l.text, "a *b");
+        assert_eq!(l.source_offset(3), Some(4));
+        // Lines keep their own start offsets.
+        let l = layout_lines_at([("one", 10), ("two **b**", 14)], &NoBlocks);
+        assert_eq!(l.text, "one\ntwo b");
+        assert_eq!(l.source_offset(1), Some(11));
+        assert_eq!(l.source_offset(4), Some(14));
+        assert_eq!(l.source_offset(8), Some(14 + 6));
     }
 
     #[test]

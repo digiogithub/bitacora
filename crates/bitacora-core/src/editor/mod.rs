@@ -16,6 +16,7 @@ pub mod lifecycle;
 pub mod model;
 pub mod op;
 pub mod outline;
+pub mod projection;
 pub mod rename;
 pub mod settings;
 pub mod split;
@@ -49,6 +50,7 @@ pub use rename::{
     CONFIG_PATH, MergeMode, PageFile, RefLookup, RenameError, RenamePlan, RenameReport,
     RenameRequest,
 };
+pub use projection::{EditProjection, HiddenKeys};
 pub use settings::{EditorSettings, Workflow};
 pub use split::{EnterAction, enter_action, splits_before};
 pub use tx::{CoalesceKey, CommitError, CursorState, InvariantError, Transaction, TxId};

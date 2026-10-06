@@ -13,7 +13,9 @@ use bitacora_markdown::tasks::head::Marker;
 use bitacora_markdown::{ParserOptions, build_tree, content_of, pre_block_content, split};
 
 use super::highlight::{TokenClass, highlight};
-use super::inline::{BlockResolver, NavTarget, Role, TextLayout, layout_line, layout_lines};
+use super::inline::{
+    BlockResolver, NavTarget, Role, TextLayout, layout_line, layout_line_at, layout_lines_at,
+};
 
 /// How a task marker is shown.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -88,6 +90,20 @@ pub struct CodeBlock {
     pub text: String,
     /// Highlighted ranges.
     pub tokens: Vec<(Range<usize>, TokenClass)>,
+    /// Offset in the block text where each code line starts (click-to-caret).
+    pub line_src: Vec<usize>,
+}
+
+impl CodeBlock {
+    /// The block-text offset that matches display offset `at` of [`CodeBlock::text`].
+    pub fn source_offset(&self, at: usize) -> Option<usize> {
+        let at = at.min(self.text.len());
+        let before = &self.text[..at];
+        let line = before.matches('\n').count();
+        let col = before.len() - before.rfind('\n').map_or(0, |i| i + 1);
+        let start = *self.line_src.get(line).or_else(|| self.line_src.last())?;
+        Some(start + col)
+    }
 }
 
 /// One item of a block body.
@@ -179,11 +195,13 @@ enum Region {
     Fence {
         language: String,
         text: String,
+        starts: Vec<usize>,
     },
     Begin {
         name: String,
         language: String,
         text: String,
+        starts: Vec<usize>,
     },
 }
 
@@ -256,12 +274,12 @@ impl BlockModel {
         // Walk the lines: the first free line is the title, the rest is the body.
         let mut offset = 0;
         let mut title_done = false;
-        let mut paragraph: Vec<&str> = Vec::new();
+        let mut paragraph: Vec<(&str, usize)> = Vec::new();
         let mut region: Option<Region> = None;
-        let mut quote: Option<Vec<&str>> = None;
-        let flush_paragraph = |model: &mut Self, paragraph: &mut Vec<&str>| {
+        let mut quote: Option<Vec<(&str, usize)>> = None;
+        let flush_paragraph = |model: &mut Self, paragraph: &mut Vec<(&str, usize)>| {
             if !paragraph.is_empty() {
-                let layout = layout_lines(paragraph.iter().copied(), resolver);
+                let layout = layout_lines_at(paragraph.iter().copied(), resolver);
                 if !layout.is_empty() {
                     model.body.push(BodyItem::Text(layout));
                 }
@@ -285,12 +303,15 @@ impl BlockModel {
                         model.push_region(done);
                     }
                 } else {
-                    let text = match r {
-                        Region::Fence { text, .. } | Region::Begin { text, .. } => text,
+                    let (text, starts) = match r {
+                        Region::Fence { text, starts, .. } | Region::Begin { text, starts, .. } => {
+                            (text, starts)
+                        }
                     };
                     if !text.is_empty() {
                         text.push('\n');
                     }
+                    starts.push(start);
                     text.push_str(line);
                 }
                 continue;
@@ -298,10 +319,10 @@ impl BlockModel {
             if let Some(q) = quote.as_mut() {
                 if line.trim().eq_ignore_ascii_case("#+END_QUOTE") {
                     let lines = quote.take().unwrap_or_default();
-                    let layout = layout_lines(lines, resolver);
+                    let layout = layout_lines_at(lines, resolver);
                     model.body.push(BodyItem::Quote(layout));
                 } else {
-                    q.push(line);
+                    q.push((line, start));
                 }
                 continue;
             }
@@ -319,7 +340,7 @@ impl BlockModel {
             if !title_done {
                 title_done = true;
                 let from = analysis.head.title_start.min(end).max(start);
-                model.title = layout_line(&content[from..end], resolver);
+                model.title = layout_line_at(&content[from..end], from, resolver);
                 continue;
             }
             let trimmed = line.trim_start();
@@ -328,6 +349,7 @@ impl BlockModel {
                 region = Some(Region::Fence {
                     language: rest.trim().to_owned(),
                     text: String::new(),
+                    starts: Vec::new(),
                 });
             } else if let Some(begin) = strip_prefix_ci(trimmed, "#+BEGIN_") {
                 flush_paragraph(&mut model, &mut paragraph);
@@ -341,12 +363,13 @@ impl BlockModel {
                         name,
                         language,
                         text: String::new(),
+                        starts: Vec::new(),
                     });
                 }
             } else if line.trim().is_empty() {
                 flush_paragraph(&mut model, &mut paragraph);
             } else {
-                paragraph.push(line);
+                paragraph.push((line, start));
             }
         }
         // Unclosed regions render what they collected.
@@ -356,20 +379,25 @@ impl BlockModel {
         if let Some(lines) = quote.take() {
             model
                 .body
-                .push(BodyItem::Quote(layout_lines(lines, resolver)));
+                .push(BodyItem::Quote(layout_lines_at(lines, resolver)));
         }
         flush_paragraph(&mut model, &mut paragraph);
         model
     }
 
     fn push_region(&mut self, region: Region) {
-        let (name, language, text) = match region {
-            Region::Fence { language, text } => ("SRC".to_owned(), language, text),
+        let (name, language, text, line_src) = match region {
+            Region::Fence {
+                language,
+                text,
+                starts,
+            } => ("SRC".to_owned(), language, text, starts),
             Region::Begin {
                 name,
                 language,
                 text,
-            } => (name, language, text),
+                starts,
+            } => (name, language, text, starts),
         };
         if name.eq_ignore_ascii_case("COMMENT") {
             return;
@@ -380,6 +408,7 @@ impl BlockModel {
             language,
             text,
             tokens,
+            line_src,
         }));
     }
 
@@ -627,6 +656,33 @@ mod tests {
         assert!(matches!(&b.body[0], BodyItem::Quote(q) if q.text == "wise [[x]]"));
         let b = block("t\n```\nnever closed");
         assert!(matches!(&b.body[0], BodyItem::Code(c) if c.text == "never closed"));
+    }
+
+    #[test]
+    fn rendered_text_maps_back_to_offsets_of_the_whole_block_text() {
+        let content = "TODO the **title** [[x]]\nid:: 6f2c1b7a-0000-4000-8000-000000000001\nbody **two**\n```\nlet a = 1;\nlet b = 2;\n```";
+        let b = block(content);
+        // Title: the marker is removed from the title; display offsets still map into content.
+        let at = b.title.text.find("title").expect("title");
+        let src = b.title.source_offset(at).expect("mapped");
+        assert_eq!(&content[src..src + 5], "title");
+        let BodyItem::Text(t) = &b.body[0] else {
+            panic!("paragraph first");
+        };
+        let at = t.text.find("two").expect("two");
+        let src = t.source_offset(at).expect("mapped");
+        assert_eq!(&content[src..src + 3], "two");
+        let code = b
+            .body
+            .iter()
+            .find_map(|i| match i {
+                BodyItem::Code(c) => Some(c),
+                _ => None,
+            })
+            .expect("code");
+        let at = code.text.find("b = 2").expect("b");
+        let src = code.source_offset(at).expect("mapped");
+        assert_eq!(&content[src..src + 5], "b = 2");
     }
 
     #[test]
