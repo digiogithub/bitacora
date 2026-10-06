@@ -2,7 +2,7 @@
 id: BIT-T-0012
 type: task
 title: Add .gitattributes protecting fixture bytes
-status: in_progress
+status: in_review
 priority: critical
 parent: BIT-US-0011
 milestone: BIT-M-0001
@@ -10,7 +10,7 @@ author: mcp
 labels: [infra, fixtures]
 estimate: 1
 created: 2026-10-06T14:26:00Z
-updated: 2026-10-06T16:46:30Z
+updated: 2026-10-06T16:55:26Z
 started: 2026-10-06T16:46:30Z
 ---
 

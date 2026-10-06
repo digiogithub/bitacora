@@ -2,7 +2,7 @@
 id: BIT-T-0016
 type: task
 title: Wire insta, proptest and criterion templates into bitacora-markdown
-status: backlog
+status: in_review
 priority: high
 parent: BIT-US-0012
 milestone: BIT-M-0001
@@ -10,7 +10,8 @@ author: mcp
 labels: [testing, bitacora-markdown]
 estimate: 2
 created: 2026-10-06T14:26:22Z
-updated: 2026-10-06T14:26:22Z
+updated: 2026-10-06T16:55:27Z
+started: 2026-10-06T16:55:27Z
 ---
 
 ## Description

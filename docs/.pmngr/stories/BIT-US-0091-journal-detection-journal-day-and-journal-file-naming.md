@@ -2,7 +2,7 @@
 id: BIT-US-0091
 type: story
 title: Journal detection, journal-day and journal file naming
-status: backlog
+status: in_progress
 priority: critical
 parent: BIT-EP-0004
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [core, compat, journals]
 estimate: 5
 created: 2026-10-06T14:30:44Z
-updated: 2026-10-06T14:30:44Z
+updated: 2026-10-06T16:54:06Z
+started: 2026-10-06T16:54:06Z
 ---
 
 ## Description

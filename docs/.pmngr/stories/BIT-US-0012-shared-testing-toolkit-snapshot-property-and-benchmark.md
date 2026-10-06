@@ -2,7 +2,7 @@
 id: BIT-US-0012
 type: story
 title: "Shared testing toolkit: snapshot, property and benchmark harnesses"
-status: backlog
+status: in_review
 priority: high
 parent: BIT-EP-0001
 milestone: BIT-M-0001
@@ -10,7 +10,8 @@ author: mcp
 labels: [infra, testing]
 estimate: 3
 created: 2026-10-06T14:26:09Z
-updated: 2026-10-06T14:26:09Z
+updated: 2026-10-06T16:55:34Z
+started: 2026-10-06T16:55:34Z
 ---
 
 ## Description

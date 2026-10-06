@@ -2,7 +2,7 @@
 id: BIT-T-0008
 type: task
 title: Add Linux system-dependency install script
-status: backlog
+status: in_review
 priority: critical
 parent: BIT-US-0003
 milestone: BIT-M-0001
@@ -10,7 +10,8 @@ author: mcp
 labels: [infra, ci, linux]
 estimate: 1
 created: 2026-10-06T14:25:20Z
-updated: 2026-10-06T14:25:20Z
+updated: 2026-10-06T16:55:34Z
+started: 2026-10-06T16:55:34Z
 ---
 
 ## Description

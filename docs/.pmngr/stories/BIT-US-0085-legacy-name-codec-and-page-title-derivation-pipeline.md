@@ -2,7 +2,7 @@
 id: BIT-US-0085
 type: story
 title: Legacy name codec and page title derivation pipeline
-status: backlog
+status: in_progress
 priority: critical
 parent: BIT-EP-0004
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [core, compat]
 estimate: 5
 created: 2026-10-06T14:29:54Z
-updated: 2026-10-06T14:29:54Z
+updated: 2026-10-06T16:54:06Z
+started: 2026-10-06T16:54:06Z
 ---
 
 ## Description

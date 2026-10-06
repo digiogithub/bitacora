@@ -2,7 +2,7 @@
 id: BIT-US-0003
 type: story
 title: GitHub Actions CI with 3-OS matrix and GPUI-free fast path
-status: backlog
+status: in_review
 priority: critical
 parent: BIT-EP-0001
 milestone: BIT-M-0001
@@ -10,7 +10,8 @@ author: mcp
 labels: [infra, ci]
 estimate: 8
 created: 2026-10-06T14:24:57Z
-updated: 2026-10-06T14:24:57Z
+updated: 2026-10-06T16:55:34Z
+started: 2026-10-06T16:55:34Z
 ---
 
 ## Description

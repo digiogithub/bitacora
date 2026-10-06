@@ -2,7 +2,7 @@
 id: BIT-T-0015
 type: task
 title: Fixture checksum manifest, xtask verifier and shared test helper
-status: in_progress
+status: done
 priority: high
 parent: BIT-US-0011
 milestone: BIT-M-0001
@@ -10,8 +10,9 @@ author: mcp
 labels: [infra, fixtures, xtask, testing]
 estimate: 2
 created: 2026-10-06T14:26:00Z
-updated: 2026-10-06T16:46:30Z
+updated: 2026-10-06T16:55:26Z
 started: 2026-10-06T16:46:30Z
+closed: 2026-10-06T16:55:26Z
 ---
 
 ## Description
