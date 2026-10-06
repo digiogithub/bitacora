@@ -185,6 +185,10 @@ fn map_queue(e: QueueError) -> ToolError {
         ),
         QueueError::Invalid(m) => ToolError::invalid(m),
         QueueError::Rename(r) => ToolError::invalid(r.to_string()),
+        QueueError::PageConflicted(p) => ToolError::new(
+            Code::BlockInConflict,
+            format!("`{p:?}` has an unresolved conflict with the file on disk"),
+        ),
         QueueError::Busy | QueueError::Closed | QueueError::Store(_) => internal(e.to_string()),
     }
 }
