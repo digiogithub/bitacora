@@ -2,7 +2,7 @@
 id: BIT-US-0020
 type: story
 title: Write tools through the core op pipeline with optimistic concurrency
-status: backlog
+status: done
 priority: high
 parent: BIT-EP-0010
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [mcp, tools, write]
 estimate: 13
 created: 2026-10-06T14:27:12Z
-updated: 2026-10-06T14:27:12Z
+updated: 2026-10-06T19:40:57Z
+closed: 2026-10-06T19:40:57Z
 ---
 
 ## Description

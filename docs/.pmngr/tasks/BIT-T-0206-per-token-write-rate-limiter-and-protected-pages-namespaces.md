@@ -2,7 +2,7 @@
 id: BIT-T-0206
 type: task
 title: Per-token write rate limiter and protected pages/namespaces
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0021
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-mcp, security]
 estimate: 2
 created: 2026-10-06T14:31:00Z
-updated: 2026-10-06T14:31:00Z
+updated: 2026-10-06T19:40:50Z
+closed: 2026-10-06T19:40:50Z
 ---
 
 ## Description

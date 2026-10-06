@@ -2,7 +2,7 @@
 id: BIT-T-0210
 type: task
 title: Core API to undo a specific agent transaction by id
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0022
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-core, audit, undo]
 estimate: 2
 created: 2026-10-06T14:31:00Z
-updated: 2026-10-06T14:31:00Z
+updated: 2026-10-06T19:40:50Z
+closed: 2026-10-06T19:40:50Z
 ---
 
 ## Description

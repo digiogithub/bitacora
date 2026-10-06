@@ -2,7 +2,7 @@
 id: BIT-T-0212
 type: task
 title: POST /api method dispatcher mapping Logseq methods to tool handlers
-status: backlog
+status: done
 priority: low
 parent: BIT-US-0023
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-mcp, api, compat]
 estimate: 3
 created: 2026-10-06T14:31:00Z
-updated: 2026-10-06T14:31:00Z
+updated: 2026-10-06T19:40:50Z
+closed: 2026-10-06T19:40:50Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-T-0200
 type: task
 title: "Agent write bridge: submit Op transactions to the core command queue"
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0020
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-mcp, bitacora-core, write]
 estimate: 3
 created: 2026-10-06T14:31:00Z
-updated: 2026-10-06T14:31:00Z
+updated: 2026-10-06T19:40:38Z
+closed: 2026-10-06T19:40:38Z
 ---
 
 ## Description

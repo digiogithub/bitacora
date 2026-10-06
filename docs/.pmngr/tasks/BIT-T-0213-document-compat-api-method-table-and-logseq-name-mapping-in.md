@@ -2,7 +2,7 @@
 id: BIT-T-0213
 type: task
 title: Document compat API method table and Logseq name mapping in mcp-server design
-status: backlog
+status: done
 priority: low
 parent: BIT-US-0023
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-mcp, docs, compat]
 estimate: 1
 created: 2026-10-06T14:31:00Z
-updated: 2026-10-06T14:31:00Z
+updated: 2026-10-06T19:40:51Z
+closed: 2026-10-06T19:40:51Z
 ---
 
 ## Description

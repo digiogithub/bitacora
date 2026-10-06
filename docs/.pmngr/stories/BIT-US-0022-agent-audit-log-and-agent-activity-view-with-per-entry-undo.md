@@ -2,7 +2,7 @@
 id: BIT-US-0022
 type: story
 title: Agent audit log and "Agent activity" view with per-entry undo
-status: backlog
+status: in_progress
 priority: high
 parent: BIT-EP-0010
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [mcp, audit, ui]
 estimate: 5
 created: 2026-10-06T14:27:12Z
-updated: 2026-10-06T14:27:12Z
+updated: 2026-10-06T19:40:57Z
+started: 2026-10-06T19:40:57Z
 ---
 
 ## Description

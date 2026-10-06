@@ -2,7 +2,7 @@
 id: BIT-T-0208
 type: task
 title: "Guard test: no shell/git/raw-path tools in the catalogue"
-status: backlog
+status: done
 priority: medium
 parent: BIT-US-0021
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-mcp, security, testing]
 estimate: 1
 created: 2026-10-06T14:31:00Z
-updated: 2026-10-06T14:31:00Z
+updated: 2026-10-06T19:40:50Z
+closed: 2026-10-06T19:40:50Z
 ---
 
 ## Description
