@@ -35,9 +35,9 @@ use uuid::Uuid;
 
 use crate::editor::TakeDisk;
 use crate::editor::{
-    BlockId, Cmd, CommitError, ConflictNotice, EditingConflict, ExternalEvent, ExternalOutcome,
-    FileStore, FlushReport, Op, RenameError, RenameReport, RenameRequest, Transaction, TxId,
-    Workspace, WrittenFile,
+    BlockId, Cmd, CommitError, ConflictNotice, EditingConflict, EditorSettings, ExternalEvent,
+    ExternalOutcome, FileStore, FlushReport, History, HistoryError, HistoryStep, Op, RenameError,
+    RenameReport, RenameRequest, Transaction, TxId, Workspace, WrittenFile,
 };
 use crate::graph::PageKey;
 use crate::graph_path::GraphPath;
@@ -132,6 +132,13 @@ pub enum Request {
         /// The new file content.
         bytes: Vec<u8>,
     },
+    /// Undo the latest committed transaction of the graph-wide history (BIT-US-0039). The
+    /// cursor to restore is in the returned [`HistoryStep`].
+    Undo,
+    /// Redo the transaction the last undo reverted.
+    Redo,
+    /// Replace the editing preferences (`:editor/logical-outdenting?`, `:preferred-workflow`).
+    SetSettings(EditorSettings),
 }
 
 /// Successful result of a [`Request`].
@@ -153,6 +160,15 @@ pub enum Response {
     Journal(Option<crate::editor::lifecycle::Opened>),
     /// What an [`Request::ExternalChange`] did.
     External(ExternalOutcome),
+    /// An undo was performed.
+    Undone(HistoryStep),
+    /// A redo was performed.
+    Redone(HistoryStep),
+    /// Undo or redo did not happen: the stack was empty or the history was truncated by an
+    /// external change (nothing changed; the notice text is the error's `Display`).
+    HistoryFailed(HistoryError),
+    /// The request had no result to report.
+    Done,
 }
 
 /// Why a request failed.
@@ -662,6 +678,7 @@ impl CommandQueue {
             seq: 0,
             sched,
             started: Instant::now(),
+            history: History::new(),
         };
         worker.publish_all();
         #[allow(clippy::expect_used)] // thread spawn failure is unrecoverable at start-up
@@ -745,6 +762,42 @@ impl CommandQueue {
             Response::Flushed(r) => Ok(r),
             _ => Err(QueueError::Invalid("unexpected response".into())),
         }
+    }
+
+    /// Undoes the latest transaction, waiting for the step (it carries the cursor to restore).
+    ///
+    /// The inner error is [`HistoryError::NothingToUndo`], or [`HistoryError::Truncated`] when
+    /// an external change made the entry inapplicable ("history truncated by external change").
+    ///
+    /// # Errors
+    /// As [`CommandQueue::execute`].
+    pub fn undo(&self, source: Source) -> Result<Result<HistoryStep, HistoryError>, QueueError> {
+        match self.execute(source, Request::Undo)? {
+            Response::Undone(s) => Ok(Ok(s)),
+            Response::HistoryFailed(e) => Ok(Err(e)),
+            _ => Err(QueueError::Invalid("unexpected response".into())),
+        }
+    }
+
+    /// Redoes the transaction the last undo reverted.
+    ///
+    /// # Errors
+    /// As [`CommandQueue::undo`].
+    pub fn redo(&self, source: Source) -> Result<Result<HistoryStep, HistoryError>, QueueError> {
+        match self.execute(source, Request::Redo)? {
+            Response::Redone(s) => Ok(Ok(s)),
+            Response::HistoryFailed(e) => Ok(Err(e)),
+            _ => Err(QueueError::Invalid("unexpected response".into())),
+        }
+    }
+
+    /// Replaces the editing preferences used by the command planners.
+    ///
+    /// # Errors
+    /// As [`CommandQueue::execute`].
+    pub fn set_settings(&self, source: Source, settings: EditorSettings) -> Result<(), QueueError> {
+        self.execute(source, Request::SetSettings(settings))
+            .map(|_| ())
     }
 
     /// Latest snapshot of a page; never blocks on the writer.
@@ -833,6 +886,7 @@ struct Worker {
     seq: u64,
     sched: Option<WriteQueue>,
     started: Instant,
+    history: History,
 }
 
 /// Stands for "files of deleted pages are waiting to be removed" in the write queue.
@@ -1061,6 +1115,24 @@ impl Worker {
                 let tx = self.ws.run(label, &cmd)?;
                 self.committed_checked(source, tx)
             }
+            Request::Undo => Ok(match self.history.undo(&mut self.ws) {
+                Ok(step) => {
+                    self.announce(source, &step.tx);
+                    Response::Undone(step)
+                }
+                Err(e) => Response::HistoryFailed(e),
+            }),
+            Request::Redo => Ok(match self.history.redo(&mut self.ws) {
+                Ok(step) => {
+                    self.announce(source, &step.tx);
+                    Response::Redone(step)
+                }
+                Err(e) => Response::HistoryFailed(e),
+            }),
+            Request::SetSettings(settings) => {
+                self.ws.set_settings(settings);
+                Ok(Response::Done)
+            }
             Request::Commit { label, ops } => {
                 let tx = self.ws.commit(label, ops)?;
                 self.committed_checked(source, tx)
@@ -1208,6 +1280,13 @@ impl Worker {
         if tx.ops.is_empty() {
             return Ok(Response::Committed(tx));
         }
+        self.history.push(tx.clone());
+        self.announce(source, &tx);
+        Ok(Response::Committed(tx))
+    }
+
+    /// Audit, snapshots, events and write scheduling for a committed transaction.
+    fn announce(&mut self, source: Source, tx: &Transaction) {
         let seq = self.audit(source, tx.label.to_owned(), Some(tx.id), tx.pages.clone());
         self.publish(&tx.pages);
         self.emit(&QueueEvent::Committed {
@@ -1222,7 +1301,6 @@ impl Worker {
         } else {
             self.schedule(&tx.pages);
         }
-        Ok(Response::Committed(tx))
     }
 
     fn locked(&mut self, a: AcquireMsg) {

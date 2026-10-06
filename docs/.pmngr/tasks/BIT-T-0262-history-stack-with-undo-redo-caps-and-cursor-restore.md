@@ -2,7 +2,7 @@
 id: BIT-T-0262
 type: task
 title: History stack with undo/redo, caps and cursor restore
-status: backlog
+status: done
 priority: critical
 parent: BIT-US-0039
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-core, undo]
 estimate: 3
 created: 2026-10-06T14:32:23Z
-updated: 2026-10-06T14:32:23Z
+updated: 2026-10-06T20:21:40Z
+closed: 2026-10-06T20:21:40Z
 ---
 
 ## Description

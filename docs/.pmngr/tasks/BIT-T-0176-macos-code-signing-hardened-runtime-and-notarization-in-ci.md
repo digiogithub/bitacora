@@ -2,7 +2,7 @@
 id: BIT-T-0176
 type: task
 title: macOS code signing, hardened runtime and notarization in CI
-status: backlog
+status: in_review
 priority: high
 parent: BIT-US-0090
 milestone: BIT-M-0005
@@ -10,7 +10,8 @@ author: mcp
 labels: [packaging, signing, macos, bitacora-app]
 estimate: 3
 created: 2026-10-06T14:30:54Z
-updated: 2026-10-06T14:30:54Z
+updated: 2026-10-06T19:59:48Z
+started: 2026-10-06T19:59:48Z
 ---
 
 ## Description

@@ -110,6 +110,43 @@ pub fn notify(window: &mut Window, cx: &mut App, level: Level, message: impl Int
     window.push_notification(note, cx);
 }
 
+/// Like [`notify`] but sticky, with one action button; `on_click` runs when the user presses it
+/// (the toast closes itself). Windows without a `Root` only log the message.
+pub fn notify_action(
+    window: &mut Window,
+    cx: &mut App,
+    level: Level,
+    message: impl Into<SharedString>,
+    label: impl Into<SharedString>,
+    on_click: impl Fn(&mut Window, &mut App) + 'static,
+) {
+    use gpui_kit::component::notification::Notification;
+    let message = message.into();
+    if window.root::<Root>().flatten().is_none() {
+        tracing::info!(?level, %message, "action notification without a Root window");
+        return;
+    }
+    let note = match level {
+        Level::Info => Notification::info(message),
+        Level::Success => Notification::success(message),
+        Level::Warning => Notification::warning(message),
+        Level::Error => Notification::error(message),
+    };
+    let label: SharedString = label.into();
+    let on_click = std::rc::Rc::new(on_click);
+    let note = note.action(move |_, _, cx| {
+        let this = cx.entity();
+        let on_click = on_click.clone();
+        button::Button::new("notice-action")
+            .label(label.clone())
+            .on_click(move |_, window, cx| {
+                on_click(window, cx);
+                this.update(cx, |note, cx| note.dismiss(window, cx));
+            })
+    });
+    window.push_notification(note, cx);
+}
+
 /// What to ask in a confirmation dialog.
 #[derive(Debug, Clone)]
 pub struct Confirmation {
@@ -147,6 +184,41 @@ pub fn confirm(
             .cancel_text(question.cancel_text.clone())
             .on_ok(move |_, window, cx| {
                 on_ok(window, cx);
+                true
+            })
+    });
+    true
+}
+
+/// Opens a two-button dialog; `on_ok` runs on the primary button, `on_cancel` on the secondary
+/// one (Escape closes without either). Returns `false` when the window has no `Root`.
+pub fn choose(
+    window: &mut Window,
+    cx: &mut App,
+    question: Confirmation,
+    on_ok: impl Fn(&mut Window, &mut App) + 'static,
+    on_cancel: impl Fn(&mut Window, &mut App) + 'static,
+) -> bool {
+    if window.root::<Root>().flatten().is_none() {
+        tracing::info!(title = %question.title, "dialog without a Root window");
+        return false;
+    }
+    let on_ok = std::rc::Rc::new(on_ok);
+    let on_cancel = std::rc::Rc::new(on_cancel);
+    window.open_alert_dialog(cx, move |alert, _, _| {
+        let (on_ok, on_cancel) = (on_ok.clone(), on_cancel.clone());
+        alert
+            .confirm()
+            .title(question.title.clone())
+            .description(question.description.clone())
+            .ok_text(question.ok_text.clone())
+            .cancel_text(question.cancel_text.clone())
+            .on_ok(move |_, window, cx| {
+                on_ok(window, cx);
+                true
+            })
+            .on_cancel(move |_, window, cx| {
+                on_cancel(window, cx);
                 true
             })
     });

@@ -2,7 +2,7 @@
 id: BIT-T-0257
 type: task
 title: Implement bitacora-cli self-update
-status: backlog
+status: done
 priority: low
 parent: BIT-US-0110
 milestone: BIT-M-0005
@@ -10,7 +10,8 @@ author: mcp
 labels: [release, auto-update, bitacora-cli]
 estimate: 2
 created: 2026-10-06T14:32:06Z
-updated: 2026-10-06T14:32:06Z
+updated: 2026-10-06T19:59:49Z
+closed: 2026-10-06T19:59:49Z
 ---
 
 ## Description

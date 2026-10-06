@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [mcp, api]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T19:56:34Z
+updated: 2026-10-06T20:00:08Z
 requirements:
   R1:
     status: backlog
@@ -90,7 +90,7 @@ requirements:
         - crates/bitacora-mcp/src/bridge.rs#resolve
       tests:
         - crates/bitacora-runtime/tests/mcp_write.rs#optimistic_concurrency_and_validation_errors
-    verified: {rev: "sha256:bfddc10d2d02fae7", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
+    verified: {rev: "sha256:bfddc10d2d02fae7", commit: 63ab8d8b535728d41079976763fa661f48c4bc4c, at: 2026-10-06T19:59:23Z, by: claude}
   R10:
     status: backlog
     trace:
@@ -99,6 +99,7 @@ requirements:
         - crates/bitacora-mcp/src/policy.rs#WriteGate
       tests:
         - crates/bitacora-mcp/src/bridge.rs#busy_and_conflicted_blocks_refuse_writes_and_write_nothing
+    verified: {rev: "sha256:b54d5f700e5b19ce", commit: 63ab8d8b535728d41079976763fa661f48c4bc4c, at: 2026-10-06T19:59:23Z, by: claude}
   R11:
     status: backlog
     trace:
@@ -112,6 +113,7 @@ requirements:
         - crates/bitacora-mcp/tests/read_tools.rs
         - crates/bitacora-mcp/tests/read_tools.rs#query_tool_routes_simple_and_advanced_queries
         - crates/bitacora-cli/src/cmd/serve_tests.rs
+    verified: {rev: "sha256:29e275453b975084", commit: 63ab8d8b535728d41079976763fa661f48c4bc4c, at: 2026-10-06T19:59:23Z, by: claude}
   R12:
     status: backlog
     trace:
@@ -123,7 +125,7 @@ requirements:
         - crates/bitacora-runtime/tests/mcp_write.rs#insert_move_properties_status_remove_and_group_undo
         - crates/bitacora-runtime/tests/mcp_write.rs#create_page_append_today_rename_with_links_delete_and_undo
         - crates/bitacora-runtime/tests/mcp_write.rs#toggles_scopes_catalogue_rate_limit_and_protected_pages
-    verified: {rev: "sha256:2f63eb7571812462", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
+    verified: {rev: "sha256:2f63eb7571812462", commit: 63ab8d8b535728d41079976763fa661f48c4bc4c, at: 2026-10-06T19:59:23Z, by: claude}
   R13:
     status: backlog
     trace:
@@ -144,7 +146,7 @@ requirements:
       tests:
         - crates/bitacora-mcp/src/policy.rs
         - crates/bitacora-runtime/tests/mcp_write.rs#toggles_scopes_catalogue_rate_limit_and_protected_pages
-    verified: {rev: "sha256:f62456ef79b098d1", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
+    verified: {rev: "sha256:f62456ef79b098d1", commit: 63ab8d8b535728d41079976763fa661f48c4bc4c, at: 2026-10-06T20:00:07Z, by: claude}
   R15:
     status: backlog
     trace:
@@ -155,7 +157,7 @@ requirements:
       tests:
         - crates/bitacora-mcp/tests/read_tools.rs#resources_templates_read_and_confinement
         - crates/bitacora-runtime/tests/mcp_write.rs#catalogue_has_no_shell_or_raw_path_tools
-    verified: {rev: "sha256:57c26e5f84902468", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
+    verified: {rev: "sha256:57c26e5f84902468", commit: 63ab8d8b535728d41079976763fa661f48c4bc4c, at: 2026-10-06T19:59:23Z, by: claude}
   R16:
     status: backlog
     trace:
@@ -175,7 +177,7 @@ requirements:
       tests:
         - crates/bitacora-mcp/tests/read_tools.rs#tools_list_declares_schemas_and_read_only_hints
         - crates/bitacora-runtime/tests/mcp_write.rs#compat_api_is_off_by_default_and_audited_when_on
-    verified: {rev: "sha256:a4a1f173c3c618fb", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
+    verified: {rev: "sha256:a4a1f173c3c618fb", commit: 63ab8d8b535728d41079976763fa661f48c4bc4c, at: 2026-10-06T19:59:23Z, by: claude}
   R18:
     status: backlog
     trace:
@@ -185,13 +187,13 @@ requirements:
       tests:
         - crates/bitacora-mcp/tests/read_tools.rs#resources_templates_read_and_confinement
         - crates/bitacora-mcp/tests/read_tools.rs#page_changes_notify_subscribed_resources_within_two_seconds
-    verified: {rev: "sha256:2446d9ac50f7a314", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
+    verified: {rev: "sha256:2446d9ac50f7a314", commit: 63ab8d8b535728d41079976763fa661f48c4bc4c, at: 2026-10-06T19:59:23Z, by: claude}
   R19:
     status: backlog
     trace:
       code: [crates/bitacora-mcp/src/prompts.rs]
       tests: [crates/bitacora-mcp/tests/read_tools.rs#prompts_list_and_get]
-    verified: {rev: "sha256:89ad5efb1f22edf8", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
+    verified: {rev: "sha256:89ad5efb1f22edf8", commit: 63ab8d8b535728d41079976763fa661f48c4bc4c, at: 2026-10-06T19:59:23Z, by: claude}
   R20:
     status: backlog
     trace:

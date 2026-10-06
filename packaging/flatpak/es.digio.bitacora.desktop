@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Bitacora
+GenericName=Outliner
+Comment=Outliner for Logseq-compatible Markdown graphs
+Exec=bitacora
+Icon=es.digio.bitacora
+Terminal=false
+Categories=Office;
+Keywords=outliner;notes;markdown;logseq;journal;
+StartupNotify=true

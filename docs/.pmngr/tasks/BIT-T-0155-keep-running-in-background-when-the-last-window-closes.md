@@ -2,7 +2,7 @@
 id: BIT-T-0155
 type: task
 title: Keep running in background when the last window closes
-status: backlog
+status: done
 priority: medium
 parent: BIT-US-0086
 milestone: BIT-M-0005
@@ -10,7 +10,8 @@ author: mcp
 labels: [release, bitacora-app]
 estimate: 3
 created: 2026-10-06T14:30:22Z
-updated: 2026-10-06T14:30:22Z
+updated: 2026-10-06T20:18:19Z
+closed: 2026-10-06T20:18:19Z
 ---
 
 ## Description

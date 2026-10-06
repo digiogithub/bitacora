@@ -302,3 +302,20 @@ disk:
   kept_mine: Kept your version; the disk version was backed up
   took_disk: Loaded the disk version; your version was backed up
   resolve_failed: "Cannot resolve: %{error}"
+crash:
+  notice: Bitacora closed unexpectedly last time
+  review: Review report
+  title: Crash report
+  explain: "Nothing was sent anywhere. Review the report below; opening an issue shows a prefilled form in your browser that you can edit before submitting. Esc dismisses."
+  open_issue: Open GitHub issue
+  copy: Copy report
+update:
+  check_updates: Check for updates...
+  up_to_date: Bitacora is up to date
+  check_failed: "Could not check for updates: %{error}"
+  available: "Bitacora %{version} is available"
+  download: Download
+  downloading: "Downloading Bitacora %{version} in the background"
+  ready: "Bitacora %{version} is ready to install"
+  restart: Restart now
+  apply_failed: "Could not apply the update: %{error}"

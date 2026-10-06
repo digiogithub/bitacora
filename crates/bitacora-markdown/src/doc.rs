@@ -67,6 +67,7 @@ pub struct Document {
     eol: Eol,
     unit: IndentUnit,
     bom: bool,
+    ends_with_eol: bool,
 }
 
 impl Document {
@@ -91,6 +92,7 @@ impl Document {
             eol: Eol::detect(&source),
             unit: IndentUnit::detect(&source, &outline),
             bom: source.starts_with(BOM),
+            ends_with_eol: source.ends_with(b"\n"),
             source,
         }
     }
@@ -99,6 +101,24 @@ impl Document {
     #[must_use]
     pub fn source(&self) -> &[u8] {
         &self.source
+    }
+
+    /// Appends `extra` after the parsed source and returns the offset where it starts. Spans of
+    /// existing nodes stay valid; a caller can add [`Node::Original`] nodes whose spans point
+    /// into the appended bytes to emit blocks that came from an older version of the file
+    /// verbatim. Style detection and the end-of-file convention keep describing the parsed
+    /// source.
+    pub fn extend_source(&mut self, extra: &[u8]) -> usize {
+        let at = self.source.len();
+        self.source.extend_from_slice(extra);
+        at
+    }
+
+    /// Whether the parsed source ended with a line break (the end-of-file convention kept when
+    /// the last block is rewritten).
+    #[must_use]
+    pub fn source_ends_with_eol(&self) -> bool {
+        self.ends_with_eol
     }
 
     /// Line ending detected in the source (used for edited blocks).

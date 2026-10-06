@@ -6,6 +6,7 @@ use bitacora_config as _;
 use bitacora_core as _;
 use bitacora_index as _;
 use bitacora_mcp as _;
+use bitacora_runtime as _;
 use bitacora_sync as _;
 use bitacora_watch as _;
 
@@ -15,12 +16,14 @@ rust_i18n::i18n!("assets/locales", fallback = "en");
 pub mod actions;
 pub mod app;
 pub mod cli;
+pub mod crash;
 pub mod credentials;
 pub mod data;
 pub mod editing;
 pub mod events;
 pub mod graph_ops;
 pub mod graph_state;
+pub mod instance;
 pub mod keymap;
 pub mod layout;
 pub mod logging;
@@ -37,6 +40,7 @@ pub mod testing;
 pub mod theme;
 pub mod tokio_bridge;
 pub mod ui;
+pub mod update;
 pub mod views;
 
 #[cfg(test)]

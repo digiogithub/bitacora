@@ -2,7 +2,7 @@
 id: BIT-T-0175
 type: task
 title: cargo-packager configuration, icons and xtask bundle command
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0090
 milestone: BIT-M-0005
@@ -10,7 +10,9 @@ author: mcp
 labels: [packaging, bitacora-app, xtask]
 estimate: 3
 created: 2026-10-06T14:30:54Z
-updated: 2026-10-06T14:30:54Z
+updated: 2026-10-06T19:59:48Z
+started: 2026-10-06T19:59:37Z
+closed: 2026-10-06T19:59:48Z
 ---
 
 ## Description

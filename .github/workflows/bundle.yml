@@ -1,0 +1,217 @@
+name: bundle
+
+# Installable bundles for the desktop app (BIT-US-0090): macOS .app/.dmg, Windows NSIS/MSI,
+# Linux .deb/AppImage, built with cargo-packager through `cargo xtask bundle`.
+#
+# Reusable (called by release.yml) and manually runnable. Signing is OPTIONAL: every signing step is
+# skipped when its secrets are absent, so forks and unsigned dry runs still produce bundles.
+# Required secrets for signed releases are listed in docs/design/release-process.md.
+on:
+  workflow_call:
+    secrets:
+      APPLE_CERTIFICATE:
+        required: false
+      APPLE_CERTIFICATE_PASSWORD:
+        required: false
+      APPLE_SIGNING_IDENTITY:
+        required: false
+      APPLE_ID:
+        required: false
+      APPLE_PASSWORD:
+        required: false
+      APPLE_TEAM_ID:
+        required: false
+      AZURE_TENANT_ID:
+        required: false
+      AZURE_CLIENT_ID:
+        required: false
+      AZURE_CLIENT_SECRET:
+        required: false
+      AZURE_TRUSTED_SIGNING_ENDPOINT:
+        required: false
+      AZURE_TRUSTED_SIGNING_ACCOUNT:
+        required: false
+      AZURE_TRUSTED_SIGNING_PROFILE:
+        required: false
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/bundle.yml"
+      - "packaging/**"
+      - "crates/bitacora-app/Cargo.toml"
+      - "xtask/**"
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  bundle:
+    name: bundle (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            formats: deb,appimage
+          - os: macos-latest
+            formats: app,dmg
+          - os: windows-latest
+            formats: nsis,wix
+    # Secrets are exposed as env so that steps can test for presence (secrets are not allowed in `if:`).
+    env:
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      AZURE_TRUSTED_SIGNING_ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+      AZURE_TRUSTED_SIGNING_ACCOUNT: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT }}
+      AZURE_TRUSTED_SIGNING_PROFILE: ${{ secrets.AZURE_TRUSTED_SIGNING_PROFILE }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            gcc g++ clang cmake pkg-config libfontconfig-dev libwayland-dev \
+            libxkbcommon-x11-dev libx11-xcb-dev libssl-dev libzstd-dev libasound2-dev \
+            libvulkan1 mesa-vulkan-drivers xvfb x11-utils libfuse2t64 file
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.98.1
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-packager@0.11.8
+
+      # macOS: sign with the Developer ID certificate and notarize when the secrets are present.
+      # cargo-packager imports APPLE_CERTIFICATE into a temporary keychain and notarizes the .app
+      # when APPLE_ID/APPLE_PASSWORD/APPLE_TEAM_ID are set; `cargo xtask bundle` adds the
+      # signing identity to the packager config from APPLE_SIGNING_IDENTITY.
+      - name: Report signing mode (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          if [ -n "$APPLE_CERTIFICATE" ] && [ -n "$APPLE_SIGNING_IDENTITY" ]; then
+            echo "macOS signing: enabled"
+          else
+            echo "::notice::macOS signing secrets absent: producing UNSIGNED bundles"
+            unset APPLE_CERTIFICATE APPLE_SIGNING_IDENTITY
+          fi
+
+      - name: Build the app (release)
+        run: cargo build --release --locked -p bitacora-app
+
+      # Windows: sign the application binary before it is packaged, then the installers below.
+      - name: Azure Trusted Signing (binary)
+        if: runner.os == 'Windows' && env.AZURE_CLIENT_ID != '' && env.AZURE_TRUSTED_SIGNING_ENDPOINT != ''
+        uses: azure/trusted-signing-action@v0.5.1
+        with:
+          endpoint: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+          trusted-signing-account-name: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ secrets.AZURE_TRUSTED_SIGNING_PROFILE }}
+          files-folder: target/release
+          files-folder-filter: exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
+      - name: Bundle
+        shell: bash
+        run: |
+          if [ -z "$APPLE_CERTIFICATE" ] || [ -z "$APPLE_SIGNING_IDENTITY" ]; then
+            unset APPLE_CERTIFICATE APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID
+          fi
+          cargo xtask bundle --no-build --formats "${{ matrix.formats }}"
+
+      - name: Azure Trusted Signing (installers)
+        if: runner.os == 'Windows' && env.AZURE_CLIENT_ID != '' && env.AZURE_TRUSTED_SIGNING_ENDPOINT != ''
+        uses: azure/trusted-signing-action@v0.5.1
+        with:
+          endpoint: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+          trusted-signing-account-name: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ secrets.AZURE_TRUSTED_SIGNING_PROFILE }}
+          files-folder: target/packager
+          files-folder-filter: exe,msi
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
+      - name: List bundles
+        shell: bash
+        run: ls -lh target/packager
+
+      # BIT-T-0178: install, launch headless and uninstall each format.
+      - name: Smoke test (Linux .deb install / launch / uninstall)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install -y ./target/packager/*.deb
+          test -x /usr/bin/bitacora
+          test -f /usr/share/applications/bitacora.desktop
+          mkdir -p "$RUNNER_TEMP/graph"
+          xvfb-run -a -s "-screen 0 1400x900x24" /usr/bin/bitacora --graph "$RUNNER_TEMP/graph" --smoke-test 2>&1 | tee smoke.log || true
+          grep -q "first frame rendered in" smoke.log || echo "::warning::no first frame (no GPU on the runner)"
+          sudo apt-get remove -y bitacora
+          test ! -e /usr/bin/bitacora
+          test -d "$RUNNER_TEMP/graph"
+
+      - name: Smoke test (Linux AppImage)
+        if: runner.os == 'Linux'
+        run: |
+          chmod +x target/packager/*.AppImage
+          file target/packager/*.AppImage
+          mkdir -p "$RUNNER_TEMP/graph2"
+          APPIMAGE_EXTRACT_AND_RUN=1 xvfb-run -a target/packager/*.AppImage --graph "$RUNNER_TEMP/graph2" --smoke-test 2>&1 | tee smoke2.log || true
+
+      - name: Smoke test (macOS .dmg mount / launch / unmount)
+        if: runner.os == 'macOS'
+        run: |
+          dmg=$(ls target/packager/*.dmg | head -n1)
+          hdiutil attach "$dmg" -mountpoint "$RUNNER_TEMP/mnt" -nobrowse
+          test -d "$RUNNER_TEMP/mnt/Bitacora.app"
+          mkdir -p "$RUNNER_TEMP/graph"
+          "$RUNNER_TEMP/mnt/Bitacora.app/Contents/MacOS/bitacora" --graph "$RUNNER_TEMP/graph" --smoke-test 2>&1 | tee smoke.log || true
+          hdiutil detach "$RUNNER_TEMP/mnt"
+          if [ -n "$APPLE_SIGNING_IDENTITY" ]; then
+            codesign --verify --deep --strict --verbose=2 target/packager/Bitacora.app
+          fi
+
+      - name: Smoke test (Windows NSIS silent install / launch / uninstall)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $setup = (Get-ChildItem target/packager -Filter *-setup.exe | Select-Object -First 1).FullName
+          $dir = Join-Path $env:RUNNER_TEMP 'bitacora-install'
+          Start-Process -FilePath $setup -ArgumentList '/S', "/D=$dir" -Wait
+          if (-not (Test-Path "$dir\bitacora.exe")) { throw 'not installed' }
+          $graph = Join-Path $env:RUNNER_TEMP 'graph'
+          New-Item -ItemType Directory -Force $graph | Out-Null
+          & "$dir\bitacora.exe" --graph $graph --smoke-test 2>&1 | Tee-Object smoke.log
+          $un = Get-ChildItem $dir -Filter uninstall.exe | Select-Object -First 1
+          Start-Process -FilePath $un.FullName -ArgumentList '/S' -Wait
+          if (-not (Test-Path $graph)) { throw 'user data was touched' }
+        continue-on-error: true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bundles-${{ runner.os }}
+          path: |
+            target/packager/*.deb
+            target/packager/*.AppImage
+            target/packager/*.dmg
+            target/packager/*.exe
+            target/packager/*.msi
+          retention-days: 14
+          if-no-files-found: error

@@ -7,6 +7,7 @@ use std::time::Duration;
 
 use anyhow::Context as _;
 use bitacora_mcp::McpConfig;
+use bitacora_runtime::instance::{Acquire, InstanceKind, Primary};
 use bitacora_runtime::{McpOptions, RuntimeConfig, Session, SyncOptions};
 use clap::Args;
 
@@ -31,6 +32,17 @@ pub struct ServeArgs {
     /// Extra browser origin to allow (repeatable).
     #[arg(long = "allow-origin")]
     pub allowed_origins: Vec<String>,
+    /// Let MCP agents create and edit pages and blocks (default off: read-only). Every write
+    /// is audited and undoable.
+    #[arg(long)]
+    pub allow_writes: bool,
+    /// Let MCP agents also remove blocks and delete or rename pages (default off; needs
+    /// `--allow-writes` to have any effect).
+    #[arg(long)]
+    pub allow_deletes: bool,
+    /// Serve the Logseq-compatible `POST /api` endpoint next to `/mcp` (default off).
+    #[arg(long)]
+    pub api: bool,
     /// Run the background git sync engine (auto-commit, periodic fetch/push).
     #[arg(long)]
     pub sync: bool,
@@ -84,6 +96,9 @@ pub fn start(args: ServeArgs) -> anyhow::Result<Running> {
         config: McpConfig {
             port: args.port,
             allowed_origins: args.allowed_origins,
+            allow_writes: args.allow_writes,
+            allow_deletes: args.allow_deletes,
+            api_enabled: args.api,
             ..McpConfig::default()
         },
         token_path: token_path.clone(),
@@ -107,8 +122,30 @@ pub fn start(args: ServeArgs) -> anyhow::Result<Running> {
     })
 }
 
+/// Takes the per-user instance lock in `dir`; fails with a clear message when the desktop app
+/// or another headless server already owns the graph and the MCP port (BIT-US-0086).
+pub fn acquire_instance(dir: &std::path::Path) -> anyhow::Result<Box<Primary>> {
+    match Primary::acquire(dir, InstanceKind::Headless, false)? {
+        Acquire::Primary(guard) => Ok(guard),
+        Acquire::Running(info) => {
+            let who = match info.kind {
+                InstanceKind::App => "the Bitacora desktop app",
+                InstanceKind::Headless => "another `bitacora-cli serve`",
+            };
+            anyhow::bail!(
+                "{who} is already running for this user (pid {}) and owns the MCP port; \
+                 use its MCP endpoint or quit it first",
+                info.pid
+            )
+        }
+    }
+}
+
 /// Run until Ctrl-C.
 pub fn run(args: ServeArgs) -> anyhow::Result<()> {
+    let dir = bitacora_runtime::instance::default_dir()
+        .context("cannot determine the data directory for the instance lock")?;
+    let _instance = acquire_instance(&dir)?;
     let running = start(args)?;
     eprintln!("MCP endpoint: {}", running.endpoint());
     eprintln!("Token file:   {}", running.token_path.display());

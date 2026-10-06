@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [editor, core]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T19:56:33Z
+updated: 2026-10-06T20:22:35Z
 requirements:
   R1:
     status: backlog
@@ -33,37 +33,142 @@ requirements:
         - crates/bitacora-core/src/editor/op.rs#Op
         - crates/bitacora-core/src/editor/tx.rs#Workspace::commit
         - crates/bitacora-core/src/editor/cmd.rs#plan
+        - crates/bitacora-core/src/editor/cmd.rs#plan_full
+        - crates/bitacora-core/src/editor/history.rs#History
       tests:
         - crates/bitacora-core/tests/editor_ops.rs
         - crates/bitacora-core/tests/editor_props.rs#random_commands_invert_to_the_exact_original_bytes
         - crates/bitacora-core/tests/editor_props.rs#raw_text_ops_roundtrip
+        - crates/bitacora-core/tests/editor_commands.rs
+        - crates/bitacora-core/tests/editor_history.rs#random_semantic_commands_then_undo_all_restore_the_original_bytes
     verified: {rev: "sha256:54aaace5592a3f58", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R6:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-core/src/editor/split.rs#split_block
+        - crates/bitacora-core/src/editor/split.rs#enter_action
+        - crates/bitacora-core/src/editor/split.rs#outdent_empty_last
+      tests:
+        - crates/bitacora-core/tests/editor_commands.rs#split_in_the_middle_left_trims_the_tail
+        - crates/bitacora-core/tests/editor_commands.rs#caret_at_zero_inserts_an_empty_block_before_and_keeps_the_caret
+        - crates/bitacora-core/tests/editor_commands.rs#enter_on_empty_last_child_outdents
+        - crates/bitacora-core/tests/editor_commands.rs#shift_enter_adds_a_continuation_line
   R7:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-core/src/editor/split.rs#merge_with_previous
+        - crates/bitacora-core/src/editor/split.rs#merge_next
+      tests:
+        - crates/bitacora-core/tests/editor_commands.rs#backspace_merges_into_previous_and_adopts_children
+        - crates/bitacora-core/tests/editor_commands.rs#merge_refused_when_both_have_children_or_first_block
+        - crates/bitacora-core/tests/editor_commands.rs#delete_pulls_in_next_sibling_or_first_child
   R8:
     status: backlog
+    trace:
+      code: [crates/bitacora-core/src/editor/split.rs#merged_text]
+      tests:
+        - crates/bitacora-core/tests/editor_commands.rs#referenced_block_identity_survives_a_backspace_merge
+        - crates/bitacora-core/tests/editor_commands.rs#merge_refused_when_both_blocks_have_ids
   R9:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-core/src/editor/cmd.rs#indent
+        - crates/bitacora-core/src/editor/cmd.rs#outdent
+        - crates/bitacora-core/src/editor/settings.rs#EditorSettings
+      tests:
+        - crates/bitacora-core/tests/editor_commands.rs#logical_outdenting_keeps_following_siblings
+        - crates/bitacora-core/tests/editor_commands.rs#settings_come_from_config_edn
+        - crates/bitacora-core/tests/editor_ops.rs
   R10:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-core/src/editor/outline.rs#move_up_down
+        - crates/bitacora-core/src/editor/cmd.rs#move_blocks
+      tests:
+        - crates/bitacora-core/tests/editor_commands.rs#move_up_down_swaps_and_crosses_parents
+        - crates/bitacora-core/tests/editor_commands.rs#move_up_down_works_on_selections_and_rejects_gaps
+        - crates/bitacora-core/tests/editor_commands.rs#moved_clean_blocks_keep_their_bytes
   R11:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-core/src/editor/outline.rs#collapse_blocks
+        - crates/bitacora-core/src/editor/outline.rs#collapse_level
+        - crates/bitacora-core/src/editor/outline.rs#set_all_collapsed
+      tests:
+        - crates/bitacora-core/tests/editor_commands.rs#collapse_ignores_leaves_and_expand_restores_bytes
+        - crates/bitacora-core/tests/editor_commands.rs#page_level_collapse_goes_one_level_at_a_time
   R12:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-core/src/editor/cmd.rs#plan_full
+        - crates/bitacora-core/src/editor/clipboard.rs#selection_trees
+      tests:
+        - crates/bitacora-core/tests/editor_commands.rs#bulk_operations_on_a_selection_are_one_transaction
   R13:
     status: backlog
+    trace:
+      code: [crates/bitacora-core/src/editor/clipboard.rs]
+      tests:
+        - crates/bitacora-core/tests/editor_commands.rs#copy_exports_tab_indented_markdown_without_ids
+        - crates/bitacora-core/tests/editor_commands.rs#cut_deletes_in_one_transaction_and_paste_keeps_ids
+        - crates/bitacora-core/tests/editor_commands.rs#paste_after_copy_gets_fresh_identity
+        - crates/bitacora-core/tests/editor_commands.rs#text_paste_classification
+        - crates/bitacora-core/tests/editor_commands.rs#pasting_a_markdown_outline_builds_a_tree_and_replaces_an_empty_target
   R14:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-core/src/editor/outline.rs#cycle_marker
+        - crates/bitacora-core/src/editor/settings.rs#Workflow
+      tests:
+        - crates/bitacora-core/tests/editor_commands.rs#cycle_marker_follows_the_preferred_workflow
+        - crates/bitacora-core/tests/editor_commands.rs#markers_keep_priority_and_properties_and_skip_empty_blocks
+        - crates/bitacora-core/tests/editor_commands.rs#toggle_done_unchecks_to_the_workflow_start
   R15:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-core/src/editor/complete.rs#complete_page
+        - crates/bitacora-core/src/editor/complete.rs#page_candidates
+        - crates/bitacora-core/src/editor/lifecycle.rs#Workspace::open_page
+      tests:
+        - crates/bitacora-core/tests/editor_history.rs#candidates_exclude_current_page_self_and_ancestors_and_offer_new_page
+        - crates/bitacora-core/tests/editor_history.rs#choosing_a_new_page_creates_a_virtual_page_on_demand
   R16:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-core/src/editor/complete.rs#insert_block_ref
+        - crates/bitacora-core/src/editor/complete.rs#ensure_uuid
+        - crates/bitacora-core/src/editor/complete.rs#Workspace::copy_block_ref
+      tests:
+        - crates/bitacora-core/tests/editor_history.rs#block_ref_choice_adds_the_id_in_the_same_transaction
+        - crates/bitacora-core/tests/editor_history.rs#copy_block_ref_persists_the_id_once
   R17:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-core/src/editor/history.rs#History
+        - crates/bitacora-core/src/editor/model.rs#Origin
+        - crates/bitacora-core/src/queue.rs#CommandQueue::undo
+      tests:
+        - crates/bitacora-core/tests/editor_history.rs#undo_through_the_writer_restores_the_file_bytes
+        - crates/bitacora-core/tests/editor_history.rs#random_semantic_commands_then_undo_all_restore_the_original_bytes
+        - crates/bitacora-core/tests/editor_history.rs#undo_stops_with_a_notice_when_an_external_change_removed_the_target
+        - crates/bitacora-core/tests/editor_conventions.rs
   R18:
     status: backlog
+    trace:
+      code: [crates/bitacora-core/src/editor/history.rs#History::push]
+      tests:
+        - crates/bitacora-core/tests/editor_history.rs#typing_coalesces_within_the_gap_and_splits_after_it
+        - crates/bitacora-core/tests/editor_history.rs#word_boundary_after_a_pause_and_structural_ops_break_the_run
   R19:
     status: backlog
   R20:

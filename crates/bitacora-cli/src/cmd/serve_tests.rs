@@ -73,6 +73,9 @@ fn serve_answers_real_queries_over_http() {
         token_file: Some(token_file),
         data_dir: Some(tmp.path().join("data")),
         allowed_origins: Vec::new(),
+        allow_writes: false,
+        allow_deletes: false,
+        api: false,
         sync: false,
         branch: "main".into(),
         device: None,
@@ -167,4 +170,120 @@ fn serve_answers_real_queries_over_http() {
             > 100
     );
     running.stop();
+}
+
+/// Starts `serve` on a copy of the fixture with the given permission flags and returns the tool
+/// names `tools/list` offers a full-scope token, plus the HTTP status of `POST /api`.
+fn tools_and_api_status(allow_writes: bool, allow_deletes: bool, api: bool) -> (Vec<String>, u16) {
+    let tmp = tempfile::tempdir().expect("tmp");
+    let graph = tmp.path().join("g");
+    copy_dir(&bitacora_testkit::graph("logseq-docs"), &graph);
+    let token_file = tmp.path().join("tokens.json");
+    let store = TokenStore::load_or_init(&token_file).expect("tokens");
+    let token = store
+        .create("flags", &[Scope::Read, Scope::Write, Scope::Delete])
+        .expect("token");
+    drop(store);
+    let running = start(ServeArgs {
+        graph,
+        port: 0,
+        token_file: Some(token_file),
+        data_dir: Some(tmp.path().join("data")),
+        allowed_origins: Vec::new(),
+        allow_writes,
+        allow_deletes,
+        api,
+        sync: false,
+        branch: "main".into(),
+        device: None,
+    })
+    .expect("start serve");
+    let addr = running
+        .endpoint()
+        .trim_start_matches("http://")
+        .trim_end_matches("/mcp")
+        .to_owned();
+    let init = json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{
+        "protocolVersion":"2025-11-25","capabilities":{},
+        "clientInfo":{"name":"flags","version":"1"}}});
+    let (head, _) = post(&addr, &token, None, &init);
+    let session = head
+        .lines()
+        .find_map(|l| l.strip_prefix("mcp-session-id:"))
+        .expect("session id")
+        .trim()
+        .to_owned();
+    post(
+        &addr,
+        &token,
+        Some(&session),
+        &json!({"jsonrpc":"2.0","method":"notifications/initialized"}),
+    );
+    let (_, body) = post(
+        &addr,
+        &token,
+        Some(&session),
+        &json!({"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}),
+    );
+    let names = message(&body)["result"]["tools"]
+        .as_array()
+        .expect("tools")
+        .iter()
+        .filter_map(|t| t["name"].as_str().map(str::to_owned))
+        .collect();
+    let api_body = r#"{"method":"logseq.Editor.getPage","args":["x"]}"#;
+    let mut stream = TcpStream::connect(&addr).expect("connect");
+    stream
+        .set_read_timeout(Some(Duration::from_secs(20)))
+        .expect("timeout");
+    let req = format!(
+        "POST /api HTTP/1.1\r\nHost: {addr}\r\nConnection: close\r\nContent-Type: application/json\r\n\
+         Authorization: Bearer {token}\r\nContent-Length: {}\r\n\r\n{api_body}",
+        api_body.len()
+    );
+    stream.write_all(req.as_bytes()).expect("write");
+    let mut raw = String::new();
+    let _ = stream.read_to_string(&mut raw);
+    let status = raw
+        .split_whitespace()
+        .nth(1)
+        .and_then(|c| c.parse().ok())
+        .expect("status");
+    running.stop();
+    (names, status)
+}
+
+#[test]
+fn permission_flags_default_off_and_enable_write_tools_and_api() {
+    let (names, api) = tools_and_api_status(false, false, false);
+    assert!(!names.iter().any(|n| n == "create_page"), "{names:?}");
+    assert!(!names.iter().any(|n| n == "rename_page"), "{names:?}");
+    assert_eq!(api, 404);
+
+    let (names, api) = tools_and_api_status(true, false, false);
+    assert!(names.iter().any(|n| n == "create_page"), "{names:?}");
+    assert!(!names.iter().any(|n| n == "rename_page"), "{names:?}");
+    assert_eq!(api, 404);
+
+    let (names, api) = tools_and_api_status(true, true, true);
+    assert!(names.iter().any(|n| n == "rename_page"), "{names:?}");
+    assert_ne!(api, 404);
+}
+
+#[test]
+fn serve_refuses_when_the_desktop_app_owns_the_instance() {
+    use bitacora_runtime::instance::{Acquire, InstanceKind, Primary};
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let app = match Primary::acquire(tmp.path(), InstanceKind::App, true).expect("app") {
+        Acquire::Primary(p) => p,
+        Acquire::Running(_) => panic!("fresh dir"),
+    };
+    let err = super::serve::acquire_instance(tmp.path()).expect_err("must refuse");
+    let msg = format!("{err:#}");
+    assert!(
+        msg.contains("desktop app") && msg.contains("MCP port"),
+        "{msg}"
+    );
+    drop(app);
+    assert!(super::serve::acquire_instance(tmp.path()).is_ok());
 }

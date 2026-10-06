@@ -2,7 +2,7 @@
 id: BIT-T-0154
 type: task
 title: MCP port ownership checks in app and bitacora-cli serve
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0086
 milestone: BIT-M-0005
@@ -10,7 +10,8 @@ author: mcp
 labels: [release, mcp, bitacora-app, bitacora-cli, bitacora-mcp]
 estimate: 2
 created: 2026-10-06T14:30:21Z
-updated: 2026-10-06T14:30:21Z
+updated: 2026-10-06T20:18:19Z
+closed: 2026-10-06T20:18:19Z
 ---
 
 ## Description

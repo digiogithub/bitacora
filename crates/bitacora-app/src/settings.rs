@@ -30,6 +30,10 @@ pub struct AppSettings {
     pub light_theme: Option<String>,
     /// Name of the bundled theme used in dark mode (`None` = default).
     pub dark_theme: Option<String>,
+    /// Keep the process (and the MCP server) alive when the last window closes (BIT-T-0155).
+    pub keep_running_in_background: bool,
+    /// Update checks (BIT-US-0100).
+    pub updates: crate::update::UpdateSettings,
 }
 
 impl AppSettings {
@@ -104,6 +108,8 @@ mod tests {
             mode: ThemePreference::Dark,
             light_theme: None,
             dark_theme: Some("Ayu Dark".into()),
+            keep_running_in_background: false,
+            updates: crate::update::UpdateSettings::default(),
         };
         settings.save(&path).expect("save");
         assert_eq!(AppSettings::load(&path), settings);

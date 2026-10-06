@@ -24,7 +24,7 @@ pub fn serialize(doc: &Document, opts: &WriteOptions) -> Vec<u8> {
     let unit = opts.indent.unwrap_or_else(|| doc.indent_unit());
     let nodes: Vec<&Node> = doc.pre_block.iter().chain(doc.blocks.iter()).collect();
     let src = doc.source();
-    let source_ends_with_eol = src.ends_with(b"\n");
+    let source_ends_with_eol = doc.source_ends_with_eol();
     let mut out: Vec<u8> = Vec::with_capacity(src.len() + 64);
 
     for (k, node) in nodes.iter().enumerate() {

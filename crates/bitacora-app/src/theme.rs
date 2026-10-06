@@ -183,6 +183,7 @@ mod tests {
                     mode: ThemePreference::Dark,
                     light_theme: Some("No Such Theme".into()),
                     dark_theme: None,
+                    ..AppSettings::default()
                 },
                 None,
             );

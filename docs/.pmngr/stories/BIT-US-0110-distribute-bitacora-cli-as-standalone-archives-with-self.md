@@ -2,7 +2,7 @@
 id: BIT-US-0110
 type: story
 title: Distribute bitacora-cli as standalone archives with self-update
-status: backlog
+status: in_review
 priority: medium
 parent: BIT-EP-0014
 milestone: BIT-M-0005
@@ -10,7 +10,8 @@ author: mcp
 labels: [release, bitacora-cli]
 estimate: 3
 created: 2026-10-06T14:31:53Z
-updated: 2026-10-06T14:31:53Z
+updated: 2026-10-06T19:59:49Z
+started: 2026-10-06T19:59:49Z
 ---
 
 ## Description

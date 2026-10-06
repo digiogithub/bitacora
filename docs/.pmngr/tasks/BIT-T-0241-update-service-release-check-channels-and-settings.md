@@ -2,7 +2,7 @@
 id: BIT-T-0241
 type: task
 title: "Update service: release check, channels and settings"
-status: backlog
+status: done
 priority: medium
 parent: BIT-US-0100
 milestone: BIT-M-0005
@@ -10,7 +10,8 @@ author: mcp
 labels: [auto-update, bitacora-app]
 estimate: 3
 created: 2026-10-06T14:31:45Z
-updated: 2026-10-06T14:31:45Z
+updated: 2026-10-06T20:18:19Z
+closed: 2026-10-06T20:18:19Z
 ---
 
 ## Description

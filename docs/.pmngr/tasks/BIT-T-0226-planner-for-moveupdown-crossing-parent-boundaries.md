@@ -2,7 +2,7 @@
 id: BIT-T-0226
 type: task
 title: Planner for MoveUpDown crossing parent boundaries
-status: backlog
+status: done
 priority: critical
 parent: BIT-US-0034
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-core, outliner]
 estimate: 2
 created: 2026-10-06T14:31:33Z
-updated: 2026-10-06T14:31:33Z
+updated: 2026-10-06T20:21:40Z
+closed: 2026-10-06T20:21:40Z
 ---
 
 ## Description

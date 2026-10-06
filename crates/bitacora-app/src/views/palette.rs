@@ -111,11 +111,13 @@ pub enum PaletteCommand {
     ResolveConflicts,
     /// Open a graph from a git remote (clone).
     CloneGraph,
+    /// Check GitHub Releases for a newer version (BIT-US-0100).
+    CheckForUpdates,
 }
 
 impl PaletteCommand {
     /// Every command, in palette order.
-    pub const ALL: [Self; 15] = [
+    pub const ALL: [Self; 16] = [
         Self::GoJournals,
         Self::GoAllPages,
         Self::GoBack,
@@ -131,6 +133,7 @@ impl PaletteCommand {
         Self::ResolveConflicts,
         Self::CloneGraph,
         Self::SwitchGraph,
+        Self::CheckForUpdates,
     ];
 
     /// The label shown (and matched against the query).
@@ -151,6 +154,7 @@ impl PaletteCommand {
             Self::PageHistory => t!("palette.cmd_page_history"),
             Self::ResolveConflicts => t!("palette.cmd_conflicts"),
             Self::CloneGraph => t!("palette.cmd_clone"),
+            Self::CheckForUpdates => t!("update.check_updates"),
         }
         .to_string()
     }
@@ -171,6 +175,7 @@ impl PaletteCommand {
             Self::PageHistory => IconName::Undo2,
             Self::ResolveConflicts => IconName::TriangleAlert,
             Self::CloneGraph => IconName::FolderOpen,
+            Self::CheckForUpdates => IconName::LoaderCircle,
         }
     }
 }

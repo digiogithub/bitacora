@@ -2,7 +2,7 @@
 id: BIT-T-0153
 type: task
 title: Forward launch arguments to the running instance over local IPC
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0086
 milestone: BIT-M-0005
@@ -10,7 +10,8 @@ author: mcp
 labels: [release, bitacora-app]
 estimate: 3
 created: 2026-10-06T14:30:21Z
-updated: 2026-10-06T14:30:21Z
+updated: 2026-10-06T20:18:19Z
+closed: 2026-10-06T20:18:19Z
 ---
 
 ## Description

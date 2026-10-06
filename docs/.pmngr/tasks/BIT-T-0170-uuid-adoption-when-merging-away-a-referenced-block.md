@@ -2,7 +2,7 @@
 id: BIT-T-0170
 type: task
 title: uuid adoption when merging away a referenced block
-status: backlog
+status: done
 priority: critical
 parent: BIT-US-0033
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-core, outliner]
 estimate: 2
 created: 2026-10-06T14:30:44Z
-updated: 2026-10-06T14:30:44Z
+updated: 2026-10-06T20:21:40Z
+closed: 2026-10-06T20:21:40Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-T-0029
 type: task
 title: Scheduled advisories check and Dependabot configuration
-status: in_review
+status: done
 priority: medium
 parent: BIT-US-0013
 milestone: BIT-M-0001
@@ -10,8 +10,9 @@ author: mcp
 labels: [ci, dependencies, security]
 estimate: 1
 created: 2026-10-06T14:26:40Z
-updated: 2026-10-06T16:55:34Z
+updated: 2026-10-06T20:23:05Z
 started: 2026-10-06T16:55:34Z
+closed: 2026-10-06T20:23:05Z
 ---
 
 ## Description
