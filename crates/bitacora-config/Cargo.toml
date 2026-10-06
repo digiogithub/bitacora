@@ -1,0 +1,15 @@
+[package]
+name = "bitacora-config"
+description = "Bitacora: Logseq `config"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+thiserror.workspace = true

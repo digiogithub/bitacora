@@ -1,0 +1,9 @@
+[alias]
+xtask = "run --package xtask --"
+
+# Optional faster linker on Linux (not mandatory for contributors). Uncomment
+# after installing `mold` and `clang`:
+#
+# [target.x86_64-unknown-linux-gnu]
+# linker = "clang"
+# rustflags = ["-C", "link-arg=-fuse-ld=mold"]

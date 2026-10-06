@@ -1,0 +1,23 @@
+[package]
+name = "bitacora-cli"
+description = "Bitacora: headless command-line binary"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "bitacora-cli"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+bitacora-core.workspace = true
+bitacora-index.workspace = true
+bitacora-sync.workspace = true
+bitacora-mcp.workspace = true
+clap.workspace = true

@@ -1,0 +1,54 @@
+# cargo-deny configuration (ADR-014: project is MIT; no GPL code from Zed crates).
+[graph]
+all-features = false
+
+[licenses]
+version = 2
+confidence-threshold = 0.9
+# Anything not listed here (notably GPL-*, AGPL-*, LGPL-*) is denied.
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "Unicode-3.0",
+    "MPL-2.0",
+    "CC0-1.0",
+    "BSL-1.0",
+    "0BSD",
+    "bzip2-1.0.6",
+    "CDLA-Permissive-2.0",
+]
+
+[bans]
+multiple-versions = "warn"
+wildcards = "allow"
+# GPL Zed crates have generic names (editor, ui, theme, workspace, ...), so they
+# are blocked by the license allowlist above rather than by name.
+# Only `gpui-pre` (brought in by `gpui-kit`) is allowed; the crates.io `gpui`
+# crate must never be a dependency (ADR-001).
+deny = [
+    { crate = "gpui", reason = "use gpui-kit, which pins gpui-pre (ADR-001)" },
+]
+
+[advisories]
+version = 2
+yanked = "deny"
+# Only "unmaintained" notices, all transitive through gpui-kit / gpui-pre (we cannot
+# patch them). Re-evaluate when gpui-kit is bumped. No vulnerability is ignored.
+ignore = [
+    { id = "RUSTSEC-2024-0384", reason = "instant unmaintained; transitive via gpui-kit" },
+    { id = "RUSTSEC-2024-0436", reason = "paste unmaintained; transitive via gpui-kit" },
+    { id = "RUSTSEC-2025-0134", reason = "rustls-pemfile unmaintained; transitive via gpui-kit" },
+    { id = "RUSTSEC-2026-0206", reason = "rustybuzz unmaintained; transitive via gpui-pre" },
+    { id = "RUSTSEC-2026-0192", reason = "ttf-parser unmaintained; transitive via gpui-pre" },
+]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

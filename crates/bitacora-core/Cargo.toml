@@ -1,0 +1,18 @@
+[package]
+name = "bitacora-core"
+description = "Bitacora: Graph model, title/path mapping, `Op` transactions with undo, the single-writer command queue and atomic file writer"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+bitacora-markdown.workspace = true
+bitacora-merge.workspace = true
+bitacora-config.workspace = true
+thiserror.workspace = true

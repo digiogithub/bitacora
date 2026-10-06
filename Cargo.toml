@@ -1,0 +1,110 @@
+[workspace]
+resolver = "3"
+members = ["crates/*", "xtask"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/digio-es/bitacora"
+rust-version = "1.90"
+publish = false
+
+# Profiles: see docs/analysis/rust/crate-stack.md section 5.1.
+[profile.dev]
+debug = "line-tables-only"      # faster links; GPUI debug info is huge
+
+[profile.dev.package."*"]
+opt-level = 1                   # GPUI is sluggish at opt-level 0
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "debuginfo"
+panic = "unwind"                # keep for crash reporting
+
+[workspace.lints.rust]
+unsafe_code = "warn"
+missing_debug_implementations = "warn"
+
+[workspace.lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+dbg_macro = "deny"
+todo = "warn"
+
+# Exact third-party pins. Member crates opt in with `foo.workspace = true`;
+# only declare here what a crate really uses (keeps `cargo machete` clean).
+[workspace.dependencies]
+# Workspace crates
+bitacora-markdown = { path = "crates/bitacora-markdown" }
+bitacora-config = { path = "crates/bitacora-config" }
+bitacora-core = { path = "crates/bitacora-core" }
+bitacora-watch = { path = "crates/bitacora-watch" }
+bitacora-index = { path = "crates/bitacora-index" }
+bitacora-merge = { path = "crates/bitacora-merge" }
+bitacora-sync = { path = "crates/bitacora-sync" }
+bitacora-mcp = { path = "crates/bitacora-mcp" }
+bitacora-testkit = { path = "crates/bitacora-testkit" }
+
+# UI (only bitacora-app may use it; ADR-001)
+gpui-kit = { version = "=0.7.1" }
+
+# Async / HTTP / MCP (never in bitacora-core; ADR-012)
+tokio = { version = "1.53", features = ["rt-multi-thread", "macros", "net", "sync", "time", "signal"] }
+axum = "0.8.9"
+rmcp = { version = "~3.5", features = ["server", "macros", "schemars", "transport-streamable-http-server", "transport-streamable-http-server-session", "transport-io"] }
+schemars = "1"
+async-channel = "2.5"
+
+# Storage
+rusqlite = { version = "0.40", features = ["bundled", "functions", "hooks", "backup"] }
+rusqlite_migration = "2.6"
+
+# Parsing / diff
+pulldown-cmark = "0.13"
+diffy = "0.5"
+imara-diff = "0.2"
+similar = "3.2"
+edn-rs = "0.19"
+
+# Git (ADR-007 / ADR-020): gix incl. network client for the gix-only fallback
+gix = { version = "0.88", default-features = false, features = ["max-performance-safe", "blocking-network-client", "blocking-http-transport-reqwest-rust-tls", "credentials", "merge", "blob-diff", "status", "index", "revision"] }
+
+# Watching, search, misc
+notify = "8.2"
+notify-debouncer-full = "0.7"
+uuid = { version = "1.27", features = ["v4", "v7", "serde"] }
+jiff = "0.2"
+nucleo = "0.5"
+nucleo-matcher = "0.3"
+directories = "6"
+keyring = "4.2"
+rust-i18n = "4.2"
+
+# Logging / serialization / errors / CLI
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-appender = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+
+# Filesystem helpers
+fs-err = "3"
+tempfile = "3"
+ignore = "0.4"
+walkdir = "2.5"
+globset = "0.4"
+regex = "1"
+parking_lot = "0.12"
+
+# Tooling (xtask)
+cargo_metadata = "0.23"
+
+# Dev / test
+insta = "1.49"
+proptest = "1.11"
+criterion = "0.8"

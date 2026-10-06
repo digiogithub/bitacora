@@ -1,0 +1,15 @@
+[package]
+name = "bitacora-testkit"
+description = "Bitacora: dev-only test helpers (never a runtime dependency)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+tempfile.workspace = true

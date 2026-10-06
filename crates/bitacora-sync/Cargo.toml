@@ -1,0 +1,17 @@
+[package]
+name = "bitacora-sync"
+description = "Bitacora: Git synchronisation"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+bitacora-core.workspace = true
+bitacora-merge.workspace = true
+thiserror.workspace = true

@@ -1,0 +1,19 @@
+[files]
+extend-exclude = [
+    "fixtures/graphs/**",
+    "Cargo.lock",
+    "docs/.pmngr/**",
+    "LICENSE",
+]
+
+[default.extend-words]
+bitacora = "bitacora"
+Bitacora = "Bitacora"
+logseq = "logseq"
+lowbar = "lowbar"
+LOGBOOK = "LOGBOOK"
+gpui = "gpui"
+edn = "edn"
+Nd = "Nd"
+mis = "mis"
+unparseable = "unparseable"
