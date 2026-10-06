@@ -1,0 +1,4 @@
+;; Hand-authored for Bitacora test fixtures.
+{:meta/version 1
+ :preferred-format :markdown
+ :file/name-format :triple-lowbar}

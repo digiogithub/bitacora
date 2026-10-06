@@ -1,6 +1,7 @@
 //! `bitacora-core`: Graph model, title/path mapping, `Op` transactions with undo, the single-writer command queue and atomic file writer. Synchronous and executor-agnostic (no tokio, ADR-012).
 
 pub mod date;
+pub mod graph;
 pub mod graph_path;
 pub mod journal;
 pub mod naming;
