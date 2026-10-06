@@ -1,0 +1,75 @@
+---
+source: crates/bitacora-markdown/tests/edit_golden.rs
+expression: o
+---
+== ensure_block_id
+-- in
+"Parent block\ntags:: demo"
+-- out
+"Parent block\ntags:: demo\nid:: 6500c1a4-0000-4000-8000-000000000001"
+
+== ensure_block_id again (no-op)
+-- in
+"Parent block\ntags:: demo\nid:: 6500c1a4-0000-4000-8000-000000000001"
+-- out
+"Parent block\ntags:: demo\nid:: 6500c1a4-0000-4000-8000-000000000001"
+
+== collapse
+-- in
+"collapsed parent"
+-- out
+"collapsed parent\ncollapsed:: true"
+
+== expand
+-- in
+"collapsed parent\ncollapsed:: true"
+-- out
+"collapsed parent"
+
+== scheduled
+-- in
+"TODO [#A] Parent block #tag"
+-- out
+"TODO [#A] Parent block #tag\nSCHEDULED: <2024-01-01 Mon .+1d>"
+
+== scheduled + deadline
+-- in
+"title\nbody"
+-- out
+"title\nSCHEDULED: <2024-01-01 Mon>\nDEADLINE: <2024-01-05 Fri>\nbody"
+
+== unschedule
+-- in
+"title\nSCHEDULED: <2024-01-01 Mon>\nDEADLINE: <2024-01-05 Fri>\nbody"
+-- out
+"title\nDEADLINE: <2024-01-05 Fri>\nbody"
+
+== clock_in new logbook after properties
+-- in
+"DOING work\nowner:: me\nbody"
+-- out
+"DOING work\nowner:: me\n:LOGBOOK:\nCLOCK: [2024-01-01 Mon 10:00:00]\n:END:\nbody"
+
+== clock_out
+-- in
+"DOING work\nowner:: me\n:LOGBOOK:\nCLOCK: [2024-01-01 Mon 10:00:00]\n:END:\nbody"
+-- out
+"DOING work\nowner:: me\n:LOGBOOK:\nCLOCK: [2024-01-01 Mon 10:00:00]--[2024-01-01 Mon 11:30:00] =>  01:30:00\n:END:\nbody"
+
+== clock_in merges
+-- in
+"DOING work\nowner:: me\n:LOGBOOK:\nCLOCK: [2024-01-01 Mon 10:00:00]--[2024-01-01 Mon 11:30:00] =>  01:30:00\n:END:\nbody"
+-- out
+"DOING work\nowner:: me\n:LOGBOOK:\nCLOCK: [2024-01-01 Mon 12:00:00]\nCLOCK: [2024-01-01 Mon 10:00:00]--[2024-01-01 Mon 11:30:00] =>  01:30:00\n:END:\nbody"
+
+== marker TODO -> DONE
+-- in
+"TODO a\nb"
+-- out
+"DONE a\nb"
+
+== marker removed under heading
+-- in
+"## DONE a"
+-- out
+"## a"

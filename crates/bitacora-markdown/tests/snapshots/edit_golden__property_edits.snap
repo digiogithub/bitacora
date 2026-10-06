@@ -1,0 +1,69 @@
+---
+source: crates/bitacora-markdown/tests/edit_golden.rs
+expression: o
+---
+== set_property replace in place b=3
+-- in
+"task\nb:: 1\na:: 2"
+-- out
+"task\nb:: 3\na:: 2"
+
+== set_property append to group Status=open
+-- in
+"task\nb:: 1\nbody text"
+-- out
+"task\nb:: 1\nstatus:: open\nbody text"
+
+== set_property insert after title k=v
+-- in
+"task\nbody"
+-- out
+"task\nk:: v\nbody"
+
+== set_property insert on title only k=v
+-- in
+"task"
+-- out
+"task\nk:: v"
+
+== set_property empty content k=v
+-- in
+""
+-- out
+"k:: v"
+
+== set_property before fence k=2
+-- in
+"```\nk:: 1\n```"
+-- out
+"k:: 2\n```\nk:: 1\n```"
+
+== set_property after planning lines k=v
+-- in
+"task\nSCHEDULED: <2024-01-01 Mon>\nbody"
+-- out
+"task\nSCHEDULED: <2024-01-01 Mon>\nk:: v\nbody"
+
+== set_property drawer converted b=2
+-- in
+"t\n:PROPERTIES:\n:a: 1\n:END:\nbody"
+-- out
+"t\na:: 1\nb:: 2\nbody"
+
+== set_property_values
+-- in
+"t"
+-- out
+"t\ntags:: [[a]], [[b c]]"
+
+== remove_property k
+-- in
+"a\nk:: v\nz:: 1\n"
+-- out
+"a\nz:: 1\n"
+
+== remove_property k
+-- in
+"```\nk:: 1\n```"
+-- out
+"```\nk:: 1\n```"
