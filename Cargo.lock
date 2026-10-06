@@ -914,12 +914,16 @@ dependencies = [
 name = "bitacora-sync"
 version = "0.1.0"
 dependencies = [
+ "bitacora-config",
  "bitacora-core",
  "bitacora-merge",
  "bitacora-testkit",
  "git2",
  "gix",
  "keyring",
+ "proptest",
+ "serde",
+ "serde_json",
  "tempfile",
  "thiserror 2.0.21",
  "uuid",

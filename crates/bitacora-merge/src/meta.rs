@@ -25,6 +25,9 @@ pub struct MergeEnv<'a> {
     pub collapsed: Side,
     /// Index lookup: is this block uuid referenced (`((uuid))`, embed) anywhere in the graph?
     pub is_referenced: &'a dyn Fn(&str) -> bool,
+    /// Default journal template text (`:default-templates {:journals ...}` rendered), if any. A
+    /// side holding only this text counts as "unchanged" in add/add merges (BIT-SP-0006.R18).
+    pub template: Option<&'a str>,
 }
 
 impl std::fmt::Debug for MergeEnv<'_> {
@@ -42,6 +45,7 @@ impl Default for MergeEnv<'static> {
             prefer: Side::Ours,
             collapsed: Side::Ours,
             is_referenced: &never_referenced,
+            template: None,
         }
     }
 }
