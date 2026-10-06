@@ -1,0 +1,12 @@
+---
+source: crates/bitacora-markdown/tests/snapshot_template.rs
+expression: "format!(\"{rel}\\n{lines:#?}\")"
+---
+pages/indent-irregular.md
+[
+    "- level one\n",
+    "      - jumps three levels at once\n",
+    "  - back to level two\n",
+    "        - odd eight-space jump\n",
+    "- level one again\n",
+]

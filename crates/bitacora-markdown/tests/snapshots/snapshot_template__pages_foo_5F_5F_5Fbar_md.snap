@@ -1,0 +1,8 @@
+---
+source: crates/bitacora-markdown/tests/snapshot_template.rs
+expression: "format!(\"{rel}\\n{lines:#?}\")"
+---
+pages/foo%5F%5F%5Fbar.md
+[
+    "- literal triple underscore in title foo___bar\n",
+]

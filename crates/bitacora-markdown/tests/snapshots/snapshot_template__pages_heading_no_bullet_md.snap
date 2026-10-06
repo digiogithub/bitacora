@@ -1,0 +1,14 @@
+---
+source: crates/bitacora-markdown/tests/snapshot_template.rs
+expression: "format!(\"{rel}\\n{lines:#?}\")"
+---
+pages/heading-no-bullet.md
+[
+    "# Heading without bullet\n",
+    "\n",
+    "plain paragraph, no bullet\n",
+    "\n",
+    "- bullet after heading\n",
+    "## Second heading without bullet\n",
+    "- last bullet\n",
+]

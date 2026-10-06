@@ -1,0 +1,11 @@
+---
+source: crates/bitacora-markdown/tests/snapshot_template.rs
+expression: "format!(\"{rel}\\n{lines:#?}\")"
+---
+pages/star-plus-bullets.md
+[
+    "* star bullet\n",
+    "  * nested star bullet\n",
+    "+ plus bullet\n",
+    "- dash bullet\n",
+]

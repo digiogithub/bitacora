@@ -1,0 +1,8 @@
+---
+source: crates/bitacora-markdown/tests/snapshot_template.rs
+expression: "format!(\"{rel}\\n{lines:#?}\")"
+---
+pages/ends with.___.md
+[
+    "- title ends with a dot\n",
+]

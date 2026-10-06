@@ -1,0 +1,13 @@
+---
+source: crates/bitacora-markdown/tests/snapshot_template.rs
+expression: "format!(\"{rel}\\n{lines:#?}\")"
+---
+pages/pre-block-yaml-front-matter.md
+[
+    "---\n",
+    "title: YAML front matter page\n",
+    "tags: [fixture, yaml]\n",
+    "---\n",
+    "\n",
+    "- block after front matter\n",
+]

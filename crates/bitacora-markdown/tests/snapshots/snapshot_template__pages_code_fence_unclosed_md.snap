@@ -1,0 +1,12 @@
+---
+source: crates/bitacora-markdown/tests/snapshot_template.rs
+expression: "format!(\"{rel}\\n{lines:#?}\")"
+---
+pages/code-fence-unclosed.md
+[
+    "- block before fence\n",
+    "- ```rust\n",
+    "  fn main() {\n",
+    "  // fence never closed\n",
+    "- this line is inside the unclosed fence\n",
+]

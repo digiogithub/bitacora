@@ -1,0 +1,11 @@
+---
+source: crates/bitacora-markdown/tests/snapshot_template.rs
+expression: "format!(\"{rel}\\n{lines:#?}\")"
+---
+pages/indent-tabs.md
+[
+    "- tab indented parent\n",
+    "\t- child with one tab\n",
+    "\t\t- grandchild with two tabs\n",
+    "- sibling\n",
+]

@@ -1,0 +1,11 @@
+---
+source: crates/bitacora-markdown/tests/snapshot_template.rs
+expression: "format!(\"{rel}\\n{lines:#?}\")"
+---
+pages/unicode-中文-🚀.md
+[
+    "- CJK 日本語のページ\n",
+    "- emoji 🚀✨ block\n",
+    "- combining e\u{301} and precomposed é\n",
+    "- link [[中文页面]] and #标签\n",
+]

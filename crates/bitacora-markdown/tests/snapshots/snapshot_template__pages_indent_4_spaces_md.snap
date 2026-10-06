@@ -1,0 +1,11 @@
+---
+source: crates/bitacora-markdown/tests/snapshot_template.rs
+expression: "format!(\"{rel}\\n{lines:#?}\")"
+---
+pages/indent-4-spaces.md
+[
+    "- four-space parent\n",
+    "    - child with four spaces\n",
+    "        - grandchild with eight spaces\n",
+    "- sibling\n",
+]

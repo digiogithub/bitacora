@@ -1,0 +1,13 @@
+---
+source: crates/bitacora-markdown/tests/snapshot_template.rs
+expression: "format!(\"{rel}\\n{lines:#?}\")"
+---
+pages/empty-blocks.md
+[
+    "- \n",
+    "-\n",
+    "- text between empties\n",
+    "- \n",
+    "  - empty parent with child\n",
+    "-\n",
+]

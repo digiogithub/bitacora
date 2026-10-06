@@ -1,0 +1,9 @@
+---
+source: crates/bitacora-markdown/tests/snapshot_template.rs
+expression: "format!(\"{rel}\\n{lines:#?}\")"
+---
+pages/bom-crlf.md
+[
+    "\u{feff}- bom and crlf\r\n",
+    "- second\r\n",
+]
