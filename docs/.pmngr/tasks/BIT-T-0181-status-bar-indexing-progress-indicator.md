@@ -2,7 +2,7 @@
 id: BIT-T-0181
 type: task
 title: Status bar indexing progress indicator
-status: in_progress
+status: done
 priority: medium
 parent: BIT-US-0073
 milestone: BIT-M-0002
@@ -10,8 +10,9 @@ author: mcp
 labels: [bitacora-app, ui]
 estimate: 1
 created: 2026-10-06T14:30:56Z
-updated: 2026-10-06T18:28:35Z
+updated: 2026-10-06T18:44:23Z
 started: 2026-10-06T18:28:35Z
+closed: 2026-10-06T18:44:23Z
 ---
 
 ## Description

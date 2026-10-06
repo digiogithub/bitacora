@@ -2,7 +2,7 @@
 id: BIT-US-0019
 type: story
 title: MCP resources with subscriptions and review prompts
-status: backlog
+status: in_progress
 priority: medium
 parent: BIT-EP-0010
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [mcp, resources, prompts]
 estimate: 5
 created: 2026-10-06T14:27:12Z
-updated: 2026-10-06T14:27:12Z
+updated: 2026-10-06T18:44:25Z
+started: 2026-10-06T18:44:25Z
 ---
 
 ## Description

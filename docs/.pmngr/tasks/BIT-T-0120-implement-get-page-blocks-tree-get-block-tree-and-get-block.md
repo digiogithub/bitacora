@@ -2,7 +2,7 @@
 id: BIT-T-0120
 type: task
 title: Implement get_page_blocks_tree / get_block_tree and get_block tools
-status: backlog
+status: in_progress
 priority: high
 parent: BIT-US-0017
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-mcp, tools, read]
 estimate: 3
 created: 2026-10-06T14:29:55Z
-updated: 2026-10-06T14:29:55Z
+updated: 2026-10-06T18:44:25Z
+started: 2026-10-06T18:44:25Z
 ---
 
 ## Description

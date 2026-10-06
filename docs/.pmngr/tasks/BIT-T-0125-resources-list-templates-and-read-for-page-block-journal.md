@@ -2,7 +2,7 @@
 id: BIT-T-0125
 type: task
 title: "Resources: list, templates and read for page/block/journal/config/sync/asset URIs"
-status: backlog
+status: in_progress
 priority: medium
 parent: BIT-US-0019
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-mcp, resources]
 estimate: 3
 created: 2026-10-06T14:29:55Z
-updated: 2026-10-06T14:29:55Z
+updated: 2026-10-06T18:44:25Z
+started: 2026-10-06T18:44:25Z
 ---
 
 ## Description

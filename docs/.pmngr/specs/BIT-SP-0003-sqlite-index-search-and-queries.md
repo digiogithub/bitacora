@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [index, search]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T18:40:06Z
+updated: 2026-10-06T18:44:33Z
 requirements:
   R1:
     status: backlog
@@ -14,10 +14,12 @@ requirements:
       code:
         - crates/bitacora-index/src/location.rs
         - crates/bitacora-index/src/index.rs
-        - crates/bitacora-cli/src/cmd/reindex.rs
+        - crates/bitacora-app/src/session.rs#GraphSession
+        - crates/bitacora-app/src/views/picker.rs#GraphPicker
       tests:
         - crates/bitacora-index/tests/lifecycle.rs
-        - crates/bitacora-cli/tests/index_commands.rs
+        - crates/bitacora-app/src/session.rs#tests
+        - crates/bitacora-app/src/views/workspace.rs#tests
     verified: {rev: "sha256:584ce8abaaf6c47d", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
   R2:
     status: backlog
@@ -56,8 +58,13 @@ requirements:
   R6:
     status: backlog
     trace:
-      code: [crates/bitacora-index/src/reconcile.rs]
-      tests: [crates/bitacora-index/tests/reconcile.rs]
+      code:
+        - crates/bitacora-index/src/reconcile.rs
+        - crates/bitacora-app/src/session.rs#open_and_reconcile
+        - crates/bitacora-app/src/views/status_bar.rs#AppStatusBar
+      tests:
+        - crates/bitacora-index/tests/reconcile.rs
+        - crates/bitacora-app/src/session.rs#tests
     verified: {rev: "sha256:532f5b458d47c076", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
   R7:
     status: backlog
