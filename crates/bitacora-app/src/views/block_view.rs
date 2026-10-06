@@ -5,6 +5,7 @@ use std::path::{Component, Path, PathBuf};
 
 use rust_i18n::t;
 
+use crate::nav::OpenIn;
 use crate::render::highlight::TokenClass;
 use crate::render::inline::{Emphasis, ImageRef, NavTarget, Role, TextLayout};
 use crate::render::model::{BlockModel, BodyItem, CodeBlock, PropertyRow, Row};
@@ -43,7 +44,7 @@ pub fn resolve_asset(graph_root: &Path, src: &str) -> Option<PathBuf> {
     Some(out)
 }
 
-pub type Nav = std::rc::Rc<dyn Fn(NavTarget, &mut App)>;
+pub type Nav = std::rc::Rc<dyn Fn(NavTarget, OpenIn, &mut App)>;
 
 fn heading_size(level: u8) -> f32 {
     [28., 24., 20., 18., 16., 15.][usize::from(level.clamp(1, 6)) - 1]
@@ -150,9 +151,13 @@ pub(crate) fn text_element_owned(
     let targets: Vec<NavTarget> = layout.links.iter().map(|(_, t)| t.clone()).collect();
     match on_nav {
         Some(nav) if !ranges.is_empty() => InteractiveText::new(id, styled)
-            .on_click(ranges, move |ix, _, cx| {
+            .on_click(ranges, move |ix, window, cx| {
                 if let Some(target) = targets.get(ix) {
-                    nav(target.clone(), cx);
+                    nav(
+                        target.clone(),
+                        OpenIn::from_shift(window.modifiers().shift),
+                        cx,
+                    );
                 }
             })
             .into_any_element(),
@@ -464,7 +469,13 @@ pub fn render_block_row(
                     .id(("referrer", id * 1000 + n))
                     .gap_2()
                     .cursor_pointer()
-                    .on_click(move |_, _, cx| nav(NavTarget::Block(uuid.clone()), cx))
+                    .on_click(move |_, window, cx| {
+                        nav(
+                            NavTarget::Block(uuid.clone()),
+                            OpenIn::from_shift(window.modifiers().shift),
+                            cx,
+                        );
+                    })
                     .child(
                         div()
                             .text_color(theme.muted_foreground)
@@ -511,6 +522,7 @@ pub fn render_block_row(
                     .on_click(move |_, window, cx| toggle(window, cx))
             },
         );
+    let bullet_uuid = row.uuid.clone();
     let bullet_slot = div()
         .id(("bullet", id))
         .w(px(12.))
@@ -518,11 +530,22 @@ pub fn render_block_row(
         .flex()
         .justify_center()
         .when(row.block_index.is_some(), |d| d.child(bullet))
-        .when_some(
-            actions.toggle.clone().filter(|_| row.has_children),
-            |d, toggle| {
-                d.cursor_pointer()
-                    .on_click(move |_, window, cx| toggle(window, cx))
+        .when(
+            bullet_uuid.is_some() || (actions.toggle.is_some() && row.has_children),
+            |d| {
+                let toggle = actions.toggle.clone().filter(|_| row.has_children);
+                let nav = actions.nav.clone();
+                let uuid = bullet_uuid.clone();
+                // Shift+click opens the block in the right sidebar; a plain click folds.
+                d.cursor_pointer().on_click(move |_, window, cx| {
+                    if window.modifiers().shift
+                        && let Some(uuid) = &uuid
+                    {
+                        nav(NavTarget::Block(uuid.clone()), OpenIn::Sidebar, cx);
+                    } else if let Some(toggle) = &toggle {
+                        toggle(window, cx);
+                    }
+                })
             },
         );
     let bubble = (row.ref_count > 0).then(|| {

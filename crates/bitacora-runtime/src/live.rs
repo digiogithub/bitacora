@@ -307,6 +307,19 @@ impl Session {
         Ok(self.index.reader()?)
     }
 
+    /// Typed read API over the index (cheap to clone; for UIs that read pages and outlines).
+    #[must_use]
+    pub fn read_api(&self) -> bitacora_index::IndexReader {
+        self.index.read_api()
+    }
+
+    /// New subscription to index changes (events before the call are not replayed). `None` once
+    /// the session is shutting down.
+    #[must_use]
+    pub fn index_events(&self) -> Option<Receiver<bitacora_index::IndexEvent>> {
+        self.indexer.as_ref().map(|ix| ix.subscribe())
+    }
+
     /// Index-backed lookups for page renames (`RenameRequest::lookup`).
     #[must_use]
     pub fn ref_lookup(&self) -> std::sync::Arc<crate::IndexRefLookup> {

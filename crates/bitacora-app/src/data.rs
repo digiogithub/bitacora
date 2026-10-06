@@ -537,3 +537,104 @@ pub fn journal_rows(
     let more = blocks.len() >= limit;
     Ok((rows_from_blocks(h, &blocks, 0), more))
 }
+
+/// One row of the all-pages table.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PageItem {
+    /// Index id.
+    pub id: i64,
+    /// Display name.
+    pub name: String,
+    /// Blocks that reference the page.
+    pub backlinks: usize,
+    /// Creation time (unix ms).
+    pub created: Option<i64>,
+    /// Update time (unix ms).
+    pub updated: Option<i64>,
+    /// A journal page.
+    pub is_journal: bool,
+}
+
+/// Pages with a file for the all-pages table; built-ins are always hidden, journals only when
+/// `journals` is set.
+pub fn all_pages(h: &GraphHandle, journals: bool) -> Result<Vec<PageItem>, String> {
+    let rows = h
+        .reader
+        .all_pages(
+            bitacora_index::PageFilter {
+                journals,
+                placeholders: false,
+                builtins: false,
+            },
+            bitacora_index::PageSort::Name,
+        )
+        .map_err(err)?;
+    let counts = h.reader.backlink_counts().map_err(err)?;
+    Ok(rows
+        .into_iter()
+        .map(|p| PageItem {
+            backlinks: counts.get(&p.id).copied().unwrap_or(0),
+            id: p.id,
+            name: p.original_name,
+            created: p.created_at,
+            updated: p.updated_at,
+            is_journal: p.is_journal,
+        })
+        .collect())
+}
+
+/// `yyyy-mm-dd` (local time zone) of a unix-millisecond timestamp; empty when unknown.
+pub fn format_day(unix_ms: Option<i64>) -> String {
+    let Some(ms) = unix_ms else {
+        return String::new();
+    };
+    let Ok(ts) = jiff::Timestamp::from_millisecond(ms) else {
+        return String::new();
+    };
+    let date = ts.to_zoned(jiff::tz::TimeZone::system()).date();
+    format!("{:04}-{:02}-{:02}", date.year(), date.month(), date.day())
+}
+
+/// Seconds until the next local midnight.
+pub fn secs_until_midnight() -> Option<u64> {
+    let now = jiff::Zoned::now();
+    Some(Date::secs_until_midnight(
+        now.timestamp().as_second(),
+        now.offset().seconds(),
+    ))
+}
+
+/// Today as `yyyyMMdd`, the boost hint of the search ranking.
+pub fn today_key() -> Option<i64> {
+    today_local().map(|d| i64::from(d.journal_day()))
+}
+
+#[cfg(test)]
+mod all_pages_tests {
+    use super::*;
+    use crate::testing::TestGraph;
+
+    #[test]
+    fn all_pages_counts_backlinks_and_hides_journals_by_default() {
+        let g = TestGraph::new(&[
+            ("pages/Alpha.md", "- see [[Beta]]\n- again [[Beta]]\n"),
+            ("pages/Beta.md", "- b\n"),
+            ("journals/2024_01_01.md", "- j [[Beta]]\n"),
+        ]);
+        let list = all_pages(&g.handle, false).expect("pages");
+        let names: Vec<_> = list.iter().map(|p| p.name.as_str()).collect();
+        assert_eq!(names, ["Alpha", "Beta"]);
+        let b = list.iter().find(|p| p.name == "Beta").expect("Beta");
+        assert_eq!(b.backlinks, 3);
+        assert!(!b.is_journal);
+        let with = all_pages(&g.handle, true).expect("pages");
+        assert_eq!(with.len(), 3);
+        assert!(with.iter().any(|p| p.is_journal));
+    }
+
+    #[test]
+    fn day_format_handles_missing_values() {
+        assert_eq!(format_day(None), "");
+        assert_eq!(format_day(Some(0)).len(), 10);
+    }
+}

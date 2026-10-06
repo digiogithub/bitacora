@@ -100,6 +100,9 @@ fn start(cx: &mut App, args: &Args, dirs: &AppDirs) -> anyhow::Result<()> {
         recent_file: Some(dirs.recent_graphs_file()),
         index_data_dir: None,
         initial_page: args.page.clone(),
+        mcp_token_path: bitacora_mcp::default_token_path(),
+        global_config: None,
+        state_dir: Some(dirs.data_dir.clone()),
     };
     let options = WindowOptions {
         titlebar: Some(TitlebarOptions {
@@ -132,7 +135,21 @@ fn start(cx: &mut App, args: &Args, dirs: &AppDirs) -> anyhow::Result<()> {
     let save_target = workspace.clone();
     cx.on_app_quit(move |cx| {
         save_target.read(cx).save_now(cx);
-        async {}
+        // Window-close quits end up here: stop the session in order (final flush) unless the
+        // `Quit` action already did.
+        let session = save_target.update(cx, |ws, _| ws.take_session());
+        let shutdown = session.map(|s| {
+            cx.background_executor()
+                .spawn(async move { s.shutdown_with_report(crate::session::SHUTDOWN_BUDGET) })
+        });
+        async move {
+            if let Some(task) = shutdown
+                && let Some(report) = task.await
+                && let Some(problem) = crate::views::workspace::shutdown_problem(&report)
+            {
+                tracing::error!("{problem}");
+            }
+        }
     })
     .detach();
     if let Some(graph) = args.graph.clone() {

@@ -22,6 +22,9 @@ pub use gpui_kit::{
     WindowAppearance, WindowBounds, WindowOptions, div, point, px, size,
 };
 
+/// The kit's "cancel" action (Escape in menus and command palettes).
+pub use gpui_kit::base::actions::Cancel as MenuCancel;
+
 /// Defines unit actions (re-exported so views never name the kit crate).
 pub use gpui_kit::actions;
 
@@ -107,6 +110,49 @@ pub fn notify(window: &mut Window, cx: &mut App, level: Level, message: impl Int
     window.push_notification(note, cx);
 }
 
+/// What to ask in a confirmation dialog.
+#[derive(Debug, Clone)]
+pub struct Confirmation {
+    /// Dialog title.
+    pub title: String,
+    /// Explanation under the title.
+    pub description: String,
+    /// Label of the confirming button.
+    pub ok_text: String,
+    /// Label of the cancelling button.
+    pub cancel_text: String,
+}
+
+/// Opens a confirmation dialog (OK / Cancel); `on_ok` runs only when the user confirms. Returns
+/// `false` without running anything when the window has no `Root` (headless tests), so a
+/// destructive action can never proceed without the question having been shown.
+pub fn confirm(
+    window: &mut Window,
+    cx: &mut App,
+    question: Confirmation,
+    on_ok: impl Fn(&mut Window, &mut App) + 'static,
+) -> bool {
+    if window.root::<Root>().flatten().is_none() {
+        tracing::info!(title = %question.title, "confirmation without a Root window");
+        return false;
+    }
+    let on_ok = std::rc::Rc::new(on_ok);
+    window.open_alert_dialog(cx, move |alert, _, _| {
+        let on_ok = on_ok.clone();
+        alert
+            .confirm()
+            .title(question.title.clone())
+            .description(question.description.clone())
+            .ok_text(question.ok_text.clone())
+            .cancel_text(question.cancel_text.clone())
+            .on_ok(move |_, window, cx| {
+                on_ok(window, cx);
+                true
+            })
+    });
+    true
+}
+
 /// Builds a key binding from raw keymap data (keystrokes, a built action, optional
 /// key context such as `"Workspace"`).
 pub fn key_binding(
@@ -167,10 +213,24 @@ pub mod text_edit {
     };
 }
 
+/// Command palette (search and actions palettes).
+pub mod command {
+    pub use gpui_kit::component::IndexPath;
+    pub use gpui_kit::component::command::{Command, CommandGroup, CommandItem, CommandState};
+}
+
+/// Data table (all pages view).
+pub mod table {
+    pub use gpui_kit::component::table::{
+        Column, ColumnSort, DataTable, TableDelegate, TableEvent, TableState,
+    };
+}
+
 /// GPUI Kit text inputs (used by the Textarea-per-block probe, BIT-T-0105).
 pub mod input {
     pub use gpui_kit::component::input::{
-        Backspace, Enter, Indent, InputEvent, MoveDown, MoveUp, Textarea, TextareaState,
+        Backspace, Enter, Indent, Input, InputEvent, InputState, MoveDown, MoveUp, Textarea,
+        TextareaState,
     };
 }
 
