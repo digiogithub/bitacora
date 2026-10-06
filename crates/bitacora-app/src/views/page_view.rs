@@ -1162,6 +1162,7 @@ impl PageView {
                         .filter(|_| self.live)
                         .and_then(|ed| OutlineEditor::row_edit(ed, r, cx));
                     let live_edit = edit.is_some();
+                    let widgets = self.row_widgets(r, row, &nav, edit.as_ref(), cx);
                     let actions = RowActions {
                         nav: nav.clone(),
                         toggle: Some(Rc::new(move |_, cx| {
@@ -1176,6 +1177,7 @@ impl PageView {
                             })
                         }),
                         edit,
+                        widgets,
                     };
                     let block = render_block_row(r, row, root.as_deref(), &theme, &actions);
                     let conflicted = row
@@ -1262,6 +1264,7 @@ impl PageView {
                             referrers: None,
                             focus: None,
                             edit: None,
+                            widgets: None,
                         };
                         let id = (kind.tag() << 40)
                             | ((g & 0xFFF) << 28)
@@ -1279,6 +1282,33 @@ impl PageView {
             .justify_center()
             .child(div().w_full().max_w(px(900.)).child(element))
             .into_any_element()
+    }
+
+    /// Creates (or finds) the query and embed widgets of row `r` and returns what draws them.
+    fn row_widgets(
+        &self,
+        r: usize,
+        row: &Row,
+        nav: &Nav,
+        edit: Option<&crate::editor::RowEdit>,
+        cx: &mut Context<Self>,
+    ) -> Option<crate::views::block_view::WidgetBuild> {
+        let handle = self.handle.clone()?;
+        let host = crate::views::widgets::Host::for_page(
+            handle,
+            self.link.clone(),
+            &self.header.title,
+            &self.rows,
+            r,
+        );
+        crate::views::widgets::prepare(
+            &host,
+            row,
+            &r.to_string(),
+            nav.clone(),
+            crate::views::widgets::edit_hook(edit),
+            cx,
+        )
     }
 
     fn ref_group(&self, kind: RefKind, g: usize) -> Option<&RefGroupModel> {

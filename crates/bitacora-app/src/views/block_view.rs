@@ -338,6 +338,10 @@ fn badge(text: String, color: Hsla, theme: &crate::ui::theme::Theme) -> AnyEleme
 /// Callback with window access (clicks on a bullet or a bubble).
 pub type Action = std::rc::Rc<dyn Fn(&mut Window, &mut App)>;
 
+/// Draws the widget at body index `n` of a row. The host view creates the widget entities
+/// before the row is drawn (drawing has no `App` access), so this only wraps them.
+pub type WidgetBuild = std::rc::Rc<dyn Fn(usize) -> AnyElement>;
+
 /// What a row can do when clicked.
 #[derive(Clone)]
 pub struct RowActions {
@@ -352,6 +356,8 @@ pub struct RowActions {
     pub focus: Option<Action>,
     /// Edit-mode state and click callbacks (the page outline editor, BIT-US-0030).
     pub edit: Option<RowEdit>,
+    /// Draws the row's query and embed widgets; without it they show as their source text.
+    pub widgets: Option<WidgetBuild>,
 }
 
 impl std::fmt::Debug for RowActions {
@@ -369,6 +375,7 @@ impl RowActions {
             referrers: None,
             focus: None,
             edit: None,
+            widgets: None,
         }
     }
 }
@@ -446,12 +453,16 @@ pub fn render_block_row(
             )),
     );
     // `min_h`: an empty block still has a line to click on.
-    let mut content = v_flex()
-        .flex_1()
-        .min_w_0()
-        .min_h(px(22.))
-        .gap_1()
-        .child(title_line);
+    let mut content = v_flex().flex_1().min_w_0().min_h(px(22.)).gap_1();
+    // A block that is only a query or an embed has no title line above its widget.
+    let widget_only = block.title.is_empty()
+        && block.marker.is_none()
+        && block.priority.is_none()
+        && matches!(block.body.first(), Some(BodyItem::Widget(_)))
+        && actions.widgets.is_some();
+    if !widget_only {
+        content = content.child(title_line);
+    }
     for image in &block.title.images {
         content = content.child(image_element(image, graph_root, theme));
     }
@@ -490,6 +501,12 @@ pub fn render_block_row(
                 }
             }
             BodyItem::Code(code) => content = content.child(code_element(part, code, theme)),
+            BodyItem::Widget(widget) => {
+                content = content.child(match &actions.widgets {
+                    Some(build) => build(n),
+                    None => widget_source(widget, theme),
+                });
+            }
             BodyItem::Quote(layout) => {
                 content = content.child(
                     div()
@@ -765,6 +782,28 @@ pub fn render_block_row(
                 })
                 .on_click(move |_, window, cx| delete(window, cx))
         }))
+        .into_any_element()
+}
+
+/// A widget drawn as its source (no host view to run it): rows inside query results and
+/// references.
+fn widget_source(
+    widget: &crate::render::widget::Widget,
+    theme: &crate::ui::theme::Theme,
+) -> AnyElement {
+    use crate::render::widget::{EmbedTarget, Widget};
+    let text = match widget {
+        Widget::Query(q) => format!("{{{{query {}}}}}", q.source.lines().next().unwrap_or("")),
+        Widget::Embed(EmbedTarget::Block(u)) => format!("{{{{embed (({u}))}}}}"),
+        Widget::Embed(EmbedTarget::Page(p)) => format!("{{{{embed [[{p}]]}}}}"),
+    };
+    div()
+        .px(px(6.))
+        .rounded(px(4.))
+        .bg(theme.muted)
+        .text_color(theme.muted_foreground)
+        .text_sm()
+        .child(text)
         .into_any_element()
 }
 

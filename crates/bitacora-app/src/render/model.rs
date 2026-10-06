@@ -16,6 +16,7 @@ use super::highlight::{TokenClass, highlight};
 use super::inline::{
     BlockResolver, NavTarget, Role, TextLayout, layout_line, layout_line_at, layout_lines_at,
 };
+use super::widget::{self, QueryProps, Widget};
 
 /// How a task marker is shown.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -115,6 +116,8 @@ pub enum BodyItem {
     Code(CodeBlock),
     /// A `#+BEGIN_QUOTE` region.
     Quote(TextLayout),
+    /// A live query or an embed that fills its own line (BIT-US-0102, BIT-US-0104).
+    Widget(Widget),
 }
 
 /// Everything shown for one block.
@@ -230,8 +233,10 @@ impl BlockModel {
         };
 
         // Properties.
+        let mut query_props = QueryProps::default();
         if let Some(group) = analysis.properties.effective() {
             for line in group.lines.iter().filter(|l| l.valid) {
+                query_props.set(&line.key_norm, &line.value_raw);
                 if line.key_norm == "id" {
                     model.id = Some(line.value_raw.trim().to_ascii_lowercase());
                 }
@@ -340,7 +345,24 @@ impl BlockModel {
             if !title_done {
                 title_done = true;
                 let from = analysis.head.title_start.min(end).max(start);
-                model.title = layout_line_at(&content[from..end], from, resolver);
+                // `- #+BEGIN_QUERY` on the first line opens the region right away.
+                if let Some(rest) =
+                    strip_prefix_ci(content[from..end].trim_start(), "#+BEGIN_QUERY")
+                    && rest.trim().is_empty()
+                {
+                    region = Some(Region::Begin {
+                        name: "QUERY".to_owned(),
+                        language: String::new(),
+                        text: String::new(),
+                        starts: Vec::new(),
+                    });
+                    continue;
+                }
+                if let Some(w) = widget::detect_line(&content[from..end]) {
+                    model.body.push(BodyItem::Widget(w));
+                } else {
+                    model.title = layout_line_at(&content[from..end], from, resolver);
+                }
                 continue;
             }
             let trimmed = line.trim_start();
@@ -368,6 +390,9 @@ impl BlockModel {
                 }
             } else if line.trim().is_empty() {
                 flush_paragraph(&mut model, &mut paragraph);
+            } else if let Some(w) = widget::detect_line(line) {
+                flush_paragraph(&mut model, &mut paragraph);
+                model.body.push(BodyItem::Widget(w));
             } else {
                 paragraph.push((line, start));
             }
@@ -382,6 +407,11 @@ impl BlockModel {
                 .push(BodyItem::Quote(layout_lines_at(lines, resolver)));
         }
         flush_paragraph(&mut model, &mut paragraph);
+        for item in &mut model.body {
+            if let BodyItem::Widget(Widget::Query(q)) = item {
+                q.props = query_props.clone();
+            }
+        }
         model
     }
 
@@ -400,6 +430,11 @@ impl BlockModel {
             } => (name, language, text, starts),
         };
         if name.eq_ignore_ascii_case("COMMENT") {
+            return;
+        }
+        if name.eq_ignore_ascii_case("QUERY") {
+            self.body
+                .push(BodyItem::Widget(widget::advanced_region(&text)));
             return;
         }
         let language = (!language.is_empty()).then_some(language);
@@ -747,5 +782,48 @@ mod tests {
         fresh.rows[1].uuid = Some("u1".into());
         apply_overrides(&mut fresh.rows, &overrides);
         assert_eq!(visible_rows(&fresh.rows), [0, 1, 3]);
+    }
+
+    #[test]
+    fn query_and_embed_macros_on_their_own_line_become_widgets() {
+        use crate::render::widget::{EmbedTarget, QueryKind};
+        let b = block(
+            "{{query (task TODO)}}\nquery-table:: true\nquery-sort-by:: priority\nquery-sort-desc:: true\nquery-properties:: [:block :page]",
+        );
+        assert!(b.title.is_empty());
+        assert!(b.properties.is_empty());
+        let [BodyItem::Widget(Widget::Query(q))] = b.body.as_slice() else {
+            panic!("one query widget: {:?}", b.body);
+        };
+        assert_eq!(q.kind, QueryKind::Simple);
+        assert_eq!(q.source, "(task TODO)");
+        assert_eq!(q.props.table, Some(true));
+        assert_eq!(q.props.sort_by.as_deref(), Some("priority"));
+        assert_eq!(q.props.sort_desc, Some(true));
+        assert_eq!(q.props.properties.as_ref().map(Vec::len), Some(2));
+
+        let b = block("Intro\n{{embed [[Other]]}}\nafter");
+        assert_eq!(b.title.text, "Intro");
+        assert!(
+            matches!(&b.body[0], BodyItem::Widget(Widget::Embed(EmbedTarget::Page(p))) if p == "Other")
+        );
+        assert!(matches!(&b.body[1], BodyItem::Text(t) if t.text == "after"));
+
+        // A macro inside a sentence stays inline text.
+        let b = block("see {{embed [[Other]]}} here");
+        assert!(b.body.is_empty());
+    }
+
+    #[test]
+    fn begin_query_regions_become_advanced_widgets() {
+        use crate::render::widget::QueryKind;
+        let b = block(
+            "#+BEGIN_QUERY\n{:title \"T\" :query [:find ?b :where [?b :block/marker \"TODO\"]]}\n#+END_QUERY",
+        );
+        let [BodyItem::Widget(Widget::Query(q))] = b.body.as_slice() else {
+            panic!("advanced widget: {:?}", b.body);
+        };
+        assert_eq!(q.kind, QueryKind::Advanced);
+        assert!(q.source.starts_with("{:title"));
     }
 }

@@ -591,6 +591,7 @@ impl JournalsView {
         let day_editor = self.editors.get(&entry.day.day).cloned();
         let live_rows: Option<Vec<Row>> = day_editor.as_ref().map(|e| e.read(cx).rows().to_vec());
         let rows: &[Row] = live_rows.as_deref().unwrap_or(&entry.rows);
+        let entry_title = entry.day.title.clone();
         let visible = visible_rows(rows);
         if entry.state == DayState::Loaded && visible.is_empty() {
             col = col.child(
@@ -608,6 +609,23 @@ impl JournalsView {
             let edit = day_editor
                 .as_ref()
                 .and_then(|ed| OutlineEditor::row_edit(ed, r, cx));
+            let widgets = self.handle.clone().and_then(|handle| {
+                let host = crate::views::widgets::Host::for_page(
+                    handle,
+                    self.link.clone(),
+                    &entry_title,
+                    rows,
+                    r,
+                );
+                crate::views::widgets::prepare(
+                    &host,
+                    &rows[r],
+                    &format!("{ix}:{r}"),
+                    nav.clone(),
+                    crate::views::widgets::edit_hook(edit.as_ref()),
+                    cx,
+                )
+            });
             let actions = RowActions {
                 nav: nav.clone(),
                 toggle: Some(Rc::new(move |_, cx| {
@@ -616,6 +634,7 @@ impl JournalsView {
                 referrers: None,
                 focus: None,
                 edit,
+                widgets,
             };
             col = col.child(render_block_row(
                 ((ix + 1) << 20) | (r & 0xF_FFFF),

@@ -2,7 +2,7 @@
 id: BIT-US-0102
 type: story
 title: Live query results rendering as list or table
-status: backlog
+status: done
 priority: high
 parent: BIT-EP-0013
 milestone: BIT-M-0005
@@ -10,7 +10,8 @@ author: mcp
 labels: [query, ui, bitacora-app]
 estimate: 5
 created: 2026-10-06T14:31:46Z
-updated: 2026-10-06T14:31:46Z
+updated: 2026-10-06T22:20:30Z
+closed: 2026-10-06T22:20:30Z
 ---
 
 ## Description
