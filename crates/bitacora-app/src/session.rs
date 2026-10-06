@@ -15,13 +15,17 @@ use std::time::Duration;
 
 use async_channel::{Receiver, Sender};
 use bitacora_config::EffectiveConfig;
+use bitacora_core::editor::ConflictNotice;
+use bitacora_core::graph::PageKey;
 use bitacora_core::queue::{CommandQueue, QueueEvent};
 use bitacora_index::{IndexEvent, ReconcileStats};
 use bitacora_mcp::McpConfig;
 use bitacora_runtime::{
     DEFAULT_SHUTDOWN_BUDGET, McpOptions, RuntimeConfig, RuntimeError, RuntimeEvent, Session,
-    ShutdownReport,
+    ShutdownReport, SyncOptions, SyncStatusView,
 };
+use bitacora_sync::CliConfig;
+use bitacora_sync::credentials::CredentialProvider;
 
 use crate::data::{GraphHandle, ViewSettings};
 
@@ -46,6 +50,13 @@ pub enum SessionEvent {
     Ready(SessionSummary),
     /// Opening or reconciling failed; the message is user-presentable.
     Failed(String),
+    /// The sync engine published a new status (BIT-US-0047). Only sent while sync runs.
+    Sync(Box<SyncStatusView>),
+    /// A page with unsaved edits changed on disk in a way that cannot be merged: ours is kept
+    /// and writes to the page are stopped until the user decides (BIT-US-0070).
+    DiskConflict(Arc<ConflictNotice>),
+    /// A page left the conflicted state (reloaded from disk or resolved elsewhere).
+    DiskConflictCleared(PageKey),
 }
 
 /// Handles to the running session, usable from the UI thread.
@@ -79,6 +90,12 @@ pub enum SessionNotice {
     },
     /// The MCP endpoint could not start (the session runs without it).
     McpUnavailable(String),
+    /// Sync is configured but could not start (the session runs without it).
+    SyncUnavailable(String),
+    /// What startup recovery did or found (stale lock, interrupted merge, ...), BIT-US-0047.
+    SyncRecovery(String),
+    /// The block being edited changed on disk (BIT-T-0344).
+    EditingBlockChanged,
 }
 
 /// Result of the startup reconcile.
@@ -108,9 +125,35 @@ impl From<&ReconcileStats> for SessionSummary {
     }
 }
 
+/// Sync of one graph, as the app configures it (BIT-US-0043).
+#[derive(Clone)]
+pub struct SyncSetup {
+    /// Branch to sync.
+    pub branch: String,
+    /// `Bitacora-Device` trailer value.
+    pub device: String,
+    /// System-backend tunables (askpass helper and environment).
+    pub cli: Option<CliConfig>,
+    /// Credential provider for the built-in backend.
+    pub credentials: Option<Arc<dyn CredentialProvider>>,
+    /// Commit and fetch timings, applied to the engine (BIT-T-0295).
+    pub timing: crate::sync_prefs::SyncPrefs,
+}
+
+impl std::fmt::Debug for SyncSetup {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SyncSetup")
+            .field("branch", &self.branch)
+            .field("device", &self.device)
+            .finish_non_exhaustive()
+    }
+}
+
 /// Where the session keeps its index and whether it serves MCP.
 #[derive(Debug, Clone, Default)]
 pub struct SessionOptions {
+    /// Sync; `None` leaves it off.
+    pub sync: Option<SyncSetup>,
     /// Explicit data directory (tests, portable mode); `None` uses the platform data dir.
     pub data_dir: Option<PathBuf>,
     /// Token file of the MCP endpoint; `None` leaves the MCP server off.
@@ -121,6 +164,41 @@ pub struct SessionOptions {
 
 enum Control {
     Shutdown(Duration, mpsc::Sender<ShutdownReport>),
+    /// Run a closure on the session thread (it owns the `Session`).
+    Call(Box<dyn FnOnce(&Session) + Send>),
+    /// The owner is gone: shut down with the default budget.
+    Stop,
+}
+
+/// Cloneable handle that runs closures against the session on its own thread, so views can
+/// call `Session` methods (sync actions, history, conflict resolution) without owning it.
+#[derive(Clone)]
+pub struct SessionHandle {
+    tx: mpsc::Sender<Control>,
+}
+
+impl std::fmt::Debug for SessionHandle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("SessionHandle")
+    }
+}
+
+impl SessionHandle {
+    /// Runs `f` on the session thread and returns the receiver of its result. The receiver
+    /// closes without a value when the session is gone. Long calls delay the event stream, so
+    /// keep them to what the user waits for anyway.
+    pub fn run<T: Send + 'static>(
+        &self,
+        f: impl FnOnce(&Session) -> T + Send + 'static,
+    ) -> Receiver<T> {
+        let (tx, rx) = async_channel::bounded(1);
+        let call = Control::Call(Box::new(move |session| {
+            let _ = tx.send_blocking(f(session));
+        }));
+        // A closed channel drops the closure and with it the result sender.
+        let _ = self.tx.send(call);
+        rx
+    }
 }
 
 /// A running graph session.
@@ -164,6 +242,11 @@ impl GraphSession {
         &self.root
     }
 
+    /// A handle for running closures against the session from views.
+    pub fn handle(&self) -> Option<SessionHandle> {
+        self.control.clone().map(|tx| SessionHandle { tx })
+    }
+
     /// Ordered shutdown within `budget`; blocks until it finished. `None` when the session
     /// thread was already gone (a failed open has nothing to flush).
     pub fn shutdown_with_report(mut self, budget: Duration) -> Option<ShutdownReport> {
@@ -188,16 +271,39 @@ impl GraphSession {
 
 impl Drop for GraphSession {
     fn drop(&mut self) {
-        // Closing the channel is the stop signal; the thread shuts down on its own.
-        self.control.take();
+        // Handles keep the channel open, so stopping is an explicit message; the thread shuts
+        // down on its own.
+        if let Some(control) = self.control.take() {
+            let _ = control.send(Control::Stop);
+        }
     }
 }
 
-fn runtime_config(root: &Path, options: &SessionOptions, with_mcp: bool) -> RuntimeConfig {
+fn runtime_config(
+    root: &Path,
+    options: &SessionOptions,
+    with_mcp: bool,
+    with_sync: bool,
+) -> RuntimeConfig {
     let mut cfg = RuntimeConfig::new(root);
     cfg.data_dir.clone_from(&options.data_dir);
     if options.global_config.is_some() {
         cfg.global_config.clone_from(&options.global_config);
+    }
+    if with_sync && let Some(setup) = &options.sync {
+        let mut sync = SyncOptions::new(setup.device.clone(), setup.branch.clone());
+        sync.cli.clone_from(&setup.cli);
+        sync.credentials.clone_from(&setup.credentials);
+        let timing = setup.timing.clone().clamped();
+        sync.tune = Some(Arc::new(move |ec| {
+            use std::time::Duration;
+            ec.commit.idle = Duration::from_secs(timing.commit_idle_secs);
+            ec.commit.max = Duration::from_secs(timing.commit_max_secs);
+            ec.commit.squash = timing.squash_auto_commits;
+            ec.fetch_foreground = Duration::from_secs(timing.fetch_interval_secs);
+            ec.fetch_background = Duration::from_secs(timing.fetch_interval_secs.saturating_mul(5));
+        }));
+        cfg.sync = Some(sync);
     }
     if with_mcp && let Some(token_path) = &options.mcp_token_path {
         cfg.mcp = Some(McpOptions {
@@ -215,15 +321,26 @@ fn open(
     options: &SessionOptions,
     tx: &Sender<SessionEvent>,
 ) -> Result<Session, RuntimeError> {
-    match Session::open(runtime_config(root, options, true)) {
-        Err(RuntimeError::Mcp(e)) => {
-            tracing::warn!("MCP endpoint unavailable: {e}");
-            let _ = tx.send_blocking(SessionEvent::Notice(SessionNotice::McpUnavailable(
-                e.to_string(),
-            )));
-            Session::open(runtime_config(root, options, false))
+    let mut with_mcp = true;
+    let mut with_sync = options.sync.is_some();
+    loop {
+        match Session::open(runtime_config(root, options, with_mcp, with_sync)) {
+            Err(RuntimeError::Mcp(e)) if with_mcp => {
+                tracing::warn!("MCP endpoint unavailable: {e}");
+                let _ = tx.send_blocking(SessionEvent::Notice(SessionNotice::McpUnavailable(
+                    e.to_string(),
+                )));
+                with_mcp = false;
+            }
+            Err(RuntimeError::Sync(e)) if with_sync => {
+                tracing::warn!("sync unavailable: {e}");
+                let _ = tx.send_blocking(SessionEvent::Notice(SessionNotice::SyncUnavailable(
+                    e.to_string(),
+                )));
+                with_sync = false;
+            }
+            other => return other,
         }
-        other => other,
     }
 }
 
@@ -266,16 +383,39 @@ fn run(
     if session.watcher_is_polling() == Some(true) {
         send(SessionEvent::Notice(SessionNotice::WatcherDegraded));
     }
+    let sync_watch = session.sync_watch();
+    let mut sync_seen = None;
+    if let Some(report) = session.recovery_report()
+        && let Some(text) = recovery_message(report)
+    {
+        send(SessionEvent::Notice(SessionNotice::SyncRecovery(text)));
+    }
 
-    let budget = loop {
-        match control.try_recv() {
-            Ok(Control::Shutdown(budget, reply)) => {
-                let report = session.shutdown(budget);
-                let _ = reply.send(report);
-                return;
+    loop {
+        loop {
+            match control.try_recv() {
+                Ok(Control::Shutdown(budget, reply)) => {
+                    let report = session.shutdown(budget);
+                    let _ = reply.send(report);
+                    return;
+                }
+                Ok(Control::Call(call)) => call(&session),
+                Ok(Control::Stop) | Err(TryRecvError::Disconnected) => {
+                    let report = session.shutdown(DEFAULT_SHUTDOWN_BUDGET);
+                    if !report.is_clean() {
+                        tracing::warn!(?report, "graph session closed with unwritten files");
+                    }
+                    return;
+                }
+                Err(TryRecvError::Empty) => break,
             }
-            Err(TryRecvError::Disconnected) => break DEFAULT_SHUTDOWN_BUDGET,
-            Err(TryRecvError::Empty) => {}
+        }
+        if let Some(watch) = &sync_watch {
+            let (version, view) = watch.current();
+            if sync_seen != Some(version) {
+                sync_seen = Some(version);
+                send(SessionEvent::Sync(Box::new(view)));
+            }
         }
         if let Some(rx) = &index_events {
             while let Ok(event) = rx.try_recv() {
@@ -284,22 +424,68 @@ fn run(
         }
         match runtime_events.recv_timeout(POLL_INTERVAL) {
             Ok(event) => {
-                if let Some(notice) = notice_for(&event) {
-                    send(SessionEvent::Notice(notice));
+                for out in events_for(&event) {
+                    send(out);
                 }
             }
             Err(RecvTimeoutError::Timeout | RecvTimeoutError::Disconnected) => {}
         }
-    };
-    let report = session.shutdown(budget);
-    if !report.is_clean() {
-        tracing::warn!(?report, "graph session closed with unwritten files");
+    }
+}
+
+/// What the user should hear about startup recovery; `None` when it found nothing.
+fn recovery_message(report: &bitacora_sync::recovery::RecoveryReport) -> Option<String> {
+    if let Some(error) = &report.error {
+        return Some(format!("Sync recovery failed: {error}"));
+    }
+    let mut parts = Vec::new();
+    if report.stale_lock_removed {
+        parts.push("removed a stale git lock".to_owned());
+    }
+    if report.restored_conflicts > 0 {
+        parts.push(format!(
+            "{} unresolved conflict(s) restored",
+            report.restored_conflicts
+        ));
+    }
+    if report.marker_conflicts > 0 {
+        parts.push(format!(
+            "{} conflict(s) found in files edited by another tool",
+            report.marker_conflicts
+        ));
+    }
+    if report.external_operation.is_some() {
+        parts.push("a merge or rebase from another tool is in progress".to_owned());
+    }
+    if parts.is_empty() {
+        None
+    } else {
+        Some(format!("Sync recovery: {}.", parts.join("; ")))
+    }
+}
+
+/// The session events one runtime event turns into.
+fn events_for(event: &RuntimeEvent) -> Vec<SessionEvent> {
+    match event {
+        RuntimeEvent::Queue(QueueEvent::PageConflicted(notice)) => {
+            vec![SessionEvent::DiskConflict(Arc::clone(notice))]
+        }
+        RuntimeEvent::Queue(QueueEvent::PageReloaded(key)) => {
+            vec![SessionEvent::DiskConflictCleared(key.clone())]
+        }
+        other => notice_for(other)
+            .map(SessionEvent::Notice)
+            .into_iter()
+            .collect(),
     }
 }
 
 /// Maps a runtime event to a user notice, when it deserves one.
 fn notice_for(event: &RuntimeEvent) -> Option<SessionNotice> {
     match event {
+        RuntimeEvent::Queue(QueueEvent::EditingBlockChanged(_)) => {
+            Some(SessionNotice::EditingBlockChanged)
+        }
         RuntimeEvent::Queue(QueueEvent::WriteFailed { failed, .. }) => {
             Some(SessionNotice::WriteFailed(failed.len()))
         }
@@ -401,7 +587,46 @@ mod tests {
             data_dir: Some(data.path().to_path_buf()),
             mcp_token_path: None,
             global_config: Some(data.path().join("no-global-config.edn")),
+            sync: None,
         }
+    }
+
+    #[test]
+    fn sync_timings_reach_the_engine_config_clamped() {
+        let g = graph();
+        let data = tempfile::tempdir().expect("data");
+        let mut opts = options(&data);
+        opts.sync = Some(SyncSetup {
+            branch: "main".into(),
+            device: "laptop".into(),
+            cli: None,
+            credentials: None,
+            timing: crate::sync_prefs::SyncPrefs {
+                commit_idle_secs: 1,
+                commit_max_secs: 100,
+                fetch_interval_secs: 60,
+                squash_auto_commits: false,
+                ..crate::sync_prefs::SyncPrefs::default()
+            },
+        });
+        let cfg = runtime_config(g.path(), &opts, false, true);
+        let sync = cfg.sync.expect("sync options");
+        let tune = sync.tune.expect("tune hook");
+        let mut ec = bitacora_sync::engine::EngineConfig::new(g.path(), "laptop", "main");
+        tune(&mut ec);
+        assert_eq!(
+            ec.commit.idle,
+            Duration::from_secs(5),
+            "idle is clamped to 5 s"
+        );
+        assert_eq!(ec.commit.max, Duration::from_secs(100));
+        assert!(!ec.commit.squash);
+        assert_eq!(ec.fetch_foreground, Duration::from_secs(60));
+        assert_eq!(ec.fetch_background, Duration::from_secs(300));
+        assert_eq!(sync.device, "laptop");
+        // Without a setup the session runs without sync.
+        opts.sync = None;
+        assert!(runtime_config(g.path(), &opts, false, true).sync.is_none());
     }
 
     #[test]

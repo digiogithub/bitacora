@@ -2,7 +2,7 @@
 id: BIT-US-0054
 type: story
 title: Visual per-block conflict resolver
-status: in_progress
+status: done
 priority: high
 parent: BIT-EP-0012
 milestone: BIT-M-0004
@@ -10,8 +10,9 @@ author: mcp
 labels: [merge, ui, conflicts]
 estimate: 13
 created: 2026-10-06T14:28:30Z
-updated: 2026-10-06T19:59:19Z
+updated: 2026-10-06T20:37:24Z
 started: 2026-10-06T19:59:19Z
+closed: 2026-10-06T20:37:24Z
 ---
 
 ## Description

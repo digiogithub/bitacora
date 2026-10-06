@@ -101,13 +101,23 @@ pub enum PaletteCommand {
     SwitchGraph,
     /// Move the page on screen to `logseq/.recycle/` (asks first).
     DeletePage,
+    /// Commit, fetch, merge and push now.
+    SyncNow,
+    /// Open the sync panel (status, backend, preferences).
+    SyncSettings,
+    /// Open the history of the page on screen.
+    PageHistory,
+    /// Open the visual conflict resolver.
+    ResolveConflicts,
+    /// Open a graph from a git remote (clone).
+    CloneGraph,
     /// Check GitHub Releases for a newer version (BIT-US-0100).
     CheckForUpdates,
 }
 
 impl PaletteCommand {
     /// Every command, in palette order.
-    pub const ALL: [Self; 11] = [
+    pub const ALL: [Self; 16] = [
         Self::GoJournals,
         Self::GoAllPages,
         Self::GoBack,
@@ -117,6 +127,11 @@ impl PaletteCommand {
         Self::ToggleTheme,
         Self::Reindex,
         Self::DeletePage,
+        Self::SyncNow,
+        Self::SyncSettings,
+        Self::PageHistory,
+        Self::ResolveConflicts,
+        Self::CloneGraph,
         Self::SwitchGraph,
         Self::CheckForUpdates,
     ];
@@ -134,6 +149,11 @@ impl PaletteCommand {
             Self::Reindex => t!("palette.cmd_reindex"),
             Self::SwitchGraph => t!("palette.cmd_switch_graph"),
             Self::DeletePage => t!("palette.cmd_delete_page"),
+            Self::SyncNow => t!("palette.cmd_sync_now"),
+            Self::SyncSettings => t!("palette.cmd_sync_settings"),
+            Self::PageHistory => t!("palette.cmd_page_history"),
+            Self::ResolveConflicts => t!("palette.cmd_conflicts"),
+            Self::CloneGraph => t!("palette.cmd_clone"),
             Self::CheckForUpdates => t!("update.check_updates"),
         }
         .to_string()
@@ -150,6 +170,11 @@ impl PaletteCommand {
             Self::Reindex => IconName::LoaderCircle,
             Self::SwitchGraph => IconName::Folder,
             Self::DeletePage => IconName::Close,
+            Self::SyncNow => IconName::RefreshCw,
+            Self::SyncSettings => IconName::Settings,
+            Self::PageHistory => IconName::Undo2,
+            Self::ResolveConflicts => IconName::TriangleAlert,
+            Self::CloneGraph => IconName::FolderOpen,
             Self::CheckForUpdates => IconName::LoaderCircle,
         }
     }

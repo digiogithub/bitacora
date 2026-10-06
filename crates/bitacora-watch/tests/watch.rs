@@ -306,6 +306,25 @@ fn polling_fallback_detects_changes() {
 }
 
 #[test]
+fn blank_journal_is_ignored_but_real_content_is_reported() {
+    let fx = start_with(WatchConfig::default(), IgnoreRules::new(), |root| {
+        fs::create_dir_all(root.join("journals")).expect("mkdir");
+    });
+    fs::write(fx.path("journals/2026_10_06.md"), "-\n").expect("write");
+    fs::write(fx.path("pages/dash.md"), "-\n").expect("write");
+    let before: Vec<_> = fx
+        .events_before_sentinel()
+        .into_iter()
+        .map(|e| e.rel_path)
+        .collect();
+    assert_eq!(before, ["pages/dash.md"], "got {before:?}");
+
+    fs::write(fx.path("journals/2026_10_06.md"), "- real\n").expect("write");
+    let ev = fx.wait_file(|f| f.rel_path == "journals/2026_10_06.md");
+    assert_eq!(ev.hash, Some(blake3::hash(b"- real\n")));
+}
+
+#[test]
 fn missing_root_is_an_error() {
     let r = GraphWatcher::start(
         "/definitely/not/here",

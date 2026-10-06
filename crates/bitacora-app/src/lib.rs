@@ -17,8 +17,10 @@ pub mod actions;
 pub mod app;
 pub mod cli;
 pub mod crash;
+pub mod credentials;
 pub mod data;
 pub mod editor;
+pub mod editing;
 pub mod events;
 pub mod graph_ops;
 pub mod graph_state;
@@ -33,6 +35,7 @@ pub mod render;
 pub mod session;
 pub mod settings;
 pub mod spike;
+pub mod sync_prefs;
 #[cfg(test)]
 pub mod testing;
 pub mod theme;

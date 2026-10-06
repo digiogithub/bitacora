@@ -2,7 +2,7 @@
 id: BIT-US-0047
 type: story
 title: Sync status indicator, Sync now and startup recovery
-status: in_progress
+status: done
 priority: medium
 parent: BIT-EP-0011
 milestone: BIT-M-0004
@@ -10,8 +10,9 @@ author: mcp
 labels: [git, sync, ui, recovery]
 estimate: 5
 created: 2026-10-06T14:28:30Z
-updated: 2026-10-06T19:51:49Z
+updated: 2026-10-06T20:37:24Z
 started: 2026-10-06T19:51:49Z
+closed: 2026-10-06T20:37:24Z
 ---
 
 ## Description

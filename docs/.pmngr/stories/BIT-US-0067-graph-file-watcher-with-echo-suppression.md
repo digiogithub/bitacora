@@ -10,7 +10,7 @@ author: mcp
 labels: [io, watch, bitacora-watch, bitacora-core]
 estimate: 5
 created: 2026-10-06T14:29:01Z
-updated: 2026-10-06T19:08:32Z
+updated: 2026-10-06T20:27:13Z
 started: 2026-10-06T18:47:24Z
 closed: 2026-10-06T19:08:32Z
 ---
@@ -26,5 +26,5 @@ As a user editing the same graph in Logseq or a text editor, I want Bitacora to 
 - Integration test: 100 consecutive edits trigger 0 reparses; an external write is picked up within 300 ms.
 
 ## Notes
-Implements: BIT-SP-0005.R11, BIT-SP-0005.R12.
+Implements: BIT-SP-0005.R11, BIT-SP-0005.R12, BIT-SP-0002.R17.
 See [[block-editor]] §5.2 step 6, §6.1; [[01-file-graph-layout]] §1.1 and requirement 23; [[crate-stack]] (notify). ADR-011.

@@ -447,6 +447,7 @@ impl JournalsView {
                     toggle_this.update(cx, |v, cx| v.toggle_block(ix, r, cx));
                 })),
                 referrers: None,
+                focus: None,
             };
             col = col.child(render_block_row(
                 ((ix + 1) << 20) | (r & 0xF_FFFF),

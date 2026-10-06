@@ -105,6 +105,11 @@ pub struct SyncOptions {
     /// Start the background engine (auto-commit, periodic fetch). `false` only configures
     /// [`Session::sync_once`].
     pub background: bool,
+    /// System-git tunables (askpass helper and its environment, timeouts); `None` uses the
+    /// defaults, which leave the system backend without an askpass helper (BIT-US-0046).
+    pub cli: Option<bitacora_sync::CliConfig>,
+    /// Credential provider for pushes without system git (gix-only backend, ADR-023).
+    pub credentials: Option<Arc<dyn bitacora_sync::credentials::CredentialProvider>>,
 }
 
 impl std::fmt::Debug for SyncOptions {
@@ -127,6 +132,8 @@ impl SyncOptions {
             timing: None,
             detection: None,
             background: true,
+            cli: None,
+            credentials: None,
         }
     }
 }

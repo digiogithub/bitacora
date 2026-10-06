@@ -2,7 +2,7 @@
 id: BIT-T-0295
 type: task
 title: Sync settings page and CLI sync/doctor commands
-status: in_progress
+status: done
 priority: low
 parent: BIT-US-0047
 milestone: BIT-M-0004
@@ -10,8 +10,9 @@ author: mcp
 labels: [bitacora-app, bitacora-config, sync, settings]
 estimate: 2
 created: 2026-10-06T14:32:57Z
-updated: 2026-10-06T19:59:19Z
+updated: 2026-10-06T20:37:17Z
 started: 2026-10-06T19:59:19Z
+closed: 2026-10-06T20:37:17Z
 ---
 
 ## Description

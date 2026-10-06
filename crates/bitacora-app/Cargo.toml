@@ -47,6 +47,7 @@ semver.workspace = true
 [dev-dependencies]
 gpui-kit = { workspace = true, features = ["test-support"] }
 tempfile.workspace = true
+bitacora-testkit.workspace = true
 
 # Installable bundles (BIT-US-0090): `cargo xtask bundle` (or `cargo packager -p bitacora-app --release`).
 # Paths are relative to this manifest. Signing identities/certificates are NOT configured here:

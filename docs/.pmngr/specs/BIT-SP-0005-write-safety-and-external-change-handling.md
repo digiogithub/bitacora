@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [core, io]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T19:56:33Z
+updated: 2026-10-06T20:37:39Z
 requirements:
   R1:
     status: backlog
@@ -146,9 +146,13 @@ requirements:
         - crates/bitacora-core/src/editor/external.rs
         - crates/bitacora-core/src/editor/flush.rs
         - crates/bitacora-core/src/queue.rs
+        - crates/bitacora-app/src/views/disk_conflict.rs
+        - crates/bitacora-app/src/editing.rs
       tests:
         - crates/bitacora-core/tests/external_changes.rs
         - crates/bitacora-runtime/tests/external.rs
+        - crates/bitacora-app/src/views/sync_flow_tests.rs
+        - crates/bitacora-app/src/editing.rs
     verified: {rev: "sha256:5489b1907819d137", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
 ---
 

@@ -61,6 +61,20 @@ impl PageEvent {
     }
 }
 
+/// The user put the focus on a block of the page, or left it (`block_index == None`). The
+/// workspace forwards it to core's editing-block protection (BIT-T-0344).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BlockFocusEvent {
+    /// Title of the page.
+    pub title: String,
+    /// Position of the focused block in the page (document order), `None` when cleared.
+    pub block_index: Option<usize>,
+}
+
+/// The user clicked a block marked as a sync conflict: open the resolver (BIT-US-0054).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConflictJumpEvent;
+
 /// What the view currently shows.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum LoadState {
@@ -146,6 +160,8 @@ pub struct PageView {
     unlinked_task: Option<Task<()>>,
     refresh_task: Option<Task<()>>,
     rendered_rows: usize,
+    focused_row: Option<usize>,
+    conflict_blocks: BTreeSet<String>,
 }
 
 impl std::fmt::Debug for PageView {
@@ -159,6 +175,8 @@ impl std::fmt::Debug for PageView {
 }
 
 impl EventEmitter<PageEvent> for PageView {}
+impl EventEmitter<BlockFocusEvent> for PageView {}
+impl EventEmitter<ConflictJumpEvent> for PageView {}
 
 pub use crate::views::block_view::resolve_asset;
 
@@ -193,6 +211,50 @@ impl PageView {
             unlinked_task: None,
             refresh_task: None,
             rendered_rows: 0,
+            focused_row: None,
+            conflict_blocks: BTreeSet::new(),
+        }
+    }
+
+    /// The `id::` values of blocks with unresolved sync conflicts: they get a marker that
+    /// opens the resolver.
+    pub fn set_conflict_blocks(&mut self, blocks: BTreeSet<String>, cx: &mut Context<Self>) {
+        if self.conflict_blocks != blocks {
+            self.conflict_blocks = blocks;
+            cx.notify();
+        }
+    }
+
+    /// Blocks marked as conflicted.
+    pub fn conflict_blocks(&self) -> &BTreeSet<String> {
+        &self.conflict_blocks
+    }
+
+    /// The row holding the focus, if any.
+    pub fn focused_row(&self) -> Option<usize> {
+        self.focused_row
+    }
+
+    /// Puts the focus on row `r` (a click on a block) and tells the host which block of the
+    /// page it is. The page-properties row is not a block and clears the focus.
+    pub fn focus_row(&mut self, r: usize, cx: &mut Context<Self>) {
+        let Some(row) = self.rows.get(r) else { return };
+        let index = row.block_index;
+        self.focused_row = index.map(|_| r);
+        cx.emit(BlockFocusEvent {
+            title: self.header.title.clone(),
+            block_index: index,
+        });
+        cx.notify();
+    }
+
+    /// Drops the focus (navigation, reload) and tells the host.
+    pub fn clear_focus(&mut self, cx: &mut Context<Self>) {
+        if self.focused_row.take().is_some() {
+            cx.emit(BlockFocusEvent {
+                title: self.header.title.clone(),
+                block_index: None,
+            });
         }
     }
 
@@ -324,6 +386,7 @@ impl PageView {
             self.state = LoadState::Loading;
             self.more_task = None;
             self.loading_more = false;
+            self.clear_focus(cx);
         }
         self.route = Some(route.clone());
         self.handle = Some(handle.clone());
@@ -845,6 +908,7 @@ impl PageView {
                 Some(row) => {
                     let this = cx.entity();
                     let toggle_this = this.clone();
+                    let focus_this = this.clone();
                     let actions = RowActions {
                         nav: nav.clone(),
                         toggle: Some(Rc::new(move |_, cx| {
@@ -853,8 +917,37 @@ impl PageView {
                         referrers: Some(Rc::new(move |_, cx| {
                             this.update(cx, |v, cx| v.toggle_referrers(r, cx));
                         })),
+                        focus: Some(Rc::new(move |_, cx| {
+                            focus_this.update(cx, |v, cx| v.focus_row(r, cx));
+                        })),
                     };
-                    render_block_row(r, row, root.as_deref(), &theme, &actions)
+                    let block = render_block_row(r, row, root.as_deref(), &theme, &actions);
+                    let conflicted = row
+                        .uuid
+                        .as_deref()
+                        .is_some_and(|u| self.conflict_blocks.contains(u));
+                    if conflicted {
+                        let jump = cx.entity();
+                        div()
+                            .id(("conflict-mark", r))
+                            .w_full()
+                            .border_l_2()
+                            .border_color(theme.warning)
+                            .cursor_pointer()
+                            .on_click(move |_, _, cx| {
+                                jump.update(cx, |_, cx| cx.emit(ConflictJumpEvent));
+                            })
+                            .child(block)
+                            .into_any_element()
+                    } else if self.focused_row == Some(r) {
+                        div()
+                            .w_full()
+                            .bg(theme.secondary)
+                            .child(block)
+                            .into_any_element()
+                    } else {
+                        block
+                    }
                 }
                 None => div().into_any_element(),
             },
@@ -911,6 +1004,7 @@ impl PageView {
                                 this.update(cx, |v, cx| v.toggle_ref_row(kind, g, h, r, cx));
                             })),
                             referrers: None,
+                            focus: None,
                         };
                         let id = (kind.tag() << 40)
                             | ((g & 0xFFF) << 28)
