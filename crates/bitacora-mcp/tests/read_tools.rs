@@ -614,9 +614,9 @@ async fn journals_today_backlinks_tasks_query_graph_and_sync() {
     )
     .await;
     assert_eq!(r["isError"], false, "{r}");
-    // Only the journal's "Met about [[Project X]]" is not a task, so the intersection is empty.
+    // Page references include the owning page's path, so tasks on `Project X` match.
     assert!(
-        r["structuredContent"]["blocks"]
+        !r["structuredContent"]["blocks"]
             .as_array()
             .unwrap()
             .is_empty()
@@ -626,12 +626,12 @@ async fn journals_today_backlinks_tasks_query_graph_and_sync() {
     let r = call(
         &env,
         "query",
-        json!({"dsl": "[:find ?b :where [?b :block/marker]]"}),
+        json!({"dsl": "[:find ?b :where [?b :block/marker"}),
     )
     .await;
     assert_eq!(r["structuredContent"]["code"], "INVALID_QUERY");
     let r = call(&env, "query", json!({"dsl": "(or (task TODO))"})).await;
-    assert_eq!(r["structuredContent"]["code"], "NOT_SUPPORTED");
+    assert_eq!(r["isError"], false, "{r}");
 
     let r = call(&env, "get_graph_info", json!({})).await;
     assert_eq!(r["structuredContent"]["name"], "demo-graph");
@@ -976,5 +976,131 @@ async fn page_changes_notify_subscribed_resources_within_two_seconds() {
     let seen = seen.expect("notification arrived");
     assert!(seen.contains("bitacora://page/Notes"), "{seen}");
     assert!(started.elapsed() < Duration::from_secs(2));
+    stop(env);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn query_tool_routes_simple_and_advanced_queries() {
+    let env = setup(false, false);
+
+    // Simple DSL goes through the query compiler (`or`, `not` and `sort-by` work now).
+    let r = call(
+        &env,
+        "query",
+        json!({"dsl": "(and (or (task TODO) (task DONE)) [[Project X]])"}),
+    )
+    .await;
+    assert_eq!(r["isError"], false, "{r}");
+    assert_eq!(r["structuredContent"]["kind"], "blocks");
+
+    let r = call(&env, "query", json!({"dsl": "(task TODO DONE)"})).await;
+    let total = r["structuredContent"]["total"].as_u64().unwrap();
+    assert!(total >= 3, "{r}");
+
+    // Pagination over the same query.
+    let r = call(
+        &env,
+        "query",
+        json!({"dsl": "(task TODO DONE)", "limit": 2}),
+    )
+    .await;
+    assert_eq!(
+        r["structuredContent"]["blocks"].as_array().unwrap().len(),
+        2
+    );
+    assert_eq!(r["structuredContent"]["truncated"], true);
+    let cursor = r["structuredContent"]["next_cursor"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let r2 = call(
+        &env,
+        "query",
+        json!({"dsl": "(task TODO DONE)", "limit": 2, "cursor": cursor}),
+    )
+    .await;
+    assert_ne!(
+        r["structuredContent"]["blocks"][0]["uuid"],
+        r2["structuredContent"]["blocks"][0]["uuid"]
+    );
+    let r = call(&env, "query", json!({"dsl": "(task"})).await;
+    assert_eq!(r["structuredContent"]["code"], "INVALID_QUERY", "{r}");
+
+    // Advanced: EDN map with datalog, an aggregate and `current_page`.
+    let r = call(
+        &env,
+        "query",
+        json!({"dsl": "#+BEGIN_QUERY\n{:title \"Todos\" :query [:find (pull ?b [*]) :where [?b :block/marker \"TODO\"]]}\n#+END_QUERY"}),
+    )
+    .await;
+    assert_eq!(r["isError"], false, "{r}");
+    assert_eq!(r["structuredContent"]["kind"], "blocks");
+    assert_eq!(r["structuredContent"]["title"], "Todos");
+    assert!(r["structuredContent"]["total"].as_u64().unwrap() >= 2);
+    let r = call(
+        &env,
+        "query",
+        json!({"dsl": "[:find (count ?b) . :where [?b :block/marker \"TODO\"]]  "}),
+    )
+    .await;
+    // A bare datalog vector is accepted as an advanced query.
+    assert_eq!(r["structuredContent"]["kind"], "rows", "{r}");
+    let r = call(
+        &env,
+        "query",
+        json!({"dsl": "{:query [:find (count ?b) . :where [?b :block/marker \"TODO\"]]}"}),
+    )
+    .await;
+    assert_eq!(r["structuredContent"]["kind"], "rows", "{r}");
+    assert!(r["structuredContent"]["rows"][0][0].as_u64().unwrap() >= 2);
+    let r = call(
+        &env,
+        "query",
+        json!({
+            "dsl": "{:query [:find (pull ?b [*]) :in $ ?p :where [?b :block/page ?pg] [?pg :block/name ?p]] :inputs [:current-page]}",
+            "current_page": "Project X"
+        }),
+    )
+    .await;
+    assert_eq!(r["isError"], false, "{r}");
+    let blocks = r["structuredContent"]["blocks"].as_array().unwrap();
+    assert!(!blocks.is_empty());
+    assert!(blocks.iter().all(|b| b["page"] == "Project X"), "{r}");
+
+    // An ignored construct is a warning; the rest of the query ran.
+    let r = call(
+        &env,
+        "query",
+        json!({"dsl": "{:title \"t\" :query [:find (pull ?b [*]) :where [?b :block/marker \"TODO\"]] :result-transform (fn [r] r)}"}),
+    )
+    .await;
+    assert_eq!(r["isError"], false, "{r}");
+    assert_eq!(
+        r["structuredContent"]["warnings"][0],
+        "unsupported: :result-transform"
+    );
+    assert!(
+        !r["structuredContent"]["blocks"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+
+    // A construct that cannot run at all is a structured error.
+    let r = call(
+        &env,
+        "query",
+        json!({"dsl": "{:query [:find ?b :where [?b :block/nope ?x]]}"}),
+    )
+    .await;
+    assert_eq!(r["isError"], true, "{r}");
+    assert_eq!(r["structuredContent"]["code"], "NOT_SUPPORTED");
+    assert!(
+        r["structuredContent"]["message"]
+            .as_str()
+            .unwrap()
+            .starts_with("unsupported: "),
+        "{r}"
+    );
     stop(env);
 }

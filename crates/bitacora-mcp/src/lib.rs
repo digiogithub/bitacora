@@ -26,9 +26,9 @@ mod tools;
 
 pub use index_reader::IndexGraphReader;
 pub use reader::{
-    BlockInfo, ChangeEvent, GraphInfo, GraphReader, ListPagesQuery, PageInfo, ReaderError,
-    ReaderErrorKind, ReaderResult, RefGroupInfo, RefItem, SearchItem, SearchKind, SearchQuery,
-    StaticGraphReader, TaskQuery,
+    BlockInfo, ChangeEvent, GraphInfo, GraphReader, ListPagesQuery, PageInfo, QueryOutcome,
+    QueryRequest, ReaderError, ReaderErrorKind, ReaderResult, RefGroupInfo, RefItem, SearchItem,
+    SearchKind, SearchQuery, StaticGraphReader, TaskQuery,
 };
 pub use server::{DEFAULT_PORT, McpConfig, McpServer};
 pub use status::{DisabledSync, SyncState, SyncStatus, SyncStatusProvider};

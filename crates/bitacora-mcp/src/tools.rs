@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 use crate::dates;
 use crate::query;
 use crate::reader::{
-    BlockInfo, GraphInfo, GraphReader, ListPagesQuery, PageInfo, RefGroupInfo, SearchItem,
-    SearchKind, SearchQuery, TaskQuery,
+    BlockInfo, GraphInfo, GraphReader, ListPagesQuery, PageInfo, QueryOutcome, QueryRequest,
+    ReaderErrorKind, RefGroupInfo, SearchItem, SearchKind, SearchQuery, TaskQuery,
 };
 use crate::render::{
     Code, ToolError, ToolResult, decode_cursor, drop_collapsed, encode_cursor, limit, nest, output,
@@ -815,31 +815,124 @@ pub(crate) fn tasks(r: &dyn GraphReader, a: TasksArgs) -> ToolResult {
 /// Arguments of `query`.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub(crate) struct QueryArgs {
-    /// Logseq simple query, e.g. `(and (task TODO) [[Project X]])`. Supported now: `and`,
-    /// `(task ...)`, `(priority ...)`, `[[page]]` and `"text"`; datalog is rejected.
+    /// A Logseq simple query (`(and (task TODO) [[Project X]])`, `(page-property type book)`,
+    /// ...) or an advanced query: a `#+BEGIN_QUERY ... #+END_QUERY` block or its EDN map
+    /// (`{:query [:find ...] ...}`). Unsupported constructs fail with `unsupported: <construct>`
+    /// (or are reported in `warnings` when the rest of the query still ran).
     pub dsl: String,
     /// Graph name or path; default is the active graph.
     pub graph: Option<String>,
+    /// Page the query runs on: resolves `:current-page` / `:query-page` and `current-page`.
+    pub current_page: Option<String>,
+    /// Block UUID the query runs from (`:current-block`).
+    pub current_block: Option<String>,
+    /// Maximum results per page (default 50, max 500).
+    pub limit: Option<u32>,
+    /// Pagination cursor from a previous result.
+    pub cursor: Option<String>,
 }
 
 /// Result of `query`.
 #[derive(Debug, Serialize, JsonSchema)]
 pub(crate) struct QueryOut {
+    /// `blocks`, `pages` or `rows`.
+    pub kind: String,
+    /// `:title` of an advanced query.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    /// Matching blocks (`kind == "blocks"`).
     pub blocks: Vec<BlockInfo>,
+    /// Matching pages (`kind == "pages"`).
+    pub pages: Vec<PageInfo>,
+    /// Column names (`kind == "rows"`).
+    pub columns: Vec<String>,
+    /// Result tuples (`kind == "rows"`).
+    pub rows: Vec<Vec<serde_json::Value>>,
+    /// Total results before pagination.
+    pub total: usize,
+    /// Ignored constructs (`unsupported: <construct>`); the rest of the query ran.
+    pub warnings: Vec<String>,
+    pub next_cursor: Option<String>,
     pub truncated: bool,
 }
 
 pub(crate) fn query_tool(r: &dyn GraphReader, a: QueryArgs) -> ToolResult {
     check_graph(r, a.graph.as_deref())?;
-    let expr = query::parse(&a.dsl)?;
-    let mut blocks = query::run(r, &expr)?;
-    let truncated = blocks.len() > query::MAX_RESULTS;
-    blocks.truncate(query::MAX_RESULTS);
-    let mut md = format!("{} block(s) matched.\n\n", blocks.len());
-    for b in &blocks {
+    if a.dsl.trim().is_empty() {
+        return Err(ToolError::new(Code::InvalidQuery, "empty query"));
+    }
+    let n = limit(a.limit, 50, 500);
+    let offset = decode_cursor(a.cursor.as_deref())?;
+    let req = QueryRequest {
+        text: a.dsl.clone(),
+        current_page: a.current_page.clone(),
+        current_block: a.current_block.clone(),
+    };
+    let mut out = match r.run_query(&req) {
+        Ok(o) => o,
+        Err(e)
+            if e.kind == ReaderErrorKind::NotSupported && e.message.starts_with("`run_query`") =>
+        {
+            // Readers without a query engine keep the minimal built-in subset.
+            let expr = query::parse(&a.dsl)?;
+            let mut blocks = query::run(r, &expr)?;
+            blocks.truncate(query::MAX_RESULTS);
+            QueryOutcome {
+                kind: "blocks".into(),
+                blocks,
+                ..QueryOutcome::default()
+            }
+        }
+        Err(e) => return Err(e.into()),
+    };
+    let total = match out.kind.as_str() {
+        "pages" => out.pages.len(),
+        "rows" => out.rows.len(),
+        _ => out.blocks.len(),
+    };
+    let page = |len: usize| (offset.min(len), (offset + n).min(len));
+    let (lo, hi) = page(total);
+    out.blocks = out.blocks.drain(..).skip(lo).take(hi - lo).collect();
+    out.pages = out.pages.drain(..).skip(lo).take(hi - lo).collect();
+    out.rows = out.rows.drain(..).skip(lo).take(hi - lo).collect();
+    let more = hi < total;
+    let next_cursor = more.then(|| encode_cursor(hi));
+    let mut md = String::new();
+    if let Some(t) = &out.title {
+        let _ = writeln!(md, "# {t}\n");
+    }
+    let _ = writeln!(md, "{total} result(s) ({}).\n", out.kind);
+    for b in &out.blocks {
         md.push_str(&render_block_line(b));
     }
-    output(&QueryOut { blocks, truncated }, md)
+    for p in &out.pages {
+        let _ = writeln!(md, "- [[{}]]", p.original_name);
+    }
+    for row in &out.rows {
+        let cells: Vec<String> = row.iter().map(ToString::to_string).collect();
+        let _ = writeln!(md, "- {}", cells.join(" | "));
+    }
+    for w in &out.warnings {
+        let _ = writeln!(md, "\nWarning: {w}");
+    }
+    if let Some(c) = &next_cursor {
+        let _ = writeln!(md, "\nMore results: cursor `{c}`");
+    }
+    output(
+        &QueryOut {
+            kind: out.kind,
+            title: out.title,
+            blocks: out.blocks,
+            pages: out.pages,
+            columns: out.columns,
+            rows: out.rows,
+            total,
+            warnings: out.warnings,
+            next_cursor,
+            truncated: more,
+        },
+        md,
+    )
 }
 
 // ---------------------------------------------------------------- graph and sync

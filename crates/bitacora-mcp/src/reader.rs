@@ -34,6 +34,8 @@ pub enum ReaderErrorKind {
     NotSupported,
     /// The input is not acceptable (bad path, bad date).
     Invalid,
+    /// A query that does not parse.
+    InvalidQuery,
     /// Storage failure.
     Internal,
 }
@@ -60,6 +62,13 @@ impl ReaderError {
     pub fn invalid(message: impl Into<String>) -> Self {
         Self {
             kind: ReaderErrorKind::Invalid,
+            message: message.into(),
+        }
+    }
+    /// A query that does not parse.
+    pub fn invalid_query(message: impl Into<String>) -> Self {
+        Self {
+            kind: ReaderErrorKind::InvalidQuery,
             message: message.into(),
         }
     }
@@ -231,6 +240,36 @@ pub struct TaskQuery {
     pub page: Option<String>,
 }
 
+/// A query for [`GraphReader::run_query`].
+#[derive(Debug, Clone, Default)]
+pub struct QueryRequest {
+    /// Simple DSL text or an advanced query (`#+BEGIN_QUERY` block or EDN map).
+    pub text: String,
+    /// Page the query "runs on" (`:current-page` input, `{{query}}` page context).
+    pub current_page: Option<String>,
+    /// Block the query "runs from" (`:current-block` input), UUID.
+    pub current_block: Option<String>,
+}
+
+/// Result rows of a query.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct QueryOutcome {
+    /// `blocks`, `pages` or `rows` (aggregates, scalars, mixed columns).
+    pub kind: String,
+    /// `:title` of an advanced query.
+    pub title: Option<String>,
+    /// Matching blocks (`kind == "blocks"`).
+    pub blocks: Vec<BlockInfo>,
+    /// Matching pages (`kind == "pages"`).
+    pub pages: Vec<PageInfo>,
+    /// Column names (`kind == "rows"`).
+    pub columns: Vec<String>,
+    /// Generic result tuples (`kind == "rows"`).
+    pub rows: Vec<Vec<serde_json::Value>>,
+    /// Ignored constructs, each as `unsupported: <construct>`.
+    pub warnings: Vec<String>,
+}
+
 /// Something that changed in the graph; drives resource notifications.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ChangeEvent {
@@ -314,6 +353,10 @@ pub trait GraphReader: Send + Sync + 'static {
     /// Task blocks.
     fn tasks(&self, _q: &TaskQuery) -> ReaderResult<Vec<BlockInfo>> {
         Err(ReaderError::unsupported("tasks"))
+    }
+    /// Run a simple-DSL or advanced query (BIT-US-0101 / BIT-US-0103).
+    fn run_query(&self, _q: &QueryRequest) -> ReaderResult<QueryOutcome> {
+        Err(ReaderError::unsupported("run_query"))
     }
     /// Raw text of the page's file.
     fn page_file_text(&self, _page: &PageInfo) -> ReaderResult<Option<String>> {
