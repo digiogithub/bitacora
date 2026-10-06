@@ -2,7 +2,7 @@
 id: BIT-T-0211
 type: task
 title: "\"Agent activity\" view with filters and one-click undo"
-status: backlog
+status: done
 priority: medium
 parent: BIT-US-0022
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-app, audit, ui]
 estimate: 3
 created: 2026-10-06T14:31:00Z
-updated: 2026-10-06T14:31:00Z
+updated: 2026-10-06T21:54:02Z
+closed: 2026-10-06T21:54:02Z
 ---
 
 ## Description

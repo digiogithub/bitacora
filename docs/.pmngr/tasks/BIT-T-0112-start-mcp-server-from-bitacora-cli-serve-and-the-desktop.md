@@ -2,7 +2,7 @@
 id: BIT-T-0112
 type: task
 title: Start MCP server from bitacora-cli serve and the desktop app (tray mode)
-status: in_review
+status: done
 priority: high
 parent: BIT-US-0015
 milestone: BIT-M-0002
@@ -10,8 +10,9 @@ author: mcp
 labels: [bitacora-cli, bitacora-app, mcp]
 estimate: 2
 created: 2026-10-06T14:29:54Z
-updated: 2026-10-06T17:03:39Z
+updated: 2026-10-06T21:53:47Z
 started: 2026-10-06T16:57:38Z
+closed: 2026-10-06T21:53:47Z
 ---
 
 ## Description

@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [index, search]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T20:00:08Z
+updated: 2026-10-06T21:53:36Z
 requirements:
   R1:
     status: backlog
@@ -24,8 +24,12 @@ requirements:
   R2:
     status: backlog
     trace:
-      code: [crates/bitacora-index/src/index.rs]
-      tests: [crates/bitacora-index/tests/lifecycle.rs]
+      code:
+        - crates/bitacora-index/src/index.rs
+        - crates/bitacora-app/src/views/settings/graph_config.rs
+      tests:
+        - crates/bitacora-index/tests/lifecycle.rs
+        - crates/bitacora-app/src/views/settings/tests.rs#changing_the_journal_title_format_asks_to_reindex_before_touching_the_file
     verified: {rev: "sha256:7d22769253fa01d0", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R3:
     status: backlog
@@ -155,7 +159,13 @@ requirements:
       code:
         - crates/bitacora-index/src/search/mod.rs#set_substring
         - crates/bitacora-index/src/writer.rs#set_substring
-      tests: [crates/bitacora-index/tests/search.rs]
+        - crates/bitacora-runtime/src/live.rs#set_substring
+        - crates/bitacora-app/src/session.rs#run
+        - crates/bitacora-app/src/views/settings/mod.rs#request_substring
+      tests:
+        - crates/bitacora-index/tests/search.rs
+        - crates/bitacora-app/src/views/settings/tests.rs#search_substring_asks_first_and_persists_across_a_restart
+        - crates/bitacora-app/src/views/settings/tests.rs#the_session_applies_search_substring_and_mcp_settings_from_the_app_settings
     verified: {rev: "sha256:4e7222feba77143b", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R16:
     status: backlog

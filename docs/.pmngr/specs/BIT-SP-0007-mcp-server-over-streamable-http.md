@@ -6,13 +6,19 @@ status: backlog
 author: mcp
 labels: [mcp, api]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T20:00:08Z
+updated: 2026-10-06T21:54:19Z
 requirements:
   R1:
     status: backlog
     trace:
-      code: [crates/bitacora-mcp/src/server.rs, crates/bitacora-cli/src/main.rs]
-      tests: [crates/bitacora-mcp/tests/http.rs]
+      code:
+        - crates/bitacora-mcp/src/server.rs
+        - crates/bitacora-cli/src/main.rs
+        - crates/bitacora-app/src/views/settings/agents.rs
+        - crates/bitacora-app/src/app.rs
+      tests:
+        - crates/bitacora-mcp/tests/http.rs
+        - crates/bitacora-app/src/session.rs#mcp_endpoint_starts_when_a_token_file_is_given
     verified: {rev: "sha256:dc80ed2bd67a10a2", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R2:
     status: backlog
@@ -41,8 +47,14 @@ requirements:
   R5:
     status: backlog
     trace:
-      code: [crates/bitacora-mcp/src/tokens.rs]
-      tests: [crates/bitacora-mcp/src/tokens.rs]
+      code:
+        - crates/bitacora-mcp/src/tokens.rs
+        - crates/bitacora-runtime/src/live.rs
+        - crates/bitacora-app/src/app.rs
+      tests:
+        - crates/bitacora-mcp/src/tokens.rs#keychain_holds_the_secrets_and_the_file_only_metadata
+        - crates/bitacora-mcp/src/tokens.rs#inline_secrets_migrate_to_the_keychain
+        - crates/bitacora-mcp/src/tokens.rs#unavailable_keychain_falls_back_to_the_file_and_never_loses_a_token
     verified: {rev: "sha256:509b00fe857bf2f3", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R6:
     status: backlog
@@ -51,9 +63,12 @@ requirements:
         - crates/bitacora-mcp/src/tokens.rs
         - crates/bitacora-mcp/src/policy.rs
         - crates/bitacora-mcp/src/handler.rs#exec_write
+        - crates/bitacora-app/src/views/settings/agents.rs
       tests:
         - crates/bitacora-mcp/src/tokens.rs
         - crates/bitacora-runtime/tests/mcp_write.rs#toggles_scopes_catalogue_rate_limit_and_protected_pages
+        - crates/bitacora-app/src/views/settings/tests.rs#agents_tokens_are_created_shown_once_and_revoking_refuses_the_next_request
+        - crates/bitacora-app/src/views/settings/tests.rs#write_toggles_apply_to_the_running_server_and_are_saved
     verified: {rev: "sha256:9419df24d87ddc2a", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R7:
     status: backlog
@@ -76,11 +91,15 @@ requirements:
         - crates/bitacora-mcp/src/server.rs#undo_audit_entry
         - crates/bitacora-mcp/src/guard.rs
         - crates/bitacora-runtime/src/live.rs#agent_activity
+        - crates/bitacora-app/src/views/agent_activity.rs
+        - crates/bitacora-app/src/editing.rs#EditingGate
       tests:
         - crates/bitacora-mcp/src/audit.rs
         - crates/bitacora-runtime/tests/mcp_write.rs#audit_covers_reads_and_auth_failures_and_survives_restart
         - crates/bitacora-runtime/tests/mcp_write.rs#insert_move_properties_status_remove_and_group_undo
         - crates/bitacora-runtime/tests/mcp_write.rs#a_multi_block_insert_undoes_as_one_step
+        - crates/bitacora-app/src/views/agent_activity.rs#tests
+        - crates/bitacora-app/src/editor/tests.rs#the_edited_block_is_reported_busy_to_the_mcp_gate
     verified: {rev: "sha256:f0d581e75e42d718", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R9:
     status: backlog

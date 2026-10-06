@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [core, compat]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T21:00:35Z
+updated: 2026-10-06T21:54:06Z
 requirements:
   R1:
     status: backlog
@@ -146,6 +146,18 @@ requirements:
     verified: {rev: "sha256:4259a0e3887439da", commit: 63ab8d8b535728d41079976763fa661f48c4bc4c, at: 2026-10-06T19:59:23Z, by: claude}
   R15:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-core/src/assets.rs
+        - crates/bitacora-core/src/editor/clipboard.rs#import_assets
+        - crates/bitacora-app/src/editor/assets.rs
+        - crates/bitacora-app/src/views/block_view.rs#resolve_asset
+      tests:
+        - crates/bitacora-core/src/assets.rs#tests
+        - crates/bitacora-core/tests/assets_import.rs
+        - crates/bitacora-app/src/editor/tests.rs#dropping_files_on_a_block_saves_assets_and_links_them
+        - crates/bitacora-app/src/editor/tests.rs#pasting_a_clipboard_image_attaches_it
+        - crates/bitacora-app/src/views/page_view.rs#asset_links_resolve_from_deep_pages_and_aliases_stay_unresolved
   R16:
     status: backlog
     trace:

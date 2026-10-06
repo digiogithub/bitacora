@@ -2,7 +2,7 @@
 id: BIT-US-0096
 type: story
 title: Assets paste/drop with Logseq naming and relative links
-status: backlog
+status: done
 priority: medium
 parent: BIT-EP-0009
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [core, compat, assets]
 estimate: 5
 created: 2026-10-06T14:30:53Z
-updated: 2026-10-06T14:30:53Z
+updated: 2026-10-06T21:54:02Z
+closed: 2026-10-06T21:54:02Z
 ---
 
 ## Description
