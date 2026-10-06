@@ -10,7 +10,7 @@ author: mcp
 labels: [core, merge, bitacora-core]
 estimate: 8
 created: 2026-10-06T14:29:01Z
-updated: 2026-10-06T19:48:20Z
+updated: 2026-10-06T20:27:13Z
 started: 2026-10-06T19:42:38Z
 closed: 2026-10-06T19:48:20Z
 ---
@@ -27,6 +27,6 @@ As a user running Logseq and Bitacora on the same graph, I want edits to differe
 - Merge matrix tests with fixture triples (base/ours/theirs/expected), shared with the golden matrix of `bitacora-merge`.
 
 ## Notes
-Implements: BIT-SP-0005.R15.
+Implements: BIT-SP-0005.R15, BIT-SP-0002.R17.
 See [[block-editor]] §6.2 (MVP may ship detection + banner only; this story completes the merge), [[git-sync-merge]] for the shared block-aware merge used by sync (coordinate with BIT-EP-0012). ADR-008, ADR-009, ADR-011, ADR-016, ADR-017.
 Dependency: this story (M2) needs the `bitacora-merge` page merge core (BIT-US-0049, BIT-US-0050, BIT-US-0051) before BIT-EP-0012's M3 git work.
