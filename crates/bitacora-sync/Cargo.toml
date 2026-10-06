@@ -17,6 +17,20 @@ bitacora-merge.workspace = true
 thiserror.workspace = true
 tempfile.workspace = true
 gix.workspace = true
+uuid.workspace = true
+git2 = { workspace = true, optional = true }
+keyring = { workspace = true, optional = true }
+
+[features]
+default = ["git2-push", "keyring-store"]
+# ADR-023: push over HTTPS/SSH without system git goes through libgit2.
+git2-push = ["dep:git2"]
+# OS keyring backed credential store (macOS Keychain, Windows Credential Manager, Secret Service).
+keyring-store = ["dep:keyring"]
+
+[[bin]]
+name = "bitacora-askpass"
+path = "src/bin/askpass.rs"
 
 [dev-dependencies]
 bitacora-testkit.workspace = true

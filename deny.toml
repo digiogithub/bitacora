@@ -23,6 +23,14 @@ allow = [
     "CDLA-Permissive-2.0",
 ]
 
+# ADR-023 (git2 / libgit2): the Rust crates `git2`, `libgit2-sys`, `libssh2-sys`, `openssl-src`
+# are MIT/Apache-2.0 and pass the allowlist above, so no [[licenses.exceptions]] entry is needed.
+# The bundled C sources are NOT scanned by cargo-deny: libgit2 is GPL-2.0 WITH linking exception
+# (explicitly accepted by the project owner, ADR-023; the exception permits linking from MIT code),
+# libssh2 is BSD-3-Clause, OpenSSL 3.x is Apache-2.0. They are vendored (`vendored-libgit2`,
+# `vendored-openssl`) so no system library is needed. Disable the `git2-push` feature of
+# `bitacora-sync` to drop libgit2 entirely.
+
 [bans]
 multiple-versions = "warn"
 wildcards = "allow"

@@ -23,6 +23,8 @@ pub struct CliConfig {
     /// Helper executable for `GIT_ASKPASS` (the in-app askpass); `None` leaves it unset so git
     /// fails fast instead of prompting.
     pub askpass: Option<PathBuf>,
+    /// Extra environment for the askpass helper (see [`crate::askpass::AskpassServer::env`]).
+    pub askpass_env: Vec<(String, String)>,
     /// Timeout for fetch/push/clone/ls-remote (default 120 s).
     pub network_timeout: Duration,
     /// Timeout for local operations (default 60 s).
@@ -33,6 +35,7 @@ impl Default for CliConfig {
     fn default() -> Self {
         Self {
             askpass: None,
+            askpass_env: Vec::new(),
             network_timeout: Duration::from_secs(120),
             local_timeout: Duration::from_secs(60),
         }
@@ -175,6 +178,14 @@ fn run_with_env(
         "GIT_ASKPASS",
         config.askpass.as_deref().unwrap_or(Path::new("")),
     );
+    if let Some(askpass) = config.askpass.as_deref() {
+        // ssh passphrase / host prompts go through the same bridge when there is no terminal.
+        cmd.env("SSH_ASKPASS", askpass)
+            .env("SSH_ASKPASS_REQUIRE", "prefer");
+    }
+    for (k, v) in &config.askpass_env {
+        cmd.env(k, v);
+    }
     if let Some(cwd) = cwd {
         cmd.current_dir(cwd);
     }

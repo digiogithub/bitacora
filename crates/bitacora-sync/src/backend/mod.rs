@@ -10,6 +10,8 @@
 mod cli;
 mod detect;
 mod fake;
+#[cfg(feature = "git2-push")]
+mod git2_push;
 mod gix_net;
 mod gix_read;
 mod gix_trees;
