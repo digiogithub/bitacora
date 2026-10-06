@@ -6,6 +6,7 @@ pub mod graph;
 pub mod graph_path;
 pub mod journal;
 pub mod naming;
+pub mod queue;
 pub mod scan;
 
 use bitacora_markdown as _;
