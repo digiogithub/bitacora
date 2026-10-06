@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [core, io]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T18:39:25Z
+updated: 2026-10-06T18:47:20Z
 requirements:
   R1:
     status: backlog
@@ -37,8 +37,19 @@ requirements:
     status: backlog
   R11:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-watch/src/watcher.rs#GraphWatcher
+        - crates/bitacora-watch/src/ignore.rs#IgnoreRules
+        - crates/bitacora-watch/src/process.rs
+      tests: [crates/bitacora-watch/tests/watch.rs]
   R12:
     status: backlog
+    trace:
+      code: [crates/bitacora-watch/src/echo.rs#EchoFilter]
+      tests:
+        - crates/bitacora-watch/src/echo.rs
+        - crates/bitacora-watch/tests/watch.rs
   R13:
     status: backlog
   R14:

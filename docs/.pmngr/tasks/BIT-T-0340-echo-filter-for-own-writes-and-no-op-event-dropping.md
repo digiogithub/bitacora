@@ -2,7 +2,7 @@
 id: BIT-T-0340
 type: task
 title: Echo filter for own writes and no-op event dropping
-status: backlog
+status: done
 priority: critical
 parent: BIT-US-0067
 milestone: BIT-M-0003
@@ -10,7 +10,9 @@ author: mcp
 labels: [bitacora-core, bitacora-watch, io]
 estimate: 2
 created: 2026-10-06T14:34:13Z
-updated: 2026-10-06T14:34:13Z
+updated: 2026-10-06T18:47:26Z
+started: 2026-10-06T18:47:24Z
+closed: 2026-10-06T18:47:26Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-US-0067
 type: story
 title: Graph file watcher with echo suppression
-status: backlog
+status: in_progress
 priority: critical
 parent: BIT-EP-0008
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [io, watch, bitacora-watch, bitacora-core]
 estimate: 5
 created: 2026-10-06T14:29:01Z
-updated: 2026-10-06T14:29:01Z
+updated: 2026-10-06T18:47:24Z
+started: 2026-10-06T18:47:24Z
 ---
 
 ## Description
