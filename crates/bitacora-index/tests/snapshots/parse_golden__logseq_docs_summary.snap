@@ -1,0 +1,338 @@
+---
+source: crates/bitacora-index/tests/parse_golden.rs
+expression: out
+---
+PROVENANCE.md :: provenance blocks=9 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=0
+journals/2020_05_14.org :: may 14th, 2020 blocks=0 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=1
+journals/2020_05_15.org :: may 15th, 2020 blocks=0 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=1
+journals/2020_05_17.org :: may 17th, 2020 blocks=0 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=1
+journals/2020_05_18.org :: may 18th, 2020 blocks=0 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=1
+journals/2020_05_20.org :: may 20th, 2020 blocks=0 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=1
+journals/2020_05_21.org :: may 21st, 2020 blocks=0 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=1
+journals/2020_05_22.org :: may 22nd, 2020 blocks=0 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=1
+journals/2020_05_25.org :: may 25th, 2020 blocks=0 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=1
+journals/2020_05_27.org :: may 27th, 2020 blocks=0 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=1
+journals/2020_05_28.org :: may 28th, 2020 blocks=0 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=1
+journals/2020_05_29.org :: may 29th, 2020 blocks=0 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=1
+journals/2020_05_30.org :: may 30th, 2020 blocks=0 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=1
+journals/2020_05_31.org :: may 31st, 2020 blocks=0 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=1
+journals/2020_06_01.org :: jun 1st, 2020 blocks=0 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=1
+journals/2020_09_14.md :: sep 14th, 2020 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2020_09_19.md :: sep 19th, 2020 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2020_09_20.md :: sep 20th, 2020 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2020_09_21.md :: sep 21st, 2020 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2020_09_22.md :: sep 22nd, 2020 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2020_09_23.md :: sep 23rd, 2020 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2020_09_24.md :: sep 24th, 2020 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2020_09_25.md :: sep 25th, 2020 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2020_09_28.md :: sep 28th, 2020 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2020_09_29.md :: sep 29th, 2020 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2020_10_01.md :: oct 1st, 2020 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2020_10_02.md :: oct 2nd, 2020 blocks=4 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2020_10_03.md :: oct 3rd, 2020 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2020_10_05.md :: oct 5th, 2020 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2020_10_06.md :: oct 6th, 2020 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2020_10_07.md :: oct 7th, 2020 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2020_10_08.org :: oct 8th, 2020 blocks=0 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=1
+journals/2020_10_09.md :: oct 9th, 2020 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2020_10_10.md :: oct 10th, 2020 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2020_10_11.md :: oct 11th, 2020 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2020_10_12.md :: oct 12th, 2020 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2020_10_16.md :: oct 16th, 2020 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2020_10_22.md :: oct 22nd, 2020 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2020_10_23.md :: oct 23rd, 2020 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2020_10_24.md :: oct 24th, 2020 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2020_10_26.md :: oct 26th, 2020 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2020_10_27.org :: oct 27th, 2020 blocks=0 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=1
+journals/2020_10_28.md :: oct 28th, 2020 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2020_11_06.md :: nov 6th, 2020 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2020_11_07.md :: nov 7th, 2020 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2020_11_11.md :: nov 11th, 2020 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2020_11_13.md :: nov 13th, 2020 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2020_11_17.md :: nov 17th, 2020 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2020_11_18.md :: nov 18th, 2020 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2020_11_26.md :: nov 26th, 2020 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2020_11_29.md :: nov 29th, 2020 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2020_12_05.md :: dec 5th, 2020 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2020_12_07.md :: dec 7th, 2020 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2020_12_16.md :: dec 16th, 2020 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2020_12_29.md :: dec 29th, 2020 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2021_01_12.md :: jan 12th, 2021 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2021_01_13.md :: jan 13th, 2021 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2021_01_15.md :: jan 15th, 2021 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2021_01_16.md :: jan 16th, 2021 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2021_01_18.md :: jan 18th, 2021 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2021_01_19.md :: jan 19th, 2021 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2021_01_23.md :: jan 23rd, 2021 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2021_01_24.md :: jan 24th, 2021 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2021_01_27.md :: jan 27th, 2021 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2021_01_28.md :: jan 28th, 2021 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2021_01_29.md :: jan 29th, 2021 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2021_01_30.md :: jan 30th, 2021 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2021_01_31.md :: jan 31st, 2021 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2021_02_01.md :: feb 1st, 2021 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2021_02_02.md :: feb 2nd, 2021 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2021_02_05.md :: feb 5th, 2021 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2021_02_06.md :: feb 6th, 2021 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2021_02_07.md :: feb 7th, 2021 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2021_02_14.md :: feb 14th, 2021 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2021_02_15.md :: feb 15th, 2021 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2021_02_16.md :: feb 16th, 2021 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2021_02_17.md :: feb 17th, 2021 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2021_02_20.md :: feb 20th, 2021 blocks=2 pagerefs=1 blockrefs=0 props=2 tasks=1 referenced=1 diags=0
+journals/2021_02_26.md :: feb 26th, 2021 blocks=2 pagerefs=1 blockrefs=0 props=2 tasks=1 referenced=1 diags=0
+journals/2021_02_27.md :: feb 27th, 2021 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2021_03_01.md :: mar 1st, 2021 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2021_03_02.md :: mar 2nd, 2021 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2021_03_08.md :: mar 8th, 2021 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2021_03_15.md :: mar 15th, 2021 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2021_03_26.md :: mar 26th, 2021 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2021_03_27.md :: mar 27th, 2021 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2021_04_01.md :: apr 1st, 2021 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2021_04_02.md :: apr 2nd, 2021 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2021_04_19.md :: apr 19th, 2021 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2021_04_30.md :: apr 30th, 2021 blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+journals/2021_07_14.md :: jul 14th, 2021 blocks=1 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=0
+journals/2021_07_19.md :: jul 19th, 2021 blocks=1 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=0
+pages/Academic.md :: academic blocks=1 pagerefs=2 blockrefs=0 props=1 tasks=0 referenced=2 diags=0
+pages/Advanced Queries.md :: advanced queries blocks=120 pagerefs=11 blockrefs=6 props=26 tasks=0 referenced=7 diags=0
+pages/Advanced commands.md :: advanced commands blocks=19 pagerefs=11 blockrefs=0 props=3 tasks=1 referenced=11 diags=0
+pages/Aliases and external links.md :: aliases and external links blocks=5 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=0
+pages/All Platforms.md :: all platforms blocks=7 pagerefs=7 blockrefs=0 props=1 tasks=0 referenced=7 diags=0
+pages/All pages.md :: all pages blocks=10 pagerefs=6 blockrefs=0 props=3 tasks=0 referenced=6 diags=0
+pages/Android.md :: android blocks=1 pagerefs=2 blockrefs=0 props=1 tasks=0 referenced=2 diags=0
+pages/Assets alias.md :: assets alias blocks=16 pagerefs=5 blockrefs=0 props=3 tasks=0 referenced=5 diags=0
+pages/Basic settings.md :: basic settings blocks=11 pagerefs=22 blockrefs=0 props=0 tasks=0 referenced=12 diags=0
+pages/Block Reference.md :: block reference blocks=9 pagerefs=9 blockrefs=0 props=4 tasks=0 referenced=9 diags=0
+pages/Boolean.md :: boolean blocks=1 pagerefs=5 blockrefs=0 props=3 tasks=0 referenced=5 diags=0
+pages/Breaking Changes.md :: breaking changes blocks=2 pagerefs=1 blockrefs=0 props=1 tasks=0 referenced=1 diags=0
+pages/Built-in Properties.md :: built-in properties blocks=23 pagerefs=1 blockrefs=1 props=1 tasks=0 referenced=1 diags=0
+pages/Calculator.md :: calculator blocks=36 pagerefs=3 blockrefs=0 props=3 tasks=0 referenced=3 diags=0
+pages/Changelog.md :: changelog blocks=2681 pagerefs=860 blockrefs=2 props=20 tasks=0 referenced=350 diags=0
+pages/Changelog_07_09.md :: changelog_07_09 blocks=536 pagerefs=178 blockrefs=1 props=30 tasks=1 referenced=73 diags=0
+pages/Changelog_2020.org :: changelog_2020 blocks=0 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=1
+pages/Class.md :: class blocks=1 pagerefs=7 blockrefs=0 props=5 tasks=0 referenced=7 diags=0
+pages/ClojureScript Eval in a Block.md :: clojurescript eval in a block blocks=12 pagerefs=9 blockrefs=0 props=3 tasks=1 referenced=9 diags=0
+pages/Cloze.md :: cloze blocks=12 pagerefs=4 blockrefs=0 props=2 tasks=0 referenced=4 diags=0
+pages/Code block.md :: code block blocks=10 pagerefs=12 blockrefs=0 props=6 tasks=0 referenced=10 diags=0
+pages/Command.md :: command blocks=1 pagerefs=8 blockrefs=0 props=4 tasks=0 referenced=8 diags=0
+pages/Commands.md :: commands blocks=6 pagerefs=7 blockrefs=0 props=7 tasks=0 referenced=7 diags=0
+pages/Community.md :: community blocks=3 pagerefs=2 blockrefs=0 props=0 tasks=0 referenced=2 diags=0
+pages/Community___Query Learning Sprint (Summer 2022).md :: community/query learning sprint (summer 2022) blocks=63 pagerefs=4 blockrefs=0 props=5 tasks=0 referenced=5 diags=0
+pages/Copy and Paste.md :: copy and paste blocks=14 pagerefs=7 blockrefs=0 props=3 tasks=0 referenced=7 diags=0
+pages/Custom theme.md :: custom theme blocks=23 pagerefs=13 blockrefs=0 props=2 tasks=0 referenced=10 diags=0
+pages/DataType.md :: datatype blocks=1 pagerefs=5 blockrefs=0 props=4 tasks=0 referenced=5 diags=0
+pages/Desktop.md :: desktop blocks=1 pagerefs=3 blockrefs=0 props=2 tasks=0 referenced=3 diags=0
+pages/Draw.md :: draw blocks=6 pagerefs=4 blockrefs=1 props=2 tasks=0 referenced=4 diags=0
+pages/Embed Media - Audio, Photos, Videos.md :: embed media - audio, photos, videos blocks=104 pagerefs=21 blockrefs=1 props=13 tasks=1 referenced=7 diags=0
+pages/Export.md :: export blocks=44 pagerefs=12 blockrefs=0 props=7 tasks=0 referenced=11 diags=0
+pages/Feature.md :: feature blocks=12 pagerefs=6 blockrefs=0 props=4 tasks=0 referenced=6 diags=0
+pages/FeatureTag.md :: featuretag blocks=1 pagerefs=6 blockrefs=0 props=4 tasks=0 referenced=6 diags=0
+pages/Features.md :: features blocks=8 pagerefs=7 blockrefs=0 props=0 tasks=2 referenced=5 diags=0
+pages/Filename format.md :: filename format blocks=78 pagerefs=12 blockrefs=16 props=13 tasks=0 referenced=9 diags=0
+pages/Find in page.md :: find in page blocks=6 pagerefs=7 blockrefs=0 props=4 tasks=0 referenced=7 diags=0
+pages/Flashcards.md :: flashcards blocks=27 pagerefs=24 blockrefs=0 props=16 tasks=1 referenced=22 diags=0
+pages/Getting started with the Journals page.md :: getting started with the journals page blocks=7 pagerefs=3 blockrefs=0 props=0 tasks=0 referenced=3 diags=0
+pages/Git Auto-Commit.md :: git auto-commit blocks=9 pagerefs=5 blockrefs=0 props=3 tasks=0 referenced=5 diags=0
+pages/Global config.edn.md :: global config.edn blocks=14 pagerefs=7 blockrefs=0 props=5 tasks=0 referenced=7 diags=0
+pages/Global configuration.md :: global configuration blocks=7 pagerefs=12 blockrefs=0 props=4 tasks=0 referenced=8 diags=0
+pages/Glossary.md :: glossary blocks=26 pagerefs=42 blockrefs=0 props=0 tasks=0 referenced=23 diags=0
+pages/Graph Overview.md :: graph overview blocks=37 pagerefs=29 blockrefs=0 props=22 tasks=0 referenced=16 diags=0
+pages/Handbook.md :: handbook blocks=7 pagerefs=7 blockrefs=0 props=4 tasks=0 referenced=7 diags=0
+pages/Headings.md :: headings blocks=13 pagerefs=5 blockrefs=0 props=3 tasks=0 referenced=5 diags=0
+pages/Hiccup.md :: hiccup blocks=5 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=0
+pages/How to create a Logseq graph using existing Markdown files.md :: how to create a logseq graph using existing markdown files blocks=9 pagerefs=2 blockrefs=0 props=0 tasks=0 referenced=2 diags=0
+pages/How to create a new graph.md :: how to create a new graph blocks=12 pagerefs=3 blockrefs=0 props=0 tasks=0 referenced=3 diags=0
+pages/How to create pages in Logseq.md :: how to create pages in logseq blocks=20 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=0
+pages/How to filter linked references.md :: how to filter linked references blocks=10 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=0
+pages/How to sync your Logseq graph across devices.md :: how to sync your logseq graph across devices blocks=3 pagerefs=1 blockrefs=0 props=0 tasks=0 referenced=1 diags=0
+pages/How to work with the right-hand sidebar.md :: how to work with the right-hand sidebar blocks=8 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=0
+pages/Import.md :: import blocks=2 pagerefs=7 blockrefs=0 props=2 tasks=1 referenced=7 diags=0
+pages/Journals page.md :: journals page blocks=2 pagerefs=6 blockrefs=0 props=2 tasks=1 referenced=6 diags=0
+pages/Keyboard shortcuts.md :: keyboard shortcuts blocks=26 pagerefs=9 blockrefs=0 props=4 tasks=0 referenced=8 diags=0
+pages/Knowledge Graph.md :: knowledge graph blocks=10 pagerefs=12 blockrefs=0 props=4 tasks=1 referenced=12 diags=0
+pages/Learn Datalog Today.md :: learn datalog today blocks=16 pagerefs=2 blockrefs=0 props=2 tasks=0 referenced=2 diags=0
+pages/Left sidebar.md :: left sidebar blocks=1 pagerefs=2 blockrefs=0 props=1 tasks=0 referenced=2 diags=0
+pages/Linked References.md :: linked references blocks=2 pagerefs=6 blockrefs=0 props=2 tasks=1 referenced=6 diags=0
+pages/Local Http server.md :: local http server blocks=30 pagerefs=8 blockrefs=0 props=5 tasks=0 referenced=8 diags=0
+pages/Logseq Protocol.md :: logseq protocol blocks=28 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=0
+pages/Logseq Sync Encryption.md :: logseq sync encryption blocks=18 pagerefs=5 blockrefs=0 props=2 tasks=0 referenced=5 diags=0
+pages/Logseq Sync.md :: logseq sync blocks=29 pagerefs=9 blockrefs=0 props=3 tasks=0 referenced=9 diags=0
+pages/Logseq file and folder naming rules.md :: logseq file and folder naming rules blocks=5 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=0
+pages/Macros.md :: macros blocks=17 pagerefs=8 blockrefs=0 props=3 tasks=0 referenced=8 diags=0
+pages/Markdown.md :: markdown blocks=53 pagerefs=24 blockrefs=1 props=30 tasks=0 referenced=19 diags=0
+pages/Marketplace demo.md :: marketplace demo blocks=1 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=0
+pages/Marketplace.md :: marketplace blocks=1 pagerefs=1 blockrefs=0 props=1 tasks=0 referenced=1 diags=0
+pages/Math Block.md :: math block blocks=11 pagerefs=5 blockrefs=0 props=3 tasks=0 referenced=5 diags=0
+pages/Migrate to Logseq Beta.md :: migrate to logseq beta blocks=17 pagerefs=1 blockrefs=1 props=0 tasks=0 referenced=1 diags=0
+pages/Namespaces.md :: namespaces blocks=2 pagerefs=7 blockrefs=0 props=3 tasks=1 referenced=7 diags=0
+pages/New to Logseq%3F.md :: new to logseq? blocks=2 pagerefs=1 blockrefs=0 props=1 tasks=0 referenced=1 diags=0
+pages/Numbered List.md :: numbered list blocks=23 pagerefs=14 blockrefs=0 props=18 tasks=0 referenced=8 diags=0
+pages/OneStutteringMind.md :: onestutteringmind blocks=2 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=0
+pages/Org Mode.org :: org mode blocks=0 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=1
+pages/PDF highlights.md :: pdf highlights blocks=21 pagerefs=9 blockrefs=0 props=2 tasks=2 referenced=7 diags=0
+pages/Page and block references.md :: page and block references blocks=14 pagerefs=16 blockrefs=0 props=2 tasks=0 referenced=11 diags=0
+pages/Page graph.md :: page graph blocks=5 pagerefs=7 blockrefs=0 props=3 tasks=0 referenced=7 diags=0
+pages/Platform.md :: platform blocks=1 pagerefs=6 blockrefs=0 props=4 tasks=0 referenced=6 diags=0
+pages/Plugins 01.md :: plugins 01 blocks=24 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=0
+pages/Plugins 02 - Build a mind map plugin.md :: plugins 02 - build a mind map plugin blocks=35 pagerefs=2 blockrefs=0 props=0 tasks=0 referenced=1 diags=0
+pages/Plugins 101.md :: plugins 101 blocks=9 pagerefs=4 blockrefs=0 props=1 tasks=0 referenced=4 diags=0
+pages/Plugins.md :: plugins blocks=12 pagerefs=7 blockrefs=0 props=3 tasks=0 referenced=7 diags=0
+pages/Properties.md :: properties blocks=36 pagerefs=25 blockrefs=2 props=21 tasks=1 referenced=19 diags=0
+pages/Property.md :: property blocks=1 pagerefs=7 blockrefs=0 props=5 tasks=0 referenced=7 diags=0
+pages/Publish Web.md :: publish web blocks=1 pagerefs=4 blockrefs=0 props=2 tasks=0 referenced=4 diags=0
+pages/Publishing (Desktop App Only).md :: publishing (desktop app only) blocks=16 pagerefs=2 blockrefs=0 props=2 tasks=0 referenced=2 diags=0
+pages/Publishing.md :: publishing blocks=39 pagerefs=21 blockrefs=0 props=7 tasks=0 referenced=14 diags=0
+pages/Queries.md :: queries blocks=29 pagerefs=10 blockrefs=0 props=52 tasks=0 referenced=10 diags=0
+pages/Query Builder.md :: query builder blocks=12 pagerefs=6 blockrefs=2 props=3 tasks=0 referenced=6 diags=0
+pages/Query function.md :: query function blocks=20 pagerefs=10 blockrefs=0 props=6 tasks=0 referenced=9 diags=0
+pages/Query table.md :: query table blocks=7 pagerefs=5 blockrefs=0 props=3 tasks=0 referenced=5 diags=0
+pages/Query.md :: query blocks=1 pagerefs=4 blockrefs=0 props=2 tasks=0 referenced=4 diags=0
+pages/Refactoring_of_logseq.md :: the refactoring of logseq blocks=10 pagerefs=1 blockrefs=0 props=1 tasks=0 referenced=1 diags=0
+pages/Right sidebar.md :: right sidebar blocks=1 pagerefs=2 blockrefs=0 props=1 tasks=0 referenced=2 diags=0
+pages/Search.md :: search blocks=14 pagerefs=6 blockrefs=0 props=2 tasks=0 referenced=6 diags=0
+pages/Settings.md :: settings blocks=7 pagerefs=3 blockrefs=0 props=1 tasks=0 referenced=3 diags=0
+pages/Snap to grid.md :: snap to grid blocks=8 pagerefs=9 blockrefs=0 props=4 tasks=0 referenced=9 diags=0
+pages/Spaced Repetition.md :: spaced repetition blocks=2 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=0
+pages/Start here.md :: start here blocks=33 pagerefs=3 blockrefs=0 props=0 tasks=0 referenced=3 diags=0
+pages/String.md :: string blocks=1 pagerefs=6 blockrefs=0 props=4 tasks=0 referenced=6 diags=0
+pages/StringWithRefs.md :: stringwithrefs blocks=1 pagerefs=6 blockrefs=0 props=4 tasks=0 referenced=6 diags=0
+pages/Tables.md :: tables blocks=62 pagerefs=4 blockrefs=0 props=9 tasks=0 referenced=4 diags=0
+pages/Tags.md :: tags blocks=2 pagerefs=7 blockrefs=0 props=3 tasks=1 referenced=7 diags=0
+pages/Tasks.md :: tasks blocks=45 pagerefs=38 blockrefs=1 props=20 tasks=8 referenced=19 diags=0
+pages/Templates___Docs.md :: templates/docs blocks=20 pagerefs=10 blockrefs=0 props=8 tasks=0 referenced=11 diags=0
+pages/The basics of block references.md :: the basics of block references blocks=38 pagerefs=2 blockrefs=0 props=4 tasks=0 referenced=2 diags=0
+pages/The difference between block embeds and block references.md :: the difference between block embeds and block references blocks=6 pagerefs=2 blockrefs=0 props=0 tasks=0 referenced=2 diags=0
+pages/The difference between block embeds and page embeds.md :: the difference between block embeds and page embeds blocks=16 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=0
+pages/Thing.md :: thing blocks=1 pagerefs=4 blockrefs=0 props=3 tasks=0 referenced=4 diags=0
+pages/Tweet___This 1 Tiny Time Managem...___.md :: tweet/this 1 tiny time managem... blocks=15 pagerefs=7 blockrefs=0 props=5 tasks=0 referenced=8 diags=0
+pages/UI Element.md :: ui element blocks=1 pagerefs=6 blockrefs=0 props=4 tasks=0 referenced=6 diags=0
+pages/Undo and Redo.md :: undo and redo blocks=25 pagerefs=6 blockrefs=0 props=3 tasks=0 referenced=6 diags=0
+pages/Unlinked References.md :: unlinked references blocks=3 pagerefs=4 blockrefs=0 props=2 tasks=0 referenced=4 diags=0
+pages/Uri.md :: uri blocks=1 pagerefs=6 blockrefs=0 props=4 tasks=0 referenced=6 diags=0
+pages/User configuration.md :: user configuration blocks=9 pagerefs=9 blockrefs=0 props=3 tasks=0 referenced=9 diags=0
+pages/WIP How to work with the left-hand sidebar.md :: wip how to work with the left-hand sidebar blocks=2 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+pages/WIP Supercharge search with queries.md :: wip supercharge search with queries blocks=17 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+pages/Web.md :: web blocks=2 pagerefs=4 blockrefs=0 props=1 tasks=1 referenced=4 diags=0
+pages/What is indentation and why does it matter%3F.md :: what is indentation and why does it matter? blocks=16 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+pages/Whiteboard.md :: whiteboard blocks=52 pagerefs=61 blockrefs=0 props=20 tasks=0 referenced=41 diags=0
+pages/Whiteboard___Action Bar.md :: whiteboard/action bar blocks=23 pagerefs=20 blockrefs=0 props=17 tasks=0 referenced=20 diags=0
+pages/Whiteboard___Action Bar___Arrow head toggle.md :: whiteboard/action bar/arrow head toggle blocks=1 pagerefs=7 blockrefs=0 props=4 tasks=0 referenced=9 diags=0
+pages/Whiteboard___Action Bar___Auto resize toggle.md :: whiteboard/action bar/auto resize toggle blocks=1 pagerefs=7 blockrefs=0 props=4 tasks=0 referenced=9 diags=0
+pages/Whiteboard___Action Bar___Bold toggle.md :: whiteboard/action bar/bold toggle blocks=1 pagerefs=7 blockrefs=0 props=4 tasks=0 referenced=9 diags=0
+pages/Whiteboard___Action Bar___Collapse toggle.md :: whiteboard/action bar/collapse toggle blocks=1 pagerefs=7 blockrefs=0 props=4 tasks=0 referenced=9 diags=0
+pages/Whiteboard___Action Bar___Color swatch.md :: whiteboard/action bar/color swatch blocks=3 pagerefs=7 blockrefs=0 props=4 tasks=0 referenced=9 diags=0
+pages/Whiteboard___Action Bar___Edit.md :: whiteboard/action bar/edit blocks=1 pagerefs=6 blockrefs=0 props=3 tasks=0 referenced=8 diags=0
+pages/Whiteboard___Action Bar___Fill toggle.md :: whiteboard/action bar/fill toggle blocks=1 pagerefs=7 blockrefs=0 props=4 tasks=0 referenced=9 diags=0
+pages/Whiteboard___Action Bar___Italic toggle.md :: whiteboard/action bar/italic toggle blocks=1 pagerefs=7 blockrefs=0 props=4 tasks=0 referenced=9 diags=0
+pages/Whiteboard___Action Bar___Link.md :: whiteboard/action bar/link blocks=1 pagerefs=7 blockrefs=0 props=4 tasks=0 referenced=9 diags=0
+pages/Whiteboard___Action Bar___Open embedded url.md :: whiteboard/action bar/open embedded url blocks=1 pagerefs=7 blockrefs=0 props=4 tasks=0 referenced=9 diags=0
+pages/Whiteboard___Action Bar___Reload.md :: whiteboard/action bar/reload blocks=1 pagerefs=7 blockrefs=0 props=4 tasks=0 referenced=9 diags=0
+pages/Whiteboard___Action Bar___Scale select.md :: whiteboard/action bar/scale select blocks=1 pagerefs=7 blockrefs=0 props=4 tasks=0 referenced=9 diags=0
+pages/Whiteboard___Action Bar___Shape select.md :: whiteboard/action bar/shape select blocks=2 pagerefs=8 blockrefs=0 props=5 tasks=0 referenced=10 diags=0
+pages/Whiteboard___Action Bar___Stroke type select.md :: whiteboard/action bar/stroke type select blocks=1 pagerefs=7 blockrefs=0 props=4 tasks=0 referenced=9 diags=0
+pages/Whiteboard___Action Bar___Url input.md :: whiteboard/action bar/url input blocks=1 pagerefs=7 blockrefs=0 props=4 tasks=0 referenced=9 diags=0
+pages/Whiteboard___Canvas.md :: whiteboard/canvas blocks=1 pagerefs=6 blockrefs=0 props=3 tasks=0 referenced=6 diags=0
+pages/Whiteboard___Context Menu.md :: whiteboard/context menu blocks=3 pagerefs=5 blockrefs=0 props=4 tasks=0 referenced=6 diags=0
+pages/Whiteboard___Dashboard.md :: whiteboard/dashboard blocks=3 pagerefs=4 blockrefs=0 props=4 tasks=0 referenced=5 diags=0
+pages/Whiteboard___Element locking.md :: whiteboard/element locking blocks=8 pagerefs=9 blockrefs=0 props=5 tasks=0 referenced=10 diags=0
+pages/Whiteboard___Embed.md :: whiteboard/embed blocks=2 pagerefs=4 blockrefs=0 props=3 tasks=0 referenced=4 diags=0
+pages/Whiteboard___Object.md :: whiteboard/object blocks=74 pagerefs=80 blockrefs=0 props=7 tasks=0 referenced=47 diags=0
+pages/Whiteboard___Object___Image.md :: whiteboard/object/image blocks=1 pagerefs=5 blockrefs=0 props=3 tasks=0 referenced=5 diags=0
+pages/Whiteboard___Object___PDF.md :: whiteboard/object/pdf blocks=2 pagerefs=6 blockrefs=0 props=4 tasks=0 referenced=6 diags=0
+pages/Whiteboard___Object___Tweet.md :: whiteboard/object/tweet blocks=4 pagerefs=7 blockrefs=0 props=4 tasks=0 referenced=7 diags=0
+pages/Whiteboard___Object___Youtube.md :: whiteboard/object/youtube blocks=3 pagerefs=8 blockrefs=0 props=4 tasks=0 referenced=8 diags=0
+pages/Whiteboard___Object___iFrame.md :: whiteboard/object/iframe blocks=1 pagerefs=5 blockrefs=0 props=3 tasks=0 referenced=5 diags=0
+pages/Whiteboard___Quick Add.md :: whiteboard/quick add blocks=11 pagerefs=22 blockrefs=0 props=4 tasks=0 referenced=14 diags=0
+pages/Whiteboard___Tool.md :: whiteboard/tool blocks=1 pagerefs=11 blockrefs=0 props=5 tasks=0 referenced=11 diags=0
+pages/Whiteboard___Tool___Connector.md :: whiteboard/tool/connector blocks=2 pagerefs=6 blockrefs=0 props=3 tasks=0 referenced=7 diags=0
+pages/Whiteboard___Tool___Eraser.md :: whiteboard/tool/eraser blocks=2 pagerefs=4 blockrefs=0 props=3 tasks=0 referenced=6 diags=0
+pages/Whiteboard___Tool___Global color swatch.md :: whiteboard/tool/global color swatch blocks=8 pagerefs=11 blockrefs=0 props=5 tasks=0 referenced=12 diags=0
+pages/Whiteboard___Tool___Global scale select.md :: whiteboard/tool/global scale select blocks=8 pagerefs=12 blockrefs=0 props=5 tasks=0 referenced=13 diags=0
+pages/Whiteboard___Tool___Highlight.md :: whiteboard/tool/highlight blocks=2 pagerefs=6 blockrefs=0 props=3 tasks=0 referenced=7 diags=0
+pages/Whiteboard___Tool___Move.md :: whiteboard/tool/move blocks=2 pagerefs=4 blockrefs=0 props=3 tasks=0 referenced=6 diags=0
+pages/Whiteboard___Tool___Pencil.md :: whiteboard/tool/pencil blocks=2 pagerefs=7 blockrefs=0 props=4 tasks=0 referenced=8 diags=0
+pages/Whiteboard___Tool___Portal.md :: whiteboard/tool/portal blocks=9 pagerefs=6 blockrefs=0 props=3 tasks=0 referenced=8 diags=0
+pages/Whiteboard___Tool___Select.md :: whiteboard/tool/select blocks=2 pagerefs=4 blockrefs=0 props=3 tasks=0 referenced=6 diags=0
+pages/Whiteboard___Tool___Shape.md :: whiteboard/tool/shape blocks=2 pagerefs=7 blockrefs=0 props=3 tasks=0 referenced=8 diags=0
+pages/Whiteboard___Tool___Shape___Circle.md :: whiteboard/tool/shape/circle blocks=1 pagerefs=6 blockrefs=0 props=3 tasks=0 referenced=8 diags=0
+pages/Whiteboard___Tool___Shape___Rectangle.md :: whiteboard/tool/shape/rectangle blocks=1 pagerefs=7 blockrefs=0 props=3 tasks=0 referenced=9 diags=0
+pages/Whiteboard___Tool___Shape___Triangle.md :: whiteboard/tool/shape/triangle blocks=1 pagerefs=6 blockrefs=0 props=3 tasks=0 referenced=8 diags=0
+pages/Whiteboard___Tool___Text.md :: whiteboard/tool/text blocks=2 pagerefs=6 blockrefs=0 props=3 tasks=0 referenced=7 diags=0
+pages/Whiteboard___Toolbar.md :: whiteboard/toolbar blocks=2 pagerefs=3 blockrefs=1 props=3 tasks=0 referenced=4 diags=0
+pages/Why linking matters.md :: why linking matters blocks=7 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=0
+pages/Youtube timestamp.md :: youtube timestamp blocks=2 pagerefs=6 blockrefs=0 props=2 tasks=1 referenced=6 diags=0
+pages/Zotero.md :: zotero blocks=23 pagerefs=14 blockrefs=1 props=14 tasks=0 referenced=12 diags=0
+pages/about.org :: about blocks=0 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=1
+pages/bensu.md :: bensu blocks=1 pagerefs=1 blockrefs=0 props=1 tasks=0 referenced=1 diags=0
+pages/block_embed.md :: block embed blocks=7 pagerefs=12 blockrefs=1 props=10 tasks=0 referenced=10 diags=0
+pages/canary changelog.md :: canary changelog blocks=13 pagerefs=5 blockrefs=0 props=1 tasks=0 referenced=5 diags=0
+pages/changelog_06.md :: changelog_06 blocks=582 pagerefs=262 blockrefs=6 props=20 tasks=1 referenced=115 diags=0
+pages/config edn file.md :: config.edn blocks=21 pagerefs=8 blockrefs=0 props=7 tasks=0 referenced=8 diags=0
+pages/contents.md :: contents blocks=73 pagerefs=60 blockrefs=0 props=0 tasks=0 referenced=59 diags=0
+pages/custom.css.md :: custom.css blocks=8 pagerefs=6 blockrefs=0 props=4 tasks=0 referenced=6 diags=0
+pages/custom.js.md :: custom.js blocks=6 pagerefs=5 blockrefs=0 props=4 tasks=0 referenced=5 diags=0
+pages/description.md :: description blocks=1 pagerefs=5 blockrefs=0 props=3 tasks=0 referenced=5 diags=0
+pages/desktop app.md :: desktop app blocks=10 pagerefs=0 blockrefs=0 props=1 tasks=0 referenced=0 diags=0
+pages/devon.md :: devon blocks=1 pagerefs=1 blockrefs=0 props=1 tasks=0 referenced=1 diags=0
+pages/docs.md :: docs blocks=1 pagerefs=1 blockrefs=0 props=1 tasks=0 referenced=1 diags=0
+pages/domainIncludes.md :: domainincludes blocks=1 pagerefs=8 blockrefs=0 props=6 tasks=0 referenced=8 diags=0
+pages/examples.md :: examples blocks=8 pagerefs=10 blockrefs=0 props=15 tasks=4 referenced=8 diags=0
+pages/export.css.md :: export.css blocks=4 pagerefs=5 blockrefs=0 props=4 tasks=0 referenced=5 diags=0
+pages/faq.org :: faq blocks=0 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=1
+pages/favorites.md :: favorites blocks=1 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=0
+pages/how_to_take_notes.md :: how to take notes blocks=5 pagerefs=0 blockrefs=0 props=2 tasks=0 referenced=0 diags=0
+pages/iOS.md :: ios blocks=1 pagerefs=3 blockrefs=0 props=2 tasks=0 referenced=3 diags=0
+pages/initial-version.md :: initial-version blocks=1 pagerefs=8 blockrefs=0 props=4 tasks=0 referenced=8 diags=0
+pages/llcc.md :: llcc blocks=1 pagerefs=1 blockrefs=0 props=1 tasks=0 referenced=1 diags=0
+pages/meta.md :: meta blocks=1 pagerefs=6 blockrefs=0 props=4 tasks=0 referenced=6 diags=0
+pages/minor change.md :: minor change blocks=1 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=0 diags=0
+pages/name.md :: name blocks=1 pagerefs=6 blockrefs=0 props=4 tasks=0 referenced=6 diags=0
+pages/one year in logseq.md :: one year in logseq blocks=48 pagerefs=7 blockrefs=0 props=3 tasks=0 referenced=7 diags=0
+pages/page_embed.md :: page embed blocks=10 pagerefs=18 blockrefs=0 props=10 tasks=0 referenced=13 diags=0
+pages/parent.md :: parent blocks=1 pagerefs=7 blockrefs=0 props=5 tasks=0 referenced=7 diags=0
+pages/pengx17.md :: pengx17 blocks=1 pagerefs=1 blockrefs=0 props=1 tasks=0 referenced=1 diags=0
+pages/platforms.md :: platforms blocks=1 pagerefs=8 blockrefs=0 props=4 tasks=0 referenced=8 diags=0
+pages/plugins.edn.md :: plugins.edn blocks=14 pagerefs=7 blockrefs=0 props=6 tasks=0 referenced=7 diags=0
+pages/rangeIncludes.md :: rangeincludes blocks=1 pagerefs=8 blockrefs=0 props=6 tasks=0 referenced=8 diags=0
+pages/sameAs.md :: sameas blocks=1 pagerefs=6 blockrefs=0 props=4 tasks=0 referenced=6 diags=0
+pages/setting___enable journals.md :: setting/enable journals blocks=2 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=1 diags=0
+pages/setting___enable logical outdenting.md :: setting/enable logical outdenting blocks=4 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=1 diags=0
+pages/setting___enable timetracking.md :: setting/enable timetracking blocks=1 pagerefs=0 blockrefs=1 props=0 tasks=0 referenced=1 diags=0
+pages/setting___enable tooltip.md :: setting/enable tooltip blocks=1 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=1 diags=0
+pages/setting___language.md :: setting/language blocks=15 pagerefs=1 blockrefs=1 props=0 tasks=0 referenced=2 diags=0
+pages/setting___preferred file format.md :: setting/preferred file format blocks=6 pagerefs=1 blockrefs=0 props=0 tasks=0 referenced=2 diags=0
+pages/setting___preferred journal format.md :: setting/preferred journal format blocks=4 pagerefs=2 blockrefs=1 props=0 tasks=0 referenced=2 diags=0
+pages/setting___preferred workflow.md :: setting/preferred workflow blocks=4 pagerefs=1 blockrefs=0 props=0 tasks=0 referenced=2 diags=0
+pages/setting___send usage data and diagnostics to logseq.md :: setting/send usage data and diagnostics to logseq blocks=3 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=1 diags=0
+pages/setting___show brackets.md :: setting/show brackets blocks=6 pagerefs=2 blockrefs=0 props=1 tasks=0 referenced=3 diags=0
+pages/setting___theme modes.md :: setting/theme modes blocks=6 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=1 diags=0
+pages/slide.md :: slide blocks=8 pagerefs=6 blockrefs=0 props=7 tasks=0 referenced=6 diags=0
+pages/supports.md :: supports blocks=1 pagerefs=9 blockrefs=0 props=4 tasks=0 referenced=9 diags=0
+pages/templates.md :: templates blocks=38 pagerefs=17 blockrefs=0 props=15 tasks=1 referenced=16 diags=0
+pages/term.page title.md :: custom page title blocks=12 pagerefs=2 blockrefs=1 props=3 tasks=0 referenced=2 diags=0
+pages/term___alias.md :: term/alias blocks=6 pagerefs=8 blockrefs=0 props=4 tasks=1 referenced=9 diags=0
+pages/term___backlink.md :: term/backlink blocks=9 pagerefs=3 blockrefs=0 props=0 tasks=0 referenced=4 diags=0
+pages/term___block reference with label.md :: term/block reference with label blocks=8 pagerefs=0 blockrefs=3 props=1 tasks=0 referenced=1 diags=0
+pages/term___block rendering.md :: term/block rendering blocks=5 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=1 diags=0
+pages/term___block title.md :: term/block title blocks=7 pagerefs=0 blockrefs=1 props=2 tasks=0 referenced=1 diags=0
+pages/term___block.md :: term/block blocks=6 pagerefs=2 blockrefs=0 props=1 tasks=0 referenced=3 diags=0
+pages/term___bullet.md :: term/bullet blocks=7 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=1 diags=0
+pages/term___editing mode.md :: term/editing mode blocks=9 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=1 diags=0
+pages/term___file link.md :: term/file link blocks=6 pagerefs=0 blockrefs=2 props=0 tasks=0 referenced=1 diags=0
+pages/term___graph.md :: term/graph blocks=5 pagerefs=1 blockrefs=0 props=1 tasks=0 referenced=2 diags=0
+pages/term___internal line break.md :: term/internal line break blocks=6 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=1 diags=0
+pages/term___network of connected ideas.md :: term/network of connected ideas blocks=2 pagerefs=0 blockrefs=0 props=0 tasks=0 referenced=1 diags=0
+pages/term___page reference with label.md :: term/page reference with label blocks=7 pagerefs=1 blockrefs=2 props=0 tasks=0 referenced=2 diags=0
+pages/term___page reference.md :: term/page reference blocks=3 pagerefs=2 blockrefs=0 props=2 tasks=0 referenced=3 diags=0
+pages/term___page title.md :: term/page title blocks=11 pagerefs=12 blockrefs=2 props=4 tasks=0 referenced=7 diags=0
+pages/term___page.md :: term/page blocks=7 pagerefs=3 blockrefs=0 props=2 tasks=0 referenced=4 diags=0
+pages/term___web link.md :: term/web link blocks=7 pagerefs=0 blockrefs=2 props=0 tasks=0 referenced=1 diags=0
+pages/testimonials.md :: testimonials blocks=5 pagerefs=1 blockrefs=0 props=5 tasks=0 referenced=1 diags=0
+pages/theme.md :: theme blocks=1 pagerefs=2 blockrefs=0 props=1 tasks=0 referenced=2 diags=0
+pages/tips_and_tricks.md :: tips and tricks blocks=5 pagerefs=24 blockrefs=0 props=20 tasks=0 referenced=10 diags=0
+pages/tutorial.md :: tutorial blocks=27 pagerefs=10 blockrefs=3 props=7 tasks=3 referenced=8 diags=0
+pages/type.md :: type blocks=1 pagerefs=5 blockrefs=0 props=3 tasks=0 referenced=5 diags=0
+pages/unique.md :: unique blocks=1 pagerefs=6 blockrefs=0 props=4 tasks=0 referenced=6 diags=0
+pages/url.md :: url blocks=1 pagerefs=6 blockrefs=0 props=4 tasks=0 referenced=6 diags=0
+pages/videos.md :: videos blocks=4 pagerefs=2 blockrefs=0 props=0 tasks=0 referenced=2 diags=0

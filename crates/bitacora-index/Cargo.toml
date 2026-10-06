@@ -13,6 +13,9 @@ workspace = true
 
 [dependencies]
 bitacora-core.workspace = true
+bitacora-config.workspace = true
+bitacora-markdown.workspace = true
+unicode-normalization.workspace = true
 thiserror.workspace = true
 blake3.workspace = true
 directories.workspace = true
@@ -20,4 +23,5 @@ parking_lot.workspace = true
 rusqlite.workspace = true
 
 [dev-dependencies]
+insta.workspace = true
 tempfile.workspace = true
