@@ -1,0 +1,26 @@
+;; Graph configuration (Bitacora). Every key is optional.
+{:meta/version 1
+
+ ;; Page file names: :triple-lowbar encodes "/" in titles as "___".
+ :file/name-format :triple-lowbar
+
+ ;; Preferred file format for new pages: "Markdown" or "Org".
+ :preferred-format "Markdown"
+
+ ;; Titles of journal pages and file names of new journal files.
+ :journal/page-title-format "MMM do, yyyy"
+ :journal/file-name-format "yyyy_MM_dd"
+
+ ;; Where new pages and journals are created, relative to the graph.
+ :pages-directory "pages"
+ :journals-directory "journals"
+
+ ;; Path prefixes (relative to the graph root) that are not loaded.
+ :hidden []
+
+ :favorites []
+
+ ;; Indentation used when writing files: :tab :two-spaces :four-spaces :eight-spaces
+ :export/bullet-indentation :tab
+
+ :preferred-workflow :now}

@@ -1,0 +1,57 @@
+;; Self-authored test configuration for bitacora-config.
+;; It exercises every key of the layout table plus EDN corner cases.
+{:meta/version 1
+
+ ;; --- file layout -------------------------------------------------
+ :file/name-format :triple-lowbar   ; new-style names
+ :pages-directory "pages"
+ :journals-directory "journals"
+ :whiteboards-directory "whiteboards"
+
+ ;; Journals
+ :journal/page-title-format "yyyy-MM-dd EEEE"
+ :journal/file-name-format "yyyy_MM_dd"
+ :feature/enable-journals? true
+ :default-templates {:journals "Daily"}
+
+ :preferred-format "Markdown"
+ :preferred-workflow :todo
+
+ ;; Hidden paths are prefixes, not globs.
+ :hidden ["/archived" "drafts/private.md"]
+
+ :property-pages/enabled? false
+ :property-pages/excludelist #{:type :status}
+ :property/separated-by-commas #{:people :topics}
+ :ignored-page-references-keywords #{:author}
+ :block-hidden-properties #{:public}
+
+ ;; Written indentation.
+ :export/bullet-indentation :two-spaces
+ :org-mode/insert-file-link? false
+
+ :feature/enable-whiteboards? true
+ :file-sync/ignore-files ["^\\.cache/" "\\.tmp$"]
+
+ :favorites []
+
+ ;; Macros: shallow merged over the global config.
+ :macros {"hello" "Hello, $1!"
+          "todo-link" "[[$1]] TODO"}
+
+ #_:experimental #_{:disabled true}
+
+ ;; Query helpers use lists, which EDN reads as plain data.
+ :default-queries {:journals [{:title "Overdue"
+                               :query (fn [rows] (filter :overdue? rows))
+                               :collapsed? false}]}
+
+ :dates #inst "2026-01-02T03:04:05.000-00:00"
+ :ids #{#uuid "00000000-0000-4000-8000-000000000000"}
+ :numbers [1 -2 +3 4.5 6e3 7N 8.25M]
+ :chars [\a \newline \space A]
+ :escaped "line\nbreak \"quoted\" é"
+ :nothing nil
+
+ ;; trailing note before the closing brace
+ }
