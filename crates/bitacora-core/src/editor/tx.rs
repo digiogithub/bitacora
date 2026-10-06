@@ -6,7 +6,7 @@ use std::time::Instant;
 
 use uuid::Uuid;
 
-use super::cmd::{Cmd, Refusal, plan};
+use super::cmd::{Cmd, Refusal, plan_full};
 use super::model::BlockId;
 use super::op::{Op, OpError};
 use super::workspace::Workspace;
@@ -145,8 +145,16 @@ impl Workspace {
     /// # Errors
     /// [`CommitError::Refused`] when the planner refuses; otherwise as [`Workspace::commit`].
     pub fn run(&mut self, label: &'static str, cmd: &Cmd) -> Result<Transaction, CommitError> {
-        let ops = plan(self, cmd)?;
-        self.commit(label, ops)
+        let planned = plan_full(self, cmd)?;
+        let before = cursor_before(self, cmd);
+        let mut tx = self.commit(label, planned.ops)?;
+        tx.cursor_before = before;
+        tx.cursor_after = planned.cursor_after;
+        tx.coalesce = match cmd {
+            Cmd::EditText { id, .. } => Some(CoalesceKey { block: *id }),
+            _ => None,
+        };
+        Ok(tx)
     }
 
     /// Commits the inverse of `tx` (one undo step). Redo is `undo` of the returned transaction.
@@ -210,5 +218,24 @@ impl Workspace {
             return Err(InvariantError::DuplicateUuid(u));
         }
         Ok(())
+    }
+}
+
+/// Editor cursor before a command, for the commands that depend on the caret.
+fn cursor_before(ws: &Workspace, cmd: &Cmd) -> Option<CursorState> {
+    let at =
+        |block: BlockId, selection: std::ops::Range<usize>| Some(CursorState { block, selection });
+    match cmd {
+        Cmd::Enter { id, cursor, .. } | Cmd::SplitBlock { id, cursor } => at(*id, cursor.clone()),
+        Cmd::InsertNewline { id, at: r } => at(*id, r.clone()),
+        Cmd::EditText { id, range, .. } => at(*id, range.clone()),
+        Cmd::PasteText { target, cursor, .. } => at(*target, cursor.clone()),
+        Cmd::InsertBlockRef { target, range, .. } => at(*target, range.clone()),
+        Cmd::MergeWithPrevious { id } | Cmd::OutdentEmptyLast { id } => at(*id, 0..0),
+        Cmd::MergeNext { id } => {
+            let end = ws.block(*id).map_or(0, |b| b.text.len());
+            at(*id, end..end)
+        }
+        _ => None,
     }
 }

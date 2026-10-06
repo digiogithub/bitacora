@@ -66,6 +66,7 @@ pub struct Workspace {
     pub(crate) conflicted: BTreeMap<PageKey, Arc<super::external::ConflictNotice>>,
     pub(crate) editing: Option<BlockId>,
     pub(crate) external_events: Vec<super::external::ExternalEvent>,
+    settings: super::settings::EditorSettings,
 }
 
 impl Workspace {
@@ -73,6 +74,17 @@ impl Workspace {
     #[must_use]
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Editing preferences used by the command planners.
+    #[must_use]
+    pub fn settings(&self) -> super::settings::EditorSettings {
+        self.settings
+    }
+
+    /// Replaces the editing preferences (call when `config.edn` changes).
+    pub fn set_settings(&mut self, settings: super::settings::EditorSettings) {
+        self.settings = settings;
     }
 
     /// Allocates a fresh [`BlockId`] (usable from pure planners).

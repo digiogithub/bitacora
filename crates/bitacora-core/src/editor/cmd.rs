@@ -2,6 +2,8 @@
 //! (`docs/design/block-editor.md` §3.2). This is the skeleton; further commands are added by the
 //! editing stories.
 
+use std::ops::Range;
+
 use bitacora_markdown::edit::properties::{set_front_matter_property, set_property};
 use bitacora_markdown::edit::state::{CollapseMode, set_collapsed};
 
@@ -110,6 +112,143 @@ pub enum Cmd {
         /// Graph-relative path (`assets/x.png`).
         path: GraphPath,
     },
+    /// What Enter does in a block: outdent when it is an empty last child, otherwise split at the
+    /// caret (BIT-US-0032). Offsets are bytes of the block text. See [`super::split::enter_action`]
+    /// for the other cases (code fence, `[[ ]]`) that the editor resolves first.
+    Enter {
+        /// Block.
+        id: BlockId,
+        /// Caret or selection.
+        cursor: Range<usize>,
+        /// Block the view is zoomed into: Enter on its empty last child does not outdent out of it.
+        zoom_root: Option<BlockId>,
+    },
+    /// Split a block at the caret: `SetText(head)` + a new block with the left-trimmed tail.
+    SplitBlock {
+        /// Block.
+        id: BlockId,
+        /// Caret or selection (the selection is deleted).
+        cursor: Range<usize>,
+    },
+    /// Shift+Enter: replace the selection by a line break inside the block.
+    InsertNewline {
+        /// Block.
+        id: BlockId,
+        /// Caret or selection.
+        at: Range<usize>,
+    },
+    /// Enter on an empty last child: move it after its parent.
+    OutdentEmptyLast {
+        /// Block.
+        id: BlockId,
+    },
+    /// Backspace at offset 0: join the block onto the previous visible block.
+    MergeWithPrevious {
+        /// Block.
+        id: BlockId,
+    },
+    /// Delete at the end of the block: pull the next block (first child or next sibling) in.
+    MergeNext {
+        /// Block.
+        id: BlockId,
+    },
+    /// Alt+Shift+Up/Down.
+    MoveUpDown {
+        /// Selected blocks (contiguous siblings).
+        ids: Vec<BlockId>,
+        /// Direction.
+        up: bool,
+    },
+    /// Collapse or expand blocks that have children; leaves are ignored (arrow click, Mod+Up/Down).
+    CollapseBlocks {
+        /// Blocks.
+        ids: Vec<BlockId>,
+        /// New state.
+        collapsed: bool,
+    },
+    /// Without a target Mod+Up/Down act on the page: collapse the deepest expanded level or
+    /// expand the shallowest collapsed one.
+    CollapseLevel {
+        /// Page.
+        page: PageKey,
+        /// Collapse (true) or expand (false) one level.
+        collapse: bool,
+    },
+    /// `t o`: collapse or expand every block that has children.
+    SetAllCollapsed {
+        /// Page.
+        page: PageKey,
+        /// New state.
+        collapsed: bool,
+    },
+    /// Cycle the task marker of each block per `:preferred-workflow` (Mod+Enter); empty blocks are
+    /// skipped.
+    CycleMarker {
+        /// Blocks.
+        ids: Vec<BlockId>,
+    },
+    /// Set (`Some`) or remove (`None`) the task marker.
+    SetMarker {
+        /// Blocks.
+        ids: Vec<BlockId>,
+        /// Marker word.
+        marker: Option<String>,
+    },
+    /// Checkbox click: `DONE` blocks go back to the workflow's first marker, the others to `DONE`.
+    ToggleDone {
+        /// Blocks.
+        ids: Vec<BlockId>,
+    },
+    /// Replace a byte range of a block text (typing). Consecutive ones on one block coalesce into
+    /// one undo step.
+    EditText {
+        /// Block.
+        id: BlockId,
+        /// Range to replace.
+        range: Range<usize>,
+        /// New text.
+        inserted: String,
+    },
+    /// Insert block trees next to or below `target` (paste, templates; BIT-US-0037).
+    InsertBlocks {
+        /// Block the new ones go next to.
+        target: BlockId,
+        /// Force sibling (true) or first child (false); `None` = Logseq's rule.
+        sibling: Option<bool>,
+        /// The trees.
+        blocks: Vec<super::clipboard::ClipBlock>,
+        /// Keep the `id::` of the pasted blocks (cut and external paste) instead of dropping it.
+        keep_uuids: bool,
+    },
+    /// Paste plain text: a Markdown outline becomes blocks, paragraphs become sibling blocks,
+    /// anything else is inserted inline at the caret.
+    PasteText {
+        /// Edited block.
+        target: BlockId,
+        /// Caret or selection.
+        cursor: Range<usize>,
+        /// Clipboard text.
+        text: String,
+        /// Raw paste (Mod+Shift+V): always inline.
+        raw: bool,
+    },
+    /// Give a block an `id::` (no-op when it has one); the id is generated unless given.
+    EnsureUuid {
+        /// Block.
+        id: BlockId,
+        /// The uuid to use.
+        uuid: Option<uuid::Uuid>,
+    },
+    /// Replace `range` of `target` by `((uuid))` of `referenced`, adding its `id::` in the same
+    /// transaction (block-reference completion).
+    InsertBlockRef {
+        /// Block being edited.
+        target: BlockId,
+        /// Query range to replace (from `((` to the caret, including the pair).
+        range: Range<usize>,
+        /// The referenced block.
+        referenced: BlockId,
+    },
 }
 
 /// Why a command did nothing.
@@ -146,6 +285,54 @@ pub enum Refusal {
     /// block. Logseq reads an indented `- ` line as a nested bullet too.
     #[error("text has a line that starts like a list item and cannot be stored in one block")]
     Unrepresentable,
+    /// The caret offset is outside the text or not on a character boundary.
+    #[error("caret offset is not inside the block text")]
+    BadCursor,
+    /// Enter on an empty last child only outdents when the block is empty and has no next sibling.
+    #[error("block is not an empty last child")]
+    NotEmptyLastChild,
+    /// Backspace on the first block of a page does nothing unless the block is empty.
+    #[error("first block of the page cannot be merged into anything")]
+    FirstBlock,
+    /// A page keeps at least one block.
+    #[error("the page has a single block")]
+    LastBlockOfPage,
+    /// Logseq refuses a merge when both blocks have children.
+    #[error("both blocks have children")]
+    BothHaveChildren,
+    /// There is no next block to pull in.
+    #[error("no next block")]
+    NoNextBlock,
+    /// Both blocks carry an `id::`, so one of the identities would be lost.
+    #[error("both blocks have an id::")]
+    BothReferenced,
+    /// The block is at the page edge and cannot move further.
+    #[error("block cannot move further")]
+    AtEdge,
+    /// Enter should move the caret instead (past the closing `]]`).
+    #[error("move the caret to offset {0}")]
+    MoveCaret(usize),
+    /// Nothing was selected for the operation to act on.
+    #[error("no block has what the command needs")]
+    NothingApplicable,
+}
+
+/// A planned command: the ops and where the caret goes afterwards.
+#[derive(Debug, Clone)]
+pub struct Planned {
+    /// The ops, to be committed as one transaction.
+    pub ops: Vec<Op>,
+    /// Caret after the command (restored on redo).
+    pub cursor_after: Option<super::tx::CursorState>,
+}
+
+impl From<Vec<Op>> for Planned {
+    fn from(ops: Vec<Op>) -> Self {
+        Self {
+            ops,
+            cursor_after: None,
+        }
+    }
 }
 
 /// Plans `cmd` against `ws` without changing it.
@@ -153,6 +340,70 @@ pub enum Refusal {
 /// # Errors
 /// A [`Refusal`] explaining why the command is a no-op or invalid.
 pub fn plan(ws: &Workspace, cmd: &Cmd) -> Result<Vec<Op>, Refusal> {
+    plan_full(ws, cmd).map(|p| p.ops)
+}
+
+/// Like [`plan`], also returning where the caret goes afterwards.
+///
+/// # Errors
+/// A [`Refusal`] explaining why the command is a no-op or invalid.
+pub fn plan_full(ws: &Workspace, cmd: &Cmd) -> Result<Planned, Refusal> {
+    match cmd {
+        Cmd::Enter {
+            id,
+            cursor,
+            zoom_root,
+        } => super::split::enter(ws, *id, cursor, *zoom_root),
+        Cmd::SplitBlock { id, cursor } => super::split::split_block(ws, *id, cursor),
+        Cmd::InsertNewline { id, at } => super::split::insert_newline(ws, *id, at),
+        Cmd::OutdentEmptyLast { id } => super::split::outdent_empty_last(ws, *id),
+        Cmd::MergeWithPrevious { id } => super::split::merge_with_previous(ws, *id),
+        Cmd::MergeNext { id } => super::split::merge_next(ws, *id),
+        Cmd::MoveUpDown { ids, up } => super::outline::move_up_down(ws, ids, *up).map(Into::into),
+        Cmd::CollapseBlocks { ids, collapsed } => {
+            super::outline::collapse_blocks(ws, ids, *collapsed).map(Into::into)
+        }
+        Cmd::CollapseLevel { page, collapse } => {
+            super::outline::collapse_level(ws, page, *collapse).map(Into::into)
+        }
+        Cmd::SetAllCollapsed { page, collapsed } => {
+            super::outline::set_all_collapsed(ws, page, *collapsed).map(Into::into)
+        }
+        Cmd::CycleMarker { ids } => super::outline::cycle_marker(ws, ids).map(Into::into),
+        Cmd::SetMarker { ids, marker } => {
+            super::outline::set_marker(ws, ids, marker.as_deref()).map(Into::into)
+        }
+        Cmd::ToggleDone { ids } => super::outline::toggle_done(ws, ids).map(Into::into),
+        Cmd::EditText {
+            id,
+            range,
+            inserted,
+        } => super::split::edit_text(ws, *id, range, inserted),
+        Cmd::InsertBlocks {
+            target,
+            sibling,
+            blocks,
+            keep_uuids,
+        } => super::clipboard::insert_blocks(ws, *target, *sibling, blocks, *keep_uuids),
+        Cmd::PasteText {
+            target,
+            cursor,
+            text,
+            raw,
+        } => super::clipboard::paste_text(ws, *target, cursor, text, *raw),
+        Cmd::EnsureUuid { id, uuid } => {
+            super::complete::ensure_uuid(ws, *id, *uuid).map(Into::into)
+        }
+        Cmd::InsertBlockRef {
+            target,
+            range,
+            referenced,
+        } => super::complete::insert_block_ref(ws, *target, range, *referenced),
+        _ => plan_basic(ws, cmd).map(Into::into),
+    }
+}
+
+fn plan_basic(ws: &Workspace, cmd: &Cmd) -> Result<Vec<Op>, Refusal> {
     match cmd {
         Cmd::SetText { id, text } => set_text(ws, *id, text.clone()).map(|o| vec![o]),
         Cmd::InsertSibling { after, text } => {
@@ -235,6 +486,7 @@ pub fn plan(ws: &Workspace, cmd: &Cmd) -> Result<Vec<Op>, Refusal> {
             let new = set_property(&b.text, key, value);
             set_text(ws, *id, new).map(|o| vec![o])
         }
+        _ => Err(Refusal::NothingApplicable),
     }
 }
 
@@ -263,7 +515,7 @@ fn set_page_property(
     }])
 }
 
-fn check_text(text: &str) -> Result<(), Refusal> {
+pub(super) fn check_text(text: &str) -> Result<(), Refusal> {
     if super::model::text_is_representable(text) {
         Ok(())
     } else {
@@ -271,14 +523,14 @@ fn check_text(text: &str) -> Result<(), Refusal> {
     }
 }
 
-fn check_writable(ws: &Workspace, page: &PageKey) -> Result<(), Refusal> {
+pub(super) fn check_writable(ws: &Workspace, page: &PageKey) -> Result<(), Refusal> {
     match ws.page(page) {
         Some(p) if !p.read_only => Ok(()),
         _ => Err(Refusal::ReadOnly),
     }
 }
 
-fn set_text(ws: &Workspace, id: BlockId, after: String) -> Result<Op, Refusal> {
+pub(super) fn set_text(ws: &Workspace, id: BlockId, after: String) -> Result<Op, Refusal> {
     let b = ws.block(id).ok_or(Refusal::UnknownBlock(id))?;
     if let Some(page) = ws.locate(id) {
         check_writable(ws, page)?;
@@ -311,7 +563,7 @@ fn top_level_or_all(ws: &Workspace, ids: &[BlockId]) -> Result<Vec<BlockId>, Ref
     Ok(ids.to_vec())
 }
 
-fn top_level(ws: &Workspace, ids: &[BlockId]) -> Result<Vec<BlockId>, Refusal> {
+pub(super) fn top_level(ws: &Workspace, ids: &[BlockId]) -> Result<Vec<BlockId>, Refusal> {
     let all = top_level_or_all(ws, ids)?;
     Ok(all
         .iter()
@@ -324,7 +576,10 @@ fn top_level(ws: &Workspace, ids: &[BlockId]) -> Result<Vec<BlockId>, Refusal> {
 }
 
 /// Validates that `ids` are contiguous siblings; returns their slot (first index) in order.
-fn sibling_run(ws: &Workspace, ids: &[BlockId]) -> Result<(Position, Vec<BlockId>), Refusal> {
+pub(super) fn sibling_run(
+    ws: &Workspace,
+    ids: &[BlockId],
+) -> Result<(Position, Vec<BlockId>), Refusal> {
     let tops = top_level(ws, ids)?;
     let first = ws
         .position_of(tops[0])
@@ -410,7 +665,10 @@ fn outdent(ws: &Workspace, ids: &[BlockId]) -> Result<Vec<Op>, Refusal> {
             },
         });
     }
-    if let Some(last) = run.last() {
+    // Logical outdenting (`:editor/logical-outdenting?`) leaves the following siblings in place.
+    if !ws.settings().logical_outdenting
+        && let Some(last) = run.last()
+    {
         let existing = ws.block(*last).map_or(0, |b| b.children.len());
         for (j, id) in following.iter().enumerate() {
             ops.push(Op::Move {
@@ -427,7 +685,11 @@ fn outdent(ws: &Workspace, ids: &[BlockId]) -> Result<Vec<Op>, Refusal> {
     Ok(ops)
 }
 
-fn move_blocks(ws: &Workspace, ids: &[BlockId], target: Target) -> Result<Vec<Op>, Refusal> {
+pub(super) fn move_blocks(
+    ws: &Workspace,
+    ids: &[BlockId],
+    target: Target,
+) -> Result<Vec<Op>, Refusal> {
     let tops = top_level(ws, ids)?;
     let anchor = match target {
         Target::Before(t) | Target::After(t) | Target::FirstChild(t) | Target::LastChild(t) => t,
@@ -449,28 +711,37 @@ fn move_blocks(ws: &Workspace, ids: &[BlockId], target: Target) -> Result<Vec<Op
         Target::FirstChild(_) | Target::LastChild(_) => (apos.page.clone(), Some(anchor)),
     };
     let dest = ws.page(&page).ok_or(Refusal::ReadOnly)?;
-    let mut list: Vec<BlockId> = dest.children_of(parent).cloned().unwrap_or_default();
-    list.retain(|c| !tops.contains(c));
-    let at = match target {
-        Target::Before(t) => list.iter().position(|c| *c == t).unwrap_or(list.len()),
-        Target::After(t) => list
-            .iter()
-            .position(|c| *c == t)
-            .map_or(list.len(), |i| i + 1),
-        Target::FirstChild(_) => 0,
-        Target::LastChild(_) => list.len(),
-    };
-    Ok(tops
-        .iter()
-        .enumerate()
-        .map(|(k, id)| Op::Move {
+    // Simulate the destination list while the moves run: `Position::index` counts the siblings
+    // without the moved block, and the other selected blocks may still sit among them.
+    let mut cur: Vec<BlockId> = dest.children_of(parent).cloned().unwrap_or_default();
+    let mut ops = Vec::with_capacity(tops.len());
+    let mut prev: Option<BlockId> = None;
+    for id in &tops {
+        cur.retain(|c| c != id);
+        let index = match (prev, target) {
+            (Some(p), _) => cur
+                .iter()
+                .position(|c| *c == p)
+                .map_or(cur.len(), |i| i + 1),
+            (None, Target::Before(t)) => cur.iter().position(|c| *c == t).unwrap_or(cur.len()),
+            (None, Target::After(t)) => cur
+                .iter()
+                .position(|c| *c == t)
+                .map_or(cur.len(), |i| i + 1),
+            (None, Target::FirstChild(_)) => 0,
+            (None, Target::LastChild(_)) => cur.len(),
+        };
+        cur.insert(index, *id);
+        ops.push(Op::Move {
             id: *id,
             from: None,
             to: Position {
                 page: page.clone(),
                 parent,
-                index: at + k,
+                index,
             },
-        })
-        .collect())
+        });
+        prev = Some(*id);
+    }
+    Ok(ops)
 }
