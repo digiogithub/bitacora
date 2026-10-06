@@ -2,7 +2,7 @@
 id: BIT-US-0036
 type: story
 title: Block selection and bulk operations
-status: backlog
+status: in_progress
 priority: high
 parent: BIT-EP-0007
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [editor, outliner, bitacora-app, bitacora-core]
 estimate: 5
 created: 2026-10-06T14:28:07Z
-updated: 2026-10-06T14:28:07Z
+updated: 2026-10-06T20:22:06Z
+started: 2026-10-06T20:22:06Z
 ---
 
 ## Description

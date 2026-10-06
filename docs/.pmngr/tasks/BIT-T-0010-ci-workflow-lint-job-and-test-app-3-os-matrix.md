@@ -2,7 +2,7 @@
 id: BIT-T-0010
 type: task
 title: "CI workflow: lint job and test-app 3-OS matrix"
-status: in_review
+status: done
 priority: critical
 parent: BIT-US-0003
 milestone: BIT-M-0001
@@ -10,8 +10,9 @@ author: mcp
 labels: [infra, ci, bitacora-app]
 estimate: 3
 created: 2026-10-06T14:25:20Z
-updated: 2026-10-06T16:55:34Z
+updated: 2026-10-06T20:23:05Z
 started: 2026-10-06T16:55:34Z
+closed: 2026-10-06T20:23:05Z
 ---
 
 ## Description
