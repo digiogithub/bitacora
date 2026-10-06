@@ -20,7 +20,11 @@ pub struct Section {
     #[serde(default)]
     pub context: Option<String>,
     /// Keystrokes to fully qualified action names (`bitacora::ToggleTheme`).
+    #[serde(default)]
     pub bindings: BTreeMap<String, String>,
+    /// Keystrokes whose default binding in this context is switched off (user keymap only).
+    #[serde(default)]
+    pub unbind: Vec<String>,
 }
 
 /// Errors loading a keymap.
@@ -69,6 +73,12 @@ pub fn load_checked(cx: &mut App, json: &str) -> Result<LoadReport, KeymapError>
                 }
             }
         }
+        for keys in &section.unbind {
+            match ui::key_binding(keys, Box::new(ui::NoAction), section.context.as_deref()) {
+                Ok(binding) => bindings.push(binding),
+                Err(err) => problems.push(format!("`{keys}`: {err}")),
+            }
+        }
     }
     let bound = bindings.len();
     cx.bind_keys(bindings);
@@ -102,12 +112,136 @@ pub fn load_with_user_report(
             }
         }
     }
+    remember_installed(cx, user_json);
     Ok(report)
 }
 
 /// Loads the default keymap, then an optional user keymap on top of it.
 pub fn load_with_user(cx: &mut App, user_json: Option<&str>) -> Result<usize, KeymapError> {
     load_with_user_report(cx, user_json).map(|r| r.bound)
+}
+
+/// Where a binding applies: the key context (`None` = global) and the keystrokes.
+pub type BindingKey = (Option<String>, String);
+
+/// What every binding currently does: `(context, keystrokes)` to the action name.
+pub type Effective = BTreeMap<BindingKey, String>;
+
+/// Keystrokes with the platform meaning of `secondary-` spelled out, so `secondary-k` and
+/// `ctrl-k` compare equal on Linux and Windows (and `cmd-k` on macOS).
+pub fn normalize_keys(keys: &str) -> String {
+    let primary = if cfg!(target_os = "macos") {
+        "cmd-"
+    } else {
+        "ctrl-"
+    };
+    keys.split(' ')
+        .map(|stroke| {
+            let mut mods: Vec<&str> = Vec::new();
+            let mut key = stroke;
+            // Modifiers are everything before the last `-` that is not the key itself (`-`).
+            while let Some((head, rest)) = key.split_once('-') {
+                if rest.is_empty() {
+                    break;
+                }
+                mods.push(if head == "secondary" {
+                    primary.trim_end_matches('-')
+                } else {
+                    head
+                });
+                key = rest;
+            }
+            mods.sort_unstable();
+            mods.dedup();
+            let mut out = mods.join("-");
+            if !out.is_empty() {
+                out.push('-');
+            }
+            out.push_str(key);
+            out
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// The effective bindings of `sections` layered in order (later sections win, `unbind` removes).
+pub fn effective(layers: &[&[Section]]) -> Effective {
+    let mut out = Effective::new();
+    for layer in layers {
+        for section in *layer {
+            for keys in &section.unbind {
+                out.remove(&(section.context.clone(), normalize_keys(keys)));
+            }
+            for (keys, action) in &section.bindings {
+                out.insert(
+                    (section.context.clone(), normalize_keys(keys)),
+                    action.clone(),
+                );
+            }
+        }
+    }
+    out
+}
+
+/// Bindings that differ between `old` and `new`: `Some(action)` binds it, `None` switches the
+/// keystroke off.
+pub fn diff(old: &Effective, new: &Effective) -> Vec<(BindingKey, Option<String>)> {
+    let mut changes = Vec::new();
+    for (key, action) in new {
+        if old.get(key) != Some(action) {
+            changes.push((key.clone(), Some(action.clone())));
+        }
+    }
+    for key in old.keys() {
+        if !new.contains_key(key) {
+            changes.push((key.clone(), None));
+        }
+    }
+    changes
+}
+
+/// The effective bindings the app has installed, kept to re-bind live changes as a diff.
+#[derive(Debug, Default)]
+pub struct InstalledKeymap(pub Effective);
+
+impl ui::Global for InstalledKeymap {}
+
+/// Records what `load_with_user_report` installed so the settings can diff against it.
+pub fn remember_installed(cx: &mut App, user_json: Option<&str>) {
+    let defaults = parse(DEFAULT_KEYMAP).unwrap_or_default();
+    let user = user_json.and_then(|j| parse(j).ok()).unwrap_or_default();
+    cx.set_global(InstalledKeymap(effective(&[&defaults, &user])));
+}
+
+/// Makes the bindings of `new` active without a restart: only changed keystrokes are re-bound
+/// (a later binding wins; a removed one is bound to `NoAction`). Returns problems (unknown
+/// actions, invalid keystrokes).
+pub fn apply_live(cx: &mut App, new: Effective) -> Vec<String> {
+    let old = cx
+        .try_global::<InstalledKeymap>()
+        .map(|g| g.0.clone())
+        .unwrap_or_default();
+    let mut problems = Vec::new();
+    let mut bindings = Vec::new();
+    for ((context, keys), action_name) in diff(&old, &new) {
+        let action: Box<dyn ui::Action> = match &action_name {
+            Some(name) => match cx.build_action(name, None) {
+                Ok(action) => action,
+                Err(err) => {
+                    problems.push(format!("`{keys}`: unknown action {name} ({err})"));
+                    continue;
+                }
+            },
+            None => Box::new(ui::NoAction),
+        };
+        match ui::key_binding(&keys, action, context.as_deref()) {
+            Ok(binding) => bindings.push(binding),
+            Err(err) => problems.push(format!("`{keys}`: {err}")),
+        }
+    }
+    cx.bind_keys(bindings);
+    cx.set_global(InstalledKeymap(new));
+    problems
 }
 
 #[cfg(test)]

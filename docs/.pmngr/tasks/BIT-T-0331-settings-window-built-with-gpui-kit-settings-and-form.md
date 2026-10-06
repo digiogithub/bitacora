@@ -2,7 +2,7 @@
 id: BIT-T-0331
 type: task
 title: Settings window built with GPUI Kit Settings and Form components
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0107
 milestone: BIT-M-0005
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-app, settings, ui]
 estimate: 3
 created: 2026-10-06T14:34:02Z
-updated: 2026-10-06T14:34:02Z
+updated: 2026-10-06T21:53:47Z
+closed: 2026-10-06T21:53:47Z
 ---
 
 ## Description

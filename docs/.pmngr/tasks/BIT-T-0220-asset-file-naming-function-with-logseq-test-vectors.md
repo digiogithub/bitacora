@@ -2,14 +2,15 @@
 id: BIT-T-0220
 type: task
 title: Asset file naming function with Logseq test vectors
-status: backlog
+status: done
 parent: BIT-US-0096
 milestone: BIT-M-0003
 author: mcp
 labels: [bitacora-core, assets]
 estimate: 2
 created: 2026-10-06T14:31:16Z
-updated: 2026-10-06T14:31:16Z
+updated: 2026-10-06T21:54:02Z
+closed: 2026-10-06T21:54:02Z
 ---
 
 ## Description

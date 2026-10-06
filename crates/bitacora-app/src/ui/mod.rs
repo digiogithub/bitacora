@@ -17,9 +17,10 @@ pub use gpui_kit::prelude::*;
 pub use gpui_kit::{
     Action, Anchor, AnyElement, AnyView, AnyWindowHandle, App, AppContext, Application, AsyncApp,
     Bounds, ClickEvent, Context, Entity, EntityId, EventEmitter, FocusHandle, Focusable, Global,
-    Hsla, KeyBinding, KeyBindingContextPredicate, KeyDownEvent, PathPromptOptions, Pixels, Point,
-    Render, SharedString, Size, StyledImage, Subscription, Task, TitlebarOptions, WeakEntity,
-    Window, WindowAppearance, WindowBounds, WindowOptions, deferred, div, point, px, size,
+    Hsla, KeyBinding, KeyBindingContextPredicate, KeyDownEvent, NoAction, PathPromptOptions,
+    Pixels, Point, Render, SharedString, Size, StyledImage, Subscription, Task, TitlebarOptions,
+    WeakEntity, Window, WindowAppearance, WindowBounds, WindowOptions, deferred, div, point, px,
+    size,
 };
 
 /// The kit's "cancel" action (Escape in menus and command palettes).
@@ -37,6 +38,11 @@ pub use gpui_kit::component::{
 /// Buttons.
 pub mod button {
     pub use gpui_kit::component::button::{Button, ButtonVariants};
+}
+
+/// Toggle switch.
+pub mod switch {
+    pub use gpui_kit::component::switch::Switch;
 }
 
 /// Popovers.
@@ -223,6 +229,26 @@ pub fn choose(
             })
     });
     true
+}
+
+/// Installs the application menu: one menu named `name` with a settings entry and a quit entry
+/// (the macOS app menu; platforms without a global menu ignore it).
+pub fn set_app_menu(
+    cx: &mut App,
+    name: &str,
+    settings: (&str, impl Action),
+    quit: (&str, impl Action),
+) {
+    use gpui_kit::{Menu, MenuItem};
+    cx.set_menus([Menu {
+        name: name.to_owned().into(),
+        items: vec![
+            MenuItem::action(settings.0.to_owned(), settings.1),
+            MenuItem::separator(),
+            MenuItem::action(quit.0.to_owned(), quit.1),
+        ],
+        disabled: false,
+    }]);
 }
 
 /// Builds a key binding from raw keymap data (keystrokes, a built action, optional

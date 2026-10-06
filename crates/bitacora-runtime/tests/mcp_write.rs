@@ -193,6 +193,7 @@ fn setup(opts: Opts) -> Env {
     cfg.mcp = Some(McpOptions {
         config: opts.mcp,
         token_path: token_path.clone(),
+        secrets: None,
     });
     let s = Session::open(cfg).unwrap();
     let addr = s

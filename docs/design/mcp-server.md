@@ -260,6 +260,14 @@ Off by default (`McpConfig::api_enabled`, route absent -> `404`). Same Host/Orig
 
 Everything else (`UI.*`, `Git.*`, `App.relaunch|quit`, plugin methods, `DB.datascriptQuery`, unknown names) answers `{"error":"method not supported"}`.
 
+## Implementation notes (token keychain and Settings > Agents, BIT-T-0115 / BIT-T-0116 / BIT-US-0107)
+
+- `TokenStore::load_or_init_with(path, Some(backend))` keeps token **secrets in the OS keychain** (`SecretBackend`; `KeyringBackend`, service `bitacora`, account `mcp/<name>`), and only metadata (name, scopes, `created_at`, `keychain: true`) in `mcp-tokens.json` (version 2, mode 0600). A secret the keychain refuses stays in the 0600 file (warning logged), so a token is never lost; a version 1 file (secrets inline) is migrated on load and a file entry whose secret returns later is migrated at the next load. A keychain that lost a secret shows the token as unavailable (it cannot authenticate; "Replace" repairs it). `TokenStore::load_or_init(path)` stays file-only (tests, `--token-file`); the desktop app and `bitacora-cli serve` with the default token location pass `os_keychain()` through `McpOptions.secrets`.
+- `TokenStore::{summaries, set_scopes}` feed the settings page; token changes act on the running server's store, so a revoked token gets `401` on its next request without a restart. "Copy config" builds the `mcpServers` JSON (or the `claude mcp add` command) from `secret_of`, which reads the in-memory copy loaded from the keychain.
+- The app persists `mcp.*` (`enabled`, `port`, `allow_writes`, `allow_deletes`, `api_enabled`, `allowed_origins`, `protected_namespaces`, `writes_per_minute`) in `settings.json`. Write toggles and protected namespaces apply live through the server's `WritePolicy`; the rest need the server to restart (the page labels them and offers "Restart the server now", which reopens the graph).
+- Tray (BIT-T-0112): GPUI 0.3.8 / GPUI Kit 0.7.1 expose no tray or status-item API, so there is no tray icon. The equivalent is Settings > General > "Keep running in the background" (`keep_running_in_background`): closing the last window keeps the session and the MCP server alive (`/health` keeps answering) and a second launch reopens the window. The Agents page shows the server status, including "port in use". Revisit when GPUI grows a tray API.
+- Open: a build without a usable keychain (headless Linux) silently uses the file; cross-OS validation of the real keychain is manual (`cargo test -p bitacora-mcp -- --ignored os_keychain`).
+
 ## Open questions
 
 1. Session mode: stateless (`StreamableHttpServerConfig` JSON-response mode) is simpler; stateful sessions are needed for resource subscriptions — enable both? (Resolved: both are implemented, `McpConfig::stateful` selects; subscriptions need stateful.)

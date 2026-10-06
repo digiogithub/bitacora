@@ -2,14 +2,15 @@
 id: BIT-T-0222
 type: task
 title: ImportAsset op and paste/drop handling in the block editor
-status: backlog
+status: done
 parent: BIT-US-0096
 milestone: BIT-M-0003
 author: mcp
 labels: [bitacora-core, bitacora-app, assets]
 estimate: 3
 created: 2026-10-06T14:31:16Z
-updated: 2026-10-06T14:31:16Z
+updated: 2026-10-06T21:54:02Z
+closed: 2026-10-06T21:54:02Z
 ---
 
 ## Description

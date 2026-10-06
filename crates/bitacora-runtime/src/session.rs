@@ -85,6 +85,9 @@ pub struct McpOptions {
     pub config: McpConfig,
     /// Token file.
     pub token_path: PathBuf,
+    /// Where token secrets live besides the file (the OS keychain); `None` keeps them in the
+    /// `0600` file.
+    pub secrets: Option<Arc<dyn bitacora_mcp::SecretBackend>>,
 }
 
 /// Type of the optional engine tuning hook.

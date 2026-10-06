@@ -918,6 +918,7 @@ dependencies = [
  "directories",
  "getrandom 0.3.4",
  "jiff",
+ "keyring",
  "parking_lot",
  "rmcp",
  "schemars",

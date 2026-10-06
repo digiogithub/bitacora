@@ -29,5 +29,7 @@ actions!(
         SidebarToggleItem,
         SidebarCloseItem,
         SidebarOpenItem,
+        // Settings (BIT-US-0107).
+        OpenSettings,
     ]
 );

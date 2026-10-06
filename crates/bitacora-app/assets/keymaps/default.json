@@ -9,7 +9,8 @@
       "secondary-]": "bitacora::GoForward",
       "secondary-k": "bitacora::OpenSearch",
       "secondary-shift-p": "bitacora::OpenCommandPalette",
-      "secondary-shift-r": "bitacora::FocusRightSidebar"
+      "secondary-shift-r": "bitacora::FocusRightSidebar",
+      "secondary-,": "bitacora::OpenSettings"
     }
   },
   {

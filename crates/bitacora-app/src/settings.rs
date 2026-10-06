@@ -1,7 +1,7 @@
 //! Minimal app settings persisted as JSON in `<config_dir>/settings.json`.
 //!
-//! The full settings UI is out of scope here (BIT-EP-0013); this holds only the
-//! theme choice.
+//! The settings view (`views/settings`, BIT-US-0107) edits these; `config.edn` keys of the open
+//! graph are edited separately, comment-preserving, through the command queue.
 
 use std::path::Path;
 
@@ -34,6 +34,85 @@ pub struct AppSettings {
     pub keep_running_in_background: bool,
     /// Update checks (BIT-US-0100).
     pub updates: crate::update::UpdateSettings,
+    /// UI font size in pixels (`None`: the theme default).
+    pub font_size: Option<u16>,
+    /// Search and index options (BIT-US-0107).
+    pub search: SearchSettings,
+    /// MCP server options (BIT-US-0016, BIT-US-0107).
+    pub mcp: McpSettings,
+}
+
+/// Smallest and largest UI font size the settings accept.
+pub const FONT_SIZE_RANGE: (u16, u16) = (12, 24);
+
+/// Search and index options.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct SearchSettings {
+    /// Keep the trigram block index for substring and CJK search (`search.substring`); turning
+    /// it off roughly halves the index size.
+    pub substring: bool,
+}
+
+impl Default for SearchSettings {
+    fn default() -> Self {
+        Self { substring: true }
+    }
+}
+
+/// MCP server options. Toggles apply to the running server at once; the endpoint-shaping ones
+/// (`api_enabled`, `allowed_origins`, `writes_per_minute`) need the server to restart.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct McpSettings {
+    /// Run the MCP server while a graph is open (on by default).
+    pub enabled: bool,
+    /// TCP port on 127.0.0.1 (`0` picks a free one; used by tests).
+    pub port: u16,
+    /// Agents may create and edit (off by default, ADR-010).
+    pub allow_writes: bool,
+    /// Agents may remove blocks and delete or rename pages (off by default).
+    pub allow_deletes: bool,
+    /// Serve the Logseq-compatible `POST /api` endpoint (off by default).
+    pub api_enabled: bool,
+    /// Extra browser origins allowed (empty by default).
+    pub allowed_origins: Vec<String>,
+    /// Namespaces agents cannot write to.
+    pub protected_namespaces: Vec<String>,
+    /// Write calls allowed per token and minute.
+    pub writes_per_minute: usize,
+}
+
+impl Default for McpSettings {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            port: bitacora_mcp::DEFAULT_PORT,
+            allow_writes: false,
+            allow_deletes: false,
+            api_enabled: false,
+            allowed_origins: Vec::new(),
+            protected_namespaces: Vec::new(),
+            writes_per_minute: bitacora_mcp::DEFAULT_WRITES_PER_MINUTE,
+        }
+    }
+}
+
+impl McpSettings {
+    /// The server configuration these settings describe (port stays the default; the port is not
+    /// configurable yet).
+    pub fn to_config(&self) -> bitacora_mcp::McpConfig {
+        bitacora_mcp::McpConfig {
+            port: self.port,
+            allow_writes: self.allow_writes,
+            allow_deletes: self.allow_deletes,
+            api_enabled: self.api_enabled,
+            allowed_origins: self.allowed_origins.clone(),
+            protected_namespaces: self.protected_namespaces.clone(),
+            writes_per_minute: self.writes_per_minute.max(1),
+            ..bitacora_mcp::McpConfig::default()
+        }
+    }
 }
 
 impl AppSettings {
@@ -110,6 +189,13 @@ mod tests {
             dark_theme: Some("Ayu Dark".into()),
             keep_running_in_background: false,
             updates: crate::update::UpdateSettings::default(),
+            font_size: Some(14),
+            search: SearchSettings { substring: false },
+            mcp: McpSettings {
+                allow_writes: true,
+                allowed_origins: vec!["http://localhost:3000".into()],
+                ..McpSettings::default()
+            },
         };
         settings.save(&path).expect("save");
         assert_eq!(AppSettings::load(&path), settings);

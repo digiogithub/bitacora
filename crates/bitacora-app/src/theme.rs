@@ -40,6 +40,12 @@ pub fn settings(cx: &App) -> AppSettings {
     cx.global::<ThemeController>().settings.clone()
 }
 
+/// The current settings, `None` before [`install`] (headless tests).
+pub fn try_settings(cx: &App) -> Option<AppSettings> {
+    cx.try_global::<ThemeController>()
+        .map(|c| c.settings.clone())
+}
+
 /// Re-applies the stored choice (call again when the OS appearance changes).
 pub fn apply(cx: &mut App, window: Option<&mut Window>) {
     let settings = settings(cx);
@@ -53,6 +59,10 @@ pub fn apply(cx: &mut App, window: Option<&mut Window>) {
         },
     };
     Theme::change(mode, window, cx);
+    if let Some(size) = settings.font_size {
+        let (min, max) = crate::settings::FONT_SIZE_RANGE;
+        Theme::global_mut(cx).font_size = crate::ui::px(f32::from(size.clamp(min, max)));
+    }
 }
 
 /// Points the theme's light/dark slots at the configured bundled themes; unknown
@@ -80,6 +90,18 @@ fn resolve_theme_names(cx: &mut App, settings: &AppSettings) {
     let theme = Theme::global_mut(cx);
     theme.light_theme = light;
     theme.dark_theme = dark;
+}
+
+/// Edits the settings, persists them and re-applies the theme (the settings view calls this for
+/// every app-level change). Does nothing before [`install`].
+pub fn edit_settings(
+    cx: &mut App,
+    window: Option<&mut Window>,
+    edit: impl FnOnce(&mut AppSettings),
+) {
+    if cx.try_global::<ThemeController>().is_some() {
+        update(cx, window, edit);
+    }
 }
 
 fn update(cx: &mut App, window: Option<&mut Window>, edit: impl FnOnce(&mut AppSettings)) {

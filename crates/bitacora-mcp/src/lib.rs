@@ -32,7 +32,7 @@ mod write_tools;
 pub use audit::{AuditEvent, AuditFilter, AuditLog, AuditRecord, UndoError};
 pub use bridge::QueueBridge;
 pub use index_reader::IndexGraphReader;
-pub use policy::{OpenGate, WriteGate, WritePolicy};
+pub use policy::{DEFAULT_WRITES_PER_MINUTE, OpenGate, WriteGate, WritePolicy};
 pub use reader::{
     BlockInfo, ChangeEvent, GraphInfo, GraphReader, ListPagesQuery, PageInfo, QueryOutcome,
     QueryRequest, ReaderError, ReaderErrorKind, ReaderResult, RefGroupInfo, RefItem, SearchItem,
@@ -40,7 +40,12 @@ pub use reader::{
 };
 pub use server::{DEFAULT_PORT, McpConfig, McpServer, ServerParts};
 pub use status::{DisabledSync, SyncState, SyncStatus, SyncStatusProvider};
-pub use tokens::{Scope, TokenInfo, TokenStore, default_audit_dir, default_token_path};
+#[cfg(feature = "keyring-store")]
+pub use tokens::KeyringBackend;
+pub use tokens::{
+    MemoryBackend, Scope, SecretBackend, TokenInfo, TokenStorage, TokenStore, TokenSummary,
+    default_audit_dir, default_token_path, os_keychain,
+};
 
 use bitacora_core as _;
 use bitacora_index as _;

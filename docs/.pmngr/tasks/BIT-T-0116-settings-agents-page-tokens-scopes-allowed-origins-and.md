@@ -2,7 +2,7 @@
 id: BIT-T-0116
 type: task
 title: "Settings > Agents page: tokens, scopes, allowed origins and config snippet"
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0016
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-app, mcp, ui, settings]
 estimate: 3
 created: 2026-10-06T14:29:54Z
-updated: 2026-10-06T14:29:54Z
+updated: 2026-10-06T21:53:47Z
+closed: 2026-10-06T21:53:47Z
 ---
 
 ## Description

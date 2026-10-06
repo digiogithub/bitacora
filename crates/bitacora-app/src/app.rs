@@ -115,6 +115,15 @@ fn start(cx: &mut App, args: &Args, dirs: &AppDirs, services: Services) -> anyho
     let keymap_report = keymap::load_with_user_report(cx, user_keymap.as_deref())?;
     tracing::debug!(bindings = keymap_report.bound, "keymap loaded");
     cx.on_action(|_: &Quit, cx| cx.quit());
+    ui::set_app_menu(
+        cx,
+        "Bitacora",
+        (
+            &rust_i18n::t!("settings.cmd_open"),
+            crate::actions::OpenSettings,
+        ),
+        ("Quit Bitacora", Quit),
+    );
     register_panels(cx);
     // Closing the last window ends the app unless "keep running in background" is on; Quit
     // always stops everything (BIT-T-0155).
@@ -240,6 +249,8 @@ fn open_workspace(
         global_config: None,
         state_dir: Some(dirs.data_dir.clone()),
         system_credentials: true,
+        keymap_file: Some(dirs.keymap_file()),
+        mcp_secrets: bitacora_mcp::os_keychain(),
     };
     let options = WindowOptions {
         titlebar: Some(TitlebarOptions {

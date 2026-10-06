@@ -19,7 +19,6 @@ use bitacora_core::editor::ConflictNotice;
 use bitacora_core::graph::PageKey;
 use bitacora_core::queue::{CommandQueue, QueueEvent};
 use bitacora_index::{IndexEvent, ReconcileStats};
-use bitacora_mcp::McpConfig;
 use bitacora_runtime::{
     DEFAULT_SHUTDOWN_BUDGET, McpOptions, RuntimeConfig, RuntimeError, RuntimeEvent, Session,
     ShutdownReport, SyncOptions, SyncStatusView,
@@ -169,6 +168,12 @@ pub struct SessionOptions {
     pub global_config: Option<PathBuf>,
     /// The editing state shared with the MCP write gate; `None` creates one per session.
     pub gate: Option<Arc<crate::editing::EditingGate>>,
+    /// Where MCP token secrets live besides the file (the OS keychain); `None`: in the file.
+    pub mcp_secrets: Option<Arc<dyn bitacora_mcp::SecretBackend>>,
+    /// MCP options from the app settings (toggles, origins, protected namespaces, rate limit).
+    pub mcp: crate::settings::McpSettings,
+    /// Drop the trigram block index right after opening (`search.substring = false`).
+    pub disable_substring: bool,
 }
 
 enum Control {
@@ -317,14 +322,16 @@ fn runtime_config(
     }
     if with_mcp && let Some(token_path) = &options.mcp_token_path {
         cfg.mcp = Some(McpOptions {
-            config: McpConfig {
-                gate: options
+            config: {
+                let mut config = options.mcp.to_config();
+                config.gate = options
                     .gate
                     .clone()
-                    .map(|g| g as Arc<dyn bitacora_mcp::WriteGate>),
-                ..McpConfig::default()
+                    .map(|g| g as Arc<dyn bitacora_mcp::WriteGate>);
+                config
             },
             token_path: token_path.clone(),
+            secrets: options.mcp_secrets.clone(),
         });
     }
     cfg
@@ -374,6 +381,11 @@ fn run(
             return;
         }
     };
+    if options.disable_substring
+        && let Err(err) = session.set_substring(false)
+    {
+        tracing::warn!("cannot apply search.substring = false: {err}");
+    }
     // The receiver is gone when the view was closed: nothing left to report to.
     let send = |event| {
         let _ = tx.send_blocking(event);
@@ -610,6 +622,7 @@ mod tests {
             global_config: Some(data.path().join("no-global-config.edn")),
             sync: None,
             gate: None,
+            ..SessionOptions::default()
         }
     }
 

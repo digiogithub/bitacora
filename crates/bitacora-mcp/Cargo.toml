@@ -32,6 +32,12 @@ tempfile.workspace = true
 tracing.workspace = true
 blake3.workspace = true
 jiff.workspace = true
+keyring = { workspace = true, optional = true }
+
+[features]
+default = ["keyring-store"]
+# OS keychain for MCP token secrets (macOS Keychain, Windows Credential Manager, Secret Service).
+keyring-store = ["dep:keyring"]
 
 [dev-dependencies]
 bitacora-testkit.workspace = true
