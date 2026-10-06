@@ -2,7 +2,7 @@
 id: BIT-US-0072
 type: story
 title: Cross-OS IME validation and block-editor spike report (ADR-002 go/no-go)
-status: backlog
+status: in_progress
 priority: critical
 parent: BIT-EP-0002
 milestone: BIT-M-0001
@@ -10,7 +10,8 @@ author: mcp
 labels: [ui, spike, ime, docs]
 estimate: 5
 created: 2026-10-06T14:29:22Z
-updated: 2026-10-06T14:29:22Z
+updated: 2026-10-06T17:33:08Z
+started: 2026-10-06T17:33:08Z
 ---
 
 ## Description

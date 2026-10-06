@@ -2,7 +2,7 @@
 id: BIT-T-0089
 type: task
 title: Shaped-text cache for unfocused blocks
-status: backlog
+status: in_progress
 priority: medium
 parent: BIT-US-0060
 milestone: BIT-M-0001
@@ -10,7 +10,8 @@ author: mcp
 labels: [spike, performance, bitacora-app]
 estimate: 2
 created: 2026-10-06T14:29:14Z
-updated: 2026-10-06T14:29:14Z
+updated: 2026-10-06T17:33:08Z
+started: 2026-10-06T17:33:08Z
 ---
 
 ## Description
