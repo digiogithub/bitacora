@@ -47,3 +47,9 @@ Orchestrated by the main Claude Code session; implementation by Claude Code suba
 
 ## Progress
 - 2026-10-06: AGENTS.md committed (95ecf43). ADR-022 recorded. Starting M0 wave 1.
+- Merged so far: US-0001/0002 (done); US-0011/0012/0003/0013 (in_review: remote CI/Windows/Logseq app); US-0056/0071 (done; rewrite-edn oracle pending); US-0081/0085/0091/0027 (in_review: Logseq black-box, missing journals/ignore-rules fixtures); US-0026/0058 (done); US-0015/0016 (in_review).
+
+## Follow-up backlog (to close later)
+- Core: committed fixtures for journals and ignore-rules; move US-0081/0085/0091/0027 to done once fixtures exist.
+- MCP: start server from app/tray, OS keychain via keyring, Settings > Agents UI (BIT-T-0116), per-tool scope enforcement (with US-0021).
+- Config: rewrite-edn oracle outputs (needs Babashka).
