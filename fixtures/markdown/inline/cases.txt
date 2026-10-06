@@ -1,0 +1,226 @@
+plain text without anything special
+[[a]]
+[[a b c]]
+[[a]] and [[b]]
+[[a]] [[a]]
+[[a [[b]] c]]
+[[a [[b [[c]]]] d]]
+[[ [[a]] ]]
+[[a/b/c]]
+[[a#b]]
+[[a|b]]
+[[a] b]]
+[[a [b] c]]
+[[a (b) c]]
+[[a "b" c]]
+[[a `b` c]]
+[[[a]]]
+[[a]]]]
+[[]]
+[[ ]]
+[[a
+[[a [[b]]
+a]] b
+[ [[a]] ]
+[[a]]([[b]])
+[x]([[a]])
+[x] ([[a]])
+[x][[a]]
+![[x]]
+[[assets/x.pdf]]
+[[../assets/y.png]]
+[[draws/x.excalidraw]]
+#tag
+#tag.
+#tag..
+#foo:
+#a.b
+#a.b.
+#a,b
+#a, b
+#a,#b
+#a;x
+#a; b
+#a;;
+#a;x.
+#a.;. b
+#a!x
+#a!
+#a?
+#a'b
+#a"
+#a:b
+#a:b/c
+#a.,x
+#a.!x
+#a)
+#a(b)
+#a*
+#a/b
+#a/b/c
+#a-b
+#a_b
+#a|b
+#a=b
+#a+b
+#a&b
+#a%b
+#a@b
+#a$b
+#a\b
+#a`b`
+#a#b
+##a
+# a
+#
+#+ x
+#,
+#.
+#日本語
+#a，b
+#a。
+x #t y
+x(#t) "#t" [#t]
+foo#bar
+issue#12
+a,#t
+[[a]]#t
+[[a]]#t/u
+#[[multi word]]
+#[[a]]
+#[[ b ]]
+#[[]]
+#[[a]]b
+#[[a [[b]]]]
+#[[nested [[tag]]]]
+#[[a
+#a[[b]]
+**#t**
+x **#t [[a]] ((6500c1a4-0000-4000-8000-000000000001)) {{m x}} `c` $x$ #u [x](y) <b>h</b> ![[z]] [[a [[b]] c]] http://x** y
+x *#t [[a]] #u* y
+x _#t [[a]] #u_ y
+x ~~#t [[a]] #u~~ y
+x ==#t [[a]] #u== y
+x ^^#t [[a]] #u^^ y
+x __#t [[a]] #u__ y
+x ***#t [[a]]*** y
+x **a** #t **b** [[c]]
+x **a #t** #u
+x ** #t ** [[a]]
+x **#t
+x **[[a]] #t
+#t **x** #u
+x **a**#t
+x [[a]]**b #c**
+snake_case_name [[a]] #t
+a*b*c [[a]] #t
+2*3*4 and [[a]] #t
+__init__ #t [[a]]
+x _a_b_ #t
+x **a*b** #t
+x**a #t**b
+x **a**b #t
+(**a #t**) y
+x *a **b #t** c* y
+x **a *b #t* c** y
+x **a
+x *a* *b #t* c
+x * a #t * b
+x *a #t *
+x **[[a]]**#t
+x ~~a~~ ~b #t~
+x ^a #t^
+x `a` **b #t**
+x **`a #t`** #u
+x _a [[b]] #t _
+**[[em]]** ~~[[st]]~~ ==[[hl]]== _[[u]]_ *[[i]]* ^^[[hh]]^^
+((6500c1a4-0000-4000-8000-000000000001))
+((6500C1A4-0000-4000-8000-000000000001))
+((not-a-uuid))
+(( 6500c1a4-0000-4000-8000-000000000001 ))
+(((6500c1a4-0000-4000-8000-000000000001)))
+((6500c1a4-0000-4000-8000-000000000001))#d
+[l](((6500c1a4-0000-4000-8000-000000000001)))
+[x](file:../pages/foo.md)
+[t](http://x.com)
+[t](https://x.com/[[c]])
+![i](../assets/a.png)
+![img](a.png){:height 100} [[a]]{:width 1}
+http://x.com [[a]]
+ftp://x/[[b]]
+mailto:a@b.c [[c]]
+www.x.com/[[d]]
+<https://x.com/[[a]]> [[b]]
+https://x.com/[[b]] [[c]]
+see https://x.com/#frag [[c]]
+`[[x]]`
+[[a]]`[[b]]`
+``[[c]] ` [[d]]``
+`[[e]]
+`unclosed [[f]]
+\[[x]]
+\#t
+\`[[b]]\`
+\\[[c]]
+\\\[[d]]
+[[a]] \[[b]] [[c]]
+x $$[[m1]]$$ y $[[m2]]$
+\(x [[m3]]\) \[[[m4]]\]
+cost $5 and [[a]] then $6
+$ [[a]] $ and $[[b]] x
+$$ [[a]] and
+$x$[[b]] $[[c]]x$
+x <span>[[c]]</span> [[d]]
+x <a href="x">[[d]]</a> [[e]]
+x <b>[[h]]</b>
+a < b and [[c]] > d
+{{embed [[p]]}}
+{{embed ((6500c1a4-0000-4000-8000-000000000001))}}
+{{embed [[a]], [[b]]}}
+{{embed  [[c]]}}
+{{EMBED [[d]]}}
+{{embed}}
+{{ embed [[e]]}}
+{{embed [[f]]
+{{query (and [[a]] (task TODO))}}
+{{query "foo, bar"}}
+{{query (page-property type [[x]])}}
+{{query (and [[a]], [[b]])}}
+{{video https://x}}
+{{cloze a}}
+{{renderer :todomaster, x}}
+{{ x}}
+{{x(y)}}
+{{a "b, c", d}}
+{{a b c, [[d]], ((e))}}
+{{{a b}}}
+{{{a [[b]]}}}
+{{a}}}
+{{a}b}}
+{{a [[b, c]], d}}
+{{a (b, c), d}}
+{{a  b  ,  c  }}
+{{a ,}}
+{{a ,,b}}
+{{a "unclosed, b}}
+{{a 'x, y', z}}
+{{a $x, y$}}
+{{a `x, y`}}
+{{a {b, c}}}
+{{a b [[c]], d}}
+{{a [[c]] b, d}}
+{{a b, [[c]] d}}
+{{a x [[c]]}}
+{{a [[c]] x}}
+{{a [[c]], [[d]] }}
+{{a ((6500c1a4-0000-4000-8000-000000000001)), x}}
+{{a x ((6500c1a4-0000-4000-8000-000000000001)), x}}
+{{a "q [[c]]", x}}
+{{a x #t, y}}
+{{a x, y [[z]] }}
+{{a (b [[c]], d)}}
+{{a [[b]] [[c]], d}}
+{{a [[b]]x}}
+[[a]]{{embed [[b]]}}#c
+a [[b]] c #d e ((6500c1a4-0000-4000-8000-000000000001)) f {{g h}}
+日本語 [[ページ]] #タグ ñ

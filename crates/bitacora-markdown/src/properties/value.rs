@@ -7,10 +7,11 @@
 //! configured keys) the plain text is also split on `,` / `，`; otherwise `true` / `false` become
 //! booleans, digit runs become integers, and anything else is a string.
 //!
-//! The reference scanner here is a small stand-in for the inline scanner (a later story): it knows
-//! `[[...]]` (nested), `#tag`, `#[[...]]`, and skips code spans, macros and block refs.
+//! References come from the inline scanner ([`crate::inline`]) in property-value mode.
 
 use std::collections::BTreeSet;
+
+use crate::inline::{RefMode, collect, scan};
 
 /// Settings that influence value interpretation (filled from `config.edn` by a higher layer).
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -114,167 +115,28 @@ pub fn interpret(key_norm: &str, value_raw: &str, cfg: &PropertyConfig) -> PropV
 }
 
 /// Scans a property value for page references. Returns the referenced page names and the plain
-/// text fragments left between the references (used for comma splitting).
+/// text fragments left between the tokens (used for comma splitting).
+///
+/// Uses the inline scanner in [`RefMode::PropertyValue`] mode: top-level references only, tags
+/// anywhere (`issue#12` references page `12`, as mldoc does), macro arguments scanned, block
+/// references and links ignored.
 #[must_use]
 pub fn scan_refs(value: &str) -> (BTreeSet<String>, Vec<String>) {
-    let b = value.as_bytes();
-    let mut pages = BTreeSet::new();
+    let tokens = scan(value);
+    let set = collect(value, &tokens, RefMode::PropertyValue);
     let mut plains = Vec::new();
-    let mut plain = String::new();
-    let mut i = 0;
-
-    macro_rules! flush {
-        () => {
-            if !plain.is_empty() {
-                plains.push(std::mem::take(&mut plain));
-            }
-        };
-    }
-
-    while i < b.len() {
-        let rest = &value[i..];
-        let prev = value[..i].chars().next_back();
-        if b[i] == b'\\' {
-            // An escaped character is plain text (`\[[x]]` is not a reference).
-            let n = rest.chars().take(2).map(char::len_utf8).sum::<usize>();
-            plain.push_str(&rest[..n]);
-            i += n;
-        } else if b[i] == b'`' {
-            let run = rest.bytes().take_while(|&c| c == b'`').count();
-            if let Some(end) = find_backtick_run(&rest[run..], run) {
-                flush!();
-                i += run + end + run;
-            } else {
-                plain.push_str(&rest[..run]);
-                i += run;
-            }
-        } else if rest.starts_with("{{") {
-            let close = if rest.starts_with("{{{") { "}}}" } else { "}}" };
-            if let Some(end) = rest.find(close) {
-                flush!();
-                i += end + close.len();
-            } else {
-                plain.push_str("{{");
-                i += 2;
-            }
-        } else if rest.starts_with("((") {
-            if let Some(end) = rest.find("))") {
-                flush!();
-                i += end + 2;
-            } else {
-                plain.push_str("((");
-                i += 2;
-            }
-        } else if rest.starts_with("[[") {
-            if let Some((name, len)) = page_ref(rest) {
-                flush!();
-                add_page(&mut pages, name);
-                nested_pages(name, &mut pages);
-                i += len;
-            } else {
-                plain.push_str("[[");
-                i += 2;
-            }
-        } else if b[i] == b'#' && prev.is_none_or(|c| c.is_whitespace() || c == ',') {
-            let tail = &rest[1..];
-            if tail.starts_with("[[") {
-                // `#[[a b]]`: the page reference that follows is the tag.
-                flush!();
-                i += 1;
-            } else if let Some(tag) = hash_tag(tail) {
-                flush!();
-                add_page(&mut pages, tag);
-                i += 1 + tag.len() + trailing_punct_len(tail);
-            } else {
-                plain.push('#');
-                i += 1;
-            }
-        } else if let Some(c) = rest.chars().next() {
-            plain.push(c);
-            i += c.len_utf8();
-        } else {
-            break;
+    let mut at = 0;
+    for t in &tokens {
+        let s = t.span();
+        if s.start > at {
+            plains.push(value[at..s.start].to_owned());
         }
+        at = at.max(s.end);
     }
-    flush!();
-    (pages, plains)
-}
-
-fn add_page(pages: &mut BTreeSet<String>, name: &str) {
-    let name = name.trim();
-    if !name.is_empty() {
-        pages.insert(name.to_owned());
+    if at < value.len() {
+        plains.push(value[at..].to_owned());
     }
-}
-
-/// Position of the closing run of exactly `run` backticks in `s`.
-fn find_backtick_run(s: &str, run: usize) -> Option<usize> {
-    let b = s.as_bytes();
-    let mut i = 0;
-    while i < b.len() {
-        if b[i] == b'`' {
-            let n = b[i..].iter().take_while(|&&c| c == b'`').count();
-            if n == run {
-                return Some(i);
-            }
-            i += n;
-        } else {
-            i += 1;
-        }
-    }
-    None
-}
-
-const TAG_END_PUNCT: &[char] = &[',', ';', '.', '!', '?', '\'', '"', ':'];
-
-/// The tag name at the start of `tail` (the text after `#`), without trailing punctuation.
-fn hash_tag(tail: &str) -> Option<&str> {
-    let end = tail.find(char::is_whitespace).unwrap_or(tail.len());
-    let tag = tail[..end].trim_end_matches(TAG_END_PUNCT);
-    (!tag.is_empty()).then_some(tag)
-}
-
-fn trailing_punct_len(tail: &str) -> usize {
-    let end = tail.find(char::is_whitespace).unwrap_or(tail.len());
-    end - tail[..end].trim_end_matches(TAG_END_PUNCT).len()
-}
-
-/// Parses a balanced `[[...]]` at the start of `s`. Returns the inner text (the page name) and the
-/// total length. Nested references are added by the caller through [`nested_pages`].
-fn page_ref(s: &str) -> Option<(&str, usize)> {
-    let b = s.as_bytes();
-    let mut depth = 0usize;
-    let mut i = 0;
-    while i + 1 < b.len() {
-        if b[i] == b'[' && b[i + 1] == b'[' {
-            depth += 1;
-            i += 2;
-        } else if b[i] == b']' && b[i + 1] == b']' {
-            depth -= 1;
-            i += 2;
-            if depth == 0 {
-                return Some((&s[2..i - 2], i));
-            }
-        } else {
-            i += 1;
-        }
-    }
-    None
-}
-
-/// Adds the page names referenced *inside* a nested reference name.
-fn nested_pages(name: &str, pages: &mut BTreeSet<String>) {
-    let mut i = 0;
-    while let Some(rel) = name[i..].find("[[") {
-        let start = i + rel;
-        if let Some((inner, len)) = page_ref(&name[start..]) {
-            add_page(pages, inner);
-            nested_pages(inner, pages);
-            i = start + len;
-        } else {
-            break;
-        }
-    }
+    (set.pages.into_iter().collect(), plains)
 }
 
 #[cfg(test)]
@@ -374,7 +236,9 @@ mod tests {
             eval("p", "[[a]] and #b and #[[c d]]"),
             pages(&["a", "b", "c d"])
         );
-        assert_eq!(eval("p", "[[a [[b]] c]]"), pages(&["a [[b]] c", "b"]));
+        // A property value keeps a nested reference as one page (mldoc's property refs are
+        // top-level only).
+        assert_eq!(eval("p", "[[a [[b]] c]]"), pages(&["a [[b]] c"]));
         assert_eq!(eval("p", "#tag."), pages(&["tag"]));
         assert_eq!(eval("p", "#foo:"), pages(&["foo"]));
         assert_eq!(eval("p", "[label]([[page]])"), pages(&["page"]));
@@ -384,18 +248,19 @@ mod tests {
     fn no_refs_inside_code_macros_escapes_or_block_refs() {
         assert_eq!(eval("p", "`[[x]]`"), PropValue::Str("`[[x]]`".into()));
         assert_eq!(
-            eval("p", "{{embed [[x]]}}"),
-            PropValue::Str("{{embed [[x]]}}".into())
+            eval("p", "{{cloze a}}"),
+            PropValue::Str("{{cloze a}}".into())
         );
+        // mldoc scans macro arguments of property values for references.
+        assert_eq!(eval("p", "{{embed [[x]]}}"), pages(&["x"]));
         assert_eq!(eval("p", "\\[[x]]"), PropValue::Str("\\[[x]]".into()));
         assert_eq!(
             eval("p", "((6500c1a4-0000-4000-8000-000000000001))"),
             PropValue::Str("((6500c1a4-0000-4000-8000-000000000001))".into())
         );
-        assert_eq!(
-            eval("p", "issue#12 a#b"),
-            PropValue::Str("issue#12 a#b".into())
-        );
+        // mldoc finds a tag in the middle of a word.
+        assert_eq!(eval("p", "issue#12 a#b"), pages(&["12", "b"]));
+        assert_eq!(eval("p", "x(#t)"), pages(&["t)"]));
         assert_eq!(eval("p", "[[unclosed"), PropValue::Str("[[unclosed".into()));
     }
 }

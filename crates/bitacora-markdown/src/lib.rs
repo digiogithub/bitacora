@@ -7,10 +7,14 @@
 //! 2. [`properties`]: `key:: value` property groups with mldoc's key rules, value interpretation
 //!    and the Markdown `:PROPERTIES:` drawer reader.
 
+pub mod block;
+pub mod inline;
 pub mod lines;
 pub mod outline;
+pub mod page_props;
 pub mod properties;
 pub mod span;
+pub mod tasks;
 pub mod tree;
 
 pub use lines::{Line, LineKind, Lines, ParserOptions, UnclosedRegion};
