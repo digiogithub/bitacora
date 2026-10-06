@@ -25,6 +25,14 @@ fn read(graph: &std::path::Path) -> String {
     std::fs::read_to_string(graph.join("pages/p.md")).unwrap()
 }
 
+/// Replaces the page file atomically: a plain `fs::write` truncates first, and under load the
+/// watcher can report the empty intermediate file as a complete external change.
+fn replace_page(graph: &std::path::Path, text: &str) {
+    let tmp = graph.join("pages/p.md.tmp-test");
+    std::fs::write(&tmp, text).unwrap();
+    std::fs::rename(&tmp, graph.join("pages/p.md")).unwrap();
+}
+
 fn set(s: &Session, id: bitacora_core::editor::BlockId, text: &str) {
     s.queue()
         .run(
@@ -42,23 +50,17 @@ fn set(s: &Session, id: bitacora_core::editor::BlockId, text: &str) {
 fn clean_page_reloads_with_stable_ids() {
     let tmp = tempfile::tempdir().unwrap();
     let (graph, s) = open(tmp.path());
-    let events = s.subscribe();
     let key = s.open_page("pages/p.md").unwrap();
     let before = blocks(&s, &key);
 
-    std::fs::write(
-        graph.join("pages/p.md"),
+    replace_page(
+        &graph,
         "- Alpha block with some words in it\n- Beta block stays as it is, edited\n- Gamma block is the last one here\n- A brand new block appended later\n",
-    )
-    .unwrap();
-    wait_for("reload", Duration::from_secs(10), || {
-        events.try_iter().find_map(|e| match e {
-            RuntimeEvent::ExternalChange {
-                reloaded: true,
-                path,
-            } if path == "pages/p.md" => Some(()),
-            _ => None,
-        })
+    );
+    // Wait for the final state, not for the first event: a stale event for the file as created
+    // can still arrive after `open_page` and must not end the wait early.
+    wait_for("reload", Duration::from_secs(20), || {
+        (blocks(&s, &key).len() == 4).then_some(())
     });
     let after = blocks(&s, &key);
     assert_eq!(after.len(), 4);
@@ -78,11 +80,10 @@ fn external_edit_of_another_block_merges_into_a_dirty_page() {
     let before = blocks(&s, &key);
     set(&s, before[0].0, "Alpha block with MY words in it");
 
-    std::fs::write(
-        graph.join("pages/p.md"),
+    replace_page(
+        &graph,
         "- Alpha block with some words in it\n- Beta block stays as it is\n- Gamma block is the last one here, THEIRS\n",
-    )
-    .unwrap();
+    );
     wait_for("merge", Duration::from_secs(10), || {
         events.try_iter().find_map(|e| match e {
             RuntimeEvent::ExternalMerged { .. } => Some(()),
@@ -111,11 +112,10 @@ fn conflicted(
     let key = s.open_page("pages/p.md").unwrap();
     let id = blocks(&s, &key)[0].0;
     set(&s, id, "Alpha block with MY words in it");
-    std::fs::write(
-        graph.join("pages/p.md"),
+    replace_page(
+        &graph,
         "- Alpha block with THEIR words in it\n- Beta block stays as it is\n- Gamma block is the last one here\n",
-    )
-    .unwrap();
+    );
     wait_for("conflict", Duration::from_secs(10), || {
         events.try_iter().find_map(|e| match e {
             RuntimeEvent::Queue(QueueEvent::PageConflicted(n)) => Some(n),

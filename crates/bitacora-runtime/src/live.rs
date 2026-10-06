@@ -39,7 +39,10 @@ use bitacora_watch::{EchoFilter, GraphWatcher, IgnoreRules};
 
 use crate::glue::{SlotStatus, block_locator, journal_template_text};
 use crate::restore::{RestoreReport, Selection, restore};
-use crate::session::{Events, Job, Pump, RuntimeConfig, RuntimeError, RuntimeEvent, SyncOptions};
+use crate::session::{
+    Events, Job, Pump, RuntimeConfig, RuntimeError, RuntimeEvent, SharedConfig, SyncOptions,
+    current,
+};
 use crate::store::EchoStore;
 use crate::sync_ctl::{BackendInfo, SyncStatusView, SyncWatch};
 use crate::writer::QueueGraphWriter;
@@ -76,6 +79,7 @@ fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
 pub struct Session {
     root: PathBuf,
     config: EffectiveConfig,
+    live_config: SharedConfig,
     index: Index,
     open_stats: Option<ReconcileStats>,
     indexer: Option<Arc<Indexer>>,
@@ -225,8 +229,12 @@ impl Session {
         };
         let (queue, join) = CommandQueue::spawn(Workspace::new(), Box::new(store), qcfg);
 
+        let live_config: SharedConfig = Arc::new(std::sync::RwLock::new(Arc::new(config.clone())));
         let pump_state = Pump {
             root: root.clone(),
+            config: Arc::clone(&live_config),
+            global_config: cfg.global_config.clone(),
+            readers: index.readers().clone(),
             indexer: Arc::clone(&indexer),
             queue: queue.clone(),
             events: events.clone(),
@@ -242,6 +250,7 @@ impl Session {
         let mut session = Self {
             root: root.clone(),
             config: config.clone(),
+            live_config: Arc::clone(&live_config),
             index,
             open_stats,
             indexer: Some(indexer),
@@ -261,8 +270,9 @@ impl Session {
 
         // From here on a failure drops `session`, which stops what was started.
         if let Some(wcfg) = cfg.watch.clone() {
-            let hidden_cfg = config.clone();
-            let ignore = IgnoreRules::new().with_hidden(move |p| hidden_cfg.is_hidden(p));
+            // Reads the live config so a reloaded `:hidden` applies without restarting the watcher.
+            let hidden_cfg = Arc::clone(&live_config);
+            let ignore = IgnoreRules::new().with_hidden(move |p| current(&hidden_cfg).is_hidden(p));
             let tx = Mutex::new(jobs);
             let watcher = GraphWatcher::start(&root, ignore, echo, wcfg, move |ev| {
                 let _ = lock(&tx).send(Job::Watch(ev));
@@ -317,10 +327,39 @@ impl Session {
         &self.root
     }
 
-    /// Effective config the session started with.
+    /// Effective config the session started with. After a `config.edn` hot reload use
+    /// [`Session::current_config`].
     #[must_use]
     pub fn config(&self) -> &EffectiveConfig {
         &self.config
+    }
+
+    /// The effective config now in force (follows `config.edn` reloads; see
+    /// `RuntimeEvent::ConfigReloaded`).
+    #[must_use]
+    pub fn current_config(&self) -> Arc<EffectiveConfig> {
+        current(&self.live_config)
+    }
+
+    /// Drops the index and rebuilds it from the graph files (settings "Reindex"). Index updates
+    /// from edits and external changes are held until it finishes and then applied in order, so
+    /// nothing is lost and the database file is never replaced under the readers. Returns the
+    /// stats of the rebuild (also announced as `RuntimeEvent::Reconciled`).
+    ///
+    /// # Errors
+    /// [`RuntimeError::Index`] when the rebuild fails or the session is shutting down.
+    pub fn reindex(&self) -> Result<ReconcileStats, RuntimeError> {
+        // Whatever is dirty goes to disk first so the rebuild sees what the user sees.
+        self.queue.flush(Source::Ui)?;
+        let (tx, rx) = mpsc::channel();
+        self.jobs
+            .send(Job::Reindex(tx))
+            .map_err(|_| RuntimeError::Index(bitacora_index::Error::WriterStopped))?;
+        let stats = rx
+            .recv()
+            .map_err(|_| RuntimeError::Index(bitacora_index::Error::WriterStopped))??;
+        self.events.emit(&RuntimeEvent::Reconciled(stats.clone()));
+        Ok(stats)
     }
 
     /// The single-writer command queue (clone it to share).
@@ -602,8 +641,13 @@ impl Session {
             .sync_options
             .as_ref()
             .ok_or_else(|| RuntimeError::Sync("sync is not configured".into()))?;
-        let (mut engine, _watch) =
-            build_engine(&self.root, &self.queue, opts, &self.config, &self.index)?;
+        let (mut engine, _watch) = build_engine(
+            &self.root,
+            &self.queue,
+            opts,
+            &current(&self.live_config),
+            &self.index,
+        )?;
         let state = engine.sync_now();
         Ok((state, engine.status()))
     }
@@ -619,7 +663,7 @@ impl Session {
                 path: rel.to_owned(),
                 source,
             })?;
-        let title = derive_title(rel, None, &self.config);
+        let title = derive_title(rel, None, &current(&self.live_config));
         let key = PageKey::from_title(&title);
         self.queue.execute(
             Source::Ui,
