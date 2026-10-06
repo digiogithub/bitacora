@@ -2,7 +2,7 @@
 id: BIT-US-0106
 type: story
 title: Drag and drop of blocks with before/child/after zones
-status: in_progress
+status: done
 priority: medium
 parent: BIT-EP-0013
 milestone: BIT-M-0005
@@ -10,8 +10,9 @@ author: mcp
 labels: [ui, editor, bitacora-app]
 estimate: 5
 created: 2026-10-06T14:31:46Z
-updated: 2026-10-06T22:00:23Z
+updated: 2026-10-06T22:30:47Z
 started: 2026-10-06T22:00:23Z
+closed: 2026-10-06T22:30:47Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-T-0312
 type: task
 title: Angle-bracket block commands
-status: backlog
+status: done
 priority: medium
 parent: BIT-US-0105
 milestone: BIT-M-0005
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-app, editor]
 estimate: 2
 created: 2026-10-06T14:33:07Z
-updated: 2026-10-06T14:33:07Z
+updated: 2026-10-06T22:30:36Z
+closed: 2026-10-06T22:30:36Z
 ---
 
 ## Description

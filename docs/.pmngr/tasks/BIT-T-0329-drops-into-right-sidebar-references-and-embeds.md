@@ -2,7 +2,7 @@
 id: BIT-T-0329
 type: task
 title: Drops into right sidebar, references and embeds
-status: backlog
+status: done
 priority: low
 parent: BIT-US-0106
 milestone: BIT-M-0005
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-app, editor, ui]
 estimate: 2
 created: 2026-10-06T14:34:02Z
-updated: 2026-10-06T14:34:02Z
+updated: 2026-10-06T22:30:36Z
+closed: 2026-10-06T22:30:36Z
 ---
 
 ## Description

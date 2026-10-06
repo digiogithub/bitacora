@@ -2,7 +2,7 @@
 id: BIT-T-0333
 type: task
 title: Theme picker and user theme loading
-status: backlog
+status: todo
 priority: medium
 parent: BIT-US-0108
 milestone: BIT-M-0005
@@ -10,7 +10,7 @@ author: mcp
 labels: [bitacora-app, themes, ui]
 estimate: 2
 created: 2026-10-06T14:34:02Z
-updated: 2026-10-06T14:34:02Z
+updated: 2026-10-06T22:24:42Z
 ---
 
 ## Description
