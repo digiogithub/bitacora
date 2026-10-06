@@ -1,16 +1,19 @@
 //! `GixBackend`: the pure-Rust backend (ADR-020) and the network / ref-writing half implemented
 //! on gix.
 //!
-//! Known limitation (gix 0.88 has no push client): `push` works for local (`file://` or plain
-//! path) remotes by copying objects and compare-and-swapping the remote ref; pushing over
-//! HTTPS/SSH returns [`GitError::Unsupported`] with a hint to install git.
+//! gix 0.88 has no push client: `push` copies objects for local (`file://` or plain path) remotes
+//! and compare-and-swaps the remote ref; HTTPS/SSH remotes are pushed through libgit2 (ADR-023,
+//! the `git2_push` module).
 
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
 use gix::objs::Write as _;
 use gix::refs::Target;
 use gix::refs::transaction::PreviousValue;
+
+use crate::credentials::CredentialProvider;
 
 use super::gix_read::{from_gix, to_gix};
 use super::{
@@ -20,9 +23,19 @@ use super::{
 };
 
 /// Backend running entirely on gix.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct GixBackend {
     path: PathBuf,
+    credentials: Option<Arc<dyn CredentialProvider>>,
+}
+
+impl std::fmt::Debug for GixBackend {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GixBackend")
+            .field("path", &self.path)
+            .field("credentials", &self.credentials.is_some())
+            .finish()
+    }
 }
 
 /// Flattens an error and its sources into one string and classifies it.
@@ -43,10 +56,39 @@ fn net_err(e: &(dyn std::error::Error + 'static)) -> GitError {
 }
 
 impl GixBackend {
+    /// Sets the credential provider used when pushing over HTTPS/SSH (ADR-023).
+    #[must_use]
+    pub fn with_credentials(mut self, provider: Arc<dyn CredentialProvider>) -> Self {
+        self.credentials = Some(provider);
+        self
+    }
+
+    /// Pushes through libgit2 (ADR-023). Used for every non-local remote; public so the libgit2
+    /// path can also be exercised against local remotes.
+    #[cfg(feature = "git2-push")]
+    pub fn push_via_libgit2(&self, remote: &str, branch: &str) -> Result<PushOutcome> {
+        check_ref_arg(remote)?;
+        check_ref_arg(branch)?;
+        super::git2_push::push(&self.path, remote, branch, self.credentials.as_ref())
+    }
+
+    #[cfg(feature = "git2-push")]
+    fn push_network(&self, remote: &str, branch: &str) -> Result<PushOutcome> {
+        self.push_via_libgit2(remote, branch)
+    }
+
+    #[cfg(not(feature = "git2-push"))]
+    fn push_network(&self, _remote: &str, _branch: &str) -> Result<PushOutcome> {
+        Err(GitError::Unsupported(
+            "pushing over the network without system git needs the `git2-push` feature".into(),
+        ))
+    }
+
     /// Opens the repository whose work tree (or git dir) is `path`.
     pub fn open(path: &Path) -> Result<Self> {
         let backend = Self {
             path: path.to_path_buf(),
+            credentials: None,
         };
         backend.repo()?;
         Ok(backend)
@@ -253,9 +295,7 @@ impl GitBackend for GixBackend {
         check_ref_arg(branch)?;
         let repo = self.repo()?;
         let Some(remote_path) = self.local_remote_path(&repo, remote_name)? else {
-            return Err(GitError::Unsupported(
-                "pushing over the network without system git is not supported; install git".into(),
-            ));
+            return self.push_network(remote_name, branch);
         };
         let head = repo
             .head_id()

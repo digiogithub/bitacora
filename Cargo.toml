@@ -73,6 +73,9 @@ edn-rs = "0.19"
 # Git (ADR-007 / ADR-020): gix incl. network client for the gix-only fallback
 gix = { version = "0.88", default-features = false, features = ["max-performance-safe", "blocking-network-client", "blocking-http-transport-reqwest-rust-tls", "credentials", "merge", "blob-diff", "status", "index", "revision", "sha1", "worktree-mutation"] }
 
+# Push without system git (ADR-023): libgit2 behind GitBackend; vendored so no system libgit2/OpenSSL
+git2 = { version = "0.21", default-features = false, features = ["https", "ssh", "vendored-libgit2", "vendored-openssl"] }
+
 # Watching, search, misc
 notify = "8.2"
 notify-debouncer-full = "0.7"
