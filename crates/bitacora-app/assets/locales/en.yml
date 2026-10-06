@@ -12,6 +12,43 @@ sidebar:
   group_graph: Graph
   empty: Nothing here yet
   no_graph: No graph open
+all_pages:
+  title: All pages
+  name: Name
+  backlinks: Backlinks
+  created: Created
+  updated: Updated
+  journal: Journal
+  filter: Filter pages...
+  show_journals: Journals
+  count: "%{count} pages"
+palette:
+  scope_all: Everything
+  scope_page: This page
+  scope_journals: Journals
+  scope_pages: Pages
+  search_placeholder: Search pages and blocks...
+  commands_placeholder: Type a command...
+  commands: Commands
+  recent: Recent
+  pages: Pages
+  blocks: Blocks
+  create: Create
+  create_page: "Create page \"%{name}\""
+  searching: Searching...
+  no_results: No results
+  type_to_search: Type to search pages and blocks
+  reindexing: Rebuilding the index...
+  cmd_journals: "Go to: Journals"
+  cmd_all_pages: "Go to: All pages"
+  cmd_back: "Go back"
+  cmd_forward: "Go forward"
+  cmd_left_sidebar: Toggle left sidebar
+  cmd_right_sidebar: Toggle right sidebar
+  cmd_theme: Toggle light and dark theme
+  cmd_reindex: Reindex graph
+  cmd_switch_graph: Switch graph
+  cmd_delete_page: Delete current page...
 panel:
   page_host:
     title: Page
@@ -78,3 +115,27 @@ theme:
   dark: Dark
   light_themes: Light themes
   dark_themes: Dark themes
+notice:
+  write_failed: "%{count} page(s) could not be saved; Bitacora keeps retrying"
+  conflict: "%{count} page(s) changed on disk and were not overwritten"
+  watcher_degraded: File watching is degraded; external changes may appear late
+  config_changed: logseq/config.edn changed; reopen the graph to apply it
+  index_error: "Cannot index %{path}: %{error}"
+  mcp_unavailable: "MCP endpoint not started: %{error}"
+  unwritten_on_quit: "%{count} file(s) could not be saved before quitting"
+  shutdown_slow: "Shutdown did not finish in time: %{steps}"
+right:
+  block: Block
+  empty_hint: Shift+click a page, reference or bullet to open it here.
+delete:
+  page_title: "Delete page \"%{name}\"?"
+  page_description: The file moves to logseq/.recycle/ and the page leaves the favorites. Links to it will point to an empty page.
+  asset_title: "Delete asset \"%{name}\"?"
+  asset_description: The file moves to logseq/.recycle/. Text that links to it is not changed.
+  ok: Delete
+  cancel: Cancel
+  page_done: "Page \"%{name}\" moved to the recycle folder"
+  asset_done: "Asset \"%{name}\" moved to the recycle folder"
+  asset_kept: "\"%{name}\" is still used by %{count} block(s); the file was kept"
+  failed: "Cannot delete: %{error}"
+  not_a_page: Open a page first

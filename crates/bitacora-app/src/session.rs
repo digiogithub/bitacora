@@ -1,60 +1,88 @@
-//! `GraphSession`: opens a graph's index and reconciles it on a background thread.
+//! `GraphSession`: runs a graph's [`bitacora_runtime::Session`] on a background thread.
 //!
-//! The session owns one std thread that opens the SQLite index (outside the graph, ADR-005),
-//! starts the [`Indexer`] and runs the startup reconcile, reporting [`SessionEvent`]s through an
-//! `async_channel` that a GPUI view drains with [`crate::events::EventPump`] or a spawned
-//! task. Dropping the session tells the thread to shut the indexer down; [`GraphSession::close`]
-//! additionally waits for it, which closes the index cleanly before another graph is opened.
+//! The runtime composes the index, the single-writer command queue, the file watcher and the
+//! MCP endpoint (sync stays off unless configured, ADR-024). This wrapper owns the session on
+//! one std thread, reports [`SessionEvent`]s through an `async_channel` that a GPUI view drains
+//! with [`crate::events::EventPump`] or a spawned task, and performs the ordered shutdown
+//! (`Session::shutdown`), either on [`GraphSession::close`] / drop or on request with
+//! [`GraphSession::shutdown_with_report`].
 
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, mpsc};
+use std::sync::Arc;
+use std::sync::mpsc::{self, RecvTimeoutError, TryRecvError};
 use std::thread::JoinHandle;
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 use async_channel::{Receiver, Sender};
-use bitacora_config::{EffectiveConfig, global_config_path};
-use bitacora_core::date::Date;
-use bitacora_core::scan::{parse_order, scan_graph};
-use bitacora_index::{
-    Index, IndexEvent, IndexLocation, Indexer, IndexerOptions, OpenOptions, ReconcileStats,
-    config_hash,
+use bitacora_config::EffectiveConfig;
+use bitacora_core::queue::{CommandQueue, QueueEvent};
+use bitacora_index::{IndexEvent, ReconcileStats};
+use bitacora_mcp::McpConfig;
+use bitacora_runtime::{
+    DEFAULT_SHUTDOWN_BUDGET, McpOptions, RuntimeConfig, RuntimeError, RuntimeEvent, Session,
+    ShutdownReport,
 };
 
 use crate::data::{GraphHandle, ViewSettings};
 
-/// Minimum time between two progress events.
-const PROGRESS_INTERVAL: Duration = Duration::from_millis(50);
+/// Time the app gives the ordered shutdown when the user quits.
+pub const SHUTDOWN_BUDGET: Duration = Duration::from_secs(8);
+
+/// How often the session thread looks for control messages while it forwards events.
+const POLL_INTERVAL: Duration = Duration::from_millis(50);
 
 /// What the session thread reports.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum SessionEvent {
-    /// The index is open. `rebuilt` is true when a corrupt or outdated database was recreated.
-    Opened {
-        /// A database file was deleted and recreated.
-        rebuilt: bool,
-        /// Files the reconcile will look at.
-        total: usize,
-    },
-    /// The read API of the index is available (pages may still be incomplete until `Ready`).
+    /// The index is open and reconciled; the read API of the index is available.
     Reader(GraphHandle),
+    /// Handles to the live session (the command queue, the effective config, the MCP endpoint).
+    Live(SessionLink),
     /// The index changed after the startup reconcile finished (file edits, sync, rename).
     Index(IndexEvent),
-    /// Files indexed so far during the reconcile.
-    Progress {
-        /// Files written.
-        done: usize,
-        /// Files found by the scan.
-        total: usize,
-    },
+    /// Something the user should know about (write failures, conflicts...).
+    Notice(SessionNotice),
     /// The reconcile finished; the graph is browsable and kept up to date.
     Ready(SessionSummary),
     /// Opening or reconciling failed; the message is user-presentable.
     Failed(String),
 }
 
-/// Result of the startup reconcile.
+/// Handles to the running session, usable from the UI thread.
+#[derive(Debug, Clone)]
+pub struct SessionLink {
+    /// The single-writer command queue (every write goes through it).
+    pub queue: CommandQueue,
+    /// The effective configuration the session started with.
+    pub config: Arc<EffectiveConfig>,
+    /// The MCP endpoint, when the server runs.
+    pub mcp_endpoint: Option<String>,
+}
+
+/// A runtime condition worth a notice.
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SessionNotice {
+    /// Pages could not be written; they stay dirty and are retried.
+    WriteFailed(usize),
+    /// Pages were not written because their file changed on disk.
+    Conflict(usize),
+    /// The watcher fell back to polling or lost events.
+    WatcherDegraded,
+    /// `logseq/config.edn` changed on disk (settings are read at open).
+    ConfigChanged,
+    /// A file could not be indexed.
+    IndexError {
+        /// Graph-relative path.
+        path: String,
+        /// Cause.
+        message: String,
+    },
+    /// The MCP endpoint could not start (the session runs without it).
+    McpUnavailable(String),
+}
+
+/// Result of the startup reconcile.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct SessionSummary {
     /// Files found.
     pub scanned: usize,
@@ -80,19 +108,33 @@ impl From<&ReconcileStats> for SessionSummary {
     }
 }
 
-/// Where the session keeps its index.
+/// Where the session keeps its index and whether it serves MCP.
 #[derive(Debug, Clone, Default)]
 pub struct SessionOptions {
     /// Explicit data directory (tests, portable mode); `None` uses the platform data dir.
     pub data_dir: Option<PathBuf>,
+    /// Token file of the MCP endpoint; `None` leaves the MCP server off.
+    pub mcp_token_path: Option<PathBuf>,
+    /// Global config file; `None` uses the platform default.
+    pub global_config: Option<PathBuf>,
+}
+
+enum Control {
+    Shutdown(Duration, mpsc::Sender<ShutdownReport>),
 }
 
 /// A running graph session.
 #[derive(Debug)]
 pub struct GraphSession {
     root: PathBuf,
-    stop: Option<mpsc::Sender<()>>,
+    control: Option<mpsc::Sender<Control>>,
     thread: Option<JoinHandle<()>>,
+}
+
+impl std::fmt::Debug for Control {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Control")
+    }
 }
 
 impl GraphSession {
@@ -102,15 +144,15 @@ impl GraphSession {
         options: SessionOptions,
     ) -> std::io::Result<(Self, Receiver<SessionEvent>)> {
         let (tx, rx) = async_channel::unbounded();
-        let (stop_tx, stop_rx) = mpsc::channel();
+        let (control_tx, control_rx) = mpsc::channel();
         let thread_root = root.clone();
         let thread = std::thread::Builder::new()
             .name("bitacora-session".into())
-            .spawn(move || run(&thread_root, &options, &tx, &stop_rx))?;
+            .spawn(move || run(&thread_root, &options, &tx, &control_rx))?;
         Ok((
             Self {
                 root,
-                stop: Some(stop_tx),
+                control: Some(control_tx),
                 thread: Some(thread),
             },
             rx,
@@ -122,20 +164,66 @@ impl GraphSession {
         &self.root
     }
 
-    /// Stops the indexer and waits until the index is closed.
-    pub fn close(mut self) {
-        self.stop.take();
+    /// Ordered shutdown within `budget`; blocks until it finished. `None` when the session
+    /// thread was already gone (a failed open has nothing to flush).
+    pub fn shutdown_with_report(mut self, budget: Duration) -> Option<ShutdownReport> {
+        let control = self.control.take()?;
+        let (reply_tx, reply_rx) = mpsc::channel();
+        let report = control
+            .send(Control::Shutdown(budget, reply_tx))
+            .ok()
+            .and_then(|()| reply_rx.recv().ok());
         if let Some(thread) = self.thread.take() {
             // A panicked session thread has nothing left to clean up.
             let _ = thread.join();
         }
+        report
+    }
+
+    /// Stops the session (default budget) and waits until it is closed.
+    pub fn close(self) {
+        let _ = self.shutdown_with_report(DEFAULT_SHUTDOWN_BUDGET);
     }
 }
 
 impl Drop for GraphSession {
     fn drop(&mut self) {
-        // Closing the channel is the stop signal; the thread cleans up on its own.
-        self.stop.take();
+        // Closing the channel is the stop signal; the thread shuts down on its own.
+        self.control.take();
+    }
+}
+
+fn runtime_config(root: &Path, options: &SessionOptions, with_mcp: bool) -> RuntimeConfig {
+    let mut cfg = RuntimeConfig::new(root);
+    cfg.data_dir.clone_from(&options.data_dir);
+    if options.global_config.is_some() {
+        cfg.global_config.clone_from(&options.global_config);
+    }
+    if with_mcp && let Some(token_path) = &options.mcp_token_path {
+        cfg.mcp = Some(McpOptions {
+            config: McpConfig::default(),
+            token_path: token_path.clone(),
+        });
+    }
+    cfg
+}
+
+/// Opens the session; a failing MCP endpoint (port in use, unwritable token file) must not
+/// keep the graph closed, so it is retried without it and reported.
+fn open(
+    root: &Path,
+    options: &SessionOptions,
+    tx: &Sender<SessionEvent>,
+) -> Result<Session, RuntimeError> {
+    match Session::open(runtime_config(root, options, true)) {
+        Err(RuntimeError::Mcp(e)) => {
+            tracing::warn!("MCP endpoint unavailable: {e}");
+            let _ = tx.send_blocking(SessionEvent::Notice(SessionNotice::McpUnavailable(
+                e.to_string(),
+            )));
+            Session::open(runtime_config(root, options, false))
+        }
+        other => other,
     }
 }
 
@@ -143,125 +231,89 @@ fn run(
     root: &Path,
     options: &SessionOptions,
     tx: &Sender<SessionEvent>,
-    stop: &mpsc::Receiver<()>,
+    control: &mpsc::Receiver<Control>,
 ) {
-    match open_and_reconcile(root, options, tx) {
-        Ok(Some(indexer)) => {
-            // Wait for the stop signal (sender dropped), then close the index.
-            let _ = stop.recv();
-            indexer.shutdown();
+    let session = match open(root, options, tx) {
+        Ok(session) => session,
+        Err(e) => {
+            tracing::error!(graph = %root.display(), "graph session failed: {e}");
+            let _ = tx.send_blocking(SessionEvent::Failed(e.to_string()));
+            return;
         }
-        Ok(None) => {}
-        Err(message) => {
-            tracing::error!(graph = %root.display(), "graph session failed: {message}");
-            let _ = tx.send_blocking(SessionEvent::Failed(message));
-        }
-    }
-}
-
-fn open_and_reconcile(
-    root: &Path,
-    options: &SessionOptions,
-    tx: &Sender<SessionEvent>,
-) -> Result<Option<Indexer>, String> {
+    };
     // The receiver is gone when the view was closed: nothing left to report to.
     let send = |event| {
         let _ = tx.send_blocking(event);
     };
-    let cfg = EffectiveConfig::load(root, global_config_path().as_deref());
-    let location = match &options.data_dir {
-        Some(dir) => IndexLocation::in_data_dir(dir, root),
-        None => IndexLocation::for_graph(root),
-    }
-    .map_err(|e| format!("cannot locate the index: {e}"))?;
-    let index = Index::open(location, OpenOptions::new(root, config_hash(&cfg)))
-        .map_err(|e| format!("cannot open the index: {e}"))?;
-    let rebuilt = index.outcome().recreated.is_some();
-
-    let total = scan_graph(root, &cfg)
-        .map(|files| parse_order(&files).len())
-        .map_err(|e| format!("cannot scan the graph: {e}"))?;
-    send(SessionEvent::Opened { rebuilt, total });
+    let runtime_events = session.subscribe();
+    let index_events = session.index_events();
     send(SessionEvent::Reader(GraphHandle {
-        reader: index.read_api(),
-        root: root.to_path_buf(),
-        settings: Arc::new(ViewSettings::from_config(&cfg)),
+        reader: session.read_api(),
+        root: session.root().to_path_buf(),
+        settings: Arc::new(ViewSettings::from_config(session.config())),
     }));
-
-    let mut opts = IndexerOptions::new(root, cfg);
-    opts.today = today_utc();
-    let indexer =
-        Indexer::start(&index, opts).map_err(|e| format!("cannot start indexing: {e}"))?;
-    let events = indexer.subscribe();
-    let progress_tx = tx.clone();
-    let finished = Arc::new(AtomicBool::new(false));
-    let counter_finished = finished.clone();
-    let counter = std::thread::Builder::new()
-        .name("bitacora-progress".into())
-        .spawn(move || count_progress(&events, total, &progress_tx, &counter_finished))
-        .map_err(|e| format!("cannot start the progress thread: {e}"))?;
-
-    let result = indexer.reconcile();
-    finished.store(true, Ordering::SeqCst);
-    match result {
-        Ok(stats) => {
-            send(SessionEvent::Progress { done: total, total });
-            send(SessionEvent::Ready(SessionSummary::from(&stats)));
-            // The counter ends when the writer (owned by the indexer) shuts down; it is
-            // detached on purpose so that `shutdown` is the only thing that waits.
-            drop(counter);
-            Ok(Some(indexer))
-        }
-        Err(e) => {
-            indexer.shutdown();
-            let _ = counter.join();
-            Err(format!("indexing failed: {e}"))
-        }
+    send(SessionEvent::Live(SessionLink {
+        queue: session.queue().clone(),
+        config: Arc::new(session.config().clone()),
+        mcp_endpoint: session.mcp_endpoint(),
+    }));
+    send(SessionEvent::Ready(
+        session
+            .open_stats()
+            .map(SessionSummary::from)
+            .unwrap_or_default(),
+    ));
+    if session.watcher_is_polling() == Some(true) {
+        send(SessionEvent::Notice(SessionNotice::WatcherDegraded));
     }
-}
 
-fn count_progress(
-    events: &mpsc::Receiver<IndexEvent>,
-    total: usize,
-    tx: &Sender<SessionEvent>,
-    finished: &AtomicBool,
-) {
-    let mut done = 0;
-    let mut last = Instant::now();
-    while let Ok(event) = events.recv() {
-        if finished.load(Ordering::SeqCst) {
-            // After the startup reconcile every change is forwarded to the views.
-            let _ = tx.send_blocking(SessionEvent::Index(event));
-            continue;
+    let budget = loop {
+        match control.try_recv() {
+            Ok(Control::Shutdown(budget, reply)) => {
+                let report = session.shutdown(budget);
+                let _ = reply.send(report);
+                return;
+            }
+            Err(TryRecvError::Disconnected) => break DEFAULT_SHUTDOWN_BUDGET,
+            Err(TryRecvError::Empty) => {}
         }
-        if matches!(event, IndexEvent::FileReplaced { .. }) {
-            done += 1;
-            if last.elapsed() >= PROGRESS_INTERVAL {
-                last = Instant::now();
-                let _ = tx.send_blocking(SessionEvent::Progress {
-                    done: done.min(total),
-                    total,
-                });
+        if let Some(rx) = &index_events {
+            while let Ok(event) = rx.try_recv() {
+                send(SessionEvent::Index(event));
             }
         }
+        match runtime_events.recv_timeout(POLL_INTERVAL) {
+            Ok(event) => {
+                if let Some(notice) = notice_for(&event) {
+                    send(SessionEvent::Notice(notice));
+                }
+            }
+            Err(RecvTimeoutError::Timeout | RecvTimeoutError::Disconnected) => {}
+        }
+    };
+    let report = session.shutdown(budget);
+    if !report.is_clean() {
+        tracing::warn!(?report, "graph session closed with unwritten files");
     }
 }
 
-/// Today's date in UTC (a priority hint for the indexer only).
-fn today_utc() -> Option<Date> {
-    let secs = SystemTime::now().duration_since(UNIX_EPOCH).ok()?.as_secs();
-    let days = i64::try_from(secs / 86_400).ok()?;
-    // Civil-from-days (proleptic Gregorian).
-    let z = days + 719_468;
-    let era = z.div_euclid(146_097);
-    let doe = z.rem_euclid(146_097);
-    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let day = u8::try_from(doy - (153 * mp + 2) / 5 + 1).ok()?;
-    let month = u8::try_from(if mp < 10 { mp + 3 } else { mp - 9 }).ok()?;
-    let year = i32::try_from(yoe + era * 400 + i64::from(month <= 2)).ok()?;
-    Date::new(year, month, day)
+/// Maps a runtime event to a user notice, when it deserves one.
+fn notice_for(event: &RuntimeEvent) -> Option<SessionNotice> {
+    match event {
+        RuntimeEvent::Queue(QueueEvent::WriteFailed { failed, .. }) => {
+            Some(SessionNotice::WriteFailed(failed.len()))
+        }
+        RuntimeEvent::Queue(QueueEvent::Conflict(keys)) => {
+            Some(SessionNotice::Conflict(keys.len()))
+        }
+        RuntimeEvent::Watch(_) => Some(SessionNotice::WatcherDegraded),
+        RuntimeEvent::ConfigChanged => Some(SessionNotice::ConfigChanged),
+        RuntimeEvent::IndexError { path, message } => Some(SessionNotice::IndexError {
+            path: path.clone(),
+            message: message.clone(),
+        }),
+        _ => None,
+    }
 }
 
 /// Picks the page shown right after opening a graph: `requested` (a file path relative to the
@@ -331,7 +383,8 @@ mod tests {
         tmp
     }
 
-    fn collect(rx: &Receiver<SessionEvent>) -> Vec<SessionEvent> {
+    /// Events up to and including `Ready` / `Failed`.
+    fn until_ready(rx: &Receiver<SessionEvent>) -> Vec<SessionEvent> {
         let mut out = Vec::new();
         while let Ok(event) = rx.recv_blocking() {
             let end = matches!(event, SessionEvent::Ready(_) | SessionEvent::Failed(_));
@@ -346,6 +399,8 @@ mod tests {
     fn options(data: &tempfile::TempDir) -> SessionOptions {
         SessionOptions {
             data_dir: Some(data.path().to_path_buf()),
+            mcp_token_path: None,
+            global_config: Some(data.path().join("no-global-config.edn")),
         }
     }
 
@@ -363,20 +418,18 @@ mod tests {
     }
 
     #[test]
-    fn session_indexes_the_graph_and_closes_cleanly() {
+    fn session_indexes_the_graph_and_shuts_down_in_order() {
         let g = graph();
         let data = tempfile::tempdir().expect("data");
         let (session, rx) =
             GraphSession::start(g.path().to_path_buf(), options(&data)).expect("start");
-        let events = collect(&rx);
+        let events = until_ready(&rx);
         assert!(
-            matches!(
-                events.first(),
-                Some(SessionEvent::Opened {
-                    rebuilt: false,
-                    total: 5
-                })
-            ),
+            matches!(events.first(), Some(SessionEvent::Reader(_))),
+            "{events:?}"
+        );
+        assert!(
+            events.iter().any(|e| matches!(e, SessionEvent::Live(_))),
             "{events:?}"
         );
         let Some(SessionEvent::Ready(summary)) = events.last() else {
@@ -385,12 +438,15 @@ mod tests {
         assert_eq!(summary.scanned, 5);
         assert_eq!(summary.parsed, 5);
         assert!(summary.cold_build);
-        session.close();
+        let report = session
+            .shutdown_with_report(Duration::from_secs(10))
+            .expect("report");
+        assert!(report.is_clean(), "{report:?}");
 
         // Reopening the same graph is a warm start: nothing to parse.
         let (session, rx) =
             GraphSession::start(g.path().to_path_buf(), options(&data)).expect("restart");
-        let events = collect(&rx);
+        let events = until_ready(&rx);
         let Some(SessionEvent::Ready(summary)) = events.last() else {
             panic!("expected Ready, got {events:?}");
         };
@@ -399,29 +455,48 @@ mod tests {
     }
 
     #[test]
-    fn corrupt_index_is_rebuilt_and_reported() {
+    fn external_edits_reach_the_views_as_index_events() {
         let g = graph();
         let data = tempfile::tempdir().expect("data");
         let (session, rx) =
             GraphSession::start(g.path().to_path_buf(), options(&data)).expect("start");
-        collect(&rx);
-        session.close();
-        let location = IndexLocation::in_data_dir(data.path(), g.path()).expect("location");
-        let db = location.db_path();
-        for suffix in ["-wal", "-shm"] {
-            let mut side = db.clone().into_os_string();
-            side.push(suffix);
-            let _ = std::fs::remove_file(side);
+        until_ready(&rx);
+        std::fs::write(g.path().join("pages/Beta.md"), "- changed\n").expect("edit");
+        let deadline = std::time::Instant::now() + Duration::from_secs(15);
+        let mut seen = false;
+        while std::time::Instant::now() < deadline && !seen {
+            if let Ok(event) = rx.try_recv() {
+                seen = matches!(
+                    event,
+                    SessionEvent::Index(IndexEvent::FileReplaced { ref path, .. })
+                        if path == "pages/Beta.md"
+                );
+            } else {
+                std::thread::sleep(Duration::from_millis(20));
+            }
         }
-        std::fs::write(&db, b"this is not a database, just garbage bytes").expect("corrupt");
-        let (session, rx) =
-            GraphSession::start(g.path().to_path_buf(), options(&data)).expect("restart");
-        let events = collect(&rx);
+        assert!(seen, "no index event for the external edit");
+        session.close();
+    }
+
+    #[test]
+    fn mcp_endpoint_starts_when_a_token_file_is_given() {
+        let g = graph();
+        let data = tempfile::tempdir().expect("data");
+        let mut opts = options(&data);
+        opts.mcp_token_path = Some(data.path().join("tokens.json"));
+        let (session, rx) = GraphSession::start(g.path().to_path_buf(), opts).expect("start");
+        let events = until_ready(&rx);
+        let endpoint = events.iter().find_map(|e| match e {
+            SessionEvent::Live(link) => Some(link.mcp_endpoint.clone()),
+            _ => None,
+        });
+        // The default port may be taken on the host; then the session still opens and says so.
+        let unavailable = events
+            .iter()
+            .any(|e| matches!(e, SessionEvent::Notice(SessionNotice::McpUnavailable(_))));
         assert!(
-            matches!(
-                events.first(),
-                Some(SessionEvent::Opened { rebuilt: true, .. })
-            ),
+            matches!(endpoint, Some(Some(_))) || unavailable,
             "{events:?}"
         );
         assert!(matches!(events.last(), Some(SessionEvent::Ready(_))));
@@ -433,17 +508,11 @@ mod tests {
         let data = tempfile::tempdir().expect("data");
         let (session, rx) =
             GraphSession::start(data.path().join("nope"), options(&data)).expect("start");
-        let events = collect(&rx);
+        let events = until_ready(&rx);
         assert!(
             matches!(events.last(), Some(SessionEvent::Failed(_))),
             "{events:?}"
         );
         session.close();
-    }
-
-    #[test]
-    fn today_is_a_plausible_date() {
-        let today = today_utc().expect("date");
-        assert!(today.year() >= 2024);
     }
 }

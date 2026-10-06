@@ -18,7 +18,7 @@ use rust_i18n::t;
 use crate::data::{
     self, CHUNK, FIRST_CHUNK, GraphHandle, Link, PageHeader, PageLoad, RefGroupModel, RefsLoad,
 };
-use crate::nav::{Route, Scroll};
+use crate::nav::{OpenIn, Route, Scroll};
 use crate::render::inline::{NavTarget, NoBlocks};
 use crate::render::model::{
     PageModel, Row, apply_overrides, collapse_overrides, toggle_row, visible_rows,
@@ -47,6 +47,18 @@ const NAMESPACE_SEPARATOR: &str = "/";
 pub enum PageEvent {
     /// The user clicked a ref, tag, link or breadcrumb.
     Navigate(NavTarget),
+    /// The user Shift+clicked: show the target in the right sidebar.
+    OpenInSidebar(NavTarget),
+}
+
+impl PageEvent {
+    /// The event for opening `target` in `open`.
+    pub fn open(target: NavTarget, open: OpenIn) -> Self {
+        match open {
+            OpenIn::Main => Self::Navigate(target),
+            OpenIn::Sidebar => Self::OpenInSidebar(target),
+        }
+    }
 }
 
 /// What the view currently shows.
@@ -279,8 +291,8 @@ impl PageView {
     }
 
     /// Reports a click on a rendered ref.
-    pub fn activate(&mut self, target: NavTarget, cx: &mut Context<Self>) {
-        cx.emit(PageEvent::Navigate(target));
+    pub fn activate(&mut self, target: NavTarget, open: OpenIn, cx: &mut Context<Self>) {
+        cx.emit(PageEvent::open(target, open));
     }
 
     // ---- loading -------------------------------------------------------------------------
@@ -325,7 +337,7 @@ impl PageView {
                     match &route {
                         Route::Page(name) => data::open_page(&handle, name, limit),
                         Route::Block(uuid) => data::zoom_block(&handle, uuid),
-                        Route::Journals => Err("not a page".to_owned()),
+                        Route::Journals | Route::AllPages => Err("not a page".to_owned()),
                     }
                 })
                 .await;
@@ -805,8 +817,8 @@ impl PageView {
 
     fn nav_for(&self, cx: &mut Context<Self>) -> Nav {
         let this = cx.entity();
-        Rc::new(move |target: NavTarget, cx: &mut App| {
-            this.update(cx, |view, cx| view.activate(target, cx));
+        Rc::new(move |target: NavTarget, open: OpenIn, cx: &mut App| {
+            this.update(cx, |view, cx| view.activate(target, open, cx));
         })
     }
 
@@ -871,8 +883,12 @@ impl PageView {
                                     .id(("crumb", ix * 100 + n))
                                     .cursor_pointer()
                                     .child(title.clone())
-                                    .on_click(move |_, _, cx| {
-                                        nav(NavTarget::Block(uuid.clone()), cx)
+                                    .on_click(move |_, window, cx| {
+                                        nav(
+                                            NavTarget::Block(uuid.clone()),
+                                            OpenIn::from_shift(window.modifiers().shift),
+                                            cx,
+                                        )
                                     }),
                             );
                         }
@@ -935,7 +951,13 @@ impl PageView {
             .text_color(theme.info)
             .cursor_pointer()
             .child(page.to_owned())
-            .on_click(move |_, _, cx| nav(NavTarget::Page(target.clone()), cx))
+            .on_click(move |_, window, cx| {
+                nav(
+                    NavTarget::Page(target.clone()),
+                    OpenIn::from_shift(window.modifiers().shift),
+                    cx,
+                )
+            })
             .into_any_element()
     }
 
@@ -1087,7 +1109,7 @@ impl PageView {
             let target = match &link.target {
                 Route::Page(name) => NavTarget::Page(name.clone()),
                 Route::Block(uuid) => NavTarget::Block(uuid.clone()),
-                Route::Journals => NavTarget::Page(link.label.clone()),
+                Route::Journals | Route::AllPages => NavTarget::Page(link.label.clone()),
             };
             if n > 0 {
                 line = line.child(
@@ -1102,7 +1124,13 @@ impl PageView {
                     .text_color(theme.info)
                     .cursor_pointer()
                     .child(link.label.clone())
-                    .on_click(move |_, _, cx| nav(target.clone(), cx)),
+                    .on_click(move |_, window, cx| {
+                        nav(
+                            target.clone(),
+                            OpenIn::from_shift(window.modifiers().shift),
+                            cx,
+                        )
+                    }),
             );
         }
         line.into_any_element()
@@ -1166,7 +1194,7 @@ impl PageView {
             let target = match &link.target {
                 Route::Page(name) => NavTarget::Page(name.clone()),
                 Route::Block(uuid) => NavTarget::Block(uuid.clone()),
-                Route::Journals => NavTarget::Page(link.label.clone()),
+                Route::Journals | Route::AllPages => NavTarget::Page(link.label.clone()),
             };
             line = line.child(
                 div()
@@ -1174,7 +1202,13 @@ impl PageView {
                     .text_color(theme.info)
                     .cursor_pointer()
                     .child(link.label.clone())
-                    .on_click(move |_, _, cx| nav(target.clone(), cx)),
+                    .on_click(move |_, window, cx| {
+                        nav(
+                            target.clone(),
+                            OpenIn::from_shift(window.modifiers().shift),
+                            cx,
+                        )
+                    }),
             );
         }
         line.into_any_element()
@@ -1289,7 +1323,7 @@ mod tests {
         });
         view.update(cx, |v, cx| v.set_source("T", SAMPLE.as_bytes(), cx));
         let target = view.read_with(cx, |v, _| v.rows()[1].block.title.links[0].1.clone());
-        view.update(cx, |v, cx| v.activate(target, cx));
+        view.update(cx, |v, cx| v.activate(target, OpenIn::Main, cx));
         assert_eq!(
             *events.borrow(),
             vec![PageEvent::Navigate(NavTarget::Page("Bob".into()))]

@@ -6,7 +6,46 @@
       "secondary-shift-b": "bitacora::ToggleRightSidebar",
       "secondary-shift-l": "bitacora::ToggleTheme",
       "secondary-[": "bitacora::GoBack",
-      "secondary-]": "bitacora::GoForward"
+      "secondary-]": "bitacora::GoForward",
+      "secondary-k": "bitacora::OpenSearch",
+      "secondary-shift-p": "bitacora::OpenCommandPalette",
+      "secondary-shift-r": "bitacora::FocusRightSidebar"
+    }
+  },
+  {
+    "context": "Workspace && !Input && !Textarea",
+    "bindings": {
+      "t l": "bitacora::ToggleLeftSidebar",
+      "t r": "bitacora::ToggleRightSidebar",
+      "g j": "bitacora::GoJournals",
+      "g a": "bitacora::GoAllPages"
+    }
+  },
+  {
+    "context": "Palette",
+    "bindings": {
+      "shift-enter": "bitacora::OpenResultInSidebar",
+      "tab": "bitacora::CycleSearchScope",
+      "escape": "bitacora::ClosePalette"
+    }
+  },
+  {
+    "context": "AllPages && !Input",
+    "bindings": {
+      "enter": "bitacora::OpenSelectedPage",
+      "shift-enter": "bitacora::OpenSelectedPage"
+    }
+  },
+  {
+    "context": "RightSidebar",
+    "bindings": {
+      "down": "bitacora::SidebarSelectNext",
+      "up": "bitacora::SidebarSelectPrevious",
+      "enter": "bitacora::SidebarToggleItem",
+      "space": "bitacora::SidebarToggleItem",
+      "backspace": "bitacora::SidebarCloseItem",
+      "delete": "bitacora::SidebarCloseItem",
+      "o": "bitacora::SidebarOpenItem"
     }
   },
   {
