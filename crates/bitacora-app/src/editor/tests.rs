@@ -755,6 +755,10 @@ fn ime_composition_keeps_enter_and_tab_away_from_the_outliner(cx: &mut TestAppCo
     });
     assert_eq!(buffer(&ed, cx).as_deref(), Some("bkan"));
     assert_eq!(ed.read_with(cx, |e, _| e.marked_range()), Some(1..4));
+    // The debounce does not commit while the composition is active.
+    cx.executor().advance_clock(super::view::FLUSH_DELAY);
+    cx.run_until_parked();
+    assert_eq!(env.snapshot_texts("Home")[1].1, "b");
     cx.simulate_keystrokes("tab");
     assert_eq!(
         env.snapshot_texts("Home")[1].0,

@@ -132,5 +132,15 @@ pub fn platform_bindings() -> Vec<(String, &'static str, &'static str)> {
         out.push(("alt-right".to_owned(), "outliner::ZoomIn", context));
         out.push(("alt-left".to_owned(), "outliner::ZoomOut", context));
     }
+    // macOS moves blocks with Mod+Shift+Up/Down.
+    #[cfg(target_os = "macos")]
+    for context in ["BlockEditor", "BlockSelection"] {
+        out.push(("cmd-shift-up".to_owned(), "outliner::MoveBlockUp", context));
+        out.push((
+            "cmd-shift-down".to_owned(),
+            "outliner::MoveBlockDown",
+            context,
+        ));
+    }
     out
 }

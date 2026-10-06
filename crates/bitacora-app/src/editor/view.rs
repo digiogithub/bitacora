@@ -488,7 +488,12 @@ impl OutlineEditor {
             cx.background_executor().timer(FLUSH_DELAY).await;
             let _ = this.update(cx, |this, cx| {
                 if this.flush_epoch == epoch {
-                    this.flush(cx);
+                    if this.marked() {
+                        // No commit while an IME composition is active: look again later.
+                        this.schedule_flush(cx);
+                    } else {
+                        this.flush(cx);
+                    }
                 }
             });
         })
