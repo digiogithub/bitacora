@@ -226,6 +226,7 @@ fn mcp_endpoint_serves_with_the_index_reader() {
             ..bitacora_mcp::McpConfig::default()
         },
         token_path: tmp.path().join("tokens.json"),
+        secrets: None,
     });
     let s = Session::open(cfg).unwrap();
     let endpoint = s.mcp_endpoint().unwrap();

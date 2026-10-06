@@ -113,11 +113,13 @@ pub enum PaletteCommand {
     CloneGraph,
     /// Check GitHub Releases for a newer version (BIT-US-0100).
     CheckForUpdates,
+    /// Open the settings (BIT-US-0107).
+    OpenSettings,
 }
 
 impl PaletteCommand {
     /// Every command, in palette order.
-    pub const ALL: [Self; 16] = [
+    pub const ALL: [Self; 17] = [
         Self::GoJournals,
         Self::GoAllPages,
         Self::GoBack,
@@ -134,6 +136,7 @@ impl PaletteCommand {
         Self::CloneGraph,
         Self::SwitchGraph,
         Self::CheckForUpdates,
+        Self::OpenSettings,
     ];
 
     /// The label shown (and matched against the query).
@@ -151,6 +154,7 @@ impl PaletteCommand {
             Self::DeletePage => t!("palette.cmd_delete_page"),
             Self::SyncNow => t!("palette.cmd_sync_now"),
             Self::SyncSettings => t!("palette.cmd_sync_settings"),
+            Self::OpenSettings => t!("settings.cmd_open"),
             Self::PageHistory => t!("palette.cmd_page_history"),
             Self::ResolveConflicts => t!("palette.cmd_conflicts"),
             Self::CloneGraph => t!("palette.cmd_clone"),
@@ -171,7 +175,7 @@ impl PaletteCommand {
             Self::SwitchGraph => IconName::Folder,
             Self::DeletePage => IconName::Close,
             Self::SyncNow => IconName::RefreshCw,
-            Self::SyncSettings => IconName::Settings,
+            Self::SyncSettings | Self::OpenSettings => IconName::Settings,
             Self::PageHistory => IconName::Undo2,
             Self::ResolveConflicts => IconName::TriangleAlert,
             Self::CloneGraph => IconName::FolderOpen,

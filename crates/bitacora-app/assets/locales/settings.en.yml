@@ -1,0 +1,146 @@
+settings:
+  title: Settings
+  cmd_open: Settings...
+  apply: Apply
+  saved: Saved
+  no_graph: Open a graph to change its settings.
+  nothing_changed: Nothing changed.
+  section:
+    general: General
+    editor: Editor
+    search: Search & index
+    sync: Sync
+    agents: Agents
+    appearance: Appearance
+    keymap: Keymap
+  mode:
+    reindex: Rebuilds the index
+    restart: Restart required
+  confirm:
+    ok: Apply
+    cancel: Cancel
+    reindex_title: Rebuild the index?
+    reindex_body: This setting changes how files are read or named, so the index is rebuilt from the graph files. Your files are not modified except logseq/config.edn.
+    substring_on_title: Turn on substring search?
+    substring_on_body: The trigram index is built from every block. This can take a while on a large graph and makes the index larger.
+    substring_off_title: Turn off substring search?
+    substring_off_body: The trigram index is dropped, which roughly halves the index size. Searches for fragments inside words become slower and less complete.
+    revoke_title: "Revoke the token %{name}?"
+    revoke_body: Clients using it are refused on their next request. This cannot be undone.
+    rotate_title: "Replace the secret of %{name}?"
+    rotate_body: The old secret stops working immediately. You will see the new one once.
+    reset_keys_title: Restore the default shortcuts?
+    reset_keys_body: Every shortcut you changed goes back to its default.
+    conflict_title: "%{keys} is already in use"
+    conflict_body: "In the same context it triggers: %{actions}. Binding it here removes it from there."
+  general:
+    graph_path: Graph folder
+    name_format: Page file names
+    name_format_help: "How page titles become file names (:file/name-format). Use triple-lowbar for new graphs."
+    title_format: Journal page title
+    title_format_help: "Journal page title format (:journal/page-title-format)."
+    file_format: Journal file name
+    file_format_help: "Journal file name format (:journal/file-name-format)."
+    preview: "Today: %{value}"
+    preview_invalid: Not a valid format
+    hidden: Hidden paths
+    hidden_help: Folders or files left out of the graph (:hidden), separated by commas.
+    hidden_placeholder: /archived, /drafts
+    favorites: Favorites
+    favorites_help: Pages pinned in the sidebar (:favorites). Click one below to remove it.
+    favorite_placeholder: Page name
+    background: Keep running in the background
+    background_help: Closing the last window keeps the app and the MCP server running.
+    updates: Check for updates
+    updates_help: Look for a new release once a day.
+  editor:
+    workflow: Task workflow
+    workflow_help: Keywords the task shortcut cycles through (:preferred-workflow).
+    template: Default journal template
+    template_help: Name of the template applied to new journals (:default-templates).
+    template_placeholder: Template name
+  search:
+    substring: Substring search
+    substring_help: Keep a trigram index so fragments inside words and CJK text are found. Turning it off roughly halves the index size.
+    reindex: Rebuild the index
+    reindex_help: Drop the index and rebuild it from the files. It is only a cache.
+    reindex_button: Reindex
+    applying: Applying...
+    applied: Search index updated
+  sync:
+    status: Status
+    details: Details...
+    remote: Remote
+    enabled: Sync this graph
+    enabled_help: Commit, fetch, merge and push in the background.
+    timing: "Timing (seconds): idle, max, fetch"
+    timing_help: Seconds without edits before an auto commit, the longest wait, and the fetch interval.
+    timing_invalid: Enter whole numbers of seconds. Values outside the allowed range (idle 5-600, max 30-3600, fetch 30-3600) are adjusted.
+    squash: Squash automatic commits
+    squash_help: Merge a run of automatic commits into one.
+  agents:
+    enabled: Run the MCP server
+    enabled_help: Serve MCP while a graph is open. Off stops agents from connecting.
+    port: Port
+    port_help: "Loopback port (default 12316). Use 1024 or higher. A busy port is reported here, no other port is tried."
+    port_invalid: Enter a port between 1024 and 65535.
+    status: MCP server
+    status_help: Always on while Bitacora runs, loopback only, bearer token required.
+    running: "Running at %{endpoint}"
+    unavailable: "Not running: %{reason}"
+    not_running: Not running for this graph.
+    allow_writes: Allow agents to write
+    allow_writes_help: "Off by default. Writes are audited and can be undone from the agent activity list."
+    allow_deletes: Allow agents to delete
+    allow_deletes_help: "Off by default. Lets agents remove blocks and delete or rename pages (moved to the recycle folder)."
+    api: Logseq-compatible HTTP API
+    api_help: Serve POST /api for tools written for Logseq. Off by default.
+    protected: Protected namespaces
+    protected_help: Pages under these namespaces refuse agent writes, separated by commas.
+    protected_placeholder: private, journal-secrets
+    origins: Allowed browser origins
+    origins_help: Extra origins allowed to call the server from a web page. Empty by default.
+    rate: Writes per minute
+    rate_help: Limit of write calls per token and minute.
+    restart_button: Restart the server now
+    restart_note: Saved. It applies when the server restarts.
+    tokens: Tokens
+    tokens_empty: No tokens. Create one to connect a client.
+    token_name_placeholder: Client name (for example Claude Desktop)
+    new_token: New token
+    token_created: Token created. Copy it now, it is shown only once.
+    token_revoked: "Token %{name} revoked"
+    token_rotated: "Token %{name} replaced. Copy the new secret now."
+    token_missing: That token no longer exists.
+    secret_once: "Secret of %{name}. It is shown only once."
+    secret_lost: The secret is missing from the keychain. Replace it.
+    copy_token: Copy token
+    copy_json: Copy config
+    copy_command: Copy command
+    copied: Copied to the clipboard
+    done: Done
+    rotate: Replace
+    revoke: Revoke
+    in_keychain: Keychain
+    in_file: Private file
+  appearance:
+    mode: Theme mode
+    theme: Theme
+    theme_help: Pick the bundled theme for light and dark.
+    font_size: Font size
+    font_size_help: "Applies at once. Current:"
+    font_size_invalid: "Enter a size between %{min} and %{max}."
+    font_default: theme default
+    font_reset: Default font size
+    font_reset_button: Reset
+  keymap:
+    filter_placeholder: Filter by action or shortcut...
+    help: "%{count} actions. Click Record, then press the new shortcut. Escape cancels."
+    press_keys: Press the shortcut...
+    unbound: Not bound
+    record: Record
+    clear: Clear
+    reset: Reset
+    reset_all: "Reset all (%{count})"
+    applied: Shortcuts updated
+    save_failed: "Cannot save the keymap: %{error}"

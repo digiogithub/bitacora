@@ -14,6 +14,7 @@ pub mod palette;
 pub mod panels;
 pub mod picker;
 pub mod right_sidebar;
+pub mod settings;
 pub mod sidebar;
 pub mod status_bar;
 pub mod sync_dialog;

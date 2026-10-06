@@ -48,6 +48,7 @@ use crate::views::palette::{Palette, PaletteCommand, PaletteEvent};
 use crate::views::panels::{HubEvent, PaneHub, PanelKind, PlaceholderPanel, SharedHub};
 use crate::views::picker::{GraphPicker, PickerEvent};
 use crate::views::right_sidebar::{RightSidebar, StackEvent};
+use crate::views::settings::{SettingsContext, SettingsEvent, SettingsView};
 use crate::views::sidebar::{LeftSidebar, SidebarEvent, Target};
 use crate::views::status_bar::{AppStatusBar, Slot, SlotState, StatusBarEvent, StatusEvent};
 use crate::views::sync_dialog::{SyncDialog, SyncDialogEvent};
@@ -105,6 +106,10 @@ pub struct WorkspaceConfig {
     /// Keep remote passwords in the OS keyring and start the askpass bridge for the system git
     /// (the app sets it; tests leave it off and use an in-memory store).
     pub system_credentials: bool,
+    /// Where the user keymap is kept (`None`: the settings do not persist shortcuts).
+    pub keymap_file: Option<PathBuf>,
+    /// Keychain for MCP token secrets (`None`: the token file holds them).
+    pub mcp_secrets: Option<Arc<dyn bitacora_mcp::SecretBackend>>,
 }
 
 /// The root view of the main window.
@@ -124,6 +129,7 @@ pub struct Workspace {
     sync_dialog: Entity<SyncDialog>,
     credential_dialog: Entity<CredentialDialog>,
     sync_panel: Entity<SyncPanel>,
+    settings: Entity<SettingsView>,
     history: Entity<HistoryView>,
     conflicts: Entity<ConflictsView>,
     disk_banner: Entity<DiskConflictBanner>,
@@ -173,6 +179,7 @@ impl Workspace {
         let sync_dialog = cx.new(|cx| SyncDialog::new(window, cx));
         let credential_dialog = cx.new(|cx| CredentialDialog::new(window, cx));
         let sync_panel = cx.new(|_| SyncPanel::new());
+        let settings = cx.new(|cx| SettingsView::new(window, cx));
         let history = cx.new(|_| HistoryView::new());
         let conflicts = cx.new(|cx| ConflictsView::new(window, cx));
         let disk_banner = cx.new(|_| DiskConflictBanner::new());
@@ -192,6 +199,7 @@ impl Workspace {
         subscriptions.push(cx.subscribe_in(&sidebar, window, Self::on_sidebar_event));
         subscriptions.push(cx.subscribe_in(&status, window, Self::on_status_event));
         subscriptions.push(cx.subscribe_in(&sync_panel, window, Self::on_sync_panel_event));
+        subscriptions.push(cx.subscribe_in(&settings, window, Self::on_settings_event));
         subscriptions.push(cx.subscribe_in(&sync_dialog, window, Self::on_sync_dialog_event));
         subscriptions.push(cx.subscribe_in(
             &history,
@@ -243,6 +251,7 @@ impl Workspace {
             sync_dialog,
             credential_dialog,
             sync_panel,
+            settings,
             history,
             conflicts,
             disk_banner,
@@ -387,13 +396,21 @@ impl Workspace {
         } else {
             None
         };
+        let app_settings = theme::try_settings(cx).unwrap_or_default();
         let started = GraphSession::start(
             path.clone(),
             SessionOptions {
                 data_dir: self.config.index_data_dir.clone(),
-                mcp_token_path: self.config.mcp_token_path.clone(),
+                mcp_token_path: self
+                    .config
+                    .mcp_token_path
+                    .clone()
+                    .filter(|_| app_settings.mcp.enabled),
                 global_config: self.config.global_config.clone(),
                 sync,
+                mcp_secrets: self.config.mcp_secrets.clone(),
+                mcp: app_settings.mcp.clone(),
+                disable_substring: !app_settings.search.substring,
             },
         );
         let (session, events) = match started {
@@ -410,6 +427,10 @@ impl Workspace {
         };
         self.session_handle = session.handle();
         self.session = Some(session);
+        self.settings.update(cx, |s, cx| {
+            s.set_mcp_endpoint(None, cx);
+            s.set_mcp_unavailable(None, cx);
+        });
         self.graph_root = Some(path.clone());
         self.picker_visible = false;
         self.sync_conflicted = false;
@@ -712,13 +733,23 @@ impl Workspace {
         match event {
             SessionEvent::Live(link) => {
                 self.link = Some(link.clone());
+                self.settings.update(cx, |s, cx| {
+                    s.set_mcp_endpoint(link.mcp_endpoint.clone(), cx)
+                });
+                self.refresh_settings(window, cx);
                 for pane in self.panes(cx) {
                     let link = link.clone();
                     pane.update(cx, |main, cx| main.set_session_link(link, window, cx));
                 }
                 self.start_day_clock(cx);
             }
-            SessionEvent::Notice(notice) => Self::show_notice(&notice, window, cx),
+            SessionEvent::Notice(notice) => {
+                if let SessionNotice::McpUnavailable(why) = &notice {
+                    self.settings
+                        .update(cx, |s, cx| s.set_mcp_unavailable(Some(why.clone()), cx));
+                }
+                Self::show_notice(&notice, window, cx);
+            }
             SessionEvent::Sync(view) => {
                 let view = *view;
                 let conflicted = view.status.conflicts > 0;
@@ -728,6 +759,9 @@ impl Workspace {
                 self.sync_conflicted = conflicted;
                 self.status
                     .update(cx, |bar, cx| bar.set_sync_view(Some(view.clone()), cx));
+                let prefs = self.sync_prefs.clone();
+                self.settings
+                    .update(cx, |s, cx| s.set_sync(prefs, Some(view.clone()), cx));
                 self.sync_panel
                     .update(cx, |panel, cx| panel.set_view(Some(view), cx));
                 if self.conflicts.read(cx).is_open() {
@@ -1081,6 +1115,7 @@ impl Workspace {
             }
             PaletteCommand::SyncNow => self.sync_now(window, cx),
             PaletteCommand::SyncSettings => self.open_sync_panel(cx),
+            PaletteCommand::OpenSettings => self.open_settings(None, window, cx),
             PaletteCommand::PageHistory => self.open_history(window, cx),
             PaletteCommand::ResolveConflicts => self.open_conflicts(window, cx),
             PaletteCommand::CloneGraph => self.open_clone_dialog(window, cx),
@@ -1130,6 +1165,9 @@ impl Workspace {
             .update(cx, |panel, cx| panel.set_prefs(root, prefs, askpass, cx));
         self.sync_panel
             .update(cx, |panel, cx| panel.set_view(None, cx));
+        let prefs = self.sync_prefs.clone();
+        self.settings
+            .update(cx, |s, cx| s.set_sync(prefs, None, cx));
     }
 
     /// "Sync now" / "Retry": asks the engine for a cycle.
@@ -1314,6 +1352,129 @@ impl Workspace {
             });
         })
         .detach();
+    }
+
+    // ---- settings (BIT-US-0107) ----
+
+    /// Opens the settings on `section` (the last one when `None`).
+    pub fn open_settings(
+        &mut self,
+        section: Option<crate::views::settings::Section>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.refresh_settings(window, cx);
+        self.settings
+            .update(cx, |settings, cx| settings.show(section, window, cx));
+    }
+
+    fn open_settings_action(
+        &mut self,
+        _: &crate::actions::OpenSettings,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.open_settings(None, window, cx);
+    }
+
+    /// The settings view of the workspace.
+    pub fn settings(&self) -> &Entity<SettingsView> {
+        &self.settings
+    }
+
+    /// Hands the settings the handles of the open graph and, from the session thread, the MCP
+    /// tokens and write policy.
+    fn refresh_settings(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let ctx = SettingsContext {
+            root: self.graph_root.clone(),
+            queue: self.link.as_ref().map(|l| l.queue.clone()),
+            session: self.session_handle.clone(),
+            global_config: self.config.global_config.clone(),
+            keymap_file: self.config.keymap_file.clone(),
+            tokens: None,
+            policy: None,
+        };
+        let session = ctx.session.clone();
+        self.settings
+            .update(cx, |settings, cx| settings.set_context(ctx.clone(), cx));
+        let Some(session) = session else {
+            return;
+        };
+        let rx = session.run(|s| (s.mcp_tokens(), s.mcp_policy()));
+        cx.spawn_in(window, async move |this, cx| {
+            if let Ok((tokens, policy)) = rx.recv().await {
+                let _ = this.update(cx, |ws, cx| {
+                    let ctx = SettingsContext {
+                        tokens,
+                        policy,
+                        ..ctx
+                    };
+                    ws.settings
+                        .update(cx, |settings, cx| settings.set_context(ctx, cx));
+                });
+            }
+        })
+        .detach();
+    }
+
+    fn on_settings_event(
+        &mut self,
+        _: &Entity<SettingsView>,
+        event: &SettingsEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let close = |ws: &mut Self, cx: &mut Context<Self>| {
+            ws.settings.update(cx, |s, cx| s.close(cx));
+        };
+        match event {
+            SettingsEvent::Closed => window.focus(&self.focus, cx),
+            SettingsEvent::Reindex => {
+                close(self, cx);
+                self.reindex(window, cx);
+            }
+            SettingsEvent::ReopenGraph => {
+                close(self, cx);
+                self.restart_session(window, cx);
+            }
+            SettingsEvent::FavoritesChanged(favorites) => {
+                let favorites = favorites.clone();
+                self.sidebar
+                    .update(cx, |sidebar, cx| sidebar.set_favorites(favorites, cx));
+            }
+            SettingsEvent::SyncNow => self.sync_now(window, cx),
+            SettingsEvent::EnableSync => {
+                close(self, cx);
+                self.open_enable_dialog(window, cx);
+            }
+            SettingsEvent::DisableSync => {
+                self.sync_prefs.enabled = false;
+                self.save_sync_prefs();
+                close(self, cx);
+                self.restart_session(window, cx);
+            }
+            SettingsEvent::OpenSyncPanel => {
+                close(self, cx);
+                self.open_sync_panel(cx);
+            }
+            SettingsEvent::SyncTiming {
+                idle,
+                max,
+                fetch,
+                squash,
+            } => {
+                self.sync_prefs.commit_idle_secs = *idle;
+                self.sync_prefs.commit_max_secs = *max;
+                self.sync_prefs.fetch_interval_secs = *fetch;
+                self.sync_prefs.squash_auto_commits = *squash;
+                self.sync_prefs = self.sync_prefs.clone().clamped();
+                self.save_sync_prefs();
+                if self.sync_prefs.enabled {
+                    close(self, cx);
+                    self.restart_session(window, cx);
+                }
+            }
+        }
     }
 
     fn save_sync_prefs(&self) {
@@ -1513,7 +1674,10 @@ impl Workspace {
 
     /// Closes the topmost sync overlay on Escape; `true` when one was open.
     fn close_topmost_overlay(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
-        if self.disk_diff.read(cx).is_open() {
+        if self.settings.read(cx).is_open() {
+            // Escape first cancels a shortcut recording, then closes the settings.
+            self.settings.update(cx, |s, cx| s.escape(cx));
+        } else if self.disk_diff.read(cx).is_open() {
             self.disk_diff.update(cx, |d, cx| d.close(cx));
         } else if self.sync_dialog.read(cx).mode().is_some() {
             self.sync_dialog.update(cx, |d, cx| d.close(window, cx));
@@ -1855,6 +2019,7 @@ impl Render for Workspace {
             .on_action(cx.listener(Self::focus_right_sidebar))
             .on_action(cx.listener(Self::go_back))
             .on_action(cx.listener(Self::go_forward))
+            .on_action(cx.listener(Self::open_settings_action))
             .on_key_down(cx.listener(|this, event: &KeyDownEvent, window, cx| {
                 if event.keystroke.key == "escape" {
                     this.close_topmost_overlay(window, cx);
@@ -1865,6 +2030,7 @@ impl Render for Workspace {
             .child(self.status.clone())
             .child(self.palette.clone())
             .child(self.sync_panel.clone())
+            .child(self.settings.clone())
             .child(self.history.clone())
             .child(self.conflicts.clone())
             .child(self.disk_diff.clone())

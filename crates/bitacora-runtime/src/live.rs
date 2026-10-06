@@ -291,7 +291,10 @@ impl Session {
             *lock(&session.sync) = Some(Arc::new(handle));
         }
         if let Some(m) = cfg.mcp {
-            let tokens = Arc::new(TokenStore::load_or_init(&m.token_path)?);
+            let tokens = Arc::new(TokenStore::load_or_init_with(
+                &m.token_path,
+                m.secrets.clone(),
+            )?);
             let reader = IndexGraphReader::new(&session.index, root.clone(), graph_name(&root));
             if let Some(ix) = session.indexer.as_ref() {
                 reader.forward_events(ix.subscribe());
@@ -418,6 +421,26 @@ impl Session {
     #[must_use]
     pub fn mcp_policy(&self) -> Option<Arc<WritePolicy>> {
         self.mcp.as_ref().map(|m| Arc::clone(m.policy()))
+    }
+
+    /// The bearer tokens of the running MCP server (create / revoke / rotate take effect for the
+    /// next request), when the server runs.
+    #[must_use]
+    pub fn mcp_tokens(&self) -> Option<Arc<TokenStore>> {
+        self.mcp.as_ref().map(|m| Arc::clone(m.tokens()))
+    }
+
+    /// Applies `search.substring`: drops (`false`) or builds (`true`) the trigram block index.
+    /// Returns whether the index changed.
+    ///
+    /// # Errors
+    /// [`RuntimeError::Index`] when the index cannot be changed or the session has no indexer.
+    pub fn set_substring(&self, enabled: bool) -> Result<bool, RuntimeError> {
+        let indexer = self
+            .indexer
+            .as_ref()
+            .ok_or(RuntimeError::Index(bitacora_index::Error::WriterStopped))?;
+        Ok(indexer.writer().set_substring(enabled)?)
     }
 
     /// Agent audit entries, newest first (the "Agent activity" data), when the server runs.

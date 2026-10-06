@@ -86,6 +86,13 @@ impl Running {
 
 /// Open the session and start the MCP server.
 pub fn start(args: ServeArgs) -> anyhow::Result<Running> {
+    // The default token location uses the OS keychain for secrets; an explicit --token-file keeps
+    // them in that file (portable, scriptable).
+    let secrets = if args.token_file.is_none() {
+        bitacora_mcp::os_keychain()
+    } else {
+        None
+    };
     let token_path = args
         .token_file
         .or_else(bitacora_mcp::default_token_path)
@@ -102,6 +109,7 @@ pub fn start(args: ServeArgs) -> anyhow::Result<Running> {
             ..McpConfig::default()
         },
         token_path: token_path.clone(),
+        secrets,
     });
     if args.sync {
         let device = args
