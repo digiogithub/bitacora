@@ -899,7 +899,7 @@ impl Worker {
             } else if report.failed.iter().any(|(k, _)| *k == key) {
                 sched.failed(&key, now);
             } else if key.as_str() == DELETES_KEY {
-                if self.ws.pending_deletes().is_empty() {
+                if self.ws.pending_deletes().is_empty() && self.ws.pending_restores().is_empty() {
                     sched.done(&key);
                 }
             } else if self.ws.page(&key).is_none_or(|p| !p.needs_write()) {
@@ -916,7 +916,8 @@ impl Worker {
 
     fn schedule(&mut self, pages: &[PageKey]) {
         let now = self.now();
-        let deletes = !self.ws.pending_deletes().is_empty();
+        let deletes =
+            !self.ws.pending_deletes().is_empty() || !self.ws.pending_restores().is_empty();
         let Some(sched) = self.sched.as_mut() else {
             return;
         };

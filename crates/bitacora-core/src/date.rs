@@ -86,17 +86,55 @@ impl Date {
         self.day
     }
 
-    /// Weekday index, Monday = 0.
-    pub fn weekday(self) -> usize {
-        // Days since 1970-01-01 (Thursday).
+    /// Days since 1970-01-01.
+    pub fn to_unix_days(self) -> i64 {
         let y = i64::from(self.year) - i64::from(self.month <= 2);
         let era = y.div_euclid(400);
         let yoe = y.rem_euclid(400);
         let m = i64::from(self.month);
         let doy = (153 * ((m + 9) % 12) + 2) / 5 + i64::from(self.day) - 1;
         let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
-        let days = era * 146_097 + doe - 719_468;
-        (days + 3).rem_euclid(7) as usize
+        era * 146_097 + doe - 719_468
+    }
+
+    /// Date `days` after 1970-01-01 (negative before); `None` outside years 0..=9999.
+    pub fn from_unix_days(days: i64) -> Option<Self> {
+        let z = days + 719_468;
+        let era = z.div_euclid(146_097);
+        let doe = z.rem_euclid(146_097);
+        let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+        let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+        let mp = (5 * doy + 2) / 153;
+        let day = doy - (153 * mp + 2) / 5 + 1;
+        let month = if mp < 10 { mp + 3 } else { mp - 9 };
+        let year = yoe + era * 400 + i64::from(month <= 2);
+        Self::new(
+            i32::try_from(year).ok()?,
+            u8::try_from(month).ok()?,
+            u8::try_from(day).ok()?,
+        )
+    }
+
+    /// The date `days` later (earlier when negative).
+    pub fn add_days(self, days: i64) -> Option<Self> {
+        Self::from_unix_days(self.to_unix_days() + days)
+    }
+
+    /// Local calendar date for a Unix timestamp and the local UTC offset in seconds.
+    pub fn from_unix_secs(secs: i64, utc_offset_secs: i32) -> Option<Self> {
+        Self::from_unix_days((secs + i64::from(utc_offset_secs)).div_euclid(86_400))
+    }
+
+    /// Seconds from the Unix timestamp `secs` until the next local midnight (1..=86400).
+    pub fn secs_until_midnight(secs: i64, utc_offset_secs: i32) -> u64 {
+        let into_day = (secs + i64::from(utc_offset_secs)).rem_euclid(86_400);
+        (86_400 - into_day) as u64
+    }
+
+    /// Weekday index, Monday = 0.
+    pub fn weekday(self) -> usize {
+        // 1970-01-01 was a Thursday.
+        (self.to_unix_days() + 3).rem_euclid(7) as usize
     }
 }
 
@@ -333,6 +371,21 @@ mod tests {
         assert_eq!(f("EEE d/M/yy", d(2024, 2, 29)), "Thu 29/2/24");
         assert_eq!(f("yyyy 'W' dd", d(2024, 2, 9)), "2024 W 09");
         assert_eq!(f("dd.MM.yyyy", d(2021, 12, 31)), "31.12.2021");
+    }
+
+    #[test]
+    fn unix_day_conversions() {
+        assert_eq!(Date::from_unix_days(0), Date::new(1970, 1, 1));
+        assert_eq!(d(2025, 11, 14).to_unix_days(), 20_406);
+        assert_eq!(Date::from_unix_days(20_406), Some(d(2025, 11, 14)));
+        assert_eq!(d(2024, 2, 28).add_days(2), Some(d(2024, 3, 1)));
+        assert_eq!(d(2025, 1, 1).add_days(-1), Some(d(2024, 12, 31)));
+        // 2025-11-14T23:30:00Z is already the 15th at UTC+1.
+        let secs = d(2025, 11, 14).to_unix_days() * 86_400 + 23 * 3600 + 1800;
+        assert_eq!(Date::from_unix_secs(secs, 0), Some(d(2025, 11, 14)));
+        assert_eq!(Date::from_unix_secs(secs, 3600), Some(d(2025, 11, 15)));
+        assert_eq!(Date::secs_until_midnight(secs, 0), 1800);
+        assert_eq!(Date::secs_until_midnight(secs, 3600), 84_600);
     }
 
     #[test]

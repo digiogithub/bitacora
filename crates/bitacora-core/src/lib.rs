@@ -6,7 +6,9 @@ pub mod graph;
 pub mod graph_path;
 pub mod journal;
 pub mod naming;
+pub mod new_graph;
 pub mod queue;
+pub mod recycle;
 pub mod scan;
 pub mod write_queue;
 

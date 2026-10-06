@@ -49,6 +49,7 @@ pub struct Workspace {
     uuids: UuidIndex,
     pub(crate) touched: BTreeSet<PageKey>,
     pending_deletes: BTreeMap<GraphPath, Option<Arc<[u8]>>>,
+    pending_restores: BTreeSet<GraphPath>,
     pub(crate) next_tx: u64,
 }
 
@@ -175,6 +176,24 @@ impl Workspace {
     #[must_use]
     pub fn pending_deletes(&self) -> &BTreeMap<GraphPath, Option<Arc<[u8]>>> {
         &self.pending_deletes
+    }
+
+    /// Files whose recycled copy has to be moved back (undo of an asset delete).
+    #[must_use]
+    pub fn pending_restores(&self) -> &BTreeSet<GraphPath> {
+        &self.pending_restores
+    }
+
+    pub(crate) fn queue_restore(&mut self, path: GraphPath) {
+        self.pending_restores.insert(path);
+    }
+
+    pub(crate) fn unqueue_restore(&mut self, path: &GraphPath) {
+        self.pending_restores.remove(path);
+    }
+
+    pub(crate) fn finish_restore(&mut self, path: &GraphPath) {
+        self.pending_restores.remove(path);
     }
 
     pub(crate) fn pages_mut(&mut self) -> &mut BTreeMap<PageKey, Page> {

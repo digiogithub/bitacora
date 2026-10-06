@@ -8,6 +8,7 @@ pub mod backup;
 pub mod cmd;
 pub mod flush;
 pub mod fsio;
+pub mod lifecycle;
 pub mod model;
 pub mod op;
 pub mod tx;
@@ -15,6 +16,7 @@ pub mod workspace;
 
 pub use cmd::{Cmd, Refusal, Target, plan};
 pub use flush::{FileStat, FileStore, FlushReport, FsStore, MemStore, TakeDisk, WrittenFile};
+pub use lifecycle::{DayRollover, LifecycleError, Opened, auto_title_preamble, new_page_path};
 pub use model::{
     Block, BlockId, DiskSnapshot, IdGen, ModelError, Origin, Page, Position, Serialized, Subtree,
     text_hash, text_is_representable,

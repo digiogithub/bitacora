@@ -16,6 +16,7 @@ use std::time::SystemTime;
 
 use super::flush::{FileStat, FileStore};
 use crate::graph_path::GraphPath;
+use crate::recycle::recycle_path;
 
 /// Suffix of the temporary file next to each target.
 pub const TMP_SUFFIX: &str = ".bitacora-tmp";
@@ -103,6 +104,30 @@ pub fn atomic_write(target: &Path, bytes: &[u8]) -> io::Result<WriteMode> {
     }
 }
 
+/// Moves `from` to `to`, replacing an existing `to`, creating parent directories. Falls back to
+/// an atomic copy plus removal when the rename crosses file systems.
+fn move_file(from: &Path, to: &Path) -> io::Result<()> {
+    if let Some(dir) = to.parent() {
+        std::fs::create_dir_all(dir)?;
+    }
+    match std::fs::rename(from, to) {
+        Ok(()) => {
+            if let Some(d) = from.parent() {
+                sync_dir(d);
+            }
+            if let Some(d) = to.parent() {
+                sync_dir(d);
+            }
+            Ok(())
+        }
+        Err(_) => {
+            let bytes = std::fs::read(from)?;
+            atomic_write(to, &bytes)?;
+            std::fs::remove_file(from)
+        }
+    }
+}
+
 /// Removes leftover `.<name>.bitacora-tmp` files (a crash between create and rename) below
 /// `root`, skipping `.git` and `logseq/bak`. Returns how many were removed.
 #[must_use]
@@ -185,6 +210,26 @@ impl FileStore for FsStore {
             Err(e) if e.kind() != io::ErrorKind::NotFound => Err(e),
             _ => Ok(()),
         }
+    }
+
+    fn recycle(&mut self, path: &GraphPath) -> io::Result<Option<GraphPath>> {
+        let from = self.abs(path);
+        if !from.is_file() {
+            return Ok(None);
+        }
+        let dest = recycle_path(path);
+        move_file(&from, &self.abs(&dest))?;
+        Ok(Some(dest))
+    }
+
+    fn unrecycle(&mut self, path: &GraphPath) -> io::Result<bool> {
+        let to = self.abs(path);
+        let src = self.abs(&recycle_path(path));
+        if to.exists() || !src.is_file() {
+            return Ok(false);
+        }
+        move_file(&src, &to)?;
+        Ok(true)
     }
 
     fn list(&self, dir: &GraphPath) -> io::Result<Vec<String>> {
