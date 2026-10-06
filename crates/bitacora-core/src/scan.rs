@@ -217,44 +217,9 @@ mod tests {
         fs::write(p, "- x\n").expect("write");
     }
 
-    const FILES: &[&str] = &[
-        "pages/a.md",
-        "pages/b.markdown",
-        "pages/sub/c.md",
-        "pages/contents.md",
-        "pages/archived.md",
-        "pages/.hidden.md",
-        "pages/.dir/x.md",
-        "pages/img.png",
-        "pages/UPPER.MD",
-        "pages/foo/node_modules/x.js",
-        "journals/2025_11_14.md",
-        "journals/2025_11_15.md",
-        "journals/2024_01_01.md",
-        "archived/old.md",
-        "test.md",
-        "assets/pic.png",
-        "assets/doc.pdf",
-        "draws/d.excalidraw",
-        "whiteboards/w.edn",
-        "logseq/config.edn",
-        "logseq/custom.css",
-        "logseq/bak/pages/a/2025.md",
-        "logseq/.recycle/old.md",
-        "logseq/version-files/local/x.md",
-        "logseq/graphs-txid.edn",
-        "logseq/pages-metadata.edn",
-        ".git/config",
-        ".DS_Store",
-        "pages/.DS_Store",
-    ];
-
-    fn build() -> tempfile::TempDir {
-        let d = tempfile::tempdir().expect("tmp");
-        for f in FILES {
-            touch(d.path(), f);
-        }
-        d
+    /// The committed `fixtures/graphs/ignore-rules` graph (read-only).
+    fn fixture() -> std::path::PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/graphs/ignore-rules")
     }
 
     fn paths(v: &[ScannedFile]) -> Vec<&str> {
@@ -262,6 +227,7 @@ mod tests {
     }
 
     const GOLDEN: &[&str] = &[
+        "PROVENANCE.md",
         "archived/old.md",
         "draws/d.excalidraw",
         "journals/2024_01_01.md",
@@ -280,16 +246,14 @@ mod tests {
 
     #[test]
     fn golden_scan() {
-        let d = build();
-        let files = scan_graph(d.path(), &cfg("{}")).expect("scan");
+        let files = scan_graph(&fixture(), &cfg("{}")).expect("scan");
         assert_eq!(paths(&files), GOLDEN);
     }
 
     #[test]
     fn hidden_prefixes() {
-        let d = build();
         let files =
-            scan_graph(d.path(), &cfg(r#"{:hidden ["/archived" "test.md"]}"#)).expect("scan");
+            scan_graph(&fixture(), &cfg(r#"{:hidden ["/archived" "test.md"]}"#)).expect("scan");
         let got = paths(&files);
         assert!(!got.contains(&"archived/old.md"));
         assert!(!got.contains(&"test.md"));
@@ -332,8 +296,7 @@ mod tests {
 
     #[test]
     fn filter_files_order() {
-        let d = build();
-        let files = scan_graph(d.path(), &cfg("{}")).expect("scan");
+        let files = scan_graph(&fixture(), &cfg("{}")).expect("scan");
         let ordered = parse_order(&files);
         assert_eq!(
             paths(&ordered),
@@ -345,6 +308,7 @@ mod tests {
                 "logseq/custom.css",
                 "pages/contents.md",
                 "whiteboards/w.edn",
+                "PROVENANCE.md",
                 "archived/old.md",
                 "pages/a.md",
                 "pages/archived.md",
@@ -358,14 +322,15 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn symlinks_are_skipped() {
-        let d = build();
+        let d = tempfile::tempdir().expect("tmp");
+        touch(d.path(), "pages/a.md");
         let outside = tempfile::tempdir().expect("tmp");
         touch(outside.path(), "x.md");
         std::os::unix::fs::symlink(outside.path(), d.path().join("pages/link")).expect("ln");
         std::os::unix::fs::symlink(outside.path().join("x.md"), d.path().join("pages/l.md"))
             .expect("ln");
         let files = scan_graph(d.path(), &cfg("{}")).expect("scan");
-        assert_eq!(paths(&files), GOLDEN);
+        assert_eq!(paths(&files), vec!["pages/a.md"]);
     }
 
     #[test]
@@ -395,7 +360,7 @@ mod tests {
     /// Scanning and reading never write into the graph (no sidecar files, no mtime changes).
     #[test]
     fn no_trace() {
-        let d = build();
+        let root = fixture();
         let snapshot = |root: &Path| {
             let mut v: Vec<(String, u64, std::time::SystemTime)> = WalkDir::new(root)
                 .into_iter()
@@ -412,11 +377,11 @@ mod tests {
             v.sort();
             v
         };
-        let before = snapshot(d.path());
-        let files = scan_graph(d.path(), &cfg("{}")).expect("scan");
+        let before = snapshot(&root);
+        let files = scan_graph(&root, &cfg("{}")).expect("scan");
         for f in parse_order(&files) {
             read_text(&f.abs).expect("read");
         }
-        assert_eq!(snapshot(d.path()), before);
+        assert_eq!(snapshot(&root), before);
     }
 }
