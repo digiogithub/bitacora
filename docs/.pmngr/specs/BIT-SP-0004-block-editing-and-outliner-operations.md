@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [editor, core]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T21:59:47Z
+updated: 2026-10-06T22:36:24Z
 requirements:
   R1:
     status: backlog
@@ -22,6 +22,7 @@ requirements:
         - crates/bitacora-app/src/editor/tests.rs#arrow_keys_cross_block_boundaries_keeping_the_goal_x
         - crates/bitacora-app/src/editor/tests.rs#very_long_blocks_are_selected_instead_of_edited
         - crates/bitacora-app/src/render/inline.rs#display_offsets_map_back_to_source_offsets
+    verified: {rev: "sha256:19024c97dc120f35", commit: b12ad4e73162bfd64905c054c5a1e0d13ae4916e, at: 2026-10-06T22:36:02Z, by: claude}
   R2:
     status: backlog
     trace:
@@ -34,6 +35,7 @@ requirements:
         - crates/bitacora-core/src/editor/projection.rs#offset_round_trip_over_every_boundary
         - crates/bitacora-app/src/editor/tests.rs#hidden_properties_are_not_shown_and_return_byte_exact
         - crates/bitacora-app/src/editor/tests.rs#page_load_never_rewrites_untouched_blocks
+    verified: {rev: "sha256:82e1ef7332af43e4", commit: b12ad4e73162bfd64905c054c5a1e0d13ae4916e, at: 2026-10-06T22:36:02Z, by: claude}
   R3:
     status: backlog
     trace:
@@ -45,6 +47,7 @@ requirements:
         - crates/bitacora-app/src/editor/tests.rs#typing_commits_after_the_debounce_and_an_untouched_buffer_makes_no_op
         - crates/bitacora-app/src/editor/tests.rs#escape_flushes_and_selects_the_block
         - crates/bitacora-app/src/editor/tests.rs#ime_composition_keeps_enter_and_tab_away_from_the_outliner
+    verified: {rev: "sha256:859b4288b76953a7", commit: b12ad4e73162bfd64905c054c5a1e0d13ae4916e, at: 2026-10-06T22:36:02Z, by: claude}
   R4:
     status: backlog
     trace:
@@ -56,7 +59,7 @@ requirements:
         - crates/bitacora-core/tests/editor_ops.rs#untouched_page_serializes_identically_and_blocks_are_clean
         - crates/bitacora-core/tests/editor_ops.rs#same_depth_move_keeps_blocks_clean_and_moves_bytes
         - crates/bitacora-core/tests/editor_props.rs#every_fixture_page_roundtrips_through_the_model
-    verified: {rev: "sha256:00fbaa7708439184", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
+    verified: {rev: "sha256:00fbaa7708439184", commit: b12ad4e73162bfd64905c054c5a1e0d13ae4916e, at: 2026-10-06T22:36:02Z, by: claude}
   R5:
     status: backlog
     trace:
@@ -72,7 +75,7 @@ requirements:
         - crates/bitacora-core/tests/editor_props.rs#raw_text_ops_roundtrip
         - crates/bitacora-core/tests/editor_commands.rs
         - crates/bitacora-core/tests/editor_history.rs#random_semantic_commands_then_undo_all_restore_the_original_bytes
-    verified: {rev: "sha256:54aaace5592a3f58", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
+    verified: {rev: "sha256:54aaace5592a3f58", commit: b12ad4e73162bfd64905c054c5a1e0d13ae4916e, at: 2026-10-06T22:36:02Z, by: claude}
   R6:
     status: backlog
     trace:
@@ -89,6 +92,7 @@ requirements:
         - crates/bitacora-app/src/editor/tests.rs#enter_splits_at_the_caret_and_backspace_at_start_merges
         - crates/bitacora-app/src/editor/tests.rs#enter_on_an_empty_last_child_outdents_and_shift_enter_adds_a_line
         - crates/bitacora-app/src/editor/tests.rs#enter_inside_a_page_ref_jumps_past_the_brackets_instead_of_splitting
+    verified: {rev: "sha256:432dbb5aee262e56", commit: b12ad4e73162bfd64905c054c5a1e0d13ae4916e, at: 2026-10-06T22:36:02Z, by: claude}
   R7:
     status: backlog
     trace:
@@ -103,6 +107,7 @@ requirements:
         - crates/bitacora-core/tests/editor_commands.rs#delete_pulls_in_next_sibling_or_first_child
         - crates/bitacora-app/src/editor/tests.rs#delete_at_the_end_pulls_the_next_block_and_refusals_change_nothing
         - crates/bitacora-app/src/editor/tests.rs#autopair_inserts_skips_and_deletes_pairs
+    verified: {rev: "sha256:6aa2b3b4e8c7e5ed", commit: b12ad4e73162bfd64905c054c5a1e0d13ae4916e, at: 2026-10-06T22:36:02Z, by: claude}
   R8:
     status: backlog
     trace:
@@ -110,7 +115,7 @@ requirements:
       tests:
         - crates/bitacora-core/tests/editor_commands.rs#referenced_block_identity_survives_a_backspace_merge
         - crates/bitacora-core/tests/editor_commands.rs#merge_refused_when_both_blocks_have_ids
-    verified: {rev: "sha256:c8935427931ba647", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
+    verified: {rev: "sha256:c8935427931ba647", commit: b12ad4e73162bfd64905c054c5a1e0d13ae4916e, at: 2026-10-06T22:36:02Z, by: claude}
   R9:
     status: backlog
     trace:
@@ -124,6 +129,7 @@ requirements:
         - crates/bitacora-core/tests/editor_commands.rs#settings_come_from_config_edn
         - crates/bitacora-core/tests/editor_ops.rs
         - crates/bitacora-app/src/editor/tests.rs#tab_shift_tab_and_alt_shift_arrows_restructure_and_keep_the_caret
+    verified: {rev: "sha256:086359ab877605ec", commit: b12ad4e73162bfd64905c054c5a1e0d13ae4916e, at: 2026-10-06T22:36:02Z, by: claude}
   R10:
     status: backlog
     trace:
@@ -136,6 +142,7 @@ requirements:
         - crates/bitacora-core/tests/editor_commands.rs#move_up_down_works_on_selections_and_rejects_gaps
         - crates/bitacora-core/tests/editor_commands.rs#moved_clean_blocks_keep_their_bytes
         - crates/bitacora-app/src/editor/tests.rs#tab_shift_tab_and_alt_shift_arrows_restructure_and_keep_the_caret
+    verified: {rev: "sha256:74736a77b5de7285", commit: b12ad4e73162bfd64905c054c5a1e0d13ae4916e, at: 2026-10-06T22:36:02Z, by: claude}
   R11:
     status: backlog
     trace:
@@ -151,6 +158,7 @@ requirements:
         - crates/bitacora-app/src/editor/tests.rs#collapse_and_expand_persist_collapsed_true_and_restore_the_bytes
         - crates/bitacora-app/src/editor/tests.rs#page_level_collapse_acts_when_nothing_is_edited_and_t_o_toggles_all
         - crates/bitacora-app/src/editor/tests.rs#row_callbacks_zoom_fold_and_toggle_done
+    verified: {rev: "sha256:f2d6fd64cd87c439", commit: b12ad4e73162bfd64905c054c5a1e0d13ae4916e, at: 2026-10-06T22:36:02Z, by: claude}
   R12:
     status: backlog
     trace:
@@ -165,6 +173,7 @@ requirements:
         - crates/bitacora-app/src/editor/tests.rs#escape_selects_shift_arrows_extend_and_bulk_operations_use_one_transaction
         - crates/bitacora-app/src/editor/tests.rs#selection_delete_enter_and_select_all
         - crates/bitacora-app/src/editor/tests.rs#ctrl_a_in_selection_mode_selects_the_parent
+    verified: {rev: "sha256:4cab0e43383db063", commit: b12ad4e73162bfd64905c054c5a1e0d13ae4916e, at: 2026-10-06T22:36:02Z, by: claude}
   R13:
     status: backlog
     trace:
@@ -182,6 +191,7 @@ requirements:
         - crates/bitacora-app/src/editor/tests.rs#copy_cut_and_paste_of_block_subtrees
         - crates/bitacora-app/src/editor/tests.rs#pasting_a_markdown_list_while_editing_creates_blocks_and_plain_text_goes_inline
         - crates/bitacora-app/src/editor/html.rs#nested_lists_become_tab_indented_bullets
+    verified: {rev: "sha256:038c9df48d87fc16", commit: b12ad4e73162bfd64905c054c5a1e0d13ae4916e, at: 2026-10-06T22:36:02Z, by: claude}
   R14:
     status: backlog
     trace:
@@ -195,6 +205,7 @@ requirements:
         - crates/bitacora-core/tests/editor_commands.rs#markers_keep_priority_and_properties_and_skip_empty_blocks
         - crates/bitacora-core/tests/editor_commands.rs#toggle_done_unchecks_to_the_workflow_start
         - crates/bitacora-app/src/editor/tests.rs#ctrl_enter_cycles_the_task_marker_and_the_checkbox_toggles_done
+    verified: {rev: "sha256:37efcd5b6db6cd9f", commit: b12ad4e73162bfd64905c054c5a1e0d13ae4916e, at: 2026-10-06T22:36:02Z, by: claude}
   R15:
     status: backlog
     trace:
@@ -211,6 +222,7 @@ requirements:
         - crates/bitacora-app/src/editor/tests.rs#autocomplete_context_wins_over_the_block_editor_context
         - crates/bitacora-app/src/editor/completion.rs#page_trigger_with_an_automatic_closer
         - crates/bitacora-app/src/editor/autopair.rs#opening_brackets_insert_the_pair
+    verified: {rev: "sha256:176c320b3f5ad071", commit: b12ad4e73162bfd64905c054c5a1e0d13ae4916e, at: 2026-10-06T22:36:02Z, by: claude}
   R16:
     status: backlog
     trace:
@@ -225,6 +237,7 @@ requirements:
         - crates/bitacora-core/tests/editor_history.rs#copy_block_ref_persists_the_id_once
         - crates/bitacora-app/src/editor/tests.rs#block_reference_completion_writes_the_id_in_the_same_undo_step
         - crates/bitacora-app/src/editor/tests.rs#copy_block_ref_and_embed_persist_an_id_only_for_referenced_blocks
+    verified: {rev: "sha256:adb7734635ab39fe", commit: b12ad4e73162bfd64905c054c5a1e0d13ae4916e, at: 2026-10-06T22:36:02Z, by: claude}
   R17:
     status: backlog
     trace:
@@ -239,6 +252,7 @@ requirements:
         - crates/bitacora-core/tests/editor_history.rs#undo_stops_with_a_notice_when_an_external_change_removed_the_target
         - crates/bitacora-core/tests/editor_conventions.rs
         - crates/bitacora-app/src/editor/tests.rs#undo_and_redo_restore_the_text_the_caret_and_the_bytes
+    verified: {rev: "sha256:44cb1e0130124624", commit: b12ad4e73162bfd64905c054c5a1e0d13ae4916e, at: 2026-10-06T22:36:02Z, by: claude}
   R18:
     status: backlog
     trace:
@@ -246,7 +260,7 @@ requirements:
       tests:
         - crates/bitacora-core/tests/editor_history.rs#typing_coalesces_within_the_gap_and_splits_after_it
         - crates/bitacora-core/tests/editor_history.rs#word_boundary_after_a_pause_and_structural_ops_break_the_run
-    verified: {rev: "sha256:ea30ff14ee99827c", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
+    verified: {rev: "sha256:ea30ff14ee99827c", commit: b12ad4e73162bfd64905c054c5a1e0d13ae4916e, at: 2026-10-06T22:36:02Z, by: claude}
   R19:
     status: backlog
     trace:
@@ -258,6 +272,7 @@ requirements:
         - crates/bitacora-app/src/editor/tests.rs#zoom_in_re_roots_the_view_with_a_breadcrumb_and_changes_no_file
         - crates/bitacora-app/src/editor/tests.rs#alt_arrows_zoom_and_ctrl_semicolon_toggles_all
         - crates/bitacora-app/src/editor/tests.rs#row_callbacks_zoom_fold_and_toggle_done
+    verified: {rev: "sha256:a1abd6c679af329d", commit: b12ad4e73162bfd64905c054c5a1e0d13ae4916e, at: 2026-10-06T22:36:02Z, by: claude}
   R20:
     status: backlog
     trace:

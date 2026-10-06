@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [mcp, api]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T21:59:48Z
+updated: 2026-10-06T22:36:25Z
 requirements:
   R1:
     status: backlog
@@ -19,13 +19,13 @@ requirements:
       tests:
         - crates/bitacora-mcp/tests/http.rs
         - crates/bitacora-app/src/session.rs#mcp_endpoint_starts_when_a_token_file_is_given
-    verified: {rev: "sha256:dc80ed2bd67a10a2", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
+    verified: {rev: "sha256:dc80ed2bd67a10a2", commit: b12ad4e73162bfd64905c054c5a1e0d13ae4916e, at: 2026-10-06T22:36:02Z, by: claude}
   R2:
     status: backlog
     trace:
       code: [crates/bitacora-mcp/src/server.rs]
       tests: [crates/bitacora-mcp/tests/http.rs]
-    verified: {rev: "sha256:4bed8046d1a7dcfa", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
+    verified: {rev: "sha256:4bed8046d1a7dcfa", commit: b12ad4e73162bfd64905c054c5a1e0d13ae4916e, at: 2026-10-06T22:36:02Z, by: claude}
   R3:
     status: backlog
     trace:
@@ -82,7 +82,7 @@ requirements:
         - crates/bitacora-runtime/tests/mcp_write.rs#update_block_reaches_disk_index_audit_and_undo_restores_exact_bytes
         - crates/bitacora-runtime/tests/mcp_write.rs#agent_write_is_committed_by_sync_as_kind_agent_with_the_token_name
         - crates/bitacora-sync/tests/sync_engine.rs#agent_writes_are_committed_as_kind_agent_with_the_client_trailer
-    verified: {rev: "sha256:a533edfbc6042578", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
+    verified: {rev: "sha256:a533edfbc6042578", commit: b12ad4e73162bfd64905c054c5a1e0d13ae4916e, at: 2026-10-06T22:36:02Z, by: claude}
   R8:
     status: backlog
     trace:
@@ -98,9 +98,10 @@ requirements:
         - crates/bitacora-runtime/tests/mcp_write.rs#audit_covers_reads_and_auth_failures_and_survives_restart
         - crates/bitacora-runtime/tests/mcp_write.rs#insert_move_properties_status_remove_and_group_undo
         - crates/bitacora-runtime/tests/mcp_write.rs#a_multi_block_insert_undoes_as_one_step
-        - crates/bitacora-app/src/views/agent_activity.rs#tests
+        - crates/bitacora-app/src/views/agent_activity.rs#filters_combine_and_undo_is_only_enabled_for_live_writes
+        - crates/bitacora-app/src/views/agent_activity.rs#the_view_lists_filters_and_enables_undo_per_entry
         - crates/bitacora-app/src/editor/tests.rs#the_edited_block_is_reported_busy_to_the_mcp_gate
-    verified: {rev: "sha256:f0d581e75e42d718", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
+    verified: {rev: "sha256:f0d581e75e42d718", commit: b12ad4e73162bfd64905c054c5a1e0d13ae4916e, at: 2026-10-06T22:36:02Z, by: claude}
   R9:
     status: backlog
     trace:
@@ -109,7 +110,7 @@ requirements:
         - crates/bitacora-mcp/src/bridge.rs#resolve
       tests:
         - crates/bitacora-runtime/tests/mcp_write.rs#optimistic_concurrency_and_validation_errors
-    verified: {rev: "sha256:bfddc10d2d02fae7", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
+    verified: {rev: "sha256:bfddc10d2d02fae7", commit: b12ad4e73162bfd64905c054c5a1e0d13ae4916e, at: 2026-10-06T22:36:02Z, by: claude}
   R10:
     status: backlog
     trace:
@@ -118,7 +119,7 @@ requirements:
         - crates/bitacora-mcp/src/policy.rs#WriteGate
       tests:
         - crates/bitacora-mcp/src/bridge.rs#busy_and_conflicted_blocks_refuse_writes_and_write_nothing
-    verified: {rev: "sha256:b54d5f700e5b19ce", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
+    verified: {rev: "sha256:b54d5f700e5b19ce", commit: b12ad4e73162bfd64905c054c5a1e0d13ae4916e, at: 2026-10-06T22:36:02Z, by: claude}
   R11:
     status: backlog
     trace:
@@ -132,7 +133,7 @@ requirements:
         - crates/bitacora-mcp/tests/read_tools.rs
         - crates/bitacora-mcp/tests/read_tools.rs#query_tool_routes_simple_and_advanced_queries
         - crates/bitacora-cli/src/cmd/serve_tests.rs
-    verified: {rev: "sha256:29e275453b975084", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
+    verified: {rev: "sha256:29e275453b975084", commit: b12ad4e73162bfd64905c054c5a1e0d13ae4916e, at: 2026-10-06T22:36:02Z, by: claude}
   R12:
     status: backlog
     trace:
@@ -144,7 +145,7 @@ requirements:
         - crates/bitacora-runtime/tests/mcp_write.rs#insert_move_properties_status_remove_and_group_undo
         - crates/bitacora-runtime/tests/mcp_write.rs#create_page_append_today_rename_with_links_delete_and_undo
         - crates/bitacora-runtime/tests/mcp_write.rs#toggles_scopes_catalogue_rate_limit_and_protected_pages
-    verified: {rev: "sha256:2f63eb7571812462", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
+    verified: {rev: "sha256:2f63eb7571812462", commit: b12ad4e73162bfd64905c054c5a1e0d13ae4916e, at: 2026-10-06T22:36:02Z, by: claude}
   R13:
     status: backlog
     trace:
@@ -155,7 +156,7 @@ requirements:
         - crates/bitacora-mcp/src/bridge.rs
         - crates/bitacora-mcp/src/write_tools.rs
         - crates/bitacora-runtime/tests/mcp_write.rs#optimistic_concurrency_and_validation_errors
-    verified: {rev: "sha256:c098df5463e537f0", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
+    verified: {rev: "sha256:c098df5463e537f0", commit: b12ad4e73162bfd64905c054c5a1e0d13ae4916e, at: 2026-10-06T22:36:02Z, by: claude}
   R14:
     status: backlog
     trace:
@@ -165,7 +166,7 @@ requirements:
       tests:
         - crates/bitacora-mcp/src/policy.rs
         - crates/bitacora-runtime/tests/mcp_write.rs#toggles_scopes_catalogue_rate_limit_and_protected_pages
-    verified: {rev: "sha256:f62456ef79b098d1", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
+    verified: {rev: "sha256:f62456ef79b098d1", commit: b12ad4e73162bfd64905c054c5a1e0d13ae4916e, at: 2026-10-06T22:36:02Z, by: claude}
   R15:
     status: backlog
     trace:
@@ -176,7 +177,7 @@ requirements:
       tests:
         - crates/bitacora-mcp/tests/read_tools.rs#resources_templates_read_and_confinement
         - crates/bitacora-runtime/tests/mcp_write.rs#catalogue_has_no_shell_or_raw_path_tools
-    verified: {rev: "sha256:57c26e5f84902468", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
+    verified: {rev: "sha256:57c26e5f84902468", commit: b12ad4e73162bfd64905c054c5a1e0d13ae4916e, at: 2026-10-06T22:36:02Z, by: claude}
   R16:
     status: backlog
     trace:
@@ -186,7 +187,7 @@ requirements:
       tests:
         - crates/bitacora-mcp/tests/read_tools.rs#tools_list_declares_schemas_and_read_only_hints
         - crates/bitacora-mcp/src/render.rs
-    verified: {rev: "sha256:d0b276131cc45046", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
+    verified: {rev: "sha256:d0b276131cc45046", commit: b12ad4e73162bfd64905c054c5a1e0d13ae4916e, at: 2026-10-06T22:36:02Z, by: claude}
   R17:
     status: backlog
     trace:
@@ -196,7 +197,7 @@ requirements:
       tests:
         - crates/bitacora-mcp/tests/read_tools.rs#tools_list_declares_schemas_and_read_only_hints
         - crates/bitacora-runtime/tests/mcp_write.rs#compat_api_is_off_by_default_and_audited_when_on
-    verified: {rev: "sha256:a4a1f173c3c618fb", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
+    verified: {rev: "sha256:a4a1f173c3c618fb", commit: b12ad4e73162bfd64905c054c5a1e0d13ae4916e, at: 2026-10-06T22:36:02Z, by: claude}
   R18:
     status: backlog
     trace:
@@ -206,13 +207,13 @@ requirements:
       tests:
         - crates/bitacora-mcp/tests/read_tools.rs#resources_templates_read_and_confinement
         - crates/bitacora-mcp/tests/read_tools.rs#page_changes_notify_subscribed_resources_within_two_seconds
-    verified: {rev: "sha256:2446d9ac50f7a314", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
+    verified: {rev: "sha256:2446d9ac50f7a314", commit: b12ad4e73162bfd64905c054c5a1e0d13ae4916e, at: 2026-10-06T22:36:02Z, by: claude}
   R19:
     status: backlog
     trace:
       code: [crates/bitacora-mcp/src/prompts.rs]
       tests: [crates/bitacora-mcp/tests/read_tools.rs#prompts_list_and_get]
-    verified: {rev: "sha256:89ad5efb1f22edf8", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
+    verified: {rev: "sha256:89ad5efb1f22edf8", commit: b12ad4e73162bfd64905c054c5a1e0d13ae4916e, at: 2026-10-06T22:36:02Z, by: claude}
   R20:
     status: backlog
     trace:
@@ -220,7 +221,7 @@ requirements:
         - crates/bitacora-mcp/src/handler.rs
         - crates/bitacora-mcp/src/server.rs
       tests: [crates/bitacora-mcp/tests/http.rs]
-    verified: {rev: "sha256:9fbc02ac35cbf054", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
+    verified: {rev: "sha256:9fbc02ac35cbf054", commit: b12ad4e73162bfd64905c054c5a1e0d13ae4916e, at: 2026-10-06T22:36:02Z, by: claude}
 ---
 
 ## Purpose
