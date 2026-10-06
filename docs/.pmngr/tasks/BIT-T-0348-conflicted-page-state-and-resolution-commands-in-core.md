@@ -2,7 +2,7 @@
 id: BIT-T-0348
 type: task
 title: Conflicted page state and resolution commands in core
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0070
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-core, io]
 estimate: 3
 created: 2026-10-06T14:34:14Z
-updated: 2026-10-06T14:34:14Z
+updated: 2026-10-06T19:42:48Z
+closed: 2026-10-06T19:42:48Z
 ---
 
 ## Description

@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [core, io]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T18:52:46Z
+updated: 2026-10-06T19:43:05Z
 requirements:
   R1:
     status: backlog
@@ -98,12 +98,42 @@ requirements:
         - crates/bitacora-watch/tests/watch.rs
   R13:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-core/src/editor/external.rs
+        - crates/bitacora-core/src/editor/model.rs
+        - crates/bitacora-core/src/queue.rs
+      tests:
+        - crates/bitacora-core/tests/external_changes.rs
+        - crates/bitacora-runtime/tests/external.rs
   R14:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-core/src/editor/external.rs
+        - crates/bitacora-core/src/queue.rs
+      tests: [crates/bitacora-core/tests/external_changes.rs]
   R15:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-core/src/editor/external.rs
+        - crates/bitacora-core/src/editor/flush.rs
+        - crates/bitacora-core/src/queue.rs
+        - crates/bitacora-runtime/src/session.rs
+      tests:
+        - crates/bitacora-core/tests/external_changes.rs
+        - crates/bitacora-runtime/tests/external.rs
   R16:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-core/src/editor/external.rs
+        - crates/bitacora-core/src/editor/flush.rs
+        - crates/bitacora-core/src/queue.rs
+      tests:
+        - crates/bitacora-core/tests/external_changes.rs
+        - crates/bitacora-runtime/tests/external.rs
 ---
 
 ## Purpose
