@@ -55,6 +55,12 @@ pub enum RuntimeError {
     /// The sync engine could not start (e.g. the graph is not a git repository).
     #[error("sync: {0}")]
     Sync(String),
+    /// Page history could not be read.
+    #[error("history: {0}")]
+    History(String),
+    /// A restore could not be applied.
+    #[error("restore: {0}")]
+    Restore(String),
     /// A command queue request failed.
     #[error(transparent)]
     Queue(#[from] QueueError),
