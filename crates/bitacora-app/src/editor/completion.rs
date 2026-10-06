@@ -8,6 +8,7 @@ use std::ops::Range;
 use bitacora_core::editor::{CompletionProvider, PageSuggestion, page_candidates};
 use bitacora_index::search::{Scope, SearchHit, SearchOptions};
 
+use super::commands::{self, Command};
 use crate::data::GraphHandle;
 
 /// Candidates shown at once.
@@ -41,6 +42,20 @@ pub enum Trigger {
         /// End of the `))` that follows the caret, if any.
         close: Option<usize>,
     },
+    /// `/query`: the slash command menu (BIT-US-0105). The query may hold spaces.
+    Slash {
+        /// Offset of `/`.
+        start: usize,
+        /// Text typed after `/`.
+        query: String,
+    },
+    /// `<query`: the block command menu.
+    Angle {
+        /// Offset of `<`.
+        start: usize,
+        /// Text typed after `<`.
+        query: String,
+    },
 }
 
 impl Trigger {
@@ -48,9 +63,11 @@ impl Trigger {
     #[must_use]
     pub fn start(&self) -> usize {
         match self {
-            Self::Page { start, .. } | Self::Tag { start, .. } | Self::Block { start, .. } => {
-                *start
-            }
+            Self::Page { start, .. }
+            | Self::Tag { start, .. }
+            | Self::Block { start, .. }
+            | Self::Slash { start, .. }
+            | Self::Angle { start, .. } => *start,
         }
     }
 
@@ -58,7 +75,11 @@ impl Trigger {
     #[must_use]
     pub fn query(&self) -> &str {
         match self {
-            Self::Page { query, .. } | Self::Tag { query, .. } | Self::Block { query, .. } => query,
+            Self::Page { query, .. }
+            | Self::Tag { query, .. }
+            | Self::Block { query, .. }
+            | Self::Slash { query, .. }
+            | Self::Angle { query, .. } => query,
         }
     }
 
@@ -70,7 +91,9 @@ impl Trigger {
             Self::Page { start, close, .. } | Self::Block { start, close, .. } => {
                 *start..close.unwrap_or(cursor)
             }
-            Self::Tag { start, .. } => *start..cursor,
+            Self::Tag { start, .. } | Self::Slash { start, .. } | Self::Angle { start, .. } => {
+                *start..cursor
+            }
         }
     }
 }
@@ -132,7 +155,54 @@ pub fn detect(text: &str, cursor: usize) -> Option<Trigger> {
             });
         }
     }
-    found.filter(|t| !t.query().is_empty())
+    let found = found.filter(|t| !t.query().is_empty());
+    if found.is_some() {
+        return found;
+    }
+    command_trigger(text, cursor)
+}
+
+/// Longest query the command menus keep open for.
+const MAX_COMMAND_QUERY: usize = 32;
+
+/// `/query` or `<query` at a word start on the caret's line. A `/` query may hold spaces (the
+/// menu closes by itself once nothing matches) but never starts with one.
+fn command_trigger(text: &str, cursor: usize) -> Option<Trigger> {
+    let before = &text[..cursor];
+    let line_start = before.rfind('\n').map_or(0, |i| i + 1);
+    let line = &before[line_start..];
+    let word_start = |at: usize| at == 0 || line[..at].ends_with(char::is_whitespace);
+    let slash = line
+        .rfind('/')
+        .filter(|i| word_start(*i))
+        .map(|i| (line_start + i, line[i + 1..].to_owned(), true));
+    let angle = line
+        .rfind('<')
+        .filter(|i| word_start(*i))
+        .map(|i| (line_start + i, line[i + 1..].to_owned(), false));
+    // The later opener wins.
+    let (start, query, is_slash) = match (slash, angle) {
+        (Some(s), Some(a)) => {
+            if s.0 > a.0 {
+                s
+            } else {
+                a
+            }
+        }
+        (Some(s), None) => s,
+        (None, Some(a)) => a,
+        (None, None) => return None,
+    };
+    if query.len() > MAX_COMMAND_QUERY || query.starts_with(char::is_whitespace) {
+        return None;
+    }
+    if is_slash {
+        Some(Trigger::Slash { start, query })
+    } else if query.contains(char::is_whitespace) || query.starts_with('%') {
+        None
+    } else {
+        Some(Trigger::Angle { start, query })
+    }
 }
 
 /// The text a page choice inserts for `trigger`.
@@ -170,6 +240,13 @@ pub enum Item {
         /// First line of the block.
         text: String,
     },
+    /// A slash or angle command.
+    Command(Command),
+    /// A template of the graph (`/template` list).
+    Template {
+        /// Name (`template:: name`).
+        name: String,
+    },
 }
 
 impl Item {
@@ -183,6 +260,8 @@ impl Item {
             } => title.clone(),
             Self::Page { title, .. } => format!("New page: {title}"),
             Self::Block { page, text, .. } => format!("{text}  ({page})"),
+            Self::Command(c) => c.label.to_owned(),
+            Self::Template { name } => name.clone(),
         }
     }
 }
@@ -276,6 +355,17 @@ pub fn candidates(
                 })
                 .collect()
         }
+        Trigger::Slash { query, .. } => match commands::template_query(query) {
+            Some(q) => template_items(handle, q),
+            None => commands::filter(commands::SLASH, query)
+                .into_iter()
+                .map(Item::Command)
+                .collect(),
+        },
+        Trigger::Angle { query, .. } => commands::filter(commands::ANGLE, query)
+            .into_iter()
+            .map(Item::Command)
+            .collect(),
         Trigger::Block { query, .. } => provider
             .search_blocks(query, MAX_ITEMS * 3)
             .into_iter()
@@ -288,6 +378,27 @@ pub fn candidates(
             })
             .collect(),
     }
+}
+
+/// Templates of the graph matching `query`, best first.
+fn template_items(handle: &GraphHandle, query: &str) -> Vec<Item> {
+    let mut names: Vec<String> = handle
+        .reader
+        .templates()
+        .unwrap_or_default()
+        .into_iter()
+        .map(|(name, _)| name)
+        .collect();
+    names.dedup_by(|a, b| a.eq_ignore_ascii_case(b));
+    let mut scored: Vec<(i32, String)> = names
+        .into_iter()
+        .filter_map(|n| commands::fuzzy_score(query, &n).map(|s| (s, n)))
+        .collect();
+    scored.sort_by_key(|a| std::cmp::Reverse(a.0));
+    scored
+        .into_iter()
+        .map(|(_, name)| Item::Template { name })
+        .collect()
 }
 
 #[cfg(test)]
@@ -349,8 +460,50 @@ mod tests {
     }
 
     #[test]
+    fn command_triggers_need_a_word_start() {
+        let t = detect("/", 1).expect("slash");
+        assert_eq!(
+            t,
+            Trigger::Slash {
+                start: 0,
+                query: String::new()
+            }
+        );
+        let t = detect("note /todo", 10).expect("slash");
+        assert_eq!(t.start(), 5);
+        assert_eq!(t.query(), "todo");
+        assert_eq!(t.replace_range(10), 5..10);
+        // Spaces stay in a slash query, but not at its start.
+        assert_eq!(detect("/page ref", 9).expect("slash").query(), "page ref");
+        assert_eq!(detect("/ x", 3), None);
+        // Not at a word start, or on another line.
+        assert_eq!(detect("and/or", 6), None);
+        assert_eq!(detect("http://x", 8), None);
+        assert_eq!(detect("/a\nb", 5), None);
+        let t = detect("<qu", 3).expect("angle");
+        assert_eq!(
+            t,
+            Trigger::Angle {
+                start: 0,
+                query: "qu".into()
+            }
+        );
+        assert_eq!(detect("<a b", 4), None);
+        assert_eq!(detect("a<b", 3), None);
+        // A page reference wins over a slash inside it.
+        assert!(matches!(detect("[[a /b", 6), Some(Trigger::Page { .. })));
+    }
+
+    #[test]
     fn never_panics_on_multibyte_text() {
-        for text in ["\u{e9}[[\u{e9}", "#\u{6f22}", "((\u{1f600}", "[[\u{6f22}]]"] {
+        for text in [
+            "\u{e9}[[\u{e9}",
+            "#\u{6f22}",
+            "((\u{1f600}",
+            "[[\u{6f22}]]",
+            "/\u{6f22}\u{e9}",
+            "<\u{1f600}",
+        ] {
             for (i, _) in text.char_indices().chain([(text.len(), ' ')]) {
                 let _ = detect(text, i);
             }

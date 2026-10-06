@@ -40,7 +40,9 @@ pub use external::{
 };
 pub use flush::{FileStat, FileStore, FlushReport, FsStore, MemStore, TakeDisk, WrittenFile};
 pub use history::{History, HistoryConfig, HistoryError, HistoryStep};
-pub use lifecycle::{DayRollover, LifecycleError, Opened, auto_title_preamble, new_page_path};
+pub use lifecycle::{
+    DayRollover, LifecycleError, Opened, TemplateContext, auto_title_preamble, new_page_path,
+};
 pub use model::{
     Block, BlockId, DiskSnapshot, IdGen, ModelError, Origin, Page, Position, Serialized, Subtree,
     text_hash, text_is_representable,

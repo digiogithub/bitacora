@@ -352,6 +352,19 @@ pub(super) fn insert_blocks(
     blocks: &[ClipBlock],
     keep_uuids: bool,
 ) -> Result<Planned, Refusal> {
+    insert_blocks_with(ws, target, sibling, blocks, keep_uuids, false)
+}
+
+/// `force_replace`: the target counts as empty (its remaining text is blank) even though its
+/// current text is not.
+fn insert_blocks_with(
+    ws: &Workspace,
+    target: BlockId,
+    sibling: Option<bool>,
+    blocks: &[ClipBlock],
+    keep_uuids: bool,
+    force_replace: bool,
+) -> Result<Planned, Refusal> {
     if blocks.is_empty() {
         return Err(Refusal::EmptySelection);
     }
@@ -370,7 +383,7 @@ pub(super) fn insert_blocks(
     for c in blocks {
         trees.push(b.subtree(c)?);
     }
-    let replace = is_blank(&t.text) && t.uuid.is_none() && t.children.is_empty();
+    let replace = (force_replace || is_blank(&t.text)) && t.uuid.is_none() && t.children.is_empty();
     let mut ops = Vec::new();
     let (parent, index) = if replace {
         (pos.parent, pos.index)
@@ -402,6 +415,46 @@ pub(super) fn insert_blocks(
         selection: end..end,
     });
     Ok(Planned { ops, cursor_after })
+}
+
+/// Template insertion (BIT-US-0105): removes the trigger text and inserts the expanded template
+/// as one transaction. A block left empty by the removal is replaced by the template.
+pub(super) fn insert_template(
+    ws: &Workspace,
+    target: BlockId,
+    trigger: &Range<usize>,
+    name: &str,
+    ctx: &super::lifecycle::TemplateContext,
+) -> Result<Planned, Refusal> {
+    let blocks = ws
+        .template_blocks(name, ctx)
+        .filter(|b| !b.is_empty())
+        .ok_or(Refusal::NothingApplicable)?;
+    let t = ws.block(target).ok_or(Refusal::UnknownBlock(target))?;
+    if trigger.end > t.text.len()
+        || !t.text.is_char_boundary(trigger.start)
+        || !t.text.is_char_boundary(trigger.end)
+    {
+        return Err(Refusal::BadCursor);
+    }
+    let mut rest = t.text.clone();
+    rest.replace_range(trigger.clone(), "");
+    let blank_after = is_blank(&rest);
+    let mut planned = insert_blocks_with(ws, target, None, &blocks, false, blank_after)?;
+    if !blank_after && !trigger.is_empty() {
+        // Spaces the trigger leaves at the end of the text go with it.
+        let mut cut = trigger.clone();
+        if cut.end == t.text.len() {
+            while cut.start > 0 && t.text[..cut.start].ends_with(' ') {
+                cut.start -= 1;
+            }
+        }
+        let removal = super::split::edit_text(ws, target, &cut, "")?;
+        let mut ops = removal.ops;
+        ops.append(&mut planned.ops);
+        planned.ops = ops;
+    }
+    Ok(planned)
 }
 
 pub(super) fn paste_text(

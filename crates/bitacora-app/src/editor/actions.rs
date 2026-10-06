@@ -7,6 +7,7 @@
 //! | `BlockSelection` | blocks are selected (no text caret) | Shift+Up/Down, Backspace |
 //! | `BlockEditor` | one block is in edit mode | Enter, Tab, arrows |
 //! | `Autocomplete` | a completion popup is open | Enter, Up/Down, Esc |
+//! | `DatePicker` | the calendar popup is open (with `Autocomplete`) | Left/Right |
 //!
 //! Precedence is `Autocomplete` > `BlockEditor` > `BlockSelection` > `Outliner`: a focused outline
 //! sets the context to `Outliner` plus the mode it is in, and the keymap lists the more specific
@@ -77,6 +78,9 @@ actions!(
         CompletionNext,
         CompletionPrevious,
         DismissCompletion,
+        // Calendar popup (`/date picker`, `/scheduled`, `/deadline`).
+        PickerPreviousDay,
+        PickerNextDay,
     ]
 );
 

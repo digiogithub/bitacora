@@ -13,8 +13,8 @@ use std::ops::Range;
 use bitacora_markdown::edit::identity::ensure_block_id;
 use uuid::Uuid;
 
-use super::cmd::{Cmd, Planned, Refusal, check_writable, set_text};
-use super::model::BlockId;
+use super::cmd::{Cmd, Planned, Refusal, Target, check_writable, set_text};
+use super::model::{BlockId, Subtree};
 use super::op::Op;
 use super::tx::{CommitError, CursorState, Transaction};
 use super::workspace::Workspace;
@@ -277,6 +277,49 @@ pub(super) fn ensure_uuid(
     let u = uuid.unwrap_or_else(|| fresh_uuid(ws));
     let (text, _) = ensure_block_id(&b.text, u, false).map_err(|_| Refusal::NothingApplicable)?;
     Ok(vec![set_text(ws, id, text)?])
+}
+
+/// Alt-drop: ensures `source` has an `id::` and adds a block `((uuid))` at `target`.
+pub(super) fn drop_block_ref(
+    ws: &Workspace,
+    source: BlockId,
+    target: Target,
+) -> Result<Planned, Refusal> {
+    let src = ws.block(source).ok_or(Refusal::UnknownBlock(source))?;
+    let anchor = match target {
+        Target::Before(t) | Target::After(t) | Target::FirstChild(t) | Target::LastChild(t) => t,
+    };
+    let apos = ws
+        .position_of(anchor)
+        .ok_or(Refusal::UnknownBlock(anchor))?;
+    check_writable(ws, &apos.page)?;
+    let mut ops = Vec::new();
+    let uuid = if let Some(u) = src.uuid {
+        u
+    } else {
+        let u = fresh_uuid(ws);
+        ops.extend(ensure_uuid(ws, source, Some(u))?);
+        u
+    };
+    let (parent, index) = match target {
+        Target::Before(_) => (apos.parent, apos.index),
+        Target::After(_) => (apos.parent, apos.index + 1),
+        Target::FirstChild(_) => (Some(anchor), 0),
+        Target::LastChild(_) => (
+            Some(anchor),
+            ws.block(anchor).map_or(0, |b| b.children.len()),
+        ),
+    };
+    ops.push(Op::InsertSubtree {
+        page: apos.page,
+        parent,
+        index,
+        subtree: Subtree::new(ws.alloc_id(), block_ref_text(uuid)),
+    });
+    Ok(Planned {
+        ops,
+        cursor_after: None,
+    })
 }
 
 pub(super) fn insert_block_ref(

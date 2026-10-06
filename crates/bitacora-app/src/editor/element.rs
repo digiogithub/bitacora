@@ -187,15 +187,94 @@ impl Element for BlockTextElement {
     }
 }
 
-/// The completion popup under the caret column, when one is open.
+/// The popup under the caret column: the completion list or the calendar.
 #[derive(Debug, Clone)]
 pub struct PopupData {
-    /// Candidate labels.
+    /// Candidate labels (a window of the list).
     pub labels: Vec<String>,
-    /// Highlighted candidate.
+    /// Highlighted candidate inside `labels`.
     pub selected: usize,
+    /// Index of the first label in the whole candidate list.
+    pub first: usize,
     /// Caret column inside the text area.
     pub x: Pixels,
+    /// The calendar to show instead of the list.
+    pub calendar: Option<Entity<crate::ui::calendar::CalendarState>>,
+}
+
+const MONTHS: [&str; 12] = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+];
+const WEEKDAYS: [&str; 7] = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+
+fn calendar_view(
+    state: &Entity<crate::ui::calendar::CalendarState>,
+    theme: &crate::ui::theme::Theme,
+) -> impl crate::ui::IntoElement {
+    use crate::ui::calendar::{Calendar, CalendarItemKind};
+    let theme = theme.clone();
+    Calendar::new("slash-calendar", state)
+        .label(|kind, value| match kind {
+            CalendarItemKind::Weekday => WEEKDAYS
+                .get(usize::try_from(value).unwrap_or(0) % 7)
+                .copied()
+                .unwrap_or("")
+                .into(),
+            CalendarItemKind::MonthToggle => MONTHS
+                .get(usize::try_from(value - 1).unwrap_or(0) % 12)
+                .copied()
+                .unwrap_or("")
+                .into(),
+            CalendarItemKind::Month => MONTHS
+                .get(usize::try_from(value - 1).unwrap_or(0) % 12)
+                .map_or("", |m| &m[..3])
+                .into(),
+            CalendarItemKind::Previous => "\u{2039}".into(),
+            CalendarItemKind::Next => "\u{203a}".into(),
+            _ => value.to_string().into(),
+        })
+        .item(move |item, st, _, _| {
+            let day = matches!(
+                st.kind(),
+                CalendarItemKind::Day | CalendarItemKind::Month | CalendarItemKind::Year
+            );
+            let base = item
+                .flex()
+                .items_center()
+                .justify_center()
+                .h(px(26.))
+                .rounded(px(4.))
+                .text_sm()
+                .min_w(px(if day { 30. } else { 26. }));
+            let styled = if st.is_active() {
+                base.bg(theme.primary).text_color(theme.primary_foreground)
+            } else if st.kind() == CalendarItemKind::Weekday || st.is_muted() {
+                base.text_color(theme.muted_foreground)
+            } else if st.is_today() {
+                base.border_1().border_color(theme.primary)
+            } else {
+                base
+            };
+            if st.is_disabled() {
+                styled.into_any_element()
+            } else {
+                styled
+                    .cursor_pointer()
+                    .hover(|d| d.bg(theme.selection))
+                    .into_any_element()
+            }
+        })
 }
 
 fn completion_popup(
@@ -206,8 +285,30 @@ fn completion_popup(
     let PopupData {
         labels: items,
         selected,
+        first,
         x,
+        calendar,
     } = data?;
+    if let Some(state) = calendar {
+        let panel = v_flex()
+            .absolute()
+            .top_full()
+            .left(x.max(px(0.)))
+            .mt_1()
+            .p_2()
+            .w(px(240.))
+            .rounded(px(6.))
+            .border_1()
+            .border_color(theme.border)
+            .bg(theme.background)
+            .shadow_md()
+            .child(calendar_view(&state, theme));
+        return Some(
+            crate::ui::deferred(panel)
+                .with_priority(1)
+                .into_any_element(),
+        );
+    }
     let mut list = v_flex()
         .absolute()
         .top_full()
@@ -224,6 +325,7 @@ fn completion_popup(
         .py_1();
     for (ix, label) in items.into_iter().enumerate() {
         let ed = editor.clone();
+        let absolute = first + ix;
         list = list.child(
             div()
                 .id(("completion", ix))
@@ -236,7 +338,7 @@ fn completion_popup(
                 .child(label)
                 .on_mouse_down(MouseButton::Left, move |_, window, cx| {
                     cx.stop_propagation();
-                    ed.update(cx, |this, cx| this.accept_completion(ix, window, cx));
+                    ed.update(cx, |this, cx| this.accept_completion(absolute, window, cx));
                 }),
         );
     }

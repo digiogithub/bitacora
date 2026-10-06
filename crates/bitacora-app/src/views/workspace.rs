@@ -549,8 +549,13 @@ impl Workspace {
         let Some(link) = self.link.clone() else {
             return;
         };
+        let handle = self.handle.clone();
         cx.background_spawn(async move {
-            if let Err(err) = graph_ops::ensure_today(&link.queue, &link.config, day) {
+            let result = match &handle {
+                Some(h) => graph_ops::ensure_today_templated(&link.queue, h, &link.config, day),
+                None => graph_ops::ensure_today(&link.queue, &link.config, day),
+            };
+            if let Err(err) = result {
                 tracing::warn!("cannot prepare today's journal: {err}");
             }
         })

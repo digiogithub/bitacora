@@ -216,6 +216,8 @@ fn pair(depth: usize, text: &str) -> (usize, String) {
     (depth, text.to_owned())
 }
 
+mod slash_tests;
+
 const HOME: &str = "pages/Home.md";
 
 #[gpui_test]

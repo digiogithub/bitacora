@@ -245,3 +245,21 @@ fn backlink_counts_search_and_mentions_back_the_app_views() {
             .is_empty()
     );
 }
+
+#[test]
+fn templates_are_listed_by_name_with_their_page() {
+    let fx = indexed(&[
+        (
+            "pages/Tpl.md",
+            "- Meeting\n  template:: meeting\n  - child\n- Standup\n  template:: Daily\n",
+        ),
+        ("pages/Other.md", "- plain\n"),
+    ]);
+    assert_eq!(
+        fx.reader.templates().expect("templates"),
+        vec![
+            ("Daily".to_owned(), "Tpl".to_owned()),
+            ("meeting".to_owned(), "Tpl".to_owned())
+        ]
+    );
+}
