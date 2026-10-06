@@ -2566,14 +2566,11 @@ pub fn merge_description(preview: &graph_ops::MergePreview, from: &str) -> Strin
     .to_string();
     if !preview.dropped_aliases.is_empty() {
         text.push(' ');
-        text.push_str(
-            &t!(
-                "rename.merge_aliases",
-                from = from,
-                aliases = preview.dropped_aliases.join(", ")
-            )
-            .to_string(),
-        );
+        text.push_str(&t!(
+            "rename.merge_aliases",
+            from = from,
+            aliases = preview.dropped_aliases.join(", ")
+        ));
     }
     text
 }

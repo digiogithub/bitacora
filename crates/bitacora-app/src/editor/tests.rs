@@ -1407,7 +1407,7 @@ fn dropping_files_on_a_block_saves_assets_and_links_them(cx: &mut TestAppContext
     std::fs::write(&doc, [9u8, 9]).expect("doc");
     let (_view, ed, cx) = open_page(cx, &env, "Home");
     ed.update_in(cx, |e, window, cx| {
-        e.drop_files(1, &[doc.clone()], window, cx)
+        e.drop_files(1, std::slice::from_ref(&doc), window, cx)
     });
     wait_for(cx, || env.snapshot_texts("Home")[1].1.contains("assets/"));
     let text = env.snapshot_texts("Home")[1].1.clone();
