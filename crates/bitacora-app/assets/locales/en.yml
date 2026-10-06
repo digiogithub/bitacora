@@ -52,6 +52,7 @@ palette:
   cmd_sync_now: Sync now
   cmd_sync_settings: Sync settings...
   cmd_page_history: Page history...
+  cmd_agent_activity: Agent activity...
   cmd_conflicts: Resolve sync conflicts...
   cmd_clone: Open graph from a remote...
 panel:
@@ -150,6 +151,26 @@ delete:
   asset_kept: "\"%{name}\" is still used by %{count} block(s); the file was kept"
   failed: "Cannot delete: %{error}"
   not_a_page: Open a page first
+activity:
+  title: Agent activity
+  loading: Loading...
+  empty: No agent calls match.
+  pick: Pick an entry to see what the agent did.
+  no_session: Open a graph first
+  writes_only: Writes
+  errors_only: Errors
+  undo: Undo this call
+  undone: The agent's change was undone
+  undone_badge: undone
+  already_undone: Already undone
+  not_a_write: This call did not change the graph
+  no_undo_data: Undo data is gone (the app restarted since the call) or the call failed
+  tool: Tool
+  result: Result
+  client: Client and token
+  args: Arguments
+  pages: Pages
+  affected: Blocks (click to show)
 rename:
   failed: "Cannot rename: %{error}"
   merge_title: "Page \"%{to}\" already exists. Merge \"%{from}\" into it?"

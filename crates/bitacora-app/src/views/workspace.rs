@@ -36,6 +36,7 @@ use crate::ui::{
     Subscription, Task, Window, div, h_flex, px, v_flex,
 };
 use crate::ui::{Level, notify};
+use crate::views::agent_activity::{AgentActivityEvent, AgentActivityView};
 use crate::views::conflicts::{ConflictsEvent, ConflictsView};
 use crate::views::credential_dialog::CredentialDialog;
 use crate::views::disk_conflict::{
@@ -126,6 +127,7 @@ pub struct Workspace {
     credential_dialog: Entity<CredentialDialog>,
     sync_panel: Entity<SyncPanel>,
     history: Entity<HistoryView>,
+    activity: Entity<AgentActivityView>,
     conflicts: Entity<ConflictsView>,
     disk_banner: Entity<DiskConflictBanner>,
     disk_diff: Entity<DiskDiffView>,
@@ -175,6 +177,7 @@ impl Workspace {
         let credential_dialog = cx.new(|cx| CredentialDialog::new(window, cx));
         let sync_panel = cx.new(|_| SyncPanel::new());
         let history = cx.new(|_| HistoryView::new());
+        let activity = cx.new(|_| AgentActivityView::new());
         let conflicts = cx.new(|cx| ConflictsView::new(window, cx));
         let disk_banner = cx.new(|_| DiskConflictBanner::new());
         let disk_diff = cx.new(|_| DiskDiffView::new());
@@ -199,6 +202,17 @@ impl Workspace {
             window,
             |this, _, _: &HistoryEvent, window, cx| {
                 window.focus(&this.focus, cx);
+            },
+        ));
+        subscriptions.push(cx.subscribe_in(
+            &activity,
+            window,
+            |this, _, event: &AgentActivityEvent, window, cx| match event {
+                AgentActivityEvent::Closed => window.focus(&this.focus, cx),
+                AgentActivityEvent::OpenBlock(uuid) => {
+                    this.activity.update(cx, |a, cx| a.close(cx));
+                    this.navigate(Route::Block(uuid.clone()), cx);
+                }
             },
         ));
         subscriptions.push(cx.subscribe_in(&conflicts, window, Self::on_conflicts_event));
@@ -245,6 +259,7 @@ impl Workspace {
             credential_dialog,
             sync_panel,
             history,
+            activity,
             conflicts,
             disk_banner,
             disk_diff,
@@ -1208,6 +1223,7 @@ impl Workspace {
             PaletteCommand::SyncNow => self.sync_now(window, cx),
             PaletteCommand::SyncSettings => self.open_sync_panel(cx),
             PaletteCommand::PageHistory => self.open_history(window, cx),
+            PaletteCommand::AgentActivity => self.open_agent_activity(window, cx),
             PaletteCommand::ResolveConflicts => self.open_conflicts(window, cx),
             PaletteCommand::CloneGraph => self.open_clone_dialog(window, cx),
         }
@@ -1352,6 +1368,24 @@ impl Workspace {
         self.sync_dialog.update(cx, |d, cx| {
             d.open_enable(root, &prefs, Some(hub), window, cx)
         });
+    }
+
+    /// The "Agent activity" overlay entity.
+    pub fn agent_activity(&self) -> &Entity<AgentActivityView> {
+        &self.activity
+    }
+
+    /// Opens "Agent activity": what MCP clients did, with undo (BIT-US-0022).
+    pub fn open_agent_activity(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        match self.session_handle.clone() {
+            Some(handle) => self.activity.update(cx, |a, cx| a.open_with(handle, cx)),
+            None => notify(
+                window,
+                cx,
+                Level::Info,
+                t!("activity.no_session").to_string(),
+            ),
+        }
     }
 
     /// Opens the history of the page on screen.
@@ -1645,6 +1679,8 @@ impl Workspace {
             self.sync_dialog.update(cx, |d, cx| d.close(window, cx));
         } else if self.conflicts.read(cx).is_open() {
             self.conflicts.update(cx, |c, cx| c.close(cx));
+        } else if self.activity.read(cx).is_open() {
+            self.activity.update(cx, |a, cx| a.close(cx));
         } else if self.history.read(cx).is_open() {
             self.history.update(cx, |h, cx| h.close(cx));
         } else if self.sync_panel.read(cx).is_open() {
@@ -1992,6 +2028,7 @@ impl Render for Workspace {
             .child(self.palette.clone())
             .child(self.sync_panel.clone())
             .child(self.history.clone())
+            .child(self.activity.clone())
             .child(self.conflicts.clone())
             .child(self.disk_diff.clone())
             .child(self.sync_dialog.clone())

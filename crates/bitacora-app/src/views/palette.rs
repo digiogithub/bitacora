@@ -107,6 +107,8 @@ pub enum PaletteCommand {
     SyncSettings,
     /// Open the history of the page on screen.
     PageHistory,
+    /// Open the list of what MCP agents did, with undo.
+    AgentActivity,
     /// Open the visual conflict resolver.
     ResolveConflicts,
     /// Open a graph from a git remote (clone).
@@ -117,7 +119,7 @@ pub enum PaletteCommand {
 
 impl PaletteCommand {
     /// Every command, in palette order.
-    pub const ALL: [Self; 16] = [
+    pub const ALL: [Self; 17] = [
         Self::GoJournals,
         Self::GoAllPages,
         Self::GoBack,
@@ -130,6 +132,7 @@ impl PaletteCommand {
         Self::SyncNow,
         Self::SyncSettings,
         Self::PageHistory,
+        Self::AgentActivity,
         Self::ResolveConflicts,
         Self::CloneGraph,
         Self::SwitchGraph,
@@ -152,6 +155,7 @@ impl PaletteCommand {
             Self::SyncNow => t!("palette.cmd_sync_now"),
             Self::SyncSettings => t!("palette.cmd_sync_settings"),
             Self::PageHistory => t!("palette.cmd_page_history"),
+            Self::AgentActivity => t!("palette.cmd_agent_activity"),
             Self::ResolveConflicts => t!("palette.cmd_conflicts"),
             Self::CloneGraph => t!("palette.cmd_clone"),
             Self::CheckForUpdates => t!("update.check_updates"),
@@ -173,6 +177,7 @@ impl PaletteCommand {
             Self::SyncNow => IconName::RefreshCw,
             Self::SyncSettings => IconName::Settings,
             Self::PageHistory => IconName::Undo2,
+            Self::AgentActivity => IconName::Bot,
             Self::ResolveConflicts => IconName::TriangleAlert,
             Self::CloneGraph => IconName::FolderOpen,
             Self::CheckForUpdates => IconName::LoaderCircle,

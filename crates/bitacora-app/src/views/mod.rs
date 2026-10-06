@@ -1,5 +1,6 @@
 //! Views of the main window.
 
+pub mod agent_activity;
 pub mod all_pages;
 pub mod block_view;
 pub mod conflicts;
