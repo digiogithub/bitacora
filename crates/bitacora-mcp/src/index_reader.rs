@@ -427,6 +427,27 @@ impl GraphReader for IndexGraphReader {
         }
     }
 
+    fn block_position(&self, uuid: &str) -> ReaderResult<Option<usize>> {
+        let Some(row) = self.api.block(uuid).map_err(ie)? else {
+            return Ok(None);
+        };
+        let first = self
+            .api
+            .outline(row.page_id, 0, 1, false)
+            .map_err(ie)?
+            .into_iter()
+            .next();
+        let Some(first) = first else {
+            return Ok(None);
+        };
+        let base = if first.is_pre_block {
+            first.ord + 1
+        } else {
+            first.ord
+        };
+        Ok(usize::try_from(row.ord - base).ok())
+    }
+
     fn subtree(&self, uuid: &str) -> ReaderResult<Vec<BlockInfo>> {
         let rows = self.api.subtree(uuid).map_err(ie)?;
         self.blocks(&rows)

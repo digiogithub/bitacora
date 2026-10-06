@@ -716,3 +716,34 @@ fn three_way_convergence_after_interleaved_edits() {
         assert_history_legal(&b.engine);
     }
 }
+
+#[test]
+fn agent_writes_are_committed_as_kind_agent_with_the_client_trailer() {
+    for kind in KINDS {
+        let (_w, mut a, _b) = synced_pair(kind, &[("pages/P.md", PAGE)]);
+        a.write("pages/P.md", "- Alpha by agent\n- Beta\n- Gamma\n");
+        a.engine.note_agent_write("claude-desktop");
+        assert_eq!(a.engine.sync_now(), SyncState::Idle, "{kind:?}");
+        let msg = a.git(&["log", "-1", "--format=%B", "HEAD"]);
+        let parsed = parse_message(&msg);
+        assert_eq!(
+            parsed.kind,
+            Some(bitacora_sync::CommitKind::Agent),
+            "{kind:?}: {msg}"
+        );
+        assert!(
+            msg.contains("Bitacora-Agent: claude-desktop"),
+            "{kind:?}: {msg}"
+        );
+
+        // A later user edit is an ordinary auto commit again.
+        a.write("pages/P.md", "- Alpha by agent\n- Beta by user\n- Gamma\n");
+        assert_eq!(a.engine.sync_now(), SyncState::Idle, "{kind:?}");
+        let msg = a.git(&["log", "-1", "--format=%B", "HEAD"]);
+        assert_eq!(
+            parse_message(&msg).kind,
+            Some(bitacora_sync::CommitKind::Auto),
+            "{kind:?}: {msg}"
+        );
+    }
+}

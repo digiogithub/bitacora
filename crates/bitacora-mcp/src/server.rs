@@ -11,8 +11,12 @@ use rmcp::transport::streamable_http_server::{StreamableHttpServerConfig, Stream
 use tokio::sync::watch;
 
 use crate::Error;
+use crate::audit::{AuditLog, UndoError};
+use crate::bridge::QueueBridge;
+use crate::compat;
 use crate::guard::{GuardState, guard};
 use crate::handler::{BitacoraMcp, Services};
+use crate::policy::{OpenGate, WriteGate, WritePolicy};
 use crate::reader::GraphReader;
 use crate::status::{DisabledSync, SyncStatusProvider};
 use crate::tokens::TokenStore;
@@ -21,7 +25,7 @@ use crate::tokens::TokenStore;
 pub const DEFAULT_PORT: u16 = 12316;
 
 /// Server settings (`mcp.*`, design `mcp-server.md` section 8).
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct McpConfig {
     /// Bind address; must be loopback (`127.0.0.1` or `::1`).
     pub bind: IpAddr,
@@ -31,6 +35,32 @@ pub struct McpConfig {
     pub allowed_origins: Vec<String>,
     /// `true` keeps stateful sessions (`LocalSessionManager`); `false` serves stateless JSON responses.
     pub stateful: bool,
+    /// `mcp.allow_writes`: agents may create and edit (default off). Needs a write pipeline.
+    pub allow_writes: bool,
+    /// `mcp.allow_deletes`: agents may remove blocks and delete or rename pages (default off).
+    pub allow_deletes: bool,
+    /// `mcp.protected_namespaces`: pages under these namespaces refuse agent writes.
+    pub protected_namespaces: Vec<String>,
+    /// Write operations allowed per token and minute (default 60).
+    pub writes_per_minute: usize,
+    /// Serve the optional Logseq-compatible `POST /api` endpoint (default off, `404`).
+    pub api_enabled: bool,
+    /// Directory of the JSONL audit log; `None` keeps the log in memory only.
+    pub audit_dir: Option<std::path::PathBuf>,
+    /// Reports blocks being edited in the UI (`BLOCK_BUSY`); default: none.
+    pub gate: Option<Arc<dyn WriteGate>>,
+}
+
+impl std::fmt::Debug for McpConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("McpConfig")
+            .field("bind", &self.bind)
+            .field("port", &self.port)
+            .field("allow_writes", &self.allow_writes)
+            .field("allow_deletes", &self.allow_deletes)
+            .field("api_enabled", &self.api_enabled)
+            .finish_non_exhaustive()
+    }
 }
 
 impl Default for McpConfig {
@@ -40,6 +70,48 @@ impl Default for McpConfig {
             port: DEFAULT_PORT,
             allowed_origins: Vec::new(),
             stateful: true,
+            allow_writes: false,
+            allow_deletes: false,
+            protected_namespaces: Vec::new(),
+            writes_per_minute: crate::policy::DEFAULT_WRITES_PER_MINUTE,
+            api_enabled: false,
+            audit_dir: None,
+            gate: None,
+        }
+    }
+}
+
+/// Everything a server needs besides its [`McpConfig`].
+pub struct ServerParts {
+    /// Read access to the graph.
+    pub reader: Arc<dyn GraphReader>,
+    /// Sync status source (and `git_sync_now` trigger).
+    pub sync: Arc<dyn SyncStatusProvider>,
+    /// Bearer tokens.
+    pub tokens: Arc<TokenStore>,
+    /// The write pipeline; without it every write tool answers `READ_ONLY`.
+    pub writer: Option<QueueBridge>,
+    /// Reports blocks being edited in the UI (`BLOCK_BUSY`); default: none.
+    pub gate: Option<Arc<dyn WriteGate>>,
+}
+
+impl std::fmt::Debug for ServerParts {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ServerParts")
+            .field("writer", &self.writer.is_some())
+            .finish_non_exhaustive()
+    }
+}
+
+impl ServerParts {
+    /// Read-only parts with no sync and no write pipeline.
+    pub fn read_only(reader: Arc<dyn GraphReader>, tokens: Arc<TokenStore>) -> Self {
+        Self {
+            reader,
+            sync: Arc::new(DisabledSync),
+            tokens,
+            writer: None,
+            gate: None,
         }
     }
 }
@@ -50,6 +122,9 @@ pub struct McpServer {
     addr: SocketAddr,
     shutdown: watch::Sender<bool>,
     tokens: Arc<TokenStore>,
+    policy: Arc<WritePolicy>,
+    audit: Arc<AuditLog>,
+    writer: Option<Arc<QueueBridge>>,
 }
 
 impl std::fmt::Debug for McpServer {
@@ -68,7 +143,7 @@ impl McpServer {
         reader: Arc<dyn GraphReader>,
         tokens: Arc<TokenStore>,
     ) -> Result<Self, Error> {
-        Self::start_with_sync(config, reader, Arc::new(DisabledSync), tokens)
+        Self::start_with(config, ServerParts::read_only(reader, tokens))
     }
 
     /// Like [`start`](Self::start) with a sync status source for `git_sync_status` and
@@ -79,7 +154,47 @@ impl McpServer {
         sync: Arc<dyn SyncStatusProvider>,
         tokens: Arc<TokenStore>,
     ) -> Result<Self, Error> {
-        let services = Arc::new(Services { reader, sync });
+        Self::start_with(
+            config,
+            ServerParts {
+                sync,
+                ..ServerParts::read_only(reader, tokens)
+            },
+        )
+    }
+
+    /// Full constructor: reader, sync, tokens, optional write pipeline and editor gate.
+    pub fn start_with(config: McpConfig, parts: ServerParts) -> Result<Self, Error> {
+        let ServerParts {
+            reader,
+            sync,
+            tokens,
+            writer,
+            gate,
+        } = parts;
+        let writer = writer.map(Arc::new);
+        let policy = Arc::new(
+            WritePolicy::new(
+                config.allow_writes,
+                config.allow_deletes,
+                config.protected_namespaces.clone(),
+            )
+            .with_rate_limit(config.writes_per_minute, std::time::Duration::from_secs(60)),
+        );
+        let audit = Arc::new(match &config.audit_dir {
+            Some(dir) => AuditLog::open(dir)?,
+            None => AuditLog::in_memory(),
+        });
+        let services = Arc::new(Services {
+            reader,
+            sync,
+            writer: writer.clone(),
+            policy: Arc::clone(&policy),
+            gate: gate
+                .or_else(|| config.gate.clone())
+                .unwrap_or_else(|| Arc::new(OpenGate)),
+            audit: Arc::clone(&audit),
+        });
         if !config.bind.is_loopback() {
             return Err(Error::NonLoopbackBind(config.bind));
         }
@@ -116,6 +231,7 @@ impl McpServer {
                 .with_json_response(true)
         };
         let rmcp_cancel = http_config.cancellation_token.clone();
+        let api_services = Arc::clone(&services);
         let mcp = StreamableHttpService::new(
             move || Ok(BitacoraMcp::new(Arc::clone(&services))),
             Arc::new(LocalSessionManager::default()),
@@ -126,14 +242,18 @@ impl McpServer {
             port,
             allowed_origins: Arc::new(config.allowed_origins),
             tokens: Arc::clone(&tokens),
+            audit: Arc::clone(&audit),
         };
-        let router = Router::new()
+        let mut router = Router::new()
             .route(
                 "/health",
                 get(|| async { axum::Json(serde_json::json!({ "ok": true })) }),
             )
-            .nest_service("/mcp", mcp)
-            .layer(from_fn_with_state(state, guard));
+            .nest_service("/mcp", mcp);
+        if config.api_enabled {
+            router = router.merge(compat::router(api_services));
+        }
+        let router = router.layer(from_fn_with_state(state, guard));
 
         let (shutdown, mut rx) = watch::channel(false);
         runtime.spawn(async move {
@@ -154,7 +274,36 @@ impl McpServer {
             addr,
             shutdown,
             tokens,
+            policy,
+            audit,
+            writer,
         })
+    }
+
+    /// The live write policy (toggles, protected namespaces).
+    pub fn policy(&self) -> &Arc<WritePolicy> {
+        &self.policy
+    }
+
+    /// The audit log (list entries, filter by token or tool).
+    pub fn audit(&self) -> &Arc<AuditLog> {
+        &self.audit
+    }
+
+    /// Undoes one audited write through the command queue (one undo step for the user).
+    ///
+    /// # Errors
+    /// [`UndoError`] when the entry is unknown, not a write, already undone, its undo data is gone
+    /// (app restarted) or the blocks changed since.
+    pub fn undo_audit_entry(&self, id: &str) -> Result<(), UndoError> {
+        let data = self.audit.undo_data(id)?;
+        let bridge = self
+            .writer
+            .as_ref()
+            .ok_or_else(|| UndoError::Failed("no write pipeline".into()))?;
+        bridge.undo(&data)?;
+        self.audit.mark_undone(id);
+        Ok(())
     }
 
     /// The bound socket address (resolves port `0`).
