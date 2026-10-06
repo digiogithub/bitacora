@@ -196,7 +196,7 @@ pub fn validate_remote_url(url: &str) -> Result<RemoteKind, FieldError> {
     if lower.starts_with("ssh://") {
         return host_after(url, "://").map(|()| RemoteKind::Ssh);
     }
-    if lower.starts_with("file://") || Path::new(url).is_absolute() {
+    if lower.starts_with("file://") || Path::new(url).is_absolute() || is_rooted_local_path(url) {
         return Ok(RemoteKind::Local);
     }
     // scp-like: `[user@]host:path`, where the part before the colon has no slash.
@@ -209,6 +209,15 @@ pub fn validate_remote_url(url: &str) -> Result<RemoteKind, FieldError> {
         return Ok(RemoteKind::Ssh);
     }
     Err(FieldError::UnsupportedUrl)
+}
+
+/// Rooted paths that `Path::is_absolute` rejects on Windows (`/srv/git`) are still local remotes
+/// there; drive paths and UNC shares are local on Windows only.
+fn is_rooted_local_path(url: &str) -> bool {
+    let b = url.as_bytes();
+    let drive =
+        b.len() >= 3 && b[0].is_ascii_alphabetic() && b[1] == b':' && matches!(b[2], b'/' | b'\\');
+    url.starts_with('/') || (cfg!(windows) && (drive || url.starts_with("\\\\")))
 }
 
 fn host_after(url: &str, marker: &str) -> Result<(), FieldError> {
@@ -474,6 +483,14 @@ mod tests {
             validate_remote_url("/srv/git/notes.git"),
             Ok(RemoteKind::Local)
         );
+        #[cfg(windows)]
+        for p in [
+            r"C:\repos\notes.git",
+            "C:/repos/notes.git",
+            r"\\srv\share\n",
+        ] {
+            assert_eq!(validate_remote_url(p), Ok(RemoteKind::Local), "{p}");
+        }
         assert_eq!(validate_remote_url(""), Err(FieldError::Required));
         assert_eq!(validate_remote_url("  "), Err(FieldError::Required));
         assert_eq!(

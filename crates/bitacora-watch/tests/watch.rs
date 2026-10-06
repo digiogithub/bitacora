@@ -247,7 +247,9 @@ fn own_delete_is_suppressed() {
     let leaked: Vec<_> = fx
         .events_before_sentinel()
         .into_iter()
-        .filter(|e| e.rel_path == "pages/e.md")
+        // Only the removal must be suppressed; on Windows the setup file's (debounced) creation
+        // event can still arrive after the watcher starts and is legitimate.
+        .filter(|e| e.rel_path == "pages/e.md" && matches!(e.kind, FileEventKind::Removed))
         .collect();
     assert!(leaked.is_empty(), "{leaked:?}");
 }
