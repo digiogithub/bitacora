@@ -131,6 +131,7 @@ The backlog is stored as Markdown in `docs/.pmngr` and managed through the **gin
 
 - Conventional commits (`feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`), scope = crate (`feat(markdown): ...`). Reference the backlog id in the body (`Refs: BIT-TK-0012`).
 - One logical change per PR; update the relevant design doc when behaviour changes.
+- **MANDATORY: remove git worktrees once merged or validated.** Every worktree carries its own `target/` (GPUI builds take 5–25 GB each). As soon as a worktree branch is merged into `main` (or its work is validated and discarded), run `git worktree remove --force <path>` and `git branch -D <branch>`, then `git worktree prune`. Never leave finished worktrees (including `.claude/worktrees/*`) on disk; check `git worktree list` at the end of every task.
 
 ## 10. Documentation (knowledge base)
 
