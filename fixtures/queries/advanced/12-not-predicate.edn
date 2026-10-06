@@ -1,0 +1,7 @@
+;; class: supported
+;; expect: file report [[Alpha]] | fix build | standup notes
+[:find (pull ?b [*])
+ :where [?b :block/marker ?m]
+        (not [(= ?m "DONE")])
+        [?b :block/page ?p]
+        [?p :block/journal? true]]

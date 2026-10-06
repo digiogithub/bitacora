@@ -1,0 +1,5 @@
+;; class: supported
+;; expect: skim notes
+[:find (pull ?b [*])
+ :where (task ?b #{"DOING"})
+        (page-ref ?b "alpha")]

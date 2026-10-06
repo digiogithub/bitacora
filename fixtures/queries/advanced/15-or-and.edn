@@ -1,0 +1,6 @@
+;; class: supported
+;; expect: read chapter one #reading | skim notes
+[:find (pull ?b [*])
+ :where (or (and [?b :block/marker "TODO"]
+                [?b :block/priority "A"])
+           [?b :block/marker "DOING"])]

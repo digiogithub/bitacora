@@ -1,0 +1,6 @@
+;; class: warning:result-transform
+;; expect: call [[Alpha]] about it | file report [[Alpha]] | read chapter one #reading | standup notes | sub task
+{:title "transform"
+ :query [:find (pull ?b [*])
+         :where [?b :block/marker "TODO"]]
+ :result-transform (fn [result] (sort-by :block/priority result))}

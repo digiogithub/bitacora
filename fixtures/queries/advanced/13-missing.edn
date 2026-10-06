@@ -1,0 +1,5 @@
+;; class: supported
+;; expect: call [[Alpha]] about it | file report [[Alpha]] | standup notes | sub task
+[:find (pull ?b [*])
+ :where [?b :block/marker "TODO"]
+        [(missing? $ ?b :block/priority)]]

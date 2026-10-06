@@ -1,0 +1,6 @@
+;; class: supported
+;; expect: <pre> | skim notes
+[:find (pull ?b [*])
+ :where [?b :block/properties ?props]
+        [(get ?props :rating) ?r]
+        [(> ?r 4)]]

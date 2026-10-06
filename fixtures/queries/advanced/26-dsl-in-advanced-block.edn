@@ -1,0 +1,4 @@
+;; class: supported
+;; expect: call [[Alpha]] about it | file report [[Alpha]] | read chapter one #reading
+{:title "Alpha tasks"
+ :query (and (task TODO) [[Alpha]])}

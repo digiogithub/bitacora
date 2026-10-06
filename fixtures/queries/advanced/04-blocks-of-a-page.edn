@@ -1,0 +1,6 @@
+;; class: supported
+;; expect: read chapter one #reading
+[:find (pull ?b [*])
+ :where [?b :block/marker "TODO"]
+        [?b :block/page ?p]
+        [?p :block/name "alpha"]]

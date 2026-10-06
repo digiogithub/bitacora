@@ -1,0 +1,4 @@
+;; class: supported
+;; expect: skim notes
+[:find (pull ?b [*])
+ :where [?b :block/marker "DOING"]]

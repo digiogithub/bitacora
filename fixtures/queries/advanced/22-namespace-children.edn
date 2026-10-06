@@ -1,0 +1,6 @@
+;; class: supported
+;; expect: proj/sub1 | proj/sub2
+[:find ?name
+ :where [?p :block/namespace ?parent]
+        [?parent :block/name "proj"]
+        [?p :block/name ?name]]

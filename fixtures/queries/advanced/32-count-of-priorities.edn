@@ -1,0 +1,4 @@
+;; class: supported
+;; expect: 2
+[:find (count ?b) .
+ :where [?b :block/priority ?p]]

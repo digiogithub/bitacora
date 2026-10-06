@@ -1,0 +1,5 @@
+;; class: supported
+;; expect: alpha
+[:find (pull ?p [*])
+ :where [?p :block/tags ?t]
+        [?t :block/name "fiction"]]

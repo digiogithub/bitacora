@@ -1,0 +1,6 @@
+;; class: supported
+;; expect: read chapter one #reading
+[:find (pull ?b [*])
+ :where [?b :block/properties ?props]
+        [(get ?props :status) ?s]
+        [(= ?s "active")]]

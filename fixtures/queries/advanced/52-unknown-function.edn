@@ -1,0 +1,5 @@
+;; class: unsupported
+;; error: function `fancy`
+[:find (pull ?b [*])
+ :where [?b :block/content ?c]
+        [(my.ns/fancy ?c)]]

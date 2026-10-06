@@ -1,0 +1,4 @@
+;; class: unsupported
+;; error: find function `rand`
+[:find (rand 2 ?b)
+ :where [?b :block/marker "TODO"]]

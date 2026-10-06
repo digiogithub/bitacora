@@ -1,0 +1,6 @@
+;; class: unsupported
+;; error: rule `open-task`
+{:query [:find (pull ?b [*])
+         :in $ %
+         :where (open-task ?b)]
+ :rules [[(open-task ?b) [?b :block/marker "TODO"]]]}

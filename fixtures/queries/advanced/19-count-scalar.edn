@@ -1,0 +1,4 @@
+;; class: supported
+;; expect: 5
+[:find (count ?b) .
+ :where [?b :block/marker "TODO"]]

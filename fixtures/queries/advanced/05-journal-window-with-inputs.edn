@@ -1,0 +1,12 @@
+;; class: supported
+;; expect: file report [[Alpha]] | standup notes
+{:title "TODOs of the last week"
+ :query [:find (pull ?b [*])
+         :in $ ?start ?end
+         :where [?b :block/marker "TODO"]
+                [?b :block/page ?p]
+                [?p :block/journal-day ?d]
+                [(>= ?d ?start)]
+                [(<= ?d ?end)]]
+ :inputs [:-7d :today]
+ :collapsed? true}
