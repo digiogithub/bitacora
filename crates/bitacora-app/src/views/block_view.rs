@@ -202,9 +202,9 @@ pub(crate) fn text_element_owned(
                     if source.target_at(shown).is_some() && !event.modifiers.shift {
                         return;
                     }
-                    if let Some(offset) = source.source_offset(shown) {
-                        hook(offset, event.modifiers.shift, window, cx);
-                    }
+                    // No source position (an empty block has no text): caret at the end.
+                    let offset = source.source_offset(shown).unwrap_or(usize::MAX);
+                    hook(offset, event.modifiers.shift, window, cx);
                 },
             )
             .child(element)
@@ -444,7 +444,13 @@ pub fn render_block_row(
                 on_text.clone(),
             )),
     );
-    let mut content = v_flex().flex_1().min_w_0().gap_1().child(title_line);
+    // `min_h`: an empty block still has a line to click on.
+    let mut content = v_flex()
+        .flex_1()
+        .min_w_0()
+        .min_h(px(22.))
+        .gap_1()
+        .child(title_line);
     for image in &block.title.images {
         content = content.child(image_element(image, graph_root, theme));
     }

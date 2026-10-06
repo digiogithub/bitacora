@@ -1552,7 +1552,10 @@ fn the_page_title_turns_into_an_input_and_submits_a_rename(cx: &mut TestAppConte
         })
     });
     assert!(view.read_with(cx, |v, _| v.can_rename()));
+    // Renaming while a block is being edited leaves edit mode: Enter must not split the block.
+    edit(&_ed, 0, Caret::End, cx);
     view.update_in(cx, |v, window, cx| v.start_rename(window, cx));
+    assert_eq!(editing_row(&_ed, cx), None);
     assert!(view.read_with(cx, |v, _| v.is_renaming()));
     // Escape leaves everything as it was.
     cx.simulate_keystrokes("escape");
@@ -1580,7 +1583,7 @@ fn the_page_title_turns_into_an_input_and_submits_a_rename(cx: &mut TestAppConte
     });
     cx.simulate_keystrokes("enter");
     assert!(seen.borrow().is_empty());
-    // Nothing was written: renaming is the host's job.
+    // Nothing was written: renaming is the host's job, and no block was split.
     assert_eq!(env.disk(HOME), "- one\n");
 }
 
@@ -1589,4 +1592,18 @@ fn journals_cannot_be_renamed_in_the_header(cx: &mut TestAppContext) {
     let env = Env::new(&[("journals/2025_03_09.md", "- standup\n")]);
     let (view, _ed, cx) = open_page(cx, &env, "Mar 9th, 2025");
     assert!(!view.read_with(cx, |v, _| v.can_rename()));
+}
+
+#[gpui_test]
+fn a_real_click_on_an_empty_block_starts_editing(cx: &mut TestAppContext) {
+    let env = Env::new(&[(HOME, "- see [[Ghost]]\n")]);
+    let (view, ed, cx) = open_page(cx, &env, "Ghost");
+    let bounds = row_bounds(&view, 0, cx);
+    cx.simulate_click(
+        crate::ui::point(bounds.left() + px(120.), bounds.top() + px(10.)),
+        crate::ui::text_edit::Modifiers::default(),
+    );
+    assert_eq!(editing_row(&ed, cx), Some(0));
+    cx.simulate_input("typed");
+    assert_eq!(buffer(&ed, cx).as_deref(), Some("typed"));
 }

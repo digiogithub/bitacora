@@ -322,6 +322,14 @@ impl PageView {
         if !self.can_rename() || self.rename.is_some() {
             return;
         }
+        // The title input must not share the key context of a block being edited (Enter would
+        // also split the block).
+        if let Some(ed) = self.editor.clone() {
+            ed.update(cx, |e, cx| {
+                e.exit_edit(cx);
+                e.clear_selection(cx);
+            });
+        }
         let title = self.header.title.clone();
         let input = cx.new(|cx| InputState::new(window, cx));
         input.update(cx, |i, cx| i.set_value(title, window, cx));
