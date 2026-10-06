@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [core, compat]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T20:27:13Z
+updated: 2026-10-06T21:00:35Z
 requirements:
   R1:
     status: backlog
@@ -160,13 +160,15 @@ requirements:
     trace:
       code:
         - crates/bitacora-core/src/editor/backup.rs
-        - crates/bitacora-core/src/editor/flush.rs
         - crates/bitacora-core/src/editor/external.rs
+        - crates/bitacora-core/src/editor/flush.rs
         - crates/bitacora-watch/src/process.rs
+        - crates/bitacora-runtime/src/session.rs
       tests:
-        - crates/bitacora-core/tests/write_pipeline.rs
         - crates/bitacora-core/tests/external_changes.rs
+        - crates/bitacora-core/tests/write_pipeline.rs
         - crates/bitacora-watch/tests/watch.rs
+        - crates/bitacora-runtime/tests/config_reload.rs
   R18:
     status: backlog
     trace:
