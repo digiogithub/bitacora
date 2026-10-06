@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [core, compat]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T16:59:31Z
+updated: 2026-10-06T17:33:21Z
 requirements:
   R1:
     status: backlog
@@ -56,6 +56,11 @@ requirements:
         - crates/bitacora-core/src/naming.rs#title_property_predicate
   R8:
     status: backlog
+    trace:
+      code: [crates/bitacora-core/src/graph.rs]
+      tests:
+        - crates/bitacora-core/src/graph.rs#tests
+        - crates/bitacora-core/tests/graph_fixtures.rs
   R9:
     status: backlog
     trace:
@@ -79,6 +84,9 @@ requirements:
       tests: [crates/bitacora-core/src/journal.rs#file_paths]
   R12:
     status: backlog
+    trace:
+      code: [crates/bitacora-core/src/graph.rs]
+      tests: [crates/bitacora-core/tests/graph_fixtures.rs]
   R13:
     status: backlog
   R14:
@@ -96,10 +104,16 @@ requirements:
     status: backlog
   R18:
     status: backlog
+    trace:
+      code: [crates/bitacora-core/src/graph.rs]
+      tests: [crates/bitacora-core/src/graph.rs#tests]
   R19:
     status: backlog
   R20:
     status: backlog
+    trace:
+      code: [crates/bitacora-core/src/graph.rs]
+      tests: [crates/bitacora-core/src/graph.rs#tests]
 ---
 
 ## Purpose
