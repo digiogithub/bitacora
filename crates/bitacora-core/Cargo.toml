@@ -16,3 +16,9 @@ bitacora-markdown.workspace = true
 bitacora-merge.workspace = true
 bitacora-config.workspace = true
 thiserror.workspace = true
+unicode-normalization.workspace = true
+walkdir.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+tempfile.workspace = true
