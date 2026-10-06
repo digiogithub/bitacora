@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [core, compat]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T17:33:21Z
+updated: 2026-10-06T18:25:17Z
 requirements:
   R1:
     status: backlog
@@ -28,6 +28,7 @@ requirements:
         - crates/bitacora-config/src/edn.rs
         - crates/bitacora-config/src/accessors.rs
       tests: [crates/bitacora-config/tests/load.rs]
+    verified: {rev: "sha256:4d3240131f1012c0", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
   R4:
     status: backlog
     trace:
@@ -35,6 +36,7 @@ requirements:
         - crates/bitacora-config/src/cst.rs
         - crates/bitacora-config/src/edit.rs
       tests: [crates/bitacora-config/tests/edit_golden.rs]
+    verified: {rev: "sha256:3efecd8adf33f7c8", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
   R5:
     status: backlog
     trace:

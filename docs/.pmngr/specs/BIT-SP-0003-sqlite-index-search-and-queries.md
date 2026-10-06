@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [index, search]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T17:53:52Z
+updated: 2026-10-06T18:25:17Z
 requirements:
   R1:
     status: backlog
@@ -15,11 +15,13 @@ requirements:
         - crates/bitacora-index/src/location.rs
         - crates/bitacora-index/src/index.rs
       tests: [crates/bitacora-index/tests/lifecycle.rs]
+    verified: {rev: "sha256:584ce8abaaf6c47d", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
   R2:
     status: backlog
     trace:
       code: [crates/bitacora-index/src/index.rs]
       tests: [crates/bitacora-index/tests/lifecycle.rs]
+    verified: {rev: "sha256:7d22769253fa01d0", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
   R3:
     status: backlog
     trace:
@@ -27,6 +29,7 @@ requirements:
         - crates/bitacora-index/src/schema.rs
         - crates/bitacora-index/src/schema_v1.sql
       tests: [crates/bitacora-index/tests/lifecycle.rs]
+    verified: {rev: "sha256:3774303bd6302bc5", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
   R4:
     status: backlog
     trace:
@@ -36,6 +39,7 @@ requirements:
       tests:
         - crates/bitacora-index/tests/parse_unit.rs#intervals_are_pre_order
         - crates/bitacora-index/tests/parse_golden.rs
+    verified: {rev: "sha256:0366541edbd4f1ba", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
   R5:
     status: backlog
     trace:
@@ -43,11 +47,13 @@ requirements:
         - crates/bitacora-index/src/replace.rs
         - crates/bitacora-index/src/writer.rs
       tests: [crates/bitacora-index/tests/writer.rs]
+    verified: {rev: "sha256:8888f3866f9fc1ad", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
   R6:
     status: backlog
     trace:
       code: [crates/bitacora-index/src/reconcile.rs]
       tests: [crates/bitacora-index/tests/reconcile.rs]
+    verified: {rev: "sha256:532f5b458d47c076", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
   R7:
     status: backlog
     trace:
@@ -57,6 +63,7 @@ requirements:
       tests:
         - crates/bitacora-index/tests/reconcile.rs
         - crates/bitacora-index/tests/writer.rs
+    verified: {rev: "sha256:1620c5622d5b6951", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
   R8:
     status: backlog
     trace:
@@ -67,6 +74,7 @@ requirements:
         - crates/bitacora-index/tests/parse_unit.rs#ref_kinds_follow_logseq
         - crates/bitacora-index/tests/parse_unit.rs#block_ref_kinds
         - crates/bitacora-index/tests/parse_golden.rs
+    verified: {rev: "sha256:535b1afd8f3b95d0", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
   R9:
     status: backlog
   R10:
@@ -76,11 +84,13 @@ requirements:
       tests:
         - crates/bitacora-index/tests/parse_unit.rs#typed_properties
         - crates/bitacora-index/tests/parse_unit.rs#comma_separated_keys_from_config
+    verified: {rev: "sha256:ef578b62b097ae90", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
   R11:
     status: backlog
     trace:
       code: [crates/bitacora-index/src/replace.rs]
       tests: [crates/bitacora-index/tests/writer.rs]
+    verified: {rev: "sha256:cdad3517c3101897", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
   R12:
     status: backlog
     trace:
@@ -90,6 +100,7 @@ requirements:
       tests:
         - crates/bitacora-index/tests/writer.rs
         - crates/bitacora-index/tests/reconcile.rs
+    verified: {rev: "sha256:364ad8aee79fb26c", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
   R13:
     status: backlog
     trace:
@@ -112,6 +123,7 @@ requirements:
         - crates/bitacora-index/tests/property.rs
         - crates/bitacora-index/tests/reconcile.rs
         - crates/bitacora-index/tests/bench_cold_build.rs
+    verified: {rev: "sha256:dcf89c2b25059c3d", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
   R17:
     status: backlog
   R18:

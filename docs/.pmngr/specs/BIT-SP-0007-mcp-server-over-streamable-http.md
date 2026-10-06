@@ -6,18 +6,20 @@ status: backlog
 author: mcp
 labels: [mcp, api]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T17:03:11Z
+updated: 2026-10-06T18:25:17Z
 requirements:
   R1:
     status: backlog
     trace:
       code: [crates/bitacora-mcp/src/server.rs, crates/bitacora-cli/src/main.rs]
       tests: [crates/bitacora-mcp/tests/http.rs]
+    verified: {rev: "sha256:dc80ed2bd67a10a2", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
   R2:
     status: backlog
     trace:
       code: [crates/bitacora-mcp/src/server.rs]
       tests: [crates/bitacora-mcp/tests/http.rs]
+    verified: {rev: "sha256:4bed8046d1a7dcfa", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
   R3:
     status: backlog
     trace:
@@ -27,6 +29,7 @@ requirements:
       tests:
         - crates/bitacora-mcp/tests/http.rs
         - crates/bitacora-mcp/src/tokens.rs
+    verified: {rev: "sha256:167302a936a25e40", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
   R4:
     status: backlog
     trace:
@@ -34,16 +37,19 @@ requirements:
       tests:
         - crates/bitacora-mcp/tests/http.rs
         - crates/bitacora-mcp/src/guard.rs
+    verified: {rev: "sha256:5f81203e6ddcd1e1", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
   R5:
     status: backlog
     trace:
       code: [crates/bitacora-mcp/src/tokens.rs]
       tests: [crates/bitacora-mcp/src/tokens.rs]
+    verified: {rev: "sha256:509b00fe857bf2f3", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
   R6:
     status: backlog
     trace:
       code: [crates/bitacora-mcp/src/tokens.rs]
       tests: [crates/bitacora-mcp/src/tokens.rs]
+    verified: {rev: "sha256:9419df24d87ddc2a", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
   R7:
     status: backlog
   R8:
@@ -77,6 +83,7 @@ requirements:
         - crates/bitacora-mcp/src/handler.rs
         - crates/bitacora-mcp/src/server.rs
       tests: [crates/bitacora-mcp/tests/http.rs]
+    verified: {rev: "sha256:9fbc02ac35cbf054", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
 ---
 
 ## Purpose
