@@ -97,7 +97,74 @@ pub fn match_blocks(base: &MergePage, ours: &MergePage, theirs: &MergePage) -> M
             });
         }
     }
+    salvage_short_edits(&mut triples, [base, ours, theirs]);
     Matching { triples }
+}
+
+/// Last pass: a short block edited on one side (`- Draft` -> `- Draft v2`) is too short for the
+/// fuzzy pass, so the other side sees it as "deleted" next to an unrelated insert. Re-pair the two
+/// when, under the same parent, the new first line extends (or is a prefix of) the old one and
+/// the pairing is unambiguous.
+fn salvage_short_edits(triples: &mut Vec<Triple>, pages: [&MergePage; 3]) {
+    let get = |t: &Triple, side: usize| [t.base, t.ours, t.theirs][side];
+    for (keep, new) in [(1usize, 2usize), (2, 1)] {
+        // base block index -> triple index
+        let mut by_base = vec![usize::MAX; pages[0].blocks.len()];
+        for (k, t) in triples.iter().enumerate() {
+            if let Some(b) = t.base {
+                by_base[b] = k;
+            }
+        }
+        let olds: Vec<usize> = (0..triples.len())
+            .filter(|&k| {
+                let t = &triples[k];
+                t.base.is_some() && get(t, new).is_none()
+            })
+            .collect();
+        let news: Vec<usize> = (0..triples.len())
+            .filter(|&k| {
+                let t = &triples[k];
+                t.base.is_none() && get(t, keep).is_none() && get(t, new).is_some()
+            })
+            .collect();
+        let related = |x: usize, y: usize| -> bool {
+            let (Some(b), Some(n)) = (triples[x].base, get(&triples[y], new)) else {
+                return false;
+            };
+            let (bb, nb) = (&pages[0].blocks[b], &pages[new].blocks[n]);
+            let parent_ok = match (bb.parent, nb.parent) {
+                (None, None) => true,
+                (Some(pb), Some(pn)) => get(&triples[by_base[pb]], new) == Some(pn),
+                _ => false,
+            };
+            let (a, c) = (bb.first_line().trim(), nb.first_line().trim());
+            let (short, long) = if a.len() <= c.len() { (a, c) } else { (c, a) };
+            parent_ok && !short.is_empty() && long.starts_with(short)
+        };
+        let mut pairs: Vec<(usize, usize)> = Vec::new();
+        for &x in &olds {
+            let ys: Vec<usize> = news.iter().copied().filter(|&y| related(x, y)).collect();
+            if let [y] = ys[..]
+                && olds.iter().filter(|&&x2| related(x2, y)).count() == 1
+            {
+                pairs.push((x, y));
+            }
+        }
+        let mut removed = Vec::new();
+        for (x, y) in pairs {
+            let v = get(&triples[y], new);
+            if new == 1 {
+                triples[x].ours = v;
+            } else {
+                triples[x].theirs = v;
+            }
+            removed.push(y);
+        }
+        removed.sort_unstable();
+        for y in removed.into_iter().rev() {
+            triples.remove(y);
+        }
+    }
 }
 
 /// Matches every block of `a` to at most one block of `b`; returns `a index -> b index`.
@@ -414,16 +481,16 @@ mod tests {
     }
 
     #[test]
-    fn short_blocks_are_never_fuzzy_matched() {
-        // "- TODO" edited to "- TODO x": too short for fuzzy, so distinct (delete + insert).
-        let (b, o, t) = pages("- TODO\n", "- TODO x\n", "- TODO\n");
+    fn short_blocks_are_not_fuzzy_matched_but_unambiguous_extensions_are_salvaged() {
+        // Not a prefix relation: still distinct (delete + insert).
+        let (b, o, t) = pages("- TODO\n", "- DONE x\n", "- TODO\n");
         let m = match_blocks(&b, &o, &t);
         assert_eq!(triple_of(&m, 0).ours, None);
-        assert!(
-            m.triples
-                .iter()
-                .any(|t| t.base.is_none() && t.ours == Some(0))
-        );
+        // "- TODO" -> "- TODO x" under the same parent, one candidate: re-paired.
+        let (b, o, t) = pages("- TODO\n", "- TODO x\n", "- TODO\n");
+        let m = match_blocks(&b, &o, &t);
+        assert_eq!(triple_of(&m, 0).ours, Some(0));
+        assert_eq!(m.triples.len(), 1);
     }
 
     #[test]
