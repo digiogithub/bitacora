@@ -102,6 +102,7 @@ walkdir = "2.5"
 globset = "0.4"
 regex = "1"
 unicode-normalization = "0.1"
+unicode-segmentation = "=1.13.3"
 parking_lot = "0.12"
 
 # Tooling (xtask)

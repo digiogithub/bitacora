@@ -78,6 +78,22 @@ fn start(cx: &mut App, args: &Args, dirs: &AppDirs) -> anyhow::Result<()> {
     })
     .detach();
 
+    if args.spike_editor || args.spike_bench {
+        let options = crate::spike::block_editor::SpikeOptions {
+            blocks: args.spike_blocks,
+            page: args.spike_page.clone(),
+            bench: args.spike_bench,
+        };
+        crate::spike::block_editor::open(cx, &options, started)?;
+        cx.on_window_closed(|cx, _| {
+            if cx.windows().is_empty() {
+                cx.quit();
+            }
+        })
+        .detach();
+        return Ok(());
+    }
+
     let config = WorkspaceConfig {
         graph_name: args.graph_name(),
         layout_file: Some(dirs.workspace_file()),

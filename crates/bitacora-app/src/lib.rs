@@ -21,6 +21,7 @@ pub mod layout;
 pub mod logging;
 pub mod paths;
 pub mod settings;
+pub mod spike;
 pub mod theme;
 pub mod tokio_bridge;
 pub mod ui;

@@ -137,6 +137,26 @@ pub fn open_main_window<V: Render>(
     gpui_kit::open_window(options, cx, build)
 }
 
+/// Low-level GPUI text and list APIs for custom elements (the block editor spike and,
+/// later, the real block editor). Kept explicit so the kit churn stays in this file.
+pub mod text_edit {
+    pub use gpui_kit::{
+        AvailableSpace, ClipboardItem, CursorStyle, Element, ElementId, ElementInputHandler,
+        EntityInputHandler, Font, FontWeight, GlobalElementId, InspectorElementId, IntoElement,
+        LayoutId, ListAlignment, ListOffset, ListState, Modifiers, MouseButton, MouseDownEvent,
+        MouseMoveEvent, MouseUpEvent, PaintQuad, Rgba, StrikethroughStyle, Style, StyledText,
+        TextAlign, TextLayout, TextRun, UTF16Selection, UnderlineStyle, WrappedLine, fill, hsla,
+        list, relative, rgba,
+    };
+}
+
+/// GPUI Kit text inputs (used by the Textarea-per-block probe, BIT-T-0105).
+pub mod input {
+    pub use gpui_kit::component::input::{
+        Backspace, Enter, Indent, InputEvent, MoveDown, MoveUp, Textarea, TextareaState,
+    };
+}
+
 /// Test helpers (headless windows, simulated input).
 #[cfg(test)]
 pub mod testing {

@@ -19,6 +19,22 @@ pub struct Args {
     /// Open the window, wait for the first frame, log its timing and exit with 0.
     #[arg(long)]
     pub smoke_test: bool,
+
+    /// Open the block editor spike (ADR-002 / BIT-US-0040) instead of the workspace.
+    #[arg(long)]
+    pub spike_editor: bool,
+
+    /// Number of generated blocks in the spike page.
+    #[arg(long, value_name = "N", default_value_t = 1000)]
+    pub spike_blocks: usize,
+
+    /// Load this Logseq page into the spike instead of generated content.
+    #[arg(long, value_name = "FILE")]
+    pub spike_page: Option<PathBuf>,
+
+    /// Run the spike benchmark, print `SPIKE_BENCH {json}` and exit.
+    #[arg(long)]
+    pub spike_bench: bool,
 }
 
 impl Args {
