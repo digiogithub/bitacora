@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [markdown, compat]
 created: 2026-10-06T14:21:20Z
-updated: 2026-10-06T17:09:10Z
+updated: 2026-10-06T17:18:16Z
 requirements:
   R1:
     status: backlog
@@ -102,6 +102,9 @@ requirements:
         - crates/bitacora-markdown/tests/edit_golden.rs
   R16:
     status: backlog
+    trace:
+      code: [crates/bitacora-markdown/src/classify.rs]
+      tests: [crates/bitacora-markdown/src/classify.rs]
   R17:
     status: backlog
     trace:

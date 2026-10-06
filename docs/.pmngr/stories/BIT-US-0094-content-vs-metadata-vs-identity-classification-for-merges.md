@@ -2,7 +2,7 @@
 id: BIT-US-0094
 type: story
 title: Content vs metadata vs identity classification for merges
-status: in_progress
+status: done
 priority: medium
 parent: BIT-EP-0003
 milestone: BIT-M-0002
@@ -10,8 +10,9 @@ author: mcp
 labels: [markdown, compat, merge]
 estimate: 3
 created: 2026-10-06T14:30:45Z
-updated: 2026-10-06T17:06:14Z
+updated: 2026-10-06T17:17:55Z
 started: 2026-10-06T17:06:14Z
+closed: 2026-10-06T17:17:55Z
 ---
 
 ## Description

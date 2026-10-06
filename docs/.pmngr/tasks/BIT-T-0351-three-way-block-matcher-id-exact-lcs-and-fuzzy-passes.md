@@ -2,7 +2,7 @@
 id: BIT-T-0351
 type: task
 title: "Three-way block matcher: id, exact, LCS and fuzzy passes"
-status: in_progress
+status: done
 priority: critical
 parent: BIT-US-0049
 milestone: BIT-M-0003
@@ -10,8 +10,9 @@ author: mcp
 labels: [bitacora-merge, merge]
 estimate: 3
 created: 2026-10-06T14:34:49Z
-updated: 2026-10-06T17:08:27Z
+updated: 2026-10-06T17:17:55Z
 started: 2026-10-06T17:08:27Z
+closed: 2026-10-06T17:17:55Z
 ---
 
 ## Description

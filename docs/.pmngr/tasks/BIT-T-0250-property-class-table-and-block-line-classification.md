@@ -2,15 +2,16 @@
 id: BIT-T-0250
 type: task
 title: Property class table and block line classification
-status: in_progress
+status: done
 parent: BIT-US-0094
 milestone: BIT-M-0002
 author: mcp
 labels: [bitacora-markdown, merge]
 estimate: 2
 created: 2026-10-06T14:32:01Z
-updated: 2026-10-06T17:06:14Z
+updated: 2026-10-06T17:17:55Z
 started: 2026-10-06T17:06:14Z
+closed: 2026-10-06T17:17:55Z
 ---
 
 ## Description

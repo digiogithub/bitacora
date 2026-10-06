@@ -2,7 +2,7 @@
 id: BIT-T-0354
 type: task
 title: "Metadata resolvers: collapsed, id union, LOGBOOK, card-* group, LWW keys"
-status: in_progress
+status: done
 priority: critical
 parent: BIT-US-0050
 milestone: BIT-M-0003
@@ -10,8 +10,9 @@ author: mcp
 labels: [bitacora-merge, merge, metadata]
 estimate: 3
 created: 2026-10-06T14:34:49Z
-updated: 2026-10-06T17:08:27Z
+updated: 2026-10-06T17:17:55Z
 started: 2026-10-06T17:08:27Z
+closed: 2026-10-06T17:17:55Z
 ---
 
 ## Description
