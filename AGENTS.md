@@ -101,7 +101,9 @@ cargo run -p bitacora-app -- --graph <path>     # desktop app
 cargo run -p bitacora-cli -- serve --graph <path>   # headless MCP server
 ```
 
-Linux build deps (Ubuntu 24.04): see `docs/analysis/rust/crate-stack.md` §5.2.
+Linux build deps (Ubuntu 24.04): run `script/install-linux-deps.sh` (`--minimal` for the GPUI-free crates); package list in `docs/analysis/rust/crate-stack.md` §5.2.
+
+Fixtures: `cargo xtask fixtures verify` checks `fixtures/graphs/MANIFEST.sha256`; run `cargo xtask fixtures update` after intentionally changing a fixture. Snapshot tests: `cargo insta review` locally; CI uses `INSTA_UPDATE=no`.
 
 ## 7. Backlog workflow (gintrack, project key `BIT`)
 
