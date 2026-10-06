@@ -60,3 +60,6 @@ Orchestrated by the main Claude Code session; implementation by Claude Code suba
 - Flaky tests to stabilise: bitacora-index tests/property.rs incremental_equals_rebuild_on_a_small_graph (failed once under parallel load); bitacora-mcp page_changes_notify_subscribed_resources_within_two_seconds (timing).
 - Spec text: BIT-SP-0007.R11 and BIT-US-0018 criterion still say raw Datalog → INVALID_QUERY; MCP now executes the advanced Datalog subset. Update texts.
 - App must adopt bitacora-runtime (next app story with editing); sync resolve_conflict UI (US-0054); config.edn hot reload; bak not indexed (fine).
+
+## App UI backlog (pending app tasks collected from core/sync/mcp stories)
+T-0084 today journal startup/rollover; T-0174 delete confirm; T-0157 rename merge dialog; T-0211 Agent activity view; T-0344/T-0349 external-change conflict notice + editing-block protection; T-0291 askpass modal; T-0282 sync onboarding UI; US-0047 status bar sync indicator/Sync now; US-0048 history view; US-0054 visual conflict resolver; T-0116 Settings > Agents; US-0030/0031 editor + keymap/IME; US-0032..0039 key bindings over core semantics; US-0096 assets paste/drop.
