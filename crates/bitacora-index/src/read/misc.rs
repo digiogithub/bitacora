@@ -365,4 +365,30 @@ impl IndexReader {
             )
             .optional()?)
     }
+
+    /// Ranked search over pages and blocks (see [`crate::search`]) on a pooled reader.
+    pub fn search(
+        &self,
+        input: &str,
+        opts: &crate::search::SearchOptions,
+    ) -> Result<Vec<crate::search::SearchHit>, Error> {
+        let conn = self.conn()?;
+        crate::search::search(&conn, input, opts)
+    }
+
+    /// Number of distinct blocks that reference each page (`pages.id` to count), for the
+    /// "backlinks" column of the all-pages table.
+    pub fn backlink_counts(&self) -> Result<std::collections::HashMap<i64, usize>, Error> {
+        let conn = self.conn()?;
+        let mut st = conn.prepare(
+            "SELECT page_id, COUNT(DISTINCT block_id) FROM block_page_refs GROUP BY page_id",
+        )?;
+        let rows = st
+            .query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?)))?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(rows
+            .into_iter()
+            .map(|(id, n)| (id, usize::try_from(n).unwrap_or(0)))
+            .collect())
+    }
 }

@@ -107,6 +107,15 @@ pub enum Request {
         /// Deleted files.
         paths: Vec<GraphPath>,
     },
+    /// Make today's journal available for editing: loads it from its file or creates a virtual
+    /// page (with the default template) that is only written once it has content
+    /// (BIT-US-0057). `today` is the local calendar date.
+    EnsureToday {
+        /// Local calendar date.
+        today: crate::date::Date,
+        /// Configuration used for the journal title, file name and template.
+        cfg: Box<bitacora_config::EffectiveConfig>,
+    },
 }
 
 /// Successful result of a [`Request`].
@@ -122,6 +131,8 @@ pub enum Response {
     Resolved(FlushReport, Option<TakeDisk>),
     /// Pages dropped because their file was deleted externally.
     Removed(Vec<PageKey>),
+    /// Result of [`Request::EnsureToday`]: `None` when journals are disabled.
+    Journal(Option<crate::editor::lifecycle::Opened>),
 }
 
 /// Why a request failed.
@@ -954,6 +965,17 @@ impl Worker {
                     self.emit(&QueueEvent::PageReloaded(key));
                 }
                 Ok(Response::Loaded)
+            }
+            Request::EnsureToday { today, cfg } => {
+                let opened = self
+                    .ws
+                    .ensure_today(today, &cfg, &*self.store)
+                    .map_err(|e| QueueError::Invalid(e.to_string()))?;
+                if let Some(o) = &opened {
+                    self.seq += 1;
+                    self.publish(std::slice::from_ref(o.key()));
+                }
+                Ok(Response::Journal(opened))
             }
             Request::Flush => {
                 let r = self.ws.flush(&mut *self.store);
