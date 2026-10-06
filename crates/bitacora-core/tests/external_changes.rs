@@ -367,3 +367,55 @@ fn queue_reports_editing_block_conflicts_and_refuses_mcp_writes() {
     let tags = seen.lock().unwrap().clone();
     assert_eq!(tags, vec!["editing", "reloaded", "conflicted"]);
 }
+
+#[test]
+fn identical_bytes_are_a_no_op_even_for_a_dirty_page() {
+    let (mut ws, _store) = open(BASE);
+    let a = ids(&ws)[0];
+    set(&mut ws, a, "alpha edited one two three");
+    let before = ids(&ws);
+    let bytes = ws.page(&key()).unwrap().serialize();
+    // The file already holds our unsaved state (an echo that beat the flush bookkeeping).
+    assert!(matches!(
+        ws.apply_external(&key(), &bytes),
+        ExternalOutcome::Unchanged
+    ));
+    assert_eq!(ids(&ws), before);
+    assert_eq!(texts(&ws)[0], "alpha edited one two three");
+}
+
+#[test]
+fn external_reload_reads_the_store_so_stale_event_bytes_cannot_roll_a_page_back() {
+    use bitacora_core::queue::{CommandQueue, QueueConfig, Request, Response, Source};
+
+    let (mut ws, mut store) = open(BASE);
+    let a = ids(&ws)[0];
+    set(&mut ws, a, "alpha newer one two three");
+    ws.flush(&mut store);
+    let newer = store.read(&path()).unwrap().unwrap();
+    assert!(String::from_utf8_lossy(&newer).contains("alpha newer"));
+    let (q, join) = CommandQueue::spawn(
+        ws,
+        Box::new(store),
+        QueueConfig {
+            debounce: None,
+            ..QueueConfig::default()
+        },
+    );
+    let r = q
+        .execute(
+            Source::External,
+            Request::ExternalReload {
+                key: key(),
+                fallback: BASE.as_bytes().to_vec(),
+            },
+        )
+        .unwrap();
+    assert!(matches!(r, Response::External(ExternalOutcome::Unchanged)));
+    assert_eq!(
+        q.snapshot(&key()).unwrap().blocks[0].text,
+        "alpha newer one two three"
+    );
+    drop(q);
+    let _ = join;
+}

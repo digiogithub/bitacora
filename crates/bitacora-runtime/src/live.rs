@@ -463,6 +463,15 @@ impl Session {
         }
     }
 
+    /// Feeds a synthetic watcher event to the pump, as if the OS watcher had reported it.
+    /// Tests use it to replay platform-specific event sequences (for example the
+    /// Remove + Create pairs of Windows renames); [`Session::reindex`] doubles as a barrier,
+    /// because jobs run in order.
+    #[doc(hidden)]
+    pub fn inject_watch_event(&self, ev: bitacora_watch::WatchEvent) {
+        let _ = self.jobs.send(Job::Watch(ev));
+    }
+
     /// Whether the watcher fell back to polling (`None` without a watcher).
     #[must_use]
     pub fn watcher_is_polling(&self) -> Option<bool> {
