@@ -318,6 +318,11 @@ pub trait GraphReader: Send + Sync + 'static {
     fn block(&self, _uuid: &str) -> ReaderResult<Option<BlockInfo>> {
         Err(ReaderError::unsupported("block"))
     }
+    /// Zero-based position of the block among the page's non-pre-block blocks in document order.
+    /// Write tools use it to find the block in the editable page model.
+    fn block_position(&self, _uuid: &str) -> ReaderResult<Option<usize>> {
+        Err(ReaderError::unsupported("block_position"))
+    }
     /// A block and its descendants, flat pre-order.
     fn subtree(&self, _uuid: &str) -> ReaderResult<Vec<BlockInfo>> {
         Err(ReaderError::unsupported("subtree"))

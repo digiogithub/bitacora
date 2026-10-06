@@ -15,7 +15,10 @@ use bitacora_core::queue::{CommandQueue, QueueConfig, QueueEvent, QueueJoin, Req
 use bitacora_index::{
     Index, IndexLocation, Indexer, IndexerOptions, OpenOptions, PooledReader, ReconcileStats,
 };
-use bitacora_mcp::{IndexGraphReader, McpServer, TokenStore};
+use bitacora_mcp::{
+    AuditFilter, AuditRecord, IndexGraphReader, McpServer, QueueBridge, ServerParts, TokenStore,
+    UndoError, WritePolicy,
+};
 use bitacora_sync::engine::{
     Command as SyncCommand, EngineConfig, EngineHandle, SyncEngine, SystemTiming, Timing,
 };
@@ -231,11 +234,24 @@ impl Session {
                 reader.forward_events(ix.subscribe());
             }
             let status = Arc::new(SlotStatus(Arc::clone(&session.sync)));
-            session.mcp = Some(McpServer::start_with_sync(
-                m.config,
-                Arc::new(reader),
-                status,
-                tokens,
+            let mut mcp_config = m.config;
+            if mcp_config.audit_dir.is_none() {
+                mcp_config.audit_dir = match &cfg.data_dir {
+                    Some(dir) => Some(dir.join("mcp-audit")),
+                    None => bitacora_mcp::default_audit_dir(),
+                };
+            }
+            // Agent writes go through the same single-writer queue as the UI (rule 3).
+            let writer = QueueBridge::new(queue.clone(), root.clone(), config.clone());
+            session.mcp = Some(McpServer::start_with(
+                mcp_config,
+                ServerParts {
+                    reader: Arc::new(reader),
+                    sync: status,
+                    tokens,
+                    writer: Some(writer),
+                    gate: None,
+                },
             )?);
         }
         Ok(session)
@@ -283,6 +299,33 @@ impl Session {
     #[must_use]
     pub fn mcp_endpoint(&self) -> Option<String> {
         self.mcp.as_ref().map(McpServer::endpoint)
+    }
+
+    /// The MCP write policy (agent writes / deletes toggles, protected namespaces), when the
+    /// server runs. Changes take effect immediately.
+    #[must_use]
+    pub fn mcp_policy(&self) -> Option<Arc<WritePolicy>> {
+        self.mcp.as_ref().map(|m| Arc::clone(m.policy()))
+    }
+
+    /// Agent audit entries, newest first (the "Agent activity" data), when the server runs.
+    #[must_use]
+    pub fn agent_activity(&self, filter: &AuditFilter) -> Vec<AuditRecord> {
+        self.mcp
+            .as_ref()
+            .map(|m| m.audit().list(filter))
+            .unwrap_or_default()
+    }
+
+    /// Undoes one audited agent write as a single undo step through the command queue.
+    ///
+    /// # Errors
+    /// [`UndoError`]; `Failed` when the MCP server is not running.
+    pub fn undo_agent_entry(&self, id: &str) -> Result<(), UndoError> {
+        match &self.mcp {
+            Some(m) => m.undo_audit_entry(id),
+            None => Err(UndoError::Failed("the MCP server is not running".into())),
+        }
     }
 
     /// Whether the watcher fell back to polling (`None` without a watcher).

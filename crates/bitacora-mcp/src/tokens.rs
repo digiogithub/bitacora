@@ -74,6 +74,12 @@ pub fn default_token_path() -> Option<PathBuf> {
         .map(|d| d.config_dir().join("mcp-tokens.json"))
 }
 
+/// `<platform data dir>/mcp-audit`, or `None` when no home directory can be determined.
+pub fn default_audit_dir() -> Option<PathBuf> {
+    directories::ProjectDirs::from("es", "digio", "Bitacora")
+        .map(|d| d.data_dir().join("mcp-audit"))
+}
+
 fn generate_secret() -> Result<String, Error> {
     let mut bytes = [0u8; 32];
     getrandom::fill(&mut bytes).map_err(|e| Error::Random(e.to_string()))?;

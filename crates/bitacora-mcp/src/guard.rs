@@ -12,6 +12,7 @@ use axum::http::{HeaderMap, Method, Request, StatusCode, header};
 use axum::middleware::Next;
 use axum::response::{IntoResponse as _, Response};
 
+use crate::audit::AuditLog;
 use crate::tokens::TokenStore;
 
 /// State shared by the guard middleware.
@@ -20,6 +21,7 @@ pub(crate) struct GuardState {
     pub port: u16,
     pub allowed_origins: Arc<Vec<String>>,
     pub tokens: Arc<TokenStore>,
+    pub audit: Arc<AuditLog>,
 }
 
 /// `Host` must be a loopback authority on the bound port.
@@ -94,10 +96,17 @@ pub(crate) async fn guard(
     }
     let is_health = req.method() == Method::GET && req.uri().path() == "/health";
     if !is_health {
+        let path = req.uri().path().to_owned();
         let Some(token) = bearer(req.headers()) else {
+            state
+                .audit
+                .record_auth_failure(&format!("missing bearer token for {path}"));
             return unauthorized();
         };
         let Some(info) = state.tokens.verify(token) else {
+            state
+                .audit
+                .record_auth_failure(&format!("invalid bearer token for {path}"));
             return unauthorized();
         };
         // Downstream handlers (audit, scope checks) can read who is calling.
