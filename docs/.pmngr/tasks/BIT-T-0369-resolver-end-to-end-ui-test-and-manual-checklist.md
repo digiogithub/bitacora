@@ -2,7 +2,7 @@
 id: BIT-T-0369
 type: task
 title: Resolver end-to-end UI test and manual checklist
-status: backlog
+status: done
 priority: medium
 parent: BIT-US-0054
 milestone: BIT-M-0004
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-app, merge, ui, testing]
 estimate: 2
 created: 2026-10-06T14:34:50Z
-updated: 2026-10-06T14:34:50Z
+updated: 2026-10-06T20:37:17Z
+closed: 2026-10-06T20:37:17Z
 ---
 
 ## Description

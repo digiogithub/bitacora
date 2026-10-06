@@ -2,7 +2,7 @@
 id: BIT-US-0043
 type: story
 title: "Set up graph repository: init, clone, identity, .gitignore and attributes"
-status: in_progress
+status: done
 priority: high
 parent: BIT-EP-0011
 milestone: BIT-M-0004
@@ -10,8 +10,9 @@ author: mcp
 labels: [git, sync, onboarding]
 estimate: 5
 created: 2026-10-06T14:28:30Z
-updated: 2026-10-06T17:30:22Z
+updated: 2026-10-06T20:37:24Z
 started: 2026-10-06T17:30:22Z
+closed: 2026-10-06T20:37:24Z
 ---
 
 ## Description
