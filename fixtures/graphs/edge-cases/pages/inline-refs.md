@@ -1,0 +1,7 @@
+- link [[page]] and nested [[nested [[ref]] link]]
+- tag #tag and #[[multi word tag]] and #a/b
+- block ref ((6f1c0a52-3b7e-4d0e-9a41-0c2d5b8e7a10))
+- embed {{embed [[page]]}} and {{embed ((6f1c0a52-3b7e-4d0e-9a41-0c2d5b8e7a10))}}
+- query {{query (and [[page]] (task TODO))}}
+- escaped \[[not a link]] and \#nottag
+- inline code `[[not a link]]` and url https://example.com/#frag

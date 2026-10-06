@@ -1,0 +1,3 @@
+- mixed line endings lf
+- then crlf
+- then lf again

@@ -1,0 +1,7 @@
+;; Hand-authored for Bitacora test fixtures.
+{:meta/version 1
+ :preferred-format :markdown
+ :file/name-format :triple-lowbar
+ :journal/page-title-format "yyyy-MM-dd EEEE"
+ :journal/file-name-format "yyyy_MM_dd"
+ :hidden ["/archived"]}

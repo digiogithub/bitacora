@@ -1,0 +1,1 @@
+- recycled page moved here when deleted from Logseq

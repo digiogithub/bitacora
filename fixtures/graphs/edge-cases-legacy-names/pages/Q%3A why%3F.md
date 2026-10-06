@@ -1,0 +1,1 @@
+- reserved characters become percent escapes in legacy names: title "Q: why?"

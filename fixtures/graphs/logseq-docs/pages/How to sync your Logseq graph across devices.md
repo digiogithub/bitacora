@@ -1,0 +1,3 @@
+- [[Logseq Sync]] is our built-in sync feature that we recommend. Read that page for its details.
+- As Logseq saves all of your notes and settings in plain text files (in Markdown format), any file sync service will enable you to synchronize your Logseq graph across several devices.
+- One *current* caveat when working with several devices on the same Logseq data is that you can only have one device use the data at a time. So, if you use the Logseq mobile app and want to continue working on your desktop, you first need to make sure the data was synced from your mobile device. Only then should you open the Logseq app on your desktop. It maybe necessary to re-index your graph on desktop to make sure all recent changes are loaded in.
