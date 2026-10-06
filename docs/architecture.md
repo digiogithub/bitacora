@@ -136,6 +136,7 @@ See [[crate-stack]] §5. Summary:
 | ADR-018 | Auto-update with **Velopack**, validated by an early spike (M0/M1) against cargo-packager bundles; fallback = update notice + download link from GitHub Releases | [[crate-stack]] |
 | ADR-020 | **Git is not bundled.** At startup detect a system `git` (on `PATH`, minimum version checked); if present, `CliBackend` handles network and commits (ADR-007). If absent, fall back to a **pure-Rust backend on `gix`** for everything, including fetch/push/commit (HTTPS via credential store/keyring, SSH via `gix` transport). Both behind the `GitBackend` trait; the UI shows which backend is active and suggests installing git when auth fails on the fallback | User preference: no MinGit bundling; app still works without git installed. Amends ADR-007. |
 | ADR-021 | The **`logseq/docs`** graph (MIT-licensed, github.com/logseq/docs) may be used as a test fixture: copy only `pages/`, `journals/`, `logseq/config.edn` from a pinned file-graph-era commit, plus its `LICENSE.md` and a provenance note; no large media (`assets/`, `gifs/`, `screenshots/`) | Real-world corpus with compatible license. |
+| ADR-022 | Minimum system git accepted by `CliBackend` is **2.38**; older or missing git falls back to the pure-`gix` backend (ADR-020) | Decided by the project owner on 2026-10-06. 2.38 adds `merge-tree --write-tree`; Ubuntu 24.04 ships 2.43. |
 | ADR-019 | Pando local config (`.pando.toml`) and data (`.pando/`) are not versioned (gitignored) | Machine-local paths and state. |
 
 ## 6. Milestones
@@ -152,6 +153,6 @@ The backlog lives in gintrack project **BIT** (`docs/.pmngr`).
 
 ## 7. Open decisions
 
-- Minimum system git version accepted by `CliBackend` (proposal: 2.38).
+- None at the moment.
 
-Resolved on 2026-10-06: merge location (ADR-016), external-edit merge base (ADR-017), auto-update channel (ADR-018), pando config not versioned (ADR-019), git without bundling + gix fallback (ADR-020), `logseq/docs` fixture (ADR-021).
+Resolved on 2026-10-06: merge location (ADR-016), external-edit merge base (ADR-017), auto-update channel (ADR-018), pando config not versioned (ADR-019), git without bundling + gix fallback (ADR-020), `logseq/docs` fixture (ADR-021), minimum system git 2.38 (ADR-022).
