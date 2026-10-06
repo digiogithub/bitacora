@@ -896,11 +896,15 @@ name = "bitacora-mcp"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "bitacora-config",
  "bitacora-core",
  "bitacora-index",
  "bitacora-sync",
+ "bitacora-testkit",
+ "blake3",
  "directories",
  "getrandom 0.3.4",
+ "jiff",
  "parking_lot",
  "rmcp",
  "schemars",

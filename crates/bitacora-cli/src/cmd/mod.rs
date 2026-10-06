@@ -2,6 +2,9 @@
 
 pub mod doctor;
 pub mod reindex;
+pub mod serve;
+#[cfg(test)]
+mod serve_tests;
 
 use std::path::{Path, PathBuf};
 

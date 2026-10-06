@@ -28,6 +28,10 @@ directories.workspace = true
 parking_lot.workspace = true
 tempfile.workspace = true
 tracing.workspace = true
+blake3.workspace = true
+jiff.workspace = true
 
 [dev-dependencies]
+bitacora-config.workspace = true
+bitacora-testkit.workspace = true
 tokio = { workspace = true, features = ["io-util"] }
