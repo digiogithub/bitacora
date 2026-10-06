@@ -2,7 +2,7 @@
 id: BIT-US-0084
 type: story
 title: Task markers, priorities, SCHEDULED/DEADLINE and LOGBOOK parsing
-status: backlog
+status: done
 priority: high
 parent: BIT-EP-0003
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [markdown, compat, parser, tasks]
 estimate: 5
 created: 2026-10-06T14:29:34Z
-updated: 2026-10-06T14:29:34Z
+updated: 2026-10-06T17:23:44Z
+closed: 2026-10-06T17:23:44Z
 ---
 
 ## Description

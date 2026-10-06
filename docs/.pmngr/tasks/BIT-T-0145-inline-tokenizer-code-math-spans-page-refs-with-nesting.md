@@ -2,14 +2,15 @@
 id: BIT-T-0145
 type: task
 title: "Inline tokenizer: code/math spans, page refs with nesting, block refs"
-status: backlog
+status: done
 parent: BIT-US-0083
 milestone: BIT-M-0002
 author: mcp
 labels: [bitacora-markdown, parser, refs]
 estimate: 3
 created: 2026-10-06T14:30:15Z
-updated: 2026-10-06T14:38:19Z
+updated: 2026-10-06T17:23:35Z
+closed: 2026-10-06T17:23:35Z
 ---
 
 ## Description

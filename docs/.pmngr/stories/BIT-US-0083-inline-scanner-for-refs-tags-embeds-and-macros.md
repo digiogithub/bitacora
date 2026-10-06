@@ -2,7 +2,7 @@
 id: BIT-US-0083
 type: story
 title: Inline scanner for refs, tags, embeds and macros
-status: backlog
+status: done
 priority: critical
 parent: BIT-EP-0003
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [markdown, compat, parser, refs]
 estimate: 8
 created: 2026-10-06T14:29:34Z
-updated: 2026-10-06T14:29:34Z
+updated: 2026-10-06T17:23:44Z
+closed: 2026-10-06T17:23:44Z
 ---
 
 ## Description

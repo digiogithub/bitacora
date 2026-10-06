@@ -2,14 +2,15 @@
 id: BIT-T-0094
 type: task
 title: YAML front matter reader at byte 0
-status: backlog
+status: done
 parent: BIT-US-0059
 milestone: BIT-M-0002
 author: mcp
 labels: [bitacora-markdown, parser, properties]
 estimate: 2
 created: 2026-10-06T14:29:17Z
-updated: 2026-10-06T14:29:17Z
+updated: 2026-10-06T17:23:44Z
+closed: 2026-10-06T17:23:44Z
 ---
 
 ## Description

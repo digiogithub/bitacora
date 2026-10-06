@@ -2,14 +2,15 @@
 id: BIT-T-0151
 type: task
 title: Drawer and LOGBOOK CLOCK parser/formatter
-status: backlog
+status: done
 parent: BIT-US-0084
 milestone: BIT-M-0002
 author: mcp
 labels: [bitacora-markdown, parser, tasks]
 estimate: 2
 created: 2026-10-06T14:30:16Z
-updated: 2026-10-06T14:39:30Z
+updated: 2026-10-06T17:23:44Z
+closed: 2026-10-06T17:23:44Z
 ---
 
 ## Description

@@ -2,14 +2,15 @@
 id: BIT-T-0095
 type: task
 title: "Page property assembly and #+key directive hoisting"
-status: backlog
+status: done
 parent: BIT-US-0059
 milestone: BIT-M-0002
 author: mcp
 labels: [bitacora-markdown, parser, properties]
 estimate: 2
 created: 2026-10-06T14:29:18Z
-updated: 2026-10-06T14:29:18Z
+updated: 2026-10-06T17:23:44Z
+closed: 2026-10-06T17:23:44Z
 ---
 
 ## Description

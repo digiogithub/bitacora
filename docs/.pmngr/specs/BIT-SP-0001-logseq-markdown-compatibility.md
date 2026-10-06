@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [markdown, compat]
 created: 2026-10-06T14:21:20Z
-updated: 2026-10-06T17:18:16Z
+updated: 2026-10-06T17:23:57Z
 requirements:
   R1:
     status: backlog
@@ -32,6 +32,14 @@ requirements:
         - crates/bitacora-markdown/tests/outline_fixtures.rs
   R3:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-markdown/src/page_props.rs#page_properties
+        - crates/bitacora-markdown/src/outline.rs#pre_block_content
+      tests:
+        - crates/bitacora-markdown/src/page_props.rs
+        - crates/bitacora-markdown/tests/page_props_fixtures.rs
+        - fixtures/markdown/page-props/cases.txt
   R4:
     status: backlog
     trace:
@@ -56,10 +64,37 @@ requirements:
         - crates/bitacora-markdown/tests/edit_golden.rs
   R8:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-markdown/src/inline/scan.rs#scan
+        - crates/bitacora-markdown/src/inline/refs.rs#collect
+        - crates/bitacora-markdown/src/block.rs#analyze
+      tests:
+        - crates/bitacora-markdown/src/inline/scan.rs
+        - crates/bitacora-markdown/src/inline/refs.rs
+        - crates/bitacora-markdown/tests/inline_fixtures.rs
+        - crates/bitacora-markdown/tests/inline_robustness.rs
+        - fixtures/markdown/inline/cases.txt
   R9:
     status: backlog
+    trace:
+      code: [crates/bitacora-markdown/src/tasks/head.rs#parse_head]
+      tests:
+        - crates/bitacora-markdown/src/tasks/head.rs
+        - crates/bitacora-markdown/tests/tasks_fixtures.rs
+        - fixtures/markdown/tasks/markers.md
   R10:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-markdown/src/tasks/timestamp.rs
+        - crates/bitacora-markdown/src/tasks/drawer.rs
+      tests:
+        - crates/bitacora-markdown/src/tasks/timestamp.rs
+        - crates/bitacora-markdown/src/tasks/drawer.rs
+        - crates/bitacora-markdown/tests/tasks_fixtures.rs
+        - fixtures/markdown/tasks/planning.md
+        - fixtures/markdown/tasks/logbook.md
   R11:
     status: backlog
     trace:

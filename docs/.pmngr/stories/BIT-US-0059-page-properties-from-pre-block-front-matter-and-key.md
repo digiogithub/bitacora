@@ -2,7 +2,7 @@
 id: BIT-US-0059
 type: story
 title: "Page properties from pre-block, front matter and #+key directives"
-status: backlog
+status: done
 priority: high
 parent: BIT-EP-0003
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [markdown, compat, parser, properties]
 estimate: 5
 created: 2026-10-06T14:28:45Z
-updated: 2026-10-06T14:28:45Z
+updated: 2026-10-06T17:23:44Z
+closed: 2026-10-06T17:23:44Z
 ---
 
 ## Description

@@ -2,14 +2,15 @@
 id: BIT-T-0147
 type: task
 title: "Macro scanner: embeds, queries, built-in and user macros"
-status: backlog
+status: done
 parent: BIT-US-0083
 milestone: BIT-M-0002
 author: mcp
 labels: [bitacora-markdown, parser, refs]
 estimate: 2
 created: 2026-10-06T14:30:15Z
-updated: 2026-10-06T14:30:15Z
+updated: 2026-10-06T17:23:44Z
+closed: 2026-10-06T17:23:44Z
 ---
 
 ## Description
