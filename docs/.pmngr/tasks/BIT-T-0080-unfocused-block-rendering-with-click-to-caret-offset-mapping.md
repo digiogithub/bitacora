@@ -2,7 +2,7 @@
 id: BIT-T-0080
 type: task
 title: Unfocused block rendering with click-to-caret offset mapping
-status: backlog
+status: in_progress
 priority: high
 parent: BIT-US-0040
 milestone: BIT-M-0001
@@ -10,7 +10,8 @@ author: mcp
 labels: [spike, block-editor, bitacora-app]
 estimate: 3
 created: 2026-10-06T14:28:47Z
-updated: 2026-10-06T14:28:47Z
+updated: 2026-10-06T17:09:41Z
+started: 2026-10-06T17:09:41Z
 ---
 
 ## Description

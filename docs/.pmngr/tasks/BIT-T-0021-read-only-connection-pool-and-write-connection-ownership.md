@@ -2,7 +2,7 @@
 id: BIT-T-0021
 type: task
 title: Read-only connection pool and write connection ownership
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0004
 milestone: BIT-M-0002
@@ -10,7 +10,9 @@ author: mcp
 labels: [bitacora-index, index]
 estimate: 2
 created: 2026-10-06T14:26:33Z
-updated: 2026-10-06T14:26:33Z
+updated: 2026-10-06T17:14:37Z
+started: 2026-10-06T17:09:56Z
+closed: 2026-10-06T17:14:37Z
 ---
 
 ## Description

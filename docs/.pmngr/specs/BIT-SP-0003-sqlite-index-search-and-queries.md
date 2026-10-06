@@ -6,14 +6,27 @@ status: backlog
 author: mcp
 labels: [index, search]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T15:08:30Z
+updated: 2026-10-06T17:14:17Z
 requirements:
   R1:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-index/src/location.rs
+        - crates/bitacora-index/src/index.rs
+      tests: [crates/bitacora-index/tests/lifecycle.rs]
   R2:
     status: backlog
+    trace:
+      code: [crates/bitacora-index/src/index.rs]
+      tests: [crates/bitacora-index/tests/lifecycle.rs]
   R3:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-index/src/schema.rs
+        - crates/bitacora-index/src/schema_v1.sql
+      tests: [crates/bitacora-index/tests/lifecycle.rs]
   R4:
     status: backlog
   R5:

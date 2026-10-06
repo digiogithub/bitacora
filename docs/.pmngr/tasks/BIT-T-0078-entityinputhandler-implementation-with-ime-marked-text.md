@@ -2,7 +2,7 @@
 id: BIT-T-0078
 type: task
 title: EntityInputHandler implementation with IME marked text
-status: backlog
+status: in_progress
 priority: critical
 parent: BIT-US-0040
 milestone: BIT-M-0001
@@ -10,7 +10,8 @@ author: mcp
 labels: [spike, block-editor, ime, bitacora-app]
 estimate: 3
 created: 2026-10-06T14:28:47Z
-updated: 2026-10-06T14:28:47Z
+updated: 2026-10-06T17:09:41Z
+started: 2026-10-06T17:09:41Z
 ---
 
 ## Description

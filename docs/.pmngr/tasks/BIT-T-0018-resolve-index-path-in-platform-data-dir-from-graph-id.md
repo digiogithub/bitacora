@@ -2,7 +2,7 @@
 id: BIT-T-0018
 type: task
 title: Resolve index path in platform data dir from graph id
-status: backlog
+status: done
 priority: critical
 parent: BIT-US-0004
 milestone: BIT-M-0002
@@ -10,7 +10,9 @@ author: mcp
 labels: [bitacora-index, index]
 estimate: 2
 created: 2026-10-06T14:26:33Z
-updated: 2026-10-06T14:26:33Z
+updated: 2026-10-06T17:14:37Z
+started: 2026-10-06T17:09:56Z
+closed: 2026-10-06T17:14:37Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-US-0004
 type: story
 title: Index storage, schema v1 and open/validate lifecycle
-status: backlog
+status: done
 priority: critical
 parent: BIT-EP-0005
 milestone: BIT-M-0002
@@ -10,7 +10,9 @@ author: mcp
 labels: [index, bitacora-index]
 estimate: 5
 created: 2026-10-06T14:25:23Z
-updated: 2026-10-06T14:25:23Z
+updated: 2026-10-06T17:14:37Z
+started: 2026-10-06T17:09:56Z
+closed: 2026-10-06T17:14:37Z
 ---
 
 ## Description
