@@ -45,6 +45,7 @@ bitacora-index = { path = "crates/bitacora-index" }
 bitacora-merge = { path = "crates/bitacora-merge" }
 bitacora-sync = { path = "crates/bitacora-sync" }
 bitacora-mcp = { path = "crates/bitacora-mcp" }
+bitacora-runtime = { path = "crates/bitacora-runtime" }
 bitacora-testkit = { path = "crates/bitacora-testkit" }
 
 # UI (only bitacora-app may use it; ADR-001)

@@ -945,9 +945,13 @@ impl Worker {
                 if self.ws.page(&key).is_some_and(|p| p.needs_write()) {
                     return Err(QueueError::PageDirty(key));
                 }
+                let replaced = self.ws.page(&key).is_some();
                 self.ws.load_page(key.clone(), &title, path, &bytes);
                 self.seq += 1;
-                self.publish(&[key]);
+                self.publish(std::slice::from_ref(&key));
+                if replaced {
+                    self.emit(&QueueEvent::PageReloaded(key));
+                }
                 Ok(Response::Loaded)
             }
             Request::Flush => {

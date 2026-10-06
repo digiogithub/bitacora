@@ -1,0 +1,26 @@
+[package]
+name = "bitacora-runtime"
+description = "Bitacora: headless graph session composing core, index, watch, sync and MCP (ADR-024)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+bitacora-config.workspace = true
+bitacora-core.workspace = true
+bitacora-index.workspace = true
+bitacora-watch.workspace = true
+bitacora-sync.workspace = true
+bitacora-mcp.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+bitacora-testkit.workspace = true
+tempfile.workspace = true
