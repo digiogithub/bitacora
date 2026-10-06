@@ -2,7 +2,7 @@
 id: BIT-US-0016
 type: story
 title: Bearer token auth, Origin/Host checks and token management
-status: backlog
+status: in_progress
 priority: critical
 parent: BIT-EP-0010
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [mcp, security, auth]
 estimate: 8
 created: 2026-10-06T14:27:12Z
-updated: 2026-10-06T14:27:12Z
+updated: 2026-10-06T16:57:38Z
+started: 2026-10-06T16:57:38Z
 ---
 
 ## Description

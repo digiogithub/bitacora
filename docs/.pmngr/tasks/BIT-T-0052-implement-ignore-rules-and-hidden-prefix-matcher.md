@@ -2,7 +2,7 @@
 id: BIT-T-0052
 type: task
 title: Implement ignore rules and :hidden prefix matcher
-status: backlog
+status: done
 priority: critical
 parent: BIT-US-0027
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-core, compat]
 estimate: 3
 created: 2026-10-06T14:28:27Z
-updated: 2026-10-06T14:37:38Z
+updated: 2026-10-06T16:58:59Z
+closed: 2026-10-06T16:58:59Z
 ---
 
 ## Description

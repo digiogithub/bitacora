@@ -2,7 +2,7 @@
 id: BIT-T-0216
 type: task
 title: Journal file path function and never-rename guard
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0091
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-core, compat, journals]
 estimate: 1
 created: 2026-10-06T14:31:08Z
-updated: 2026-10-06T14:31:08Z
+updated: 2026-10-06T16:58:59Z
+closed: 2026-10-06T16:58:59Z
 ---
 
 ## Description

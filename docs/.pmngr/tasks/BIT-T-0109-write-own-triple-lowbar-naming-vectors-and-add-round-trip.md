@@ -2,7 +2,7 @@
 id: BIT-T-0109
 type: task
 title: Write own triple-lowbar naming vectors and add round-trip property tests
-status: backlog
+status: done
 priority: critical
 parent: BIT-US-0081
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-core, test, compat]
 estimate: 3
 created: 2026-10-06T14:29:47Z
-updated: 2026-10-06T14:38:19Z
+updated: 2026-10-06T16:58:59Z
+closed: 2026-10-06T16:58:59Z
 ---
 
 ## Description

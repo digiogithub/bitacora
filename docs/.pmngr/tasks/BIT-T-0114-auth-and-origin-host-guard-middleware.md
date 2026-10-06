@@ -2,7 +2,7 @@
 id: BIT-T-0114
 type: task
 title: Auth and Origin/Host guard middleware
-status: backlog
+status: in_progress
 priority: critical
 parent: BIT-US-0016
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-mcp, security, auth]
 estimate: 3
 created: 2026-10-06T14:29:54Z
-updated: 2026-10-06T14:29:54Z
+updated: 2026-10-06T16:57:38Z
+started: 2026-10-06T16:57:38Z
 ---
 
 ## Description

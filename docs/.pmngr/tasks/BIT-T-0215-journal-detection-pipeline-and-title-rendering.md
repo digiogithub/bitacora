@@ -2,7 +2,7 @@
 id: BIT-T-0215
 type: task
 title: Journal detection pipeline and title rendering
-status: backlog
+status: done
 priority: critical
 parent: BIT-US-0091
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-core, compat, journals]
 estimate: 2
 created: 2026-10-06T14:31:07Z
-updated: 2026-10-06T14:39:30Z
+updated: 2026-10-06T16:58:59Z
+closed: 2026-10-06T16:58:59Z
 ---
 
 ## Description

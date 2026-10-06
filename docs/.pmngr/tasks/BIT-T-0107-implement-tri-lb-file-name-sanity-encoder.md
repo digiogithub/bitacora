@@ -2,7 +2,7 @@
 id: BIT-T-0107
 type: task
 title: Implement tri-lb-file-name-sanity encoder
-status: backlog
+status: done
 priority: critical
 parent: BIT-US-0081
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-core, compat]
 estimate: 3
 created: 2026-10-06T14:29:47Z
-updated: 2026-10-06T14:29:47Z
+updated: 2026-10-06T16:58:49Z
+closed: 2026-10-06T16:58:49Z
 ---
 
 ## Description

@@ -6,12 +6,20 @@ status: backlog
 author: mcp
 labels: [core, compat]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T16:52:51Z
+updated: 2026-10-06T16:59:31Z
 requirements:
   R1:
     status: backlog
+    trace:
+      code: [crates/bitacora-core/src/scan.rs#scan_graph]
+      tests: [crates/bitacora-core/src/scan.rs#no_trace]
   R2:
     status: backlog
+    trace:
+      code: [crates/bitacora-core/src/scan.rs#scan_graph]
+      tests:
+        - crates/bitacora-core/src/scan.rs#golden_scan
+        - crates/bitacora-core/src/scan.rs#hidden_prefixes
   R3:
     status: backlog
     trace:
@@ -29,18 +37,46 @@ requirements:
       tests: [crates/bitacora-config/tests/edit_golden.rs]
   R5:
     status: backlog
+    trace:
+      code: [crates/bitacora-core/src/naming.rs#derive_title]
+      tests: [crates/bitacora-core/src/naming.rs#derive_title_pipeline]
   R6:
     status: backlog
+    trace:
+      code: [crates/bitacora-core/src/naming.rs#triple_lowbar]
+      tests:
+        - crates/bitacora-core/src/naming.rs#tlb_encode_vectors
+        - crates/bitacora-core/src/naming.rs#tlb_roundtrip
   R7:
     status: backlog
+    trace:
+      code: [crates/bitacora-core/src/naming.rs#legacy]
+      tests:
+        - crates/bitacora-core/src/naming.rs#legacy_vectors
+        - crates/bitacora-core/src/naming.rs#title_property_predicate
   R8:
     status: backlog
   R9:
     status: backlog
+    trace:
+      code: [crates/bitacora-core/src/graph_path.rs#GraphPath]
+      tests:
+        - crates/bitacora-core/src/graph_path.rs#normalises
+        - crates/bitacora-core/src/scan.rs#nfd_names_are_normalised
   R10:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-core/src/journal.rs#detect_journal
+        - crates/bitacora-core/src/date.rs#DateFormat
+      tests:
+        - crates/bitacora-core/src/journal.rs#journal_file_is_detected
+        - crates/bitacora-core/src/date.rs#parses_strictly
   R11:
     status: backlog
+    trace:
+      code: [crates/bitacora-core/src/journal.rs#journal_file_path]
+      tests: [crates/bitacora-core/src/journal.rs#file_paths]
   R12:
     status: backlog
   R13:
@@ -51,6 +87,11 @@ requirements:
     status: backlog
   R16:
     status: backlog
+    trace:
+      code: [crates/bitacora-core/src/scan.rs#decode_text]
+      tests:
+        - crates/bitacora-core/src/scan.rs#bom_reader
+        - crates/bitacora-core/src/scan.rs#no_trace
   R17:
     status: backlog
   R18:

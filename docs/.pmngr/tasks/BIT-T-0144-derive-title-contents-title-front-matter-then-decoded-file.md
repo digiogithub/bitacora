@@ -2,7 +2,7 @@
 id: BIT-T-0144
 type: task
 title: "derive_title: Contents, title:: / front matter, then decoded file body"
-status: backlog
+status: done
 priority: critical
 parent: BIT-US-0085
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-core, compat]
 estimate: 2
 created: 2026-10-06T14:30:11Z
-updated: 2026-10-06T14:30:11Z
+updated: 2026-10-06T16:58:59Z
+closed: 2026-10-06T16:58:59Z
 ---
 
 ## Description

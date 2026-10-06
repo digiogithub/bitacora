@@ -2,7 +2,7 @@
 id: BIT-T-0217
 type: task
 title: Write own date/journal test vectors and journals fixture graph
-status: backlog
+status: done
 priority: medium
 parent: BIT-US-0091
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-core, test, compat, journals]
 estimate: 2
 created: 2026-10-06T14:31:08Z
-updated: 2026-10-06T14:38:19Z
+updated: 2026-10-06T16:58:59Z
+closed: 2026-10-06T16:58:59Z
 ---
 
 ## Description

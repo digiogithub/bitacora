@@ -2,7 +2,7 @@
 id: BIT-T-0111
 type: task
 title: McpServer lifecycle on a dedicated tokio runtime with loopback binding
-status: backlog
+status: in_progress
 priority: high
 parent: BIT-US-0015
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-mcp, mcp, server]
 estimate: 3
 created: 2026-10-06T14:29:54Z
-updated: 2026-10-06T14:29:54Z
+updated: 2026-10-06T16:57:38Z
+started: 2026-10-06T16:57:38Z
 ---
 
 ## Description

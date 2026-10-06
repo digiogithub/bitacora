@@ -2,7 +2,7 @@
 id: BIT-T-0057
 type: task
 title: Fixture graph and no-trace test for discovery and unowned files
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0027
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-core, test, compat]
 estimate: 2
 created: 2026-10-06T14:28:27Z
-updated: 2026-10-06T14:28:27Z
+updated: 2026-10-06T16:58:59Z
+closed: 2026-10-06T16:58:59Z
 ---
 
 ## Description

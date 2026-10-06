@@ -2,7 +2,7 @@
 id: BIT-T-0055
 type: task
 title: Graph scanner with Logseq filter-files ordering and UTF-8/BOM reader
-status: backlog
+status: done
 priority: critical
 parent: BIT-US-0027
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-core, compat]
 estimate: 3
 created: 2026-10-06T14:28:27Z
-updated: 2026-10-06T14:28:27Z
+updated: 2026-10-06T16:58:59Z
+closed: 2026-10-06T16:58:59Z
 ---
 
 ## Description
