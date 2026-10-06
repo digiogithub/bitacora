@@ -300,6 +300,22 @@ impl Render for SyncPanel {
                 t!("sync.panel.identity").to_string(),
                 identity,
             ))
+            .child(labelled(
+                &theme,
+                t!("sync.panel.timing").to_string(),
+                t!(
+                    "sync.panel.timing_value",
+                    idle = prefs.commit_idle_secs,
+                    max = prefs.commit_max_secs,
+                    fetch = prefs.fetch_interval_secs,
+                    squash = if prefs.squash_auto_commits {
+                        t!("sync.panel.on").to_string()
+                    } else {
+                        t!("sync.panel.off_word").to_string()
+                    }
+                )
+                .to_string(),
+            ))
             .child(
                 h_flex()
                     .gap_2()

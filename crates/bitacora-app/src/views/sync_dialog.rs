@@ -158,6 +158,10 @@ pub struct SyncDialog {
     email: Entity<InputState>,
     device: Entity<InputState>,
     dest: Entity<InputState>,
+    idle: Entity<InputState>,
+    max: Entity<InputState>,
+    fetch: Entity<InputState>,
+    squash: bool,
     auto_dest: Option<String>,
     show_errors: bool,
     phase: Phase,
@@ -196,6 +200,9 @@ impl SyncDialog {
         let email = field(cx, window, t!("sync.dialog.email_placeholder").to_string());
         let device = field(cx, window, t!("sync.dialog.device_placeholder").to_string());
         let dest = field(cx, window, t!("sync.dialog.dest_placeholder").to_string());
+        let idle = field(cx, window, "20".to_owned());
+        let max = field(cx, window, "300".to_owned());
+        let fetch = field(cx, window, "120".to_owned());
         let subscriptions = vec![
             cx.subscribe_in(&url, window, |this, _, event: &InputEvent, window, cx| {
                 if matches!(event, InputEvent::Change) {
@@ -221,6 +228,10 @@ impl SyncDialog {
             email,
             device,
             dest,
+            idle,
+            max,
+            fetch,
+            squash: true,
             auto_dest: None,
             show_errors: false,
             phase: Phase::Editing,
@@ -305,6 +316,15 @@ impl SyncDialog {
             cx,
         );
         set(&self.device, &prefs.device, window, cx);
+        set(&self.idle, &prefs.commit_idle_secs.to_string(), window, cx);
+        set(&self.max, &prefs.commit_max_secs.to_string(), window, cx);
+        set(
+            &self.fetch,
+            &prefs.fetch_interval_secs.to_string(),
+            window,
+            cx,
+        );
+        self.squash = prefs.squash_auto_commits;
     }
 
     fn begin(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -337,6 +357,10 @@ impl SyncDialog {
             email: get(&self.email),
             device: get(&self.device),
             destination: get(&self.dest),
+            commit_idle: get(&self.idle),
+            commit_max: get(&self.max),
+            fetch: get(&self.fetch),
+            squash: self.squash,
         }
     }
 
@@ -354,6 +378,10 @@ impl SyncDialog {
         set(&self.email, &form.email, window, cx);
         set(&self.device, &form.device, window, cx);
         set(&self.dest, &form.destination, window, cx);
+        set(&self.idle, &form.commit_idle, window, cx);
+        set(&self.max, &form.commit_max, window, cx);
+        set(&self.fetch, &form.fetch, window, cx);
+        self.squash = form.squash;
     }
 
     /// Validation of the current form.
@@ -434,14 +462,7 @@ impl SyncDialog {
         cx: &mut Context<Self>,
     ) {
         self.task = None;
-        let prefs = SyncPrefs {
-            enabled: true,
-            remote_url: form.remote_url.trim().to_owned(),
-            branch: form.branch.trim().to_owned(),
-            device: form.device.trim().to_owned(),
-            author_name: form.identity().map(|i| i.name),
-            author_email: form.identity().map(|i| i.email),
-        };
+        let prefs = form.to_prefs();
         match result {
             OpResult::Enabled(outcome) => {
                 let root = self.graph.clone().unwrap_or_default();
@@ -610,7 +631,47 @@ impl Render for SyncDialog {
                     .text_xs()
                     .text_color(theme.muted_foreground)
                     .child(t!("sync.dialog.identity_note").to_string()),
-            );
+            )
+            .child(
+                h_flex()
+                    .gap_2()
+                    .child(div().flex_1().child(self.field(
+                        &theme,
+                        t!("sync.dialog.commit_idle").to_string(),
+                        &self.idle,
+                        errors.timing,
+                    )))
+                    .child(div().flex_1().child(self.field(
+                        &theme,
+                        t!("sync.dialog.commit_max").to_string(),
+                        &self.max,
+                        None,
+                    )))
+                    .child(div().flex_1().child(self.field(
+                        &theme,
+                        t!("sync.dialog.fetch").to_string(),
+                        &self.fetch,
+                        None,
+                    ))),
+            )
+            .child({
+                let toggle = this.clone();
+                Button::new("sync-squash")
+                    .ghost()
+                    .small()
+                    .icon(if self.squash {
+                        IconName::Check
+                    } else {
+                        IconName::Square
+                    })
+                    .label(t!("sync.dialog.squash").to_string())
+                    .on_click(move |_, _, cx| {
+                        toggle.update(cx, |d, cx| {
+                            d.squash = !d.squash;
+                            cx.notify();
+                        });
+                    })
+            });
 
         match &self.phase {
             Phase::Running => {

@@ -160,6 +160,7 @@ sync:
     bad_email: Enter a valid email address
     identity_incomplete: Fill in both name and email, or leave both empty
     destination_not_empty: The folder is not empty
+    not_number: Enter a whole number of seconds
   dialog:
     no_graph: No graph is open
     url_placeholder: https://github.com/you/notes.git
@@ -179,6 +180,10 @@ sync:
     name: Author name
     email: Author email
     device: Device name
+    commit_idle: Commit after idle (s, 5-600)
+    commit_max: Commit at most every (s)
+    fetch: Fetch every (s)
+    squash: Squash recent automatic commits
     identity_note: The author is stored in this repository only; your global settings are not changed. Leave both empty to use "Bitacora".
     running_enable: Connecting to the remote and pushing...
     running_clone: Downloading the graph...
@@ -210,6 +215,10 @@ sync:
     branch: Branch
     device: Device
     identity: Commit author
+    timing: Timing
+    timing_value: "commit after %{idle} s idle, at most every %{max} s; fetch every %{fetch} s; squash %{squash}"
+    on: on
+    off_word: off
     change: Change...
     enable: Enable sync...
     disable: Turn sync off

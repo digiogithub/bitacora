@@ -169,6 +169,7 @@ fn the_form_validates_before_any_git_work_and_clone_opens_the_graph_with_sync_on
         email: "carol@example.com".into(),
         device: "carol-laptop".into(),
         destination: dest.display().to_string(),
+        ..SyncForm::default()
     };
     dialog.update_in(cx, |d, window, cx| d.set_form(&form, window, cx));
     assert!(dialog.read_with(cx, |d, cx| d.errors(cx).is_empty()));
@@ -226,7 +227,9 @@ fn enable_sync_connects_a_plain_folder_and_the_status_bar_follows_the_engine(
         name: "Alice".into(),
         email: "alice@example.com".into(),
         device: "alice-laptop".into(),
-        destination: String::new(),
+        commit_idle: "2".into(),
+        squash: true,
+        ..SyncForm::default()
     };
     dialog.update_in(cx, |d, window, cx| d.set_form(&form, window, cx));
     dialog.update_in(cx, |d, window, cx| d.submit(window, cx));
@@ -247,9 +250,12 @@ fn enable_sync_connects_a_plain_folder_and_the_status_bar_follows_the_engine(
         git(&graph, &["config", "--local", "user.email"]),
         "alice@example.com"
     );
-    // The preferences persisted for the next start.
+    // The preferences persisted for the next start, timings clamped (2 s idle becomes 5 s).
     let file = SyncPrefs::file_for(&data.join("state"), &graph.canonicalize().unwrap());
-    assert!(SyncPrefs::load(&file).enabled);
+    let stored = SyncPrefs::load(&file);
+    assert!(stored.enabled);
+    assert_eq!(stored.commit_idle_secs, 5);
+    assert_eq!(stored.commit_max_secs, 300);
 
     // "Sync now" through the panel path: still idle afterwards, and the panel mirrors it.
     ws.update_in(cx, |w, window, cx| w.sync_now(window, cx));

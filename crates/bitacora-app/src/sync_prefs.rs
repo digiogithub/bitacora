@@ -19,6 +19,13 @@ use crate::settings::write_atomic;
 /// Default branch name offered by the forms.
 pub const DEFAULT_BRANCH: &str = "main";
 
+/// `sync.commit_idle_secs` is clamped to this range (seconds).
+pub const IDLE_RANGE: (u64, u64) = (5, 600);
+/// `sync.commit_max_secs` is clamped to this range (seconds).
+pub const MAX_RANGE: (u64, u64) = (30, 3600);
+/// `sync.fetch_interval_secs` (foreground) is clamped to this range (seconds).
+pub const FETCH_RANGE: (u64, u64) = (30, 3600);
+
 /// What sync does for one graph on this machine.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
@@ -35,6 +42,15 @@ pub struct SyncPrefs {
     pub author_name: Option<String>,
     /// Commit author email.
     pub author_email: Option<String>,
+    /// Commit after this many idle seconds (`sync.commit_idle_secs`, 5-600).
+    pub commit_idle_secs: u64,
+    /// Hard cap of continuous editing before a commit (`sync.commit_max_secs`).
+    pub commit_max_secs: u64,
+    /// Fetch interval while the app is focused (`sync.fetch_interval_secs`); the background
+    /// interval is five times as long.
+    pub fetch_interval_secs: u64,
+    /// Amend recent auto-commits instead of piling them up (`sync.squash_auto_commits`).
+    pub squash_auto_commits: bool,
 }
 
 impl Default for SyncPrefs {
@@ -46,11 +62,30 @@ impl Default for SyncPrefs {
             device: repo_setup::hostname(),
             author_name: None,
             author_email: None,
+            commit_idle_secs: 20,
+            commit_max_secs: 300,
+            fetch_interval_secs: 120,
+            squash_auto_commits: true,
         }
     }
 }
 
+fn clamp_secs(value: u64, (lo, hi): (u64, u64)) -> u64 {
+    value.clamp(lo, hi)
+}
+
 impl SyncPrefs {
+    /// The preferences with every timing inside its documented range (the cap is never
+    /// shorter than the idle window).
+    #[must_use]
+    pub fn clamped(mut self) -> Self {
+        self.commit_idle_secs = clamp_secs(self.commit_idle_secs, IDLE_RANGE);
+        self.commit_max_secs =
+            clamp_secs(self.commit_max_secs, MAX_RANGE).max(self.commit_idle_secs);
+        self.fetch_interval_secs = clamp_secs(self.fetch_interval_secs, FETCH_RANGE);
+        self
+    }
+
     /// `<data_dir>/graphs/<hash>/sync.json` for the graph at `root`.
     pub fn file_for(data_dir: &Path, root: &Path) -> PathBuf {
         data_dir
@@ -121,6 +156,8 @@ pub enum FieldError {
     IdentityIncomplete,
     /// The destination folder exists and is not empty.
     DestinationNotEmpty,
+    /// A timing field holds something that is not a whole number of seconds.
+    NotANumber,
 }
 
 impl FieldError {
@@ -135,6 +172,7 @@ impl FieldError {
             Self::BadEmail => "sync.error.bad_email",
             Self::IdentityIncomplete => "sync.error.identity_incomplete",
             Self::DestinationNotEmpty => "sync.error.destination_not_empty",
+            Self::NotANumber => "sync.error.not_number",
         }
     }
 }
@@ -242,6 +280,26 @@ pub struct SyncForm {
     pub device: String,
     /// Clone destination (clone form only).
     pub destination: String,
+    /// Seconds of idle before a commit (empty: the default).
+    pub commit_idle: String,
+    /// Seconds before an editing session is committed anyway (empty: the default).
+    pub commit_max: String,
+    /// Seconds between fetches while focused (empty: the default).
+    pub fetch: String,
+    /// Squash recent auto-commits.
+    pub squash: bool,
+}
+
+/// Parses a timing field: empty means `default`, anything else must be a whole number, which
+/// is then clamped into `range`.
+pub fn parse_secs(text: &str, range: (u64, u64), default: u64) -> Result<u64, FieldError> {
+    let text = text.trim();
+    if text.is_empty() {
+        return Ok(default);
+    }
+    text.parse::<u64>()
+        .map(|v| clamp_secs(v, range))
+        .map_err(|_| FieldError::NotANumber)
 }
 
 /// Validation result per field; empty means the form can be submitted.
@@ -257,6 +315,8 @@ pub struct FormErrors {
     pub device: Option<FieldError>,
     /// Destination problem (clone form).
     pub destination: Option<FieldError>,
+    /// A timing field is not a number.
+    pub timing: Option<FieldError>,
 }
 
 impl FormErrors {
@@ -275,6 +335,13 @@ impl SyncForm {
             identity: validate_identity(&self.name, &self.email).err(),
             ..FormErrors::default()
         };
+        errors.timing = [
+            parse_secs(&self.commit_idle, IDLE_RANGE, 20),
+            parse_secs(&self.commit_max, MAX_RANGE, 300),
+            parse_secs(&self.fetch, FETCH_RANGE, 120),
+        ]
+        .into_iter()
+        .find_map(Result::err);
         let device = self.device.trim();
         if device.is_empty() {
             errors.device = Some(FieldError::Required);
@@ -300,6 +367,27 @@ impl SyncForm {
     /// The identity to configure, when both fields are filled in.
     pub fn identity(&self) -> Option<Identity> {
         identity_from(Some(&self.name), Some(&self.email))
+    }
+
+    /// The preferences this (valid) form describes, enabled, timings clamped.
+    pub fn to_prefs(&self) -> SyncPrefs {
+        let defaults = SyncPrefs::default();
+        SyncPrefs {
+            enabled: true,
+            remote_url: self.remote_url.trim().to_owned(),
+            branch: self.branch.trim().to_owned(),
+            device: self.device.trim().to_owned(),
+            author_name: self.identity().map(|i| i.name),
+            author_email: self.identity().map(|i| i.email),
+            commit_idle_secs: parse_secs(&self.commit_idle, IDLE_RANGE, defaults.commit_idle_secs)
+                .unwrap_or(defaults.commit_idle_secs),
+            commit_max_secs: parse_secs(&self.commit_max, MAX_RANGE, defaults.commit_max_secs)
+                .unwrap_or(defaults.commit_max_secs),
+            fetch_interval_secs: parse_secs(&self.fetch, FETCH_RANGE, defaults.fetch_interval_secs)
+                .unwrap_or(defaults.fetch_interval_secs),
+            squash_auto_commits: self.squash,
+        }
+        .clamped()
     }
 }
 
@@ -452,6 +540,46 @@ mod tests {
         assert_eq!(form.validate(true).destination, Some(FieldError::Required));
         form.device = " ".into();
         assert_eq!(form.validate(false).device, Some(FieldError::Required));
+    }
+
+    #[test]
+    fn timings_are_clamped_into_their_ranges_and_must_be_numbers() {
+        assert_eq!(parse_secs("", IDLE_RANGE, 20), Ok(20));
+        assert_eq!(parse_secs("1", IDLE_RANGE, 20), Ok(5));
+        assert_eq!(parse_secs("9999", IDLE_RANGE, 20), Ok(600));
+        assert_eq!(parse_secs(" 45 ", IDLE_RANGE, 20), Ok(45));
+        assert_eq!(
+            parse_secs("soon", IDLE_RANGE, 20),
+            Err(FieldError::NotANumber)
+        );
+        let prefs = SyncPrefs {
+            commit_idle_secs: 500,
+            commit_max_secs: 40,
+            fetch_interval_secs: 1,
+            ..SyncPrefs::default()
+        }
+        .clamped();
+        assert_eq!(prefs.commit_idle_secs, 500);
+        assert_eq!(
+            prefs.commit_max_secs, 500,
+            "the cap never undercuts the idle window"
+        );
+        assert_eq!(prefs.fetch_interval_secs, 30);
+        let form = SyncForm {
+            remote_url: "https://example.org/n.git".into(),
+            branch: "main".into(),
+            device: "d".into(),
+            commit_idle: "2".into(),
+            fetch: "x".into(),
+            ..SyncForm::default()
+        };
+        assert_eq!(form.validate(false).timing, Some(FieldError::NotANumber));
+        let ok = SyncForm {
+            fetch: String::new(),
+            ..form
+        };
+        assert!(ok.validate(false).is_empty());
+        assert_eq!(ok.to_prefs().commit_idle_secs, 5);
     }
 
     #[test]

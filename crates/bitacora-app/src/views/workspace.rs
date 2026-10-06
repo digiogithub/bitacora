@@ -382,6 +382,7 @@ impl Workspace {
                 device: self.sync_prefs.device.clone(),
                 cli: Some(hub.cli_config()),
                 credentials: Some(hub.provider()),
+                timing: self.sync_prefs.clone(),
             })
         } else {
             None

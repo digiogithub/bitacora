@@ -136,6 +136,8 @@ pub struct SyncSetup {
     pub cli: Option<CliConfig>,
     /// Credential provider for the built-in backend.
     pub credentials: Option<Arc<dyn CredentialProvider>>,
+    /// Commit and fetch timings, applied to the engine (BIT-T-0295).
+    pub timing: crate::sync_prefs::SyncPrefs,
 }
 
 impl std::fmt::Debug for SyncSetup {
@@ -292,6 +294,15 @@ fn runtime_config(
         let mut sync = SyncOptions::new(setup.device.clone(), setup.branch.clone());
         sync.cli.clone_from(&setup.cli);
         sync.credentials.clone_from(&setup.credentials);
+        let timing = setup.timing.clone().clamped();
+        sync.tune = Some(Arc::new(move |ec| {
+            use std::time::Duration;
+            ec.commit.idle = Duration::from_secs(timing.commit_idle_secs);
+            ec.commit.max = Duration::from_secs(timing.commit_max_secs);
+            ec.commit.squash = timing.squash_auto_commits;
+            ec.fetch_foreground = Duration::from_secs(timing.fetch_interval_secs);
+            ec.fetch_background = Duration::from_secs(timing.fetch_interval_secs.saturating_mul(5));
+        }));
         cfg.sync = Some(sync);
     }
     if with_mcp && let Some(token_path) = &options.mcp_token_path {
@@ -578,6 +589,44 @@ mod tests {
             global_config: Some(data.path().join("no-global-config.edn")),
             sync: None,
         }
+    }
+
+    #[test]
+    fn sync_timings_reach_the_engine_config_clamped() {
+        let g = graph();
+        let data = tempfile::tempdir().expect("data");
+        let mut opts = options(&data);
+        opts.sync = Some(SyncSetup {
+            branch: "main".into(),
+            device: "laptop".into(),
+            cli: None,
+            credentials: None,
+            timing: crate::sync_prefs::SyncPrefs {
+                commit_idle_secs: 1,
+                commit_max_secs: 100,
+                fetch_interval_secs: 60,
+                squash_auto_commits: false,
+                ..crate::sync_prefs::SyncPrefs::default()
+            },
+        });
+        let cfg = runtime_config(g.path(), &opts, false, true);
+        let sync = cfg.sync.expect("sync options");
+        let tune = sync.tune.expect("tune hook");
+        let mut ec = bitacora_sync::engine::EngineConfig::new(g.path(), "laptop", "main");
+        tune(&mut ec);
+        assert_eq!(
+            ec.commit.idle,
+            Duration::from_secs(5),
+            "idle is clamped to 5 s"
+        );
+        assert_eq!(ec.commit.max, Duration::from_secs(100));
+        assert!(!ec.commit.squash);
+        assert_eq!(ec.fetch_foreground, Duration::from_secs(60));
+        assert_eq!(ec.fetch_background, Duration::from_secs(300));
+        assert_eq!(sync.device, "laptop");
+        // Without a setup the session runs without sync.
+        opts.sync = None;
+        assert!(runtime_config(g.path(), &opts, false, true).sync.is_none());
     }
 
     #[test]
