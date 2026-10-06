@@ -71,7 +71,7 @@ similar = "3.2"
 edn-rs = "0.19"
 
 # Git (ADR-007 / ADR-020): gix incl. network client for the gix-only fallback
-gix = { version = "0.88", default-features = false, features = ["max-performance-safe", "blocking-network-client", "blocking-http-transport-reqwest-rust-tls", "credentials", "merge", "blob-diff", "status", "index", "revision"] }
+gix = { version = "0.88", default-features = false, features = ["max-performance-safe", "blocking-network-client", "blocking-http-transport-reqwest-rust-tls", "credentials", "merge", "blob-diff", "status", "index", "revision", "sha1", "worktree-mutation"] }
 
 # Watching, search, misc
 notify = "8.2"

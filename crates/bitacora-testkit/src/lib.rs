@@ -6,6 +6,7 @@
 //! Fixture graphs live in `fixtures/graphs/<name>/`; use [`graph`] and
 //! [`markdown_files`] instead of hard-coding paths.
 
+pub mod git;
 mod tracing_setup;
 
 pub use tracing_setup::init_tracing;

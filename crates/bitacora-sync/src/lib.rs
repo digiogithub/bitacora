@@ -1,15 +1,19 @@
-//! `bitacora-sync`: Git synchronisation: `GitBackend` (system git CLI plus `gix`), the sync loop and conflict state (ADR-007, ADR-020).
+//! `bitacora-sync`: Git synchronisation: `GitBackend` (system git CLI plus `gix`), repository
+//! setup and onboarding, the sync loop and conflict state (ADR-007, ADR-020).
+
+pub mod backend;
+pub mod onboarding;
+pub mod repo_setup;
 
 use bitacora_core as _;
 use bitacora_merge as _;
 
-/// Errors produced by this crate.
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    /// Placeholder variant until the crate gets real functionality.
-    #[error("not implemented: {0}")]
-    NotImplemented(&'static str),
-}
+pub use backend::{
+    ActiveBackend, CliBackend, CliConfig, CommitKind, CommitMessage, CommitOpts, FakeBackend,
+    FetchOutcome, GitBackend, GitDetection, GitError, GitVersion, GixBackend, HybridBackend,
+    MIN_GIT_VERSION, Oid, PushOutcome, RepoStatus, TreeChange, TreeEdit, detect_git,
+    select_backend,
+};
 
 /// Crate name, used by smoke tests.
 pub const CRATE_NAME: &str = "bitacora-sync";
@@ -21,6 +25,5 @@ mod tests {
     #[test]
     fn crate_name_matches_package() {
         assert_eq!(CRATE_NAME, env!("CARGO_PKG_NAME"));
-        assert_eq!(Error::NotImplemented("x").to_string(), "not implemented: x");
     }
 }
