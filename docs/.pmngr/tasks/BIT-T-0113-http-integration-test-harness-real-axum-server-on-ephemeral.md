@@ -2,7 +2,7 @@
 id: BIT-T-0113
 type: task
 title: "HTTP integration test harness: real axum server on ephemeral port + MCP client"
-status: in_progress
+status: done
 priority: high
 parent: BIT-US-0015
 milestone: BIT-M-0002
@@ -10,8 +10,9 @@ author: mcp
 labels: [bitacora-mcp, mcp, testing]
 estimate: 2
 created: 2026-10-06T14:29:54Z
-updated: 2026-10-06T16:57:38Z
+updated: 2026-10-06T17:03:39Z
 started: 2026-10-06T16:57:38Z
+closed: 2026-10-06T17:03:39Z
 ---
 
 ## Description

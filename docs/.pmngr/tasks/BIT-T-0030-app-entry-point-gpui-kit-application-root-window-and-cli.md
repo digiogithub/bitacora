@@ -2,7 +2,7 @@
 id: BIT-T-0030
 type: task
 title: "App entry point: GPUI Kit application, Root window and CLI args"
-status: in_progress
+status: done
 priority: critical
 parent: BIT-US-0014
 milestone: BIT-M-0001
@@ -10,8 +10,9 @@ author: mcp
 labels: [ui, bitacora-app]
 estimate: 3
 created: 2026-10-06T14:27:12Z
-updated: 2026-10-06T16:46:30Z
+updated: 2026-10-06T17:04:05Z
 started: 2026-10-06T16:46:30Z
+closed: 2026-10-06T17:04:05Z
 ---
 
 ## Description

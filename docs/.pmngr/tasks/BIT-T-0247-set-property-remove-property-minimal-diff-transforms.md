@@ -2,14 +2,15 @@
 id: BIT-T-0247
 type: task
 title: set_property / remove_property minimal-diff transforms
-status: backlog
+status: in_progress
 parent: BIT-US-0093
 milestone: BIT-M-0002
 author: mcp
 labels: [bitacora-markdown, serializer, properties]
 estimate: 3
 created: 2026-10-06T14:32:01Z
-updated: 2026-10-06T14:40:05Z
+updated: 2026-10-06T17:02:01Z
+started: 2026-10-06T17:02:01Z
 ---
 
 ## Description

@@ -6,20 +6,44 @@ status: backlog
 author: mcp
 labels: [mcp, api]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T14:24:44Z
+updated: 2026-10-06T17:03:11Z
 requirements:
   R1:
     status: backlog
+    trace:
+      code: [crates/bitacora-mcp/src/server.rs, crates/bitacora-cli/src/main.rs]
+      tests: [crates/bitacora-mcp/tests/http.rs]
   R2:
     status: backlog
+    trace:
+      code: [crates/bitacora-mcp/src/server.rs]
+      tests: [crates/bitacora-mcp/tests/http.rs]
   R3:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-mcp/src/guard.rs
+        - crates/bitacora-mcp/src/tokens.rs
+      tests:
+        - crates/bitacora-mcp/tests/http.rs
+        - crates/bitacora-mcp/src/tokens.rs
   R4:
     status: backlog
+    trace:
+      code: [crates/bitacora-mcp/src/guard.rs]
+      tests:
+        - crates/bitacora-mcp/tests/http.rs
+        - crates/bitacora-mcp/src/guard.rs
   R5:
     status: backlog
+    trace:
+      code: [crates/bitacora-mcp/src/tokens.rs]
+      tests: [crates/bitacora-mcp/src/tokens.rs]
   R6:
     status: backlog
+    trace:
+      code: [crates/bitacora-mcp/src/tokens.rs]
+      tests: [crates/bitacora-mcp/src/tokens.rs]
   R7:
     status: backlog
   R8:
@@ -48,6 +72,11 @@ requirements:
     status: backlog
   R20:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-mcp/src/handler.rs
+        - crates/bitacora-mcp/src/server.rs
+      tests: [crates/bitacora-mcp/tests/http.rs]
 ---
 
 ## Purpose

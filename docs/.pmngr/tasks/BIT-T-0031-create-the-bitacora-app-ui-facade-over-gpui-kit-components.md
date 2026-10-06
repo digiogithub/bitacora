@@ -2,7 +2,7 @@
 id: BIT-T-0031
 type: task
 title: Create the bitacora_app::ui facade over GPUI Kit components
-status: in_progress
+status: done
 priority: high
 parent: BIT-US-0014
 milestone: BIT-M-0001
@@ -10,8 +10,9 @@ author: mcp
 labels: [ui, bitacora-app]
 estimate: 2
 created: 2026-10-06T14:27:12Z
-updated: 2026-10-06T16:46:40Z
+updated: 2026-10-06T17:04:05Z
 started: 2026-10-06T16:46:40Z
+closed: 2026-10-06T17:04:05Z
 ---
 
 ## Description

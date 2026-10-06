@@ -2,7 +2,7 @@
 id: BIT-T-0033
 type: task
 title: "CI: build and upload per-OS app artifacts and smoke-test the window"
-status: in_progress
+status: in_review
 priority: high
 parent: BIT-US-0014
 milestone: BIT-M-0001
@@ -10,7 +10,7 @@ author: mcp
 labels: [ci, bitacora-app]
 estimate: 2
 created: 2026-10-06T14:27:12Z
-updated: 2026-10-06T16:46:40Z
+updated: 2026-10-06T17:04:05Z
 started: 2026-10-06T16:46:40Z
 ---
 

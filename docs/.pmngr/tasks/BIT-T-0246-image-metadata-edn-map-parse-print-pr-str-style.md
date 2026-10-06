@@ -2,14 +2,15 @@
 id: BIT-T-0246
 type: task
 title: Image metadata EDN map parse/print (pr-str style)
-status: backlog
+status: in_progress
 parent: BIT-US-0092
 milestone: BIT-M-0002
 author: mcp
 labels: [bitacora-markdown, serializer]
 estimate: 2
 created: 2026-10-06T14:32:01Z
-updated: 2026-10-06T14:32:01Z
+updated: 2026-10-06T17:02:01Z
+started: 2026-10-06T17:02:01Z
 ---
 
 ## Description

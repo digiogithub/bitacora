@@ -2,14 +2,15 @@
 id: BIT-T-0248
 type: task
 title: ensure_block_id, duplicate-id detection and self-ref stripping
-status: backlog
+status: in_progress
 parent: BIT-US-0093
 milestone: BIT-M-0002
 author: mcp
 labels: [bitacora-markdown, serializer, properties]
 estimate: 2
 created: 2026-10-06T14:32:01Z
-updated: 2026-10-06T14:32:01Z
+updated: 2026-10-06T17:02:01Z
+started: 2026-10-06T17:02:01Z
 ---
 
 ## Description

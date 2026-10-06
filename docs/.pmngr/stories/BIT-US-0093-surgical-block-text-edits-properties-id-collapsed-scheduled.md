@@ -2,7 +2,7 @@
 id: BIT-US-0093
 type: story
 title: "Surgical block text edits: properties, id::, collapsed::, SCHEDULED, LOGBOOK"
-status: backlog
+status: in_progress
 priority: high
 parent: BIT-EP-0003
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [markdown, compat, serializer, properties]
 estimate: 5
 created: 2026-10-06T14:30:45Z
-updated: 2026-10-06T14:38:56Z
+updated: 2026-10-06T17:02:01Z
+started: 2026-10-06T17:02:01Z
 ---
 
 ## Description
