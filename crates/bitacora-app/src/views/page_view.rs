@@ -27,13 +27,14 @@ use crate::render::model::{
 };
 use crate::session::SessionLink;
 use crate::ui::button::{Button, ButtonVariants as _};
+use crate::ui::input::{Input, InputEvent, InputState};
 use crate::ui::popover::Popover;
 use crate::ui::text_edit::{FontWeight, ListAlignment, ListOffset, ListState, list};
 use crate::ui::{
     ActiveTheme as _, Anchor, AnyElement, App, AppContext as _, Context, EventEmitter,
-    FluentBuilder as _, IconName, InteractiveElement as _, IntoElement, ParentElement as _, Render,
-    Sizable as _, StatefulInteractiveElement as _, Styled as _, Task, Window, div, h_flex, icon,
-    px, v_flex,
+    FluentBuilder as _, Focusable as _, IconName, InteractiveElement as _, IntoElement,
+    ParentElement as _, Render, Sizable as _, StatefulInteractiveElement as _, Styled as _, Task,
+    Window, div, h_flex, icon, px, v_flex,
 };
 use crate::views::block_view::{Nav, RowActions, properties_table, render_block_row};
 
@@ -53,6 +54,13 @@ pub enum PageEvent {
     Navigate(NavTarget),
     /// The user Shift+clicked: show the target in the right sidebar.
     OpenInSidebar(NavTarget),
+    /// The user renamed the page in its header (BIT-T-0157); the host runs the rename.
+    RenamePage {
+        /// Current title.
+        from: String,
+        /// New title.
+        to: String,
+    },
     /// The user asked to delete the file behind an asset link (BIT-US-0096).
     DeleteAsset {
         /// Link target (`../assets/x.png`).
@@ -180,6 +188,9 @@ pub struct PageView {
     /// The rows are core's page (editable), not the index's.
     live: bool,
     _editor_subs: Vec<crate::ui::Subscription>,
+    /// The title is being edited (page rename, BIT-T-0157).
+    rename: Option<crate::ui::Entity<InputState>>,
+    _rename_sub: Option<crate::ui::Subscription>,
 }
 
 impl std::fmt::Debug for PageView {
@@ -235,6 +246,8 @@ impl PageView {
             editor: None,
             live: false,
             _editor_subs: Vec::new(),
+            rename: None,
+            _rename_sub: None,
         }
     }
 
@@ -259,7 +272,11 @@ impl PageView {
             let ed = cx.new(|cx| OutlineEditor::new(queue, hidden, true, window, cx));
             ed.read(cx).apply_settings(settings);
             let config = link.config.clone();
-            ed.update(cx, |e, _| e.set_config(config));
+            let gate = link.gate.clone();
+            ed.update(cx, |e, _| {
+                e.set_config(config);
+                e.set_gate(gate);
+            });
             self._editor_subs = vec![
                 cx.subscribe(&ed, Self::on_editor_event),
                 cx.observe(&ed, |_, _, cx| cx.notify()),
@@ -281,6 +298,75 @@ impl PageView {
             let (block, mine, disk) =
                 (conflict.block, conflict.mine.clone(), conflict.disk.clone());
             ed.update(cx, |e, cx| e.on_editing_conflict(block, mine, disk, cx));
+        }
+    }
+
+    /// Whether the title of the page on screen can be renamed here: a real (non-journal) page of
+    /// the live session, not zoomed into a block.
+    pub fn can_rename(&self) -> bool {
+        self.link.is_some()
+            && self.live
+            && matches!(self.route, Some(Route::Page(_)))
+            && self.header.page_id.is_some()
+            && !self.header.is_journal
+            && self.header.zoom.is_empty()
+    }
+
+    /// Whether the title is an input right now.
+    pub fn is_renaming(&self) -> bool {
+        self.rename.is_some()
+    }
+
+    /// Turns the title into an input holding the current title.
+    pub fn start_rename(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if !self.can_rename() || self.rename.is_some() {
+            return;
+        }
+        let title = self.header.title.clone();
+        let input = cx.new(|cx| InputState::new(window, cx));
+        input.update(cx, |i, cx| i.set_value(title, window, cx));
+        self._rename_sub = Some(cx.subscribe_in(
+            &input,
+            window,
+            |this, _, event: &InputEvent, _, cx| match event {
+                InputEvent::PressEnter { .. } => this.submit_rename(cx),
+                InputEvent::Blur => this.cancel_rename(cx),
+                _ => {}
+            },
+        ));
+        let focus = input.read(cx).focus_handle(cx);
+        window.focus(&focus, cx);
+        self.rename = Some(input);
+        cx.notify();
+    }
+
+    /// Replaces the text of the rename input (tests, and the host seeding a suggestion).
+    pub fn set_rename_text(&mut self, text: &str, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(input) = &self.rename {
+            input.update(cx, |i, cx| i.set_value(text.to_owned(), window, cx));
+        }
+    }
+
+    /// Asks the host to rename the page to what was typed (nothing when it is empty or equal to
+    /// the current title).
+    pub fn submit_rename(&mut self, cx: &mut Context<Self>) {
+        let Some(input) = self.rename.take() else {
+            return;
+        };
+        self._rename_sub = None;
+        let to = input.read(cx).value().trim().to_owned();
+        let from = self.header.title.clone();
+        if !to.is_empty() && to != from {
+            cx.emit(PageEvent::RenamePage { from, to });
+        }
+        cx.notify();
+    }
+
+    /// Leaves the rename input without renaming.
+    pub fn cancel_rename(&mut self, cx: &mut Context<Self>) {
+        if self.rename.take().is_some() {
+            self._rename_sub = None;
+            cx.notify();
         }
     }
 
@@ -1436,12 +1522,7 @@ impl PageView {
             if !header.namespace.is_empty() {
                 col = col.child(self.render_link_row(&header.namespace, nav, &theme, 100));
             }
-            col = col.child(
-                div()
-                    .text_size(px(26.))
-                    .font_weight(FontWeight::BOLD)
-                    .child(header.title.clone()),
-            );
+            col = col.child(self.render_title(&theme, cx));
             if let Some(from) = &header.redirected_from {
                 col = col.child(
                     div()
@@ -1470,6 +1551,43 @@ impl PageView {
                 .child(self.render_child_links(&header.children, nav, &theme));
         }
         col.into_any_element()
+    }
+
+    /// The page title; double-click (when the page can be renamed) turns it into an input.
+    fn render_title(&self, theme: &crate::ui::theme::Theme, cx: &mut Context<Self>) -> AnyElement {
+        if let Some(input) = &self.rename {
+            return div()
+                .id("page-title-input")
+                .w_full()
+                .max_w(px(640.))
+                .on_key_down(cx.listener(|this, event: &crate::ui::KeyDownEvent, _, cx| {
+                    if event.keystroke.key == "escape" {
+                        this.cancel_rename(cx);
+                    }
+                }))
+                .child(Input::new(input))
+                .into_any_element();
+        }
+        let title = div()
+            .id("page-title")
+            .text_size(px(26.))
+            .font_weight(FontWeight::BOLD)
+            .child(self.header.title.clone());
+        if self.can_rename() {
+            title
+                .cursor_text()
+                .on_click(
+                    cx.listener(|this, event: &crate::ui::ClickEvent, window, cx| {
+                        if event.click_count() == 2 {
+                            this.start_rename(window, cx);
+                        }
+                    }),
+                )
+                .into_any_element()
+        } else {
+            let _ = theme;
+            title.into_any_element()
+        }
     }
 
     fn render_child_links(

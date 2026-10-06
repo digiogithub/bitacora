@@ -30,6 +30,13 @@ pub enum MainEvent {
     BlockFocus(BlockFocusEvent),
     /// A conflict-marked block was clicked: open the resolver.
     ConflictJump,
+    /// Rename a page (BIT-T-0157).
+    RenamePage {
+        /// Current title.
+        from: String,
+        /// New title.
+        to: String,
+    },
     /// Delete the file behind an asset link, after asking (BIT-US-0096).
     DeleteAsset {
         /// Link target.
@@ -273,11 +280,16 @@ impl MainView {
         cx: &mut Context<Self>,
     ) {
         let (PageEvent::Navigate(target) | PageEvent::OpenInSidebar(target)) = event else {
-            if let PageEvent::DeleteAsset { link, block } = event {
-                cx.emit(MainEvent::DeleteAsset {
+            match event {
+                PageEvent::DeleteAsset { link, block } => cx.emit(MainEvent::DeleteAsset {
                     link: link.clone(),
                     block: block.clone(),
-                });
+                }),
+                PageEvent::RenamePage { from, to } => cx.emit(MainEvent::RenamePage {
+                    from: from.clone(),
+                    to: to.clone(),
+                }),
+                _ => {}
             }
             return;
         };

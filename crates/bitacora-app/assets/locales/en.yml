@@ -150,6 +150,14 @@ delete:
   asset_kept: "\"%{name}\" is still used by %{count} block(s); the file was kept"
   failed: "Cannot delete: %{error}"
   not_a_page: Open a page first
+rename:
+  failed: "Cannot rename: %{error}"
+  merge_title: "Page \"%{to}\" already exists. Merge \"%{from}\" into it?"
+  merge_ok: Merge
+  merge_blocks: "%{source} block(s) of \"%{from}\" move to the end of \"%{to}\", which already has %{target}. References to \"%{from}\" are rewritten and its file goes to logseq/.recycle/."
+  merge_aliases: "Aliases of \"%{from}\" that are dropped: %{aliases}."
+  done: "Page \"%{from}\" renamed to \"%{to}\""
+  merged: "Page \"%{from}\" merged into \"%{to}\""
 sync:
   error:
     required: This field is required

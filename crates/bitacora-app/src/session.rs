@@ -71,6 +71,10 @@ pub struct SessionLink {
     pub config: Arc<EffectiveConfig>,
     /// The MCP endpoint, when the server runs.
     pub mcp_endpoint: Option<String>,
+    /// The block being edited, as the MCP server's write gate (`BLOCK_BUSY`).
+    pub gate: Arc<crate::editing::EditingGate>,
+    /// Index-backed lookups for page renames.
+    pub lookup: Arc<bitacora_runtime::IndexRefLookup>,
 }
 
 /// A runtime condition worth a notice.
@@ -163,6 +167,8 @@ pub struct SessionOptions {
     pub mcp_token_path: Option<PathBuf>,
     /// Global config file; `None` uses the platform default.
     pub global_config: Option<PathBuf>,
+    /// The editing state shared with the MCP write gate; `None` creates one per session.
+    pub gate: Option<Arc<crate::editing::EditingGate>>,
 }
 
 enum Control {
@@ -222,8 +228,9 @@ impl GraphSession {
     /// Starts the session thread and returns the receiver of its events.
     pub fn start(
         root: PathBuf,
-        options: SessionOptions,
+        mut options: SessionOptions,
     ) -> std::io::Result<(Self, Receiver<SessionEvent>)> {
+        options.gate.get_or_insert_with(Default::default);
         let (tx, rx) = async_channel::unbounded();
         let (control_tx, control_rx) = mpsc::channel();
         let thread_root = root.clone();
@@ -310,7 +317,13 @@ fn runtime_config(
     }
     if with_mcp && let Some(token_path) = &options.mcp_token_path {
         cfg.mcp = Some(McpOptions {
-            config: McpConfig::default(),
+            config: McpConfig {
+                gate: options
+                    .gate
+                    .clone()
+                    .map(|g| g as Arc<dyn bitacora_mcp::WriteGate>),
+                ..McpConfig::default()
+            },
             token_path: token_path.clone(),
         });
     }
@@ -376,6 +389,8 @@ fn run(
         queue: session.queue().clone(),
         config: Arc::new(session.config().clone()),
         mcp_endpoint: session.mcp_endpoint(),
+        gate: options.gate.clone().unwrap_or_default(),
+        lookup: session.ref_lookup(),
     }));
     send(SessionEvent::Ready(
         session
@@ -594,6 +609,7 @@ mod tests {
             mcp_token_path: None,
             global_config: Some(data.path().join("no-global-config.edn")),
             sync: None,
+            gate: None,
         }
     }
 

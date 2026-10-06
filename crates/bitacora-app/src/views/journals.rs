@@ -179,8 +179,10 @@ impl JournalsView {
         let queue = link.queue.clone();
         let ed = cx.new(|cx| OutlineEditor::new(queue, hidden, true, window, cx));
         let config = link.config.clone();
+        let gate = link.gate.clone();
         ed.update(cx, |e, cx| {
             e.set_config(config);
+            e.set_gate(gate);
             e.set_handle(handle);
             e.set_page(key, cx);
         });

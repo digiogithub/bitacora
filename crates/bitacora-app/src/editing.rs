@@ -6,9 +6,58 @@
 //! block) already drives the hook, and the editor will call the same function when a block
 //! gets the caret. A page that core has not loaded has no snapshot and so nothing to protect.
 
+use std::sync::Mutex;
+
 use bitacora_core::editor::BlockId;
 use bitacora_core::graph::PageKey;
 use bitacora_core::queue::{CommandQueue, PageSnapshot};
+use bitacora_mcp::WriteGate;
+
+/// How long an agent is told to wait while the user has the caret in the block it wants to
+/// write (`BLOCK_BUSY`, `retry_after_ms`).
+pub const BUSY_RETRY_MS: u64 = 1000;
+
+/// The block the user is editing, as the MCP server sees it: page title and block uuid. The
+/// editors publish it; the server consults it as its [`WriteGate`], so agent writes never race
+/// the text being typed (BIT-SP-0007, `BLOCK_BUSY`).
+#[derive(Debug, Default)]
+pub struct EditingGate {
+    block: Mutex<Option<(String, String)>>,
+}
+
+impl EditingGate {
+    /// Marks `uuid` of page `page` as being edited.
+    pub fn set(&self, page: &str, uuid: &str) {
+        *self
+            .block
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) =
+            Some((page.to_lowercase(), uuid.to_ascii_lowercase()));
+    }
+
+    /// No block is being edited.
+    pub fn clear(&self) {
+        *self
+            .block
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+    }
+}
+
+impl WriteGate for EditingGate {
+    fn busy(&self, page: &str, block_uuid: &str) -> Option<u64> {
+        let guard = self
+            .block
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        guard
+            .as_ref()
+            .is_some_and(|(p, u)| {
+                *p == page.to_lowercase() && *u == block_uuid.to_ascii_lowercase()
+            })
+            .then_some(BUSY_RETRY_MS)
+    }
+}
 
 /// The core id of the `block_index`-th block (document order) of `snapshot`.
 pub fn block_id_at(snapshot: &PageSnapshot, block_index: usize) -> Option<BlockId> {
@@ -34,6 +83,22 @@ pub fn sync_editing_block(
 mod tests {
     use super::*;
     use bitacora_core::queue::{Request, Source};
+
+    #[test]
+    fn the_gate_reports_only_the_block_being_edited() {
+        let gate = EditingGate::default();
+        let uuid = "6f2c1b7a-0000-4000-8000-000000000001";
+        assert_eq!(gate.busy("Home", uuid), None);
+        gate.set("Home", uuid);
+        assert_eq!(gate.busy("home", &uuid.to_uppercase()), Some(BUSY_RETRY_MS));
+        assert_eq!(gate.busy("Other", uuid), None);
+        assert_eq!(
+            gate.busy("Home", "6f2c1b7a-0000-4000-8000-000000000002"),
+            None
+        );
+        gate.clear();
+        assert_eq!(gate.busy("Home", uuid), None);
+    }
 
     #[test]
     fn focus_maps_the_block_index_to_the_core_block_and_clearing_unprotects() {

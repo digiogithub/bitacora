@@ -162,7 +162,7 @@ impl RightSidebar {
             PageEvent::Navigate(target) => cx.emit(StackEvent::Navigate(target.clone())),
             PageEvent::OpenInSidebar(target) => this.open_target(target, cx),
             // Sidebar pages are read-only: nothing to delete from here.
-            PageEvent::DeleteAsset { .. } => {}
+            PageEvent::DeleteAsset { .. } | PageEvent::RenamePage { .. } => {}
         });
         if let Some(handle) = self.handle.clone() {
             let route = route.clone();

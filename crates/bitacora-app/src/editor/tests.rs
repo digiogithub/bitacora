@@ -66,6 +66,8 @@ impl Env {
             queue: session.queue().clone(),
             config: Arc::new(session.config().clone()),
             mcp_endpoint: None,
+            gate: Arc::default(),
+            lookup: session.ref_lookup(),
         };
         Self {
             graph,
@@ -1491,4 +1493,100 @@ fn delete_asset_asks_the_host_and_keeps_the_text(cx: &mut TestAppContext) {
     ));
     assert_eq!(*seen.borrow(), ["assets/a.png"]);
     assert_eq!(env.snapshot_texts("Home")[0].1, "pic ![a](../assets/a.png)");
+}
+
+#[gpui_test]
+fn the_edited_block_is_reported_busy_to_the_mcp_gate(cx: &mut TestAppContext) {
+    use bitacora_mcp::WriteGate as _;
+    let uuid = "6f2c1b7a-0000-4000-8000-000000000001";
+    let env = Env::new(&[(HOME, &format!("- one\n  id:: {uuid}\n- two\n"))]);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    assert_eq!(env.link.gate.busy("Home", uuid), None);
+    edit(&ed, 0, Caret::End, cx);
+    assert!(
+        env.link.gate.busy("Home", uuid).is_some(),
+        "busy while editing"
+    );
+    edit(&ed, 1, Caret::End, cx);
+    assert_eq!(
+        env.link.gate.busy("Home", uuid),
+        None,
+        "free once the caret moved"
+    );
+    cx.simulate_keystrokes("escape");
+    assert_eq!(env.link.gate.busy("Home", uuid), None);
+}
+
+#[gpui_test]
+fn a_block_without_id_is_busy_under_its_index_uuid(cx: &mut TestAppContext) {
+    use bitacora_mcp::WriteGate as _;
+    let env = Env::new(&[(HOME, "- one\n- two\n")]);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    let row = env
+        .handle
+        .reader
+        .page_by_name("Home")
+        .expect("page")
+        .map(|p| {
+            env.handle
+                .reader
+                .outline(p.id, 0, 10, false)
+                .expect("outline")
+        })
+        .expect("rows");
+    let uuid = row[1].uuid.clone();
+    edit(&ed, 1, Caret::End, cx);
+    wait_for(cx, || env.link.gate.busy("Home", &uuid).is_some());
+}
+
+#[gpui_test]
+fn the_page_title_turns_into_an_input_and_submits_a_rename(cx: &mut TestAppContext) {
+    use crate::views::page_view::PageEvent;
+    let env = Env::new(&[(HOME, "- one\n")]);
+    let (view, _ed, cx) = open_page(cx, &env, "Home");
+    let seen = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+    let sink = seen.clone();
+    let _sub = cx.update(|_, cx| {
+        cx.subscribe(&view, move |_, event: &PageEvent, _| {
+            sink.borrow_mut().push(event.clone());
+        })
+    });
+    assert!(view.read_with(cx, |v, _| v.can_rename()));
+    view.update_in(cx, |v, window, cx| v.start_rename(window, cx));
+    assert!(view.read_with(cx, |v, _| v.is_renaming()));
+    // Escape leaves everything as it was.
+    cx.simulate_keystrokes("escape");
+    assert!(!view.read_with(cx, |v, _| v.is_renaming()));
+    assert!(seen.borrow().is_empty());
+    // Typing a new title and pressing Enter asks the host to rename.
+    view.update_in(cx, |v, window, cx| {
+        v.start_rename(window, cx);
+        v.set_rename_text("  Start  ", window, cx);
+    });
+    cx.simulate_keystrokes("enter");
+    assert_eq!(
+        *seen.borrow(),
+        [PageEvent::RenamePage {
+            from: "Home".into(),
+            to: "Start".into()
+        }]
+    );
+    assert!(!view.read_with(cx, |v, _| v.is_renaming()));
+    // The same title is not a rename.
+    seen.borrow_mut().clear();
+    view.update_in(cx, |v, window, cx| {
+        v.start_rename(window, cx);
+        v.set_rename_text("Home", window, cx);
+    });
+    cx.simulate_keystrokes("enter");
+    assert!(seen.borrow().is_empty());
+    // Nothing was written: renaming is the host's job.
+    assert_eq!(env.disk(HOME), "- one\n");
+}
+
+#[gpui_test]
+fn journals_cannot_be_renamed_in_the_header(cx: &mut TestAppContext) {
+    let env = Env::new(&[("journals/2025_03_09.md", "- standup\n")]);
+    let (view, _ed, cx) = open_page(cx, &env, "Mar 9th, 2025");
+    assert!(!view.read_with(cx, |v, _| v.can_rename()));
 }

@@ -10,7 +10,9 @@ use std::time::Duration;
 
 use bitacora_config::{ConfigEditor, EffectiveConfig};
 use bitacora_core::date::Date;
-use bitacora_core::editor::{Cmd, Opened};
+use bitacora_core::editor::{
+    Cmd, MergeMode, Opened, RefLookup, RenameError, RenameReport, RenameRequest,
+};
 use bitacora_core::graph::PageKey;
 use bitacora_core::graph_path::GraphPath;
 use bitacora_core::queue::{CommandQueue, FileEdit, QueueError, Request, Response, Source};
@@ -74,6 +76,100 @@ pub enum AssetOutcome {
         /// Blocks that still mention it.
         references: usize,
     },
+}
+
+/// What a merge on rename would do, for the confirmation dialog (BIT-T-0157).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MergePreview {
+    /// The existing page the source would be merged into.
+    pub target: String,
+    /// Blocks of the page being renamed (they move to the end of the target).
+    pub source_blocks: usize,
+    /// Blocks the target already has.
+    pub target_blocks: usize,
+    /// `alias::` values of the source that the merge drops.
+    pub dropped_aliases: Vec<String>,
+}
+
+/// Result of [`rename_page`].
+#[derive(Debug)]
+pub enum RenameOutcome {
+    /// The page was renamed (or merged); undo `report.tx` to revert.
+    Renamed(Box<RenameReport>),
+    /// The new title is an existing page: ask the user, then call again with
+    /// [`MergeMode::Merge`].
+    NeedsMerge(MergePreview),
+}
+
+fn page_blocks(handle: &GraphHandle, title: &str) -> (usize, Vec<String>) {
+    let Some(page) = handle.reader.page_by_name(title).ok().flatten() else {
+        return (0, Vec::new());
+    };
+    let rows = handle
+        .reader
+        .outline(page.id, 0, 100_000, false)
+        .unwrap_or_default();
+    let aliases = rows
+        .iter()
+        .find(|b| b.is_pre_block)
+        .and_then(|b| {
+            b.properties
+                .iter()
+                .find(|(k, _)| k.trim().eq_ignore_ascii_case("alias"))
+                .map(|(_, v)| v.clone())
+        })
+        .map(|v| {
+            v.split(',')
+                .map(|a| {
+                    a.trim()
+                        .trim_start_matches("[[")
+                        .trim_end_matches("]]")
+                        .trim()
+                })
+                .filter(|a| !a.is_empty())
+                .map(str::to_owned)
+                .collect()
+        })
+        .unwrap_or_default();
+    (rows.iter().filter(|b| !b.is_pre_block).count(), aliases)
+}
+
+/// Renames the page `from` to `to` through the command queue, rewriting references graph-wide
+/// as one undoable transaction. When `to` exists and `merge` is [`MergeMode::Refuse`] nothing
+/// changes and the answer describes the merge so the user can confirm it.
+///
+/// # Errors
+/// [`OpsError::Queue`] with the refusal ([`RenameError`]) or a queue failure.
+pub fn rename_page(
+    queue: &CommandQueue,
+    handle: &GraphHandle,
+    config: &std::sync::Arc<EffectiveConfig>,
+    lookup: std::sync::Arc<dyn RefLookup>,
+    from: &str,
+    to: &str,
+    merge: MergeMode,
+) -> Result<RenameOutcome, OpsError> {
+    let request = RenameRequest {
+        from: from.to_owned(),
+        to: to.trim().to_owned(),
+        config: config.clone(),
+        lookup: Some(lookup),
+        merge,
+    };
+    match queue.rename_page(Source::Ui, request) {
+        Ok(report) => Ok(RenameOutcome::Renamed(Box::new(report))),
+        Err(QueueError::Rename(RenameError::TargetExists(target))) => {
+            let (source_blocks, dropped_aliases) = page_blocks(handle, from);
+            let (target_blocks, _) = page_blocks(handle, &target);
+            Ok(RenameOutcome::NeedsMerge(MergePreview {
+                target,
+                source_blocks,
+                target_blocks,
+                dropped_aliases,
+            }))
+        }
+        Err(e) => Err(e.into()),
+    }
 }
 
 /// Makes today's journal available for editing (loaded from its file, or a virtual page that is
@@ -290,6 +386,24 @@ mod tests {
         fn root(&self) -> std::path::PathBuf {
             self.graph.path().canonicalize().expect("root")
         }
+
+        fn rename(
+            &self,
+            from: &str,
+            to: &str,
+            merge: MergeMode,
+        ) -> Result<RenameOutcome, OpsError> {
+            let session = self.session.as_ref().expect("session");
+            rename_page(
+                &self.queue(),
+                &self.handle,
+                &std::sync::Arc::new(session.config().clone()),
+                session.ref_lookup(),
+                from,
+                to,
+                merge,
+            )
+        }
     }
 
     impl Drop for Fixture {
@@ -329,6 +443,75 @@ mod tests {
         let cfg = std::fs::read_to_string(root.join("logseq/config.edn")).expect("config");
         assert!(cfg.contains(";; keep me"), "{cfg}");
         assert!(cfg.contains("\"Keep\"") && !cfg.contains("Doomed"), "{cfg}");
+    }
+
+    #[test]
+    fn renaming_moves_the_file_and_rewrites_references() {
+        let f = fixture(
+            &[
+                ("pages/Foo.md", "- foo body\n"),
+                ("pages/User.md", "- links to [[Foo]]\n"),
+            ],
+            "{}",
+        );
+        let Ok(RenameOutcome::Renamed(report)) = f.rename("Foo", "Bar", MergeMode::Refuse) else {
+            panic!("rename refused");
+        };
+        assert!(!report.merged);
+        let _ = f.queue().flush(Source::Ui).expect("flush");
+        let root = f.root();
+        assert!(!root.join("pages/Foo.md").exists());
+        assert_eq!(
+            std::fs::read_to_string(root.join("pages/Bar.md")).expect("renamed"),
+            "- foo body\n"
+        );
+        assert_eq!(
+            std::fs::read_to_string(root.join("pages/User.md")).expect("user"),
+            "- links to [[Bar]]\n"
+        );
+    }
+
+    #[test]
+    fn a_rename_onto_an_existing_page_asks_first_and_merges_only_on_confirm() {
+        let f = fixture(
+            &[
+                ("pages/Foo.md", "alias:: Fu, [[Fuu]]\n\n- one\n- two\n"),
+                ("pages/Bar.md", "- existing\n"),
+            ],
+            "{}",
+        );
+        // Refused with a preview: nothing changed on disk.
+        let Ok(RenameOutcome::NeedsMerge(preview)) = f.rename("Foo", "Bar", MergeMode::Refuse)
+        else {
+            panic!("expected a merge preview");
+        };
+        assert_eq!(preview.target, "Bar");
+        assert_eq!(preview.source_blocks, 2);
+        assert_eq!(preview.target_blocks, 1);
+        assert_eq!(preview.dropped_aliases, ["Fu", "Fuu"]);
+        let _ = f.queue().flush(Source::Ui).expect("flush");
+        let root = f.root();
+        assert!(root.join("pages/Foo.md").exists());
+        assert_eq!(
+            std::fs::read_to_string(root.join("pages/Bar.md")).expect("bar"),
+            "- existing\n"
+        );
+        // Confirmed: the blocks are appended to the target and the source file is recycled.
+        let merged = f.rename(
+            "Foo",
+            "Bar",
+            MergeMode::Merge {
+                keep_aliases: false,
+            },
+        );
+        assert!(matches!(merged, Ok(RenameOutcome::Renamed(r)) if r.merged));
+        let _ = f.queue().flush(Source::Ui).expect("flush");
+        assert!(!root.join("pages/Foo.md").exists());
+        let bar = std::fs::read_to_string(root.join("pages/Bar.md")).expect("bar");
+        assert!(
+            bar.starts_with("- existing\n") && bar.contains("- one\n- two"),
+            "{bar}"
+        );
     }
 
     #[test]

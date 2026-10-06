@@ -52,6 +52,7 @@ use crate::views::sidebar::{LeftSidebar, SidebarEvent, Target};
 use crate::views::status_bar::{AppStatusBar, Slot, SlotState, StatusBarEvent, StatusEvent};
 use crate::views::sync_dialog::{SyncDialog, SyncDialogEvent};
 use crate::views::sync_panel::{SyncPanel, SyncPanelEvent};
+use bitacora_core::editor::MergeMode;
 use bitacora_core::graph::PageKey;
 use bitacora_core::queue::{Keep, Request, Source};
 use rust_i18n::t;
@@ -394,6 +395,7 @@ impl Workspace {
                 mcp_token_path: self.config.mcp_token_path.clone(),
                 global_config: self.config.global_config.clone(),
                 sync,
+                gate: None,
             },
         );
         let (session, events) = match started {
@@ -604,6 +606,124 @@ impl Workspace {
             cx,
             Level::Success,
             t!("delete.page_done", name = title).to_string(),
+        );
+    }
+
+    /// Renames the page `from` to `to` (BIT-T-0157). When `to` is an existing page nothing
+    /// happens until the user confirms the merge in a dialog that lists what it does.
+    pub fn rename_page(
+        &mut self,
+        from: String,
+        to: String,
+        merge: MergeMode,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let (Some(link), Some(handle)) = (self.link.clone(), self.handle.clone()) else {
+            return;
+        };
+        let task = {
+            let (link, handle, from, to) = (link.clone(), handle, from.clone(), to.clone());
+            cx.background_spawn(async move {
+                graph_ops::rename_page(
+                    &link.queue,
+                    &handle,
+                    &link.config,
+                    link.lookup.clone(),
+                    &from,
+                    &to,
+                    merge,
+                )
+            })
+        };
+        cx.spawn_in(window, async move |this, cx| {
+            let outcome = task.await;
+            let _ = this.update_in(cx, |ws, window, cx| match outcome {
+                Ok(graph_ops::RenameOutcome::Renamed(report)) => {
+                    ws.after_page_renamed(&from, &to, report.merged, window, cx);
+                }
+                Ok(graph_ops::RenameOutcome::NeedsMerge(preview)) => {
+                    ws.confirm_merge(from, to, &preview, window, cx);
+                }
+                Err(err) => notify(
+                    window,
+                    cx,
+                    Level::Error,
+                    t!("rename.failed", error = err.to_string()).to_string(),
+                ),
+            });
+        })
+        .detach();
+    }
+
+    fn confirm_merge(
+        &mut self,
+        from: String,
+        to: String,
+        preview: &graph_ops::MergePreview,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let this = cx.entity();
+        let from_title = from.clone();
+        let (f, t_) = (from.clone(), preview.target.clone());
+        let shown = crate::ui::confirm(
+            window,
+            cx,
+            crate::ui::Confirmation {
+                title: t!("rename.merge_title", from = from, to = preview.target).to_string(),
+                description: merge_description(preview, &from_title),
+                ok_text: t!("rename.merge_ok").to_string(),
+                cancel_text: t!("delete.cancel").to_string(),
+            },
+            move |window, cx| {
+                let (f, t_) = (f.clone(), t_.clone());
+                this.update(cx, |ws, cx| {
+                    ws.rename_page(
+                        f,
+                        t_,
+                        MergeMode::Merge {
+                            keep_aliases: false,
+                        },
+                        window,
+                        cx,
+                    );
+                });
+            },
+        );
+        if !shown {
+            tracing::debug!(%to, "merge confirmation needs a dialog host");
+        }
+    }
+
+    fn after_page_renamed(
+        &mut self,
+        from: &str,
+        to: &str,
+        merged: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.graph_state.forget_recent(from);
+        self.graph_state.push_recent(to);
+        let recent = self.graph_state.recent.clone();
+        self.sidebar
+            .update(cx, |sidebar, cx| sidebar.set_recent(recent, cx));
+        self.save_graph_state();
+        let showing = matches!(self.main.read(cx).route(), Some(Route::Page(n)) if n.eq_ignore_ascii_case(from));
+        if showing {
+            self.navigate(Route::Page(to.to_owned()), cx);
+        }
+        let key = if merged {
+            "rename.merged"
+        } else {
+            "rename.done"
+        };
+        notify(
+            window,
+            cx,
+            Level::Success,
+            t!(key, from = from, to = to).to_string(),
         );
     }
 
@@ -967,6 +1087,9 @@ impl Workspace {
                 self.open_in_right_sidebar(route.clone(), window, cx);
             }
             MainEvent::ConflictJump => self.open_conflicts(window, cx),
+            MainEvent::RenamePage { from, to } => {
+                self.rename_page(from.clone(), to.clone(), MergeMode::Refuse, window, cx);
+            }
             MainEvent::DeleteAsset { link, block } => {
                 self.request_delete_asset(link.clone(), block.clone(), window, cx);
             }
@@ -2391,5 +2514,53 @@ mod tests {
         );
         let cfg = std::fs::read_to_string(root.join("logseq/config.edn")).expect("config");
         assert!(!cfg.contains("Home"), "{cfg}");
+    }
+}
+
+/// The text of the merge confirmation: what moves and which aliases are dropped (BIT-T-0157).
+pub fn merge_description(preview: &graph_ops::MergePreview, from: &str) -> String {
+    let mut text = t!(
+        "rename.merge_blocks",
+        source = preview.source_blocks,
+        from = from,
+        to = preview.target,
+        target = preview.target_blocks
+    )
+    .to_string();
+    if !preview.dropped_aliases.is_empty() {
+        text.push(' ');
+        text.push_str(
+            &t!(
+                "rename.merge_aliases",
+                from = from,
+                aliases = preview.dropped_aliases.join(", ")
+            )
+            .to_string(),
+        );
+    }
+    text
+}
+
+#[cfg(test)]
+mod merge_dialog_tests {
+    use super::*;
+
+    #[test]
+    fn the_merge_dialog_lists_block_counts_and_dropped_aliases() {
+        let preview = graph_ops::MergePreview {
+            target: "Bar".into(),
+            source_blocks: 2,
+            target_blocks: 5,
+            dropped_aliases: vec!["Fu".into(), "Fuu".into()],
+        };
+        let text = merge_description(&preview, "Foo");
+        assert!(text.contains("2 block(s) of \"Foo\""), "{text}");
+        assert!(text.contains("\"Bar\", which already has 5"), "{text}");
+        assert!(text.contains("Fu, Fuu"), "{text}");
+        let none = graph_ops::MergePreview {
+            dropped_aliases: Vec::new(),
+            ..preview
+        };
+        assert!(!merge_description(&none, "Foo").contains("Aliases"));
     }
 }

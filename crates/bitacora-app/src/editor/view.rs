@@ -124,6 +124,7 @@ struct EditState {
 pub struct OutlineEditor {
     queue: CommandQueue,
     config: std::sync::Arc<bitacora_config::EffectiveConfig>,
+    gate: Option<std::sync::Arc<crate::editing::EditingGate>>,
     handle: Option<GraphHandle>,
     props: PropertyConfig,
     hidden: HiddenKeys,
@@ -201,6 +202,7 @@ impl OutlineEditor {
             props: PropertyConfig::default(),
             queue,
             config: std::sync::Arc::default(),
+            gate: None,
             handle: None,
             hidden,
             key: None,
@@ -226,6 +228,54 @@ impl OutlineEditor {
             dismissed: None,
             _subscriptions: subscriptions,
         }
+    }
+
+    /// Publishes the edited block to the MCP write gate (`BLOCK_BUSY`).
+    pub fn set_gate(&mut self, gate: std::sync::Arc<crate::editing::EditingGate>) {
+        self.gate = Some(gate);
+    }
+
+    /// Tells core and the MCP gate which block has the caret (`None` = none).
+    fn publish_editing(&self, id: Option<BlockId>, cx: &mut Context<Self>) {
+        self.queue.set_editing_block(id);
+        let Some(gate) = self.gate.clone() else {
+            return;
+        };
+        let Some(id) = id else {
+            gate.clear();
+            return;
+        };
+        let Some(snap) = self.key.as_ref().and_then(|k| self.queue.snapshot(k)) else {
+            gate.clear();
+            return;
+        };
+        let Some(block) = snap.blocks.iter().find(|b| b.id == id) else {
+            gate.clear();
+            return;
+        };
+        if let Some(u) = block.uuid {
+            gate.set(&snap.title, &u.to_string());
+            return;
+        }
+        // No `id::` yet: agents address the block by its index uuid; look it up off the UI thread.
+        gate.clear();
+        let Some(handle) = self.handle.clone() else {
+            return;
+        };
+        let (title, text) = (snap.title.clone(), block.text.clone());
+        let task = cx.background_executor().spawn(async move {
+            resolve_index_uuid(&handle, &title, &text, None).map(|u| (title, u))
+        });
+        cx.spawn(async move |this, cx| {
+            if let Some((title, uuid)) = task.await {
+                let _ = this.update(cx, |this, _| {
+                    if this.editing() == Some(id) {
+                        gate.set(&title, &uuid);
+                    }
+                });
+            }
+        })
+        .detach();
     }
 
     /// The effective configuration (page paths of new pages).
@@ -618,7 +668,7 @@ impl OutlineEditor {
     pub fn exit_edit(&mut self, cx: &mut Context<Self>) {
         self.flush(cx);
         let Some(e) = self.edit.take() else { return };
-        self.queue.set_editing_block(None);
+        self.publish_editing(None, cx);
         self.completion = None;
         self.dismissed = None;
         self.reload_outline();
@@ -631,6 +681,9 @@ impl OutlineEditor {
     fn exit_edit_silent(&mut self) {
         if self.edit.take().is_some() {
             self.queue.set_editing_block(None);
+            if let Some(gate) = &self.gate {
+                gate.clear();
+            }
         }
     }
 
@@ -701,7 +754,7 @@ impl OutlineEditor {
         self.completion = None;
         self.dismissed = None;
         self.last_layout = None;
-        self.queue.set_editing_block(Some(id));
+        self.publish_editing(Some(id), cx);
         self.focus_handle.focus(window, cx);
         self.restart_blink(cx);
         cx.emit(EditorEvent::Row(r));
@@ -929,7 +982,7 @@ impl OutlineEditor {
     ) {
         if let Some(id) = editing {
             self.edit = None;
-            self.queue.set_editing_block(None);
+            self.publish_editing(None, cx);
             let (block, sel) = match cursor_after {
                 Some(c) if self.row_of(c.block).is_some() => (c.block, c.selection),
                 _ => (id, cursor.unwrap_or(0..0)),
@@ -1206,7 +1259,7 @@ impl OutlineEditor {
             cx.notify();
         } else {
             self.edit = None;
-            self.queue.set_editing_block(None);
+            self.publish_editing(None, cx);
             self.reload_outline();
             self.enter(id, Caret::Full(disk.len()..disk.len()), window, cx);
         }
@@ -1285,6 +1338,24 @@ impl OutlineEditor {
     fn marked(&self) -> bool {
         self.edit.as_ref().is_some_and(|e| e.buf.marked().is_some())
     }
+}
+
+/// The index uuid of the block of page `title` whose text equals `text` (and, with `needle`,
+/// mentions it).
+fn resolve_index_uuid(
+    handle: &GraphHandle,
+    title: &str,
+    text: &str,
+    needle: Option<&str>,
+) -> Option<String> {
+    let page = handle.reader.page_by_name(title).ok().flatten()?;
+    let rows = match needle {
+        Some(n) => handle.reader.blocks_mentioning(n, 100).ok()?,
+        None => handle.reader.outline(page.id, 0, 5000, false).ok()?,
+    };
+    rows.into_iter()
+        .find(|b| b.page_id == page.id && !b.is_pre_block && b.content.trim() == text.trim())
+        .map(|b| b.uuid)
 }
 
 #[allow(non_snake_case)]
@@ -1843,7 +1914,7 @@ impl OutlineEditor {
         match result {
             Ok(Ok(step)) => {
                 self.edit = None;
-                self.queue.set_editing_block(None);
+                self.publish_editing(None, cx);
                 self.reload_outline();
                 self.rebuild_rows(cx);
                 match step.cursor {
@@ -2560,15 +2631,7 @@ impl OutlineEditor {
         if let Some(u) = snap.blocks.iter().find(|b| b.id == id).and_then(|b| b.uuid) {
             return Some(u.to_string());
         }
-        let handle = self.handle.as_ref()?;
-        let page = handle.reader.page_by_name(&snap.title).ok().flatten()?;
-        handle
-            .reader
-            .blocks_mentioning(needle, 100)
-            .ok()?
-            .into_iter()
-            .find(|b| b.page_id == page.id && b.content.trim() == text.trim())
-            .map(|b| b.uuid)
+        resolve_index_uuid(self.handle.as_ref()?, &snap.title, text, Some(needle))
     }
 
     /// Whether row `r` links to an asset file (it shows the "delete asset" button).
