@@ -491,6 +491,17 @@ These are rough estimates to validate with benchmarks, not measurements.
 
 A per-file replace of a typical page (< 500 blocks) should take under 10 ms. Trigram can be disabled with a setting (`search.substring = false`) to roughly halve the DB size.
 
+### 4.7 Implementation notes (BIT-US-0006, BIT-US-0007)
+
+Implemented in `crates/bitacora-index` (`replace.rs`, `writer.rs`, `reconcile.rs`, `carry.rs`). Where it refines the text above:
+
+- **Retain in place.** Step 2 does not delete blocks that the carry-over diff found *identical* (same depth and content hash, not pre-blocks): their rows keep `id`, FTS entries, refs and properties and only get new `ord`/`subtree_end`/`parent_id`/`sibling_idx`/byte spans. Everything else is deleted and inserted. A 500-block page with one edited block replaces in about 3 ms (release build) instead of about 29 ms with delete-all-and-insert, mostly because the trigram FTS is untouched.
+- **Duplicate page titles (open question 4).** The file with the smallest path owns the page (`pages.file_id`, title, journal day, created/updated); other files are marked `duplicate_page` with a diagnostic and their blocks stay listed under the page. Ownership is order independent, so a rebuild equals an incremental run. After a delete/rename/edit that frees or lowers ownership, `Indexer::refresh_duplicates` re-evaluates the affected `duplicate_page` files. Explicit `id::` clashes across files are still first-writer-wins (§2.2) and therefore order dependent.
+- **Page times.** `created_at` falls back to the file birth time and `updated_at` to the file mtime when no `created-at::`/`updated-at::` property exists; a touch (identical content, new mtime) moves a mtime-derived `updated_at`.
+- **Cold build.** `begin_bulk` sets `meta.bulk_in_progress`, drops the FTS triggers and turns foreign keys off; `end_bulk` commits, runs `'rebuild'` on the three FTS tables, recreates the triggers, runs `foreign_key_check` and `ANALYZE`, then clears the flag. A crash in between leaves the flag, and the next reconcile truncates and rebuilds. `RebuildKind::FtsOnly` recomputes `search_text`/`search_title` and rebuilds the FTS tables without reparsing.
+- **Events.** `IndexEvent::{FileReplaced, FileDeleted, FileRenamed, BulkFinished}` are sent after commit; none during a bulk run except `BulkFinished`. Watcher input is the `FsChange` enum (`Modified`, `Deleted`, `Renamed`, `Overflow`); watcher events always hash the file instead of trusting `(size, mtime_ns)`.
+- **Measured** (24-core Linux, release): cold build of a synthetic 50 080-block / 1 200-file graph in 0.83 s (37 MiB index), warm reconcile of the unchanged graph in 2.7 ms with 0 files parsed.
+
 ---
 
 ## 5. Core read queries

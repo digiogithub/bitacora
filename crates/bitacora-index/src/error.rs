@@ -33,6 +33,27 @@ pub enum Error {
     /// The write connection was already taken.
     #[error("the write connection is already owned by another component")]
     WriterTaken,
+    /// The writer thread is not running (stopped or panicked).
+    #[error("the index writer thread is not running")]
+    WriterStopped,
+    /// `PRAGMA foreign_key_check` found dangling rows after a bulk build.
+    #[error("{0} foreign key violations after the bulk build")]
+    ForeignKeyViolations(usize),
+    /// Reading a graph file failed.
+    #[error("cannot read {path}: {source}")]
+    ReadFile {
+        /// Path involved.
+        path: PathBuf,
+        /// Underlying error.
+        #[source]
+        source: std::io::Error,
+    },
+    /// Walking the graph failed.
+    #[error(transparent)]
+    Scan(#[from] bitacora_core::scan::ScanError),
+    /// A path could not be represented relative to the graph.
+    #[error(transparent)]
+    GraphPath(#[from] bitacora_core::graph_path::GraphPathError),
     /// FTS5 (word or trigram tokenizer) is not available in this SQLite build.
     #[error("required SQLite feature missing: {0}")]
     MissingFeature(&'static str),
