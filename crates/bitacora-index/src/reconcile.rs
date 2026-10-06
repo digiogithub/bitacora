@@ -5,7 +5,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex, PoisonError};
 use std::time::{Duration, Instant};
 
 use bitacora_config::EffectiveConfig;
@@ -120,6 +120,7 @@ pub struct Indexer {
     writer: IndexWriter,
     readers: ReaderPool,
     opts: IndexerOptions,
+    config: Mutex<Arc<EffectiveConfig>>,
     pool: rayon::ThreadPool,
     requested: Mutex<HashSet<String>>,
     pending_rebuild: Mutex<RebuildKind>,
@@ -145,6 +146,7 @@ impl Indexer {
         Ok(Self {
             writer,
             readers: index.readers().clone(),
+            config: Mutex::new(Arc::new(opts.config.clone())),
             opts,
             pool,
             requested: Mutex::new(HashSet::new()),
@@ -174,10 +176,58 @@ impl Indexer {
         self.writer.shutdown();
     }
 
-    fn parse_config(&self) -> ParseConfig<'_> {
-        let mut pc = ParseConfig::new(&self.opts.config);
+    fn parse_config<'a>(&self, cfg: &'a EffectiveConfig) -> ParseConfig<'a> {
+        let mut pc = ParseConfig::new(cfg);
         pc.normalize = self.opts.normalize;
         pc
+    }
+
+    /// Snapshot of the effective config the indexer currently uses.
+    fn cfg(&self) -> Arc<EffectiveConfig> {
+        Arc::clone(&self.config.lock().unwrap_or_else(PoisonError::into_inner))
+    }
+
+    /// Swaps in a reloaded config (hot reload). When it changes what the parser produces
+    /// (`config_hash`), the next [`Indexer::reconcile`] reparses every file and the new hash is
+    /// the one recorded when it finishes; the flag is persisted only then, so a crash in between
+    /// reparses again on the next open. Returns the rebuild now pending.
+    pub fn set_config(&self, config: EffectiveConfig) -> Result<RebuildKind, Error> {
+        let new_hash = crate::config_hash(&config);
+        let changed = crate::config_hash(&self.cfg()) != new_hash;
+        *self.config.lock().unwrap_or_else(PoisonError::into_inner) = Arc::new(config);
+        if changed {
+            self.writer.set_config_hash(&new_hash)?;
+            let mut p = self
+                .pending_rebuild
+                .lock()
+                .map_err(|_| Error::WriterStopped)?;
+            *p = (*p).max(RebuildKind::FullReparse);
+        }
+        Ok(*self
+            .pending_rebuild
+            .lock()
+            .map_err(|_| Error::WriterStopped)?)
+    }
+
+    /// Drops everything the index knows and rebuilds it from the graph (the "Reindex" command):
+    /// flags a full reparse and runs [`Indexer::reconcile`] (cold-build path). The caller must
+    /// not run other index updates meanwhile.
+    pub fn reindex(&self) -> Result<ReconcileStats, Error> {
+        {
+            let mut p = self
+                .pending_rebuild
+                .lock()
+                .map_err(|_| Error::WriterStopped)?;
+            *p = (*p).max(RebuildKind::FullReparse);
+        }
+        self.reconcile()
+    }
+
+    /// Rebuild requested and not yet performed by a reconcile.
+    pub fn pending_rebuild(&self) -> RebuildKind {
+        self.pending_rebuild
+            .lock()
+            .map_or(RebuildKind::None, |p| *p)
     }
 
     fn db_files(&self) -> Result<HashMap<String, DbFile>, Error> {
@@ -236,7 +286,7 @@ impl Indexer {
         let mut stats = ReconcileStats::default();
         let root = &self.opts.graph_root;
 
-        let scanned = scan_graph(root, &self.opts.config)?;
+        let scanned = scan_graph(root, &self.cfg())?;
         let on_disk = parse_order(&scanned);
         stats.scanned = on_disk.len();
 
@@ -382,24 +432,23 @@ impl Indexer {
     fn rank(&self, f: &ScannedFile) -> u8 {
         let p = f.path.as_str();
         if let Some(today) = self.opts.today
-            && journal_file_path(&self.opts.config, today).is_some_and(|j| j == f.path)
+            && journal_file_path(&self.cfg(), today).is_some_and(|j| j == f.path)
         {
             return 0;
         }
         if let Some(home) = self
-            .opts
-            .config
+            .cfg()
             .default_home()
             .and_then(|h| h.page)
             .filter(|h| !h.is_empty())
-            && page_key(&derive_title(p, None, &self.opts.config)) == page_key(&home)
+            && page_key(&derive_title(p, None, &self.cfg())) == page_key(&home)
         {
             return 0;
         }
         if self.requested.lock().is_ok_and(|r| r.contains(p)) {
             return 1;
         }
-        if p.starts_with(&format!("{}/", self.opts.config.journals_directory())) {
+        if p.starts_with(&format!("{}/", self.cfg().journals_directory())) {
             return 2;
         }
         3
@@ -461,10 +510,10 @@ impl Indexer {
         {
             return Ok(Action::Touch { size, mtime_ns });
         }
-        let parsed = parse(path, &bytes, &self.parse_config());
+        let parsed = parse(path, &bytes, &self.parse_config(&self.cfg()));
         Ok(Action::Replace(Box::new(FileInput {
             path: path.clone(),
-            kind: FileKind::classify(path, &self.opts.config),
+            kind: FileKind::classify(path, &self.cfg()),
             size,
             mtime_ns,
             birth_ns,
@@ -477,7 +526,7 @@ impl Indexer {
         let p = path.as_str();
         !is_ignored_path(p)
             && has_allowed_extension(p)
-            && !self.opts.config.is_hidden(p)
+            && !self.cfg().is_hidden(p)
             && path
                 .extension()
                 .is_some_and(|e| PARSER_EXTENSIONS.contains(&e.to_ascii_lowercase().as_str()))
@@ -586,11 +635,11 @@ impl Indexer {
             .and_then(to_ns);
         let input = FileInput {
             path: to.clone(),
-            kind: FileKind::classify(to, &self.opts.config),
+            kind: FileKind::classify(to, &self.cfg()),
             size,
             mtime_ns,
             birth_ns,
-            parsed: parse(to, &bytes, &self.parse_config()),
+            parsed: parse(to, &bytes, &self.parse_config(&self.cfg())),
         };
         self.writer.rename_file(from.as_str(), to.as_str(), input)?;
         self.refresh_duplicates()

@@ -15,6 +15,9 @@
 //! * [`QueueGraphWriter`] is the sync engine's `GraphWriter` over core's `QueueLock`;
 //! * the MCP server reads through `bitacora_mcp::IndexGraphReader` and reports the sync engine's
 //!   status; the engine gets index-backed `locate_block` and journal-template hooks;
+//! * a `logseq/config.edn` change is reloaded in place (`RuntimeEvent::ConfigReloaded`): core editor
+//!   settings, the watcher's `:hidden` rule and the index (full reparse when the config hash
+//!   changes) follow it; `Session::reindex` rebuilds the index without reopening;
 //! * [`Session::shutdown`] stops everything in order within a time budget.
 
 pub mod crash;

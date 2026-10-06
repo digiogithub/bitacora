@@ -189,6 +189,12 @@ impl WriteConnection {
         }
     }
 
+    /// Replace the config hash that [`WriteConnection::record_versions`] stores (the config
+    /// changed while the index was open).
+    pub fn set_config_hash(&mut self, hash: String) {
+        self.options.config_hash = hash;
+    }
+
     /// Persist the expected parser/normalizer/config values into `meta`. Call after the
     /// rebuild requested by [`OpenOutcome::rebuild`] completed successfully.
     pub fn record_versions(&mut self) -> Result<(), Error> {
