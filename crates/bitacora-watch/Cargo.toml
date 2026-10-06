@@ -14,3 +14,9 @@ workspace = true
 [dependencies]
 bitacora-core.workspace = true
 thiserror.workspace = true
+notify.workspace = true
+notify-debouncer-full.workspace = true
+blake3.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
