@@ -14,7 +14,24 @@ pub const DEFAULT_PARSER_VERSION: i64 = 1;
 pub const DEFAULT_NORMALIZER_VERSION: i64 = 1;
 
 /// The schema v1 DDL (tables, FTS5 tables, triggers, views), without `user_version`.
-pub const SCHEMA_V1_SQL: &str = include_str!("schema_v1.sql");
+pub const SCHEMA_V1_SQL: &str = concat!(
+    include_str!("schema_v1.sql"),
+    "\n",
+    include_str!("fts_triggers.sql")
+);
+
+/// The FTS sync triggers, recreated after the cold-build fast path.
+pub(crate) const FTS_TRIGGERS_SQL: &str = include_str!("fts_triggers.sql");
+
+/// Names of the FTS sync triggers (dropped for the cold-build fast path).
+pub(crate) const FTS_TRIGGER_NAMES: [&str; 6] = [
+    "blocks_ai",
+    "blocks_ad",
+    "blocks_au",
+    "pages_ai",
+    "pages_ad",
+    "pages_au",
+];
 
 /// Pragmas applied to every connection (read and write).
 const COMMON_PRAGMAS: &str = "

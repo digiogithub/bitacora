@@ -76,7 +76,8 @@ gix = { version = "0.88", default-features = false, features = ["max-performance
 # Watching, search, misc
 notify = "8.2"
 notify-debouncer-full = "0.7"
-uuid = { version = "1.27", features = ["v4", "v7", "serde"] }
+uuid = { version = "1.27", features = ["v4", "v5", "v7", "serde"] }
+rayon = "1.12"
 jiff = "0.2"
 nucleo = "0.5"
 nucleo-matcher = "0.3"
