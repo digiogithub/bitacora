@@ -184,6 +184,7 @@ fn map_queue(e: QueueError) -> ToolError {
             "the page has unsaved edits and was not reloaded",
         ),
         QueueError::Invalid(m) => ToolError::invalid(m),
+        QueueError::Rename(r) => ToolError::invalid(r.to_string()),
         QueueError::Busy | QueueError::Closed | QueueError::Store(_) => internal(e.to_string()),
     }
 }

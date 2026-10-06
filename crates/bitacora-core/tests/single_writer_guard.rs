@@ -31,6 +31,8 @@ const ALLOWED: &[(&str, &str)] = &[
     ("bitacora-cli", "cmd/reindex.rs"),
     // Test-only: copies a fixture graph into a temp dir.
     ("bitacora-cli", "cmd/serve_tests.rs"),
+    // Agent audit log (`audit.jsonl`) in the app data dir, never inside the graph.
+    ("bitacora-mcp", "audit.rs"),
     // API token store under the app config dir, not the graph.
     ("bitacora-mcp", "tokens.rs"),
 ];
