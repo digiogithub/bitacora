@@ -7,10 +7,11 @@ use crate::events::EventPump;
 use crate::theme;
 use crate::ui::button::{Button, ButtonVariants as _};
 use crate::ui::menu::DropdownMenu as _;
+use crate::ui::progress::Progress;
 use crate::ui::status_bar::StatusBar;
 use crate::ui::{
-    Context, IconName, IntoElement, ParentElement as _, Render, Sizable as _, Styled as _, Task,
-    Window, h_flex, icon,
+    Context, FluentBuilder as _, IconName, IntoElement, ParentElement as _, Render, Sizable as _,
+    Styled as _, Task, Window, h_flex, icon, px,
 };
 
 /// Which subsystem a slot describes.
@@ -56,6 +57,13 @@ pub enum StatusEvent {
     Slot(Slot, SlotState),
     /// Demo heartbeat from a timer-driven producer.
     Heartbeat(u64),
+    /// Indexing progress (files done / total); also marks the index slot busy.
+    IndexProgress {
+        /// Files indexed so far.
+        done: usize,
+        /// Files to index.
+        total: usize,
+    },
 }
 
 /// The status bar view.
@@ -65,6 +73,7 @@ pub struct AppStatusBar {
     mcp: SlotState,
     index: SlotState,
     heartbeat: u64,
+    progress: Option<(usize, usize)>,
     _pump: Task<()>,
 }
 
@@ -77,6 +86,7 @@ impl AppStatusBar {
             mcp: SlotState::Off,
             index: SlotState::Off,
             heartbeat: 0,
+            progress: None,
             _pump: pump,
         }
     }
@@ -86,10 +96,17 @@ impl AppStatusBar {
         match event {
             StatusEvent::Slot(slot, state) => self.set_slot_state(slot, state),
             StatusEvent::Heartbeat(n) => self.heartbeat = n,
+            StatusEvent::IndexProgress { done, total } => {
+                self.index = SlotState::Busy;
+                self.progress = Some((done, total));
+            }
         }
     }
 
     fn set_slot_state(&mut self, slot: Slot, state: SlotState) {
+        if slot == Slot::Index && state != SlotState::Busy {
+            self.progress = None;
+        }
         match slot {
             Slot::Sync => self.sync = state,
             Slot::Mcp => self.mcp = state,
@@ -99,19 +116,19 @@ impl AppStatusBar {
 
     /// Sets the sync slot.
     pub fn set_sync(&mut self, state: SlotState, cx: &mut Context<Self>) {
-        self.sync = state;
+        self.set_slot_state(Slot::Sync, state);
         cx.notify();
     }
 
     /// Sets the MCP slot.
     pub fn set_mcp(&mut self, state: SlotState, cx: &mut Context<Self>) {
-        self.mcp = state;
+        self.set_slot_state(Slot::Mcp, state);
         cx.notify();
     }
 
     /// Sets the index slot.
     pub fn set_index(&mut self, state: SlotState, cx: &mut Context<Self>) {
-        self.index = state;
+        self.set_slot_state(Slot::Index, state);
         cx.notify();
     }
 
@@ -122,6 +139,11 @@ impl AppStatusBar {
             Slot::Mcp => self.mcp,
             Slot::Index => self.index,
         }
+    }
+
+    /// Indexing progress `(done, total)` while the index is being built.
+    pub fn index_progress(&self) -> Option<(usize, usize)> {
+        self.progress
     }
 
     /// Latest heartbeat value.
@@ -149,10 +171,25 @@ impl AppStatusBar {
 
     fn slot_element(&self, slot: Slot) -> impl IntoElement {
         let state = self.slot(slot);
+        let progress = (slot == Slot::Index).then_some(self.progress).flatten();
+        let label = match progress {
+            Some((done, total)) => {
+                t!("status.index.progress", done = done, total = total).to_string()
+            }
+            None => Self::slot_label(slot, state),
+        };
         h_flex()
             .gap_1()
             .child(icon(state.icon()).xsmall())
-            .child(Self::slot_label(slot, state))
+            .child(label)
+            .when_some(progress, |row, (done, total)| {
+                let percent = if total == 0 {
+                    100.0
+                } else {
+                    done as f32 * 100.0 / total as f32
+                };
+                row.child(Progress::new("index-progress").w(px(80.)).value(percent))
+            })
     }
 }
 

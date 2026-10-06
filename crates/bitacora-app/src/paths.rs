@@ -86,6 +86,11 @@ impl AppDirs {
         self.config_dir.join("settings.json")
     }
 
+    /// `<config_dir>/recent-graphs.json`.
+    pub fn recent_graphs_file(&self) -> PathBuf {
+        self.config_dir.join("recent-graphs.json")
+    }
+
     /// `<data_dir>/workspace.json`.
     pub fn workspace_file(&self) -> PathBuf {
         self.data_dir.join("workspace.json")

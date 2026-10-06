@@ -34,9 +34,29 @@ status:
     off: "Index: off"
     idle: "Index: ready"
     busy: "Index: indexing"
+    progress: "Index: %{done}/%{total}"
     error: "Index: error"
   heartbeat: "Heartbeat %{count}"
   theme_button: Theme
+page:
+  loading: Loading page...
+  load_failed: "Cannot open the page: %{error}"
+  logbook: "LOGBOOK (%{count} entries)"
+  logbook_total: "LOGBOOK (%{count} entries, %{total})"
+picker:
+  title: Open a graph
+  subtitle: Pick a Logseq graph folder to start browsing it.
+  open_folder: Open graph folder...
+  recent: Recent graphs
+  no_recent: No recent graphs yet
+  missing: Folder not found
+  remove: Remove from list
+  dialog_prompt: Open graph
+  not_logseq: "%{name} has no logseq/config.edn; opening it anyway."
+  open_failed: "Cannot open the graph: %{error}"
+  index_rebuilt: Index rebuilt
+  indexing_failed: "Indexing failed: %{error}"
+  index_summary: "Indexed %{count} files"
 theme:
   system: Follow system
   light: Light

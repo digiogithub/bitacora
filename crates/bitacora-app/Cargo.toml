@@ -17,6 +17,7 @@ workspace = true
 
 [dependencies]
 bitacora-core.workspace = true
+bitacora-markdown.workspace = true
 bitacora-index.workspace = true
 bitacora-sync.workspace = true
 bitacora-mcp.workspace = true
