@@ -2,7 +2,7 @@
 id: BIT-T-0334
 type: task
 title: Map a subset of logseq/custom.css onto theme tokens
-status: todo
+status: done
 priority: low
 parent: BIT-US-0108
 milestone: BIT-M-0005
@@ -10,7 +10,9 @@ author: mcp
 labels: [bitacora-app, themes]
 estimate: 3
 created: 2026-10-06T14:34:02Z
-updated: 2026-10-06T22:24:42Z
+updated: 2026-10-06T22:44:03Z
+started: 2026-10-06T22:44:00Z
+closed: 2026-10-06T22:44:03Z
 ---
 
 ## Description
