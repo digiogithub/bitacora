@@ -2,7 +2,7 @@
 id: BIT-T-0326
 type: task
 title: "Write failure handling: retry with backoff, persistent notice, unwritten-files report"
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0066
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-core, bitacora-app, io]
 estimate: 3
 created: 2026-10-06T14:33:19Z
-updated: 2026-10-06T14:33:19Z
+updated: 2026-10-06T18:52:32Z
+closed: 2026-10-06T18:52:32Z
 ---
 
 ## Description

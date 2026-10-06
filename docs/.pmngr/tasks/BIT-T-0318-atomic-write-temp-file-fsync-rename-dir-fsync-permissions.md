@@ -2,7 +2,7 @@
 id: BIT-T-0318
 type: task
 title: "atomic_write: temp file, fsync, rename, dir fsync, permissions, in-place fallback"
-status: backlog
+status: done
 priority: critical
 parent: BIT-US-0064
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-core, io]
 estimate: 3
 created: 2026-10-06T14:33:18Z
-updated: 2026-10-06T14:33:18Z
+updated: 2026-10-06T18:52:31Z
+closed: 2026-10-06T18:52:31Z
 ---
 
 ## Description

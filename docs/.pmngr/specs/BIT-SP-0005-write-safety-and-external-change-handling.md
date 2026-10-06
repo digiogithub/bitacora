@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [core, io]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T18:47:20Z
+updated: 2026-10-06T18:52:46Z
 requirements:
   R1:
     status: backlog
@@ -19,22 +19,68 @@ requirements:
         - crates/bitacora-core/tests/single_writer_guard.rs
   R2:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-core/src/write_queue.rs#WriteQueue
+        - crates/bitacora-core/src/queue.rs#QueueConfig
+      tests:
+        - crates/bitacora-core/src/write_queue.rs
+        - crates/bitacora-core/tests/write_pipeline.rs
   R3:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-core/src/editor/model.rs#Page
+        - crates/bitacora-core/src/editor/flush.rs#Workspace
+      tests: [crates/bitacora-core/tests/write_pipeline.rs]
   R4:
     status: backlog
+    trace:
+      code: [crates/bitacora-core/src/editor/flush.rs#Workspace]
+      tests: [crates/bitacora-core/tests/write_pipeline.rs]
   R5:
     status: backlog
+    trace:
+      code: [crates/bitacora-core/src/editor/fsio.rs#atomic_write]
+      tests:
+        - crates/bitacora-core/tests/crash_safety.rs
+        - crates/bitacora-core/tests/write_pipeline.rs
   R6:
     status: backlog
+    trace:
+      code: [crates/bitacora-core/src/editor/model.rs#Page]
+      tests: [crates/bitacora-core/tests/write_pipeline.rs]
   R7:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-core/src/editor/model.rs#Page
+        - crates/bitacora-core/src/editor/flush.rs#Workspace
+      tests: [crates/bitacora-core/tests/write_pipeline.rs]
   R8:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-core/src/editor/flush.rs#Workspace
+        - crates/bitacora-core/src/queue.rs#QueueEvent
+      tests: [crates/bitacora-core/tests/write_pipeline.rs]
   R9:
     status: backlog
+    trace:
+      code: [crates/bitacora-core/src/editor/backup.rs]
+      tests:
+        - crates/bitacora-core/src/editor/backup.rs
+        - crates/bitacora-core/tests/write_pipeline.rs
   R10:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-core/src/editor/flush.rs#Workspace
+        - crates/bitacora-core/src/write_queue.rs#WriteQueue
+        - crates/bitacora-core/src/queue.rs#QueueEvent
+      tests:
+        - crates/bitacora-core/tests/write_pipeline.rs
+        - crates/bitacora-core/src/write_queue.rs
   R11:
     status: backlog
     trace:

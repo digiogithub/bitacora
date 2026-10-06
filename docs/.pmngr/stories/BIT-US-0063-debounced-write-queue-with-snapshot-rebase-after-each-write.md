@@ -2,7 +2,7 @@
 id: BIT-US-0063
 type: story
 title: Debounced write queue with snapshot rebase after each write
-status: backlog
+status: done
 priority: critical
 parent: BIT-EP-0008
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [core, io, bitacora-core]
 estimate: 5
 created: 2026-10-06T14:29:01Z
-updated: 2026-10-06T15:12:33Z
+updated: 2026-10-06T18:52:32Z
+closed: 2026-10-06T18:52:32Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-T-0324
 type: task
 title: logseq/bak backup writer with Logseq path layout and 6-version retention
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0066
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-core, io]
 estimate: 2
 created: 2026-10-06T14:33:18Z
-updated: 2026-10-06T14:33:18Z
+updated: 2026-10-06T18:52:31Z
+closed: 2026-10-06T18:52:31Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-US-0064
 type: story
 title: Atomic, crash-safe file writer with serializer self-check
-status: backlog
+status: done
 priority: critical
 parent: BIT-EP-0008
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [core, io, bitacora-core]
 estimate: 8
 created: 2026-10-06T14:29:01Z
-updated: 2026-10-06T14:29:01Z
+updated: 2026-10-06T18:52:32Z
+closed: 2026-10-06T18:52:32Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-T-0321
 type: task
 title: "Crash-safety test: kill the writer process mid-write repeatedly"
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0064
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-core, test]
 estimate: 3
 created: 2026-10-06T14:33:18Z
-updated: 2026-10-06T14:33:18Z
+updated: 2026-10-06T18:52:31Z
+closed: 2026-10-06T18:52:31Z
 ---
 
 ## Description

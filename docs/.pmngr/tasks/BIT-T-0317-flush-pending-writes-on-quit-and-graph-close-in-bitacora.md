@@ -2,7 +2,7 @@
 id: BIT-T-0317
 type: task
 title: Flush pending writes on quit and graph close in bitacora-app and bitacora-cli
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0063
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-app, bitacora-cli, io]
 estimate: 1
 created: 2026-10-06T14:33:18Z
-updated: 2026-10-06T14:33:18Z
+updated: 2026-10-06T18:52:31Z
+closed: 2026-10-06T18:52:31Z
 ---
 
 ## Description

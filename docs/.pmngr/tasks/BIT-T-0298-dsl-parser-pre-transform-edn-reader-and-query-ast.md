@@ -2,7 +2,7 @@
 id: BIT-T-0298
 type: task
 title: "DSL parser: pre-transform, EDN reader and query AST"
-status: backlog
+status: in_progress
 priority: high
 parent: BIT-US-0101
 milestone: BIT-M-0005
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-index, query]
 estimate: 3
 created: 2026-10-06T14:33:07Z
-updated: 2026-10-06T14:33:07Z
+updated: 2026-10-06T18:49:11Z
+started: 2026-10-06T18:49:11Z
 ---
 
 ## Description
