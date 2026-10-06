@@ -10,7 +10,7 @@ author: mcp
 labels: [mcp, tools, read, query]
 estimate: 5
 created: 2026-10-06T14:27:12Z
-updated: 2026-10-06T19:01:04Z
+updated: 2026-10-06T19:28:42Z
 started: 2026-10-06T18:44:25Z
 closed: 2026-10-06T19:01:04Z
 ---
@@ -18,12 +18,12 @@ closed: 2026-10-06T19:01:04Z
 ## Description
 As an AI agent, I want backlinks, task lists, simple queries and graph/sync status, so that I can do reviews and planning over the graph without scanning every page.
 
-Tools: `backlinks`, `tasks`, `query` (Logseq simple-query DSL subset via the index's DSL→SQL compiler), `get_graph_info`, `list_graphs`, `git_sync_status`.
+Tools: `backlinks`, `tasks`, `query` (Logseq simple-query DSL via the index's DSL→SQL compiler, plus the supported advanced Datalog subset), `get_graph_info`, `list_graphs`, `git_sync_status`.
 
 ## Acceptance Criteria
 - `backlinks {name|uuid, include_unlinked}` groups referencing blocks by page with breadcrumbs.
 - `tasks` filters by status set, page, scheduled/deadline bounds, priority.
-- `query` accepts e.g. `(and (task TODO) [[Project X]] (between -7d today))`; Datalog input → `INVALID_QUERY`.
+- `query` accepts e.g. `(and (task TODO) [[Project X]] (between -7d today))`; advanced queries in the supported Datalog subset execute; unsupported constructs return `NOT_SUPPORTED` with `unsupported: <construct>`; malformed queries return `INVALID_QUERY`.
 - `git_sync_status` reports state, ahead/behind, last sync, conflict count/pages, last error (reads the sync engine's watch channel; returns `Disabled` when sync is off).
 - All are `readOnlyHint` and covered by tool-level tests on a fixture graph.
 

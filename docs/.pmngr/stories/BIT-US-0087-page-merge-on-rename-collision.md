@@ -2,7 +2,7 @@
 id: BIT-US-0087
 type: story
 title: Page merge on rename collision
-status: backlog
+status: done
 priority: medium
 parent: BIT-EP-0009
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [core, compat, rename]
 estimate: 5
 created: 2026-10-06T14:30:09Z
-updated: 2026-10-06T14:30:09Z
+updated: 2026-10-06T19:30:10Z
+closed: 2026-10-06T19:30:10Z
 ---
 
 ## Description

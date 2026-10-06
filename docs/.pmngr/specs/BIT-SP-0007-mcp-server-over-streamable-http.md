@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [mcp, api]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T19:12:09Z
+updated: 2026-10-06T19:28:37Z
 requirements:
   R1:
     status: backlog
@@ -315,7 +315,7 @@ A write targeting a block that the user is currently editing SHALL return `code:
 
 ### BIT-SP-0007.R11 — Expose the minimum read tool set
 
-The server SHALL expose the read tools `search`, `get_page`, `get_page_blocks_tree` (alias `get_block_tree` with a uuid), `get_block`, `list_pages`, `list_journals`, `get_today_journal`, `backlinks`, `tasks`, `query` (Logseq simple-query DSL subset), `get_graph_info`, `list_graphs` and `git_sync_status`, each accepting an optional `graph` argument (default: active graph), with page names resolved case-insensitively through aliases.
+The server SHALL expose the read tools `search`, `get_page`, `get_page_blocks_tree` (alias `get_block_tree` with a uuid), `get_block`, `list_pages`, `list_journals`, `get_today_journal`, `backlinks`, `tasks`, `query` (Logseq simple-query DSL and the supported advanced Datalog subset), `get_graph_info`, `list_graphs` and `git_sync_status`, each accepting an optional `graph` argument (default: active graph), with page names resolved case-insensitively through aliases.
 
 #### Scenario: Get page via alias
 - GIVEN page "Project X" has `alias:: PX`
@@ -331,9 +331,17 @@ The server SHALL expose the read tools `search`, `get_page`, `get_page_blocks_tr
 - WHEN the agent calls `get_page {"name":"Nope"}`
 - THEN the result is `isError: true` with `code: "NOT_FOUND"`
 
-#### Scenario: Raw Datalog not supported
-- WHEN the agent calls `query {"dsl":"[:find ?b :where [?b :block/content]]"}`
-- THEN the result is `isError: true` with `code: "INVALID_QUERY"` explaining only the simple-query DSL is supported
+#### Scenario: Advanced Datalog query
+- WHEN the agent calls `query {"dsl":"[:find (pull ?b [*]) :where [?b :block/marker \"TODO\"]]"}` using constructs in the supported subset
+- THEN the query executes and the result lists the matching blocks
+
+#### Scenario: Unsupported Datalog construct
+- WHEN the agent calls `query` with an advanced query that uses a construct outside the supported subset
+- THEN the result is `isError: true` with `code: "NOT_SUPPORTED"` and `unsupported: <construct>` naming it
+
+#### Scenario: Malformed query
+- WHEN the agent calls `query {"dsl":"[:find ?b :where"}`
+- THEN the result is `isError: true` with `code: "INVALID_QUERY"`
 
 ### BIT-SP-0007.R12 — Expose the minimum write and delete tool set
 
