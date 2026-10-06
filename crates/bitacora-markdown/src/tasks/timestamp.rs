@@ -145,6 +145,25 @@ impl Timestamp {
     }
 }
 
+/// Days since 1970-01-01 for a proleptic Gregorian date.
+pub(crate) fn days_from_civil(y: i32, m: u32, d: u32) -> i64 {
+    let y = i64::from(if m <= 2 { y - 1 } else { y });
+    let era = y.div_euclid(400);
+    let yoe = y - era * 400;
+    let m = i64::from(m);
+    let doy = (153 * (if m > 2 { m - 3 } else { m + 9 }) + 2) / 5 + i64::from(d) - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    era * 146_097 + doe - 719_468
+}
+
+/// English three-letter weekday name (`Mon`) of a calendar date, as Logseq writes it.
+pub(crate) fn weekday_name(y: i32, m: u32, d: u32) -> &'static str {
+    const NAMES: [&str; 7] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    // 1970-01-01 was a Thursday (index 3).
+    let idx = (days_from_civil(y, m, d) + 3).rem_euclid(7);
+    NAMES[usize::try_from(idx).unwrap_or(0)]
+}
+
 fn format_time(t: &Time) -> String {
     match t.sec {
         Some(s) => format!("{:02}:{:02}:{s:02}", t.hour, t.min),
@@ -201,7 +220,7 @@ fn parse_time(tok: &str) -> Option<(Time, Option<Time>)> {
     (i == b.len() || end.is_some()).then_some((time, end))
 }
 
-fn parse_repeater(tok: &str) -> Option<Repeater> {
+pub(crate) fn parse_repeater(tok: &str) -> Option<Repeater> {
     let (kind, rest) = if let Some(r) = tok.strip_prefix("++") {
         (RepeatKind::DoublePlus, r)
     } else if let Some(r) = tok.strip_prefix(".+") {
