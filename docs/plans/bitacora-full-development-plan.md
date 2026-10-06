@@ -57,3 +57,6 @@ Orchestrated by the main Claude Code session; implementation by Claude Code suba
 - Requirements verification: needs JUnit via nextest + `gintrack spec ingest` (being prototyped in US-0095).
 - Index: canonical_dump queries blocks_fts_tri_docsize (fails when search.substring off); search.substring config key + persistence (wire in settings US-0107); fuzzy title list cache for huge graphs.
 - INTEGRATION (next after core write path): runtime wiring in a shared place used by app and cli — core queue observers → index writer + watch EchoFilter (register before rename), watch FileEvent → core ExternalFileChanged / index FsChange, sync GraphWriter adapter over core QueueLock, MCP GraphReader over index. BIT-T-0341 belongs here.
+- Flaky tests to stabilise: bitacora-index tests/property.rs incremental_equals_rebuild_on_a_small_graph (failed once under parallel load); bitacora-mcp page_changes_notify_subscribed_resources_within_two_seconds (timing).
+- Spec text: BIT-SP-0007.R11 and BIT-US-0018 criterion still say raw Datalog → INVALID_QUERY; MCP now executes the advanced Datalog subset. Update texts.
+- App must adopt bitacora-runtime (next app story with editing); sync resolve_conflict UI (US-0054); config.edn hot reload; bak not indexed (fine).
