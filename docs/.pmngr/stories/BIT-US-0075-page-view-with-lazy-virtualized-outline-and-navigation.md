@@ -2,7 +2,7 @@
 id: BIT-US-0075
 type: story
 title: Page view with lazy virtualized outline and navigation history
-status: backlog
+status: done
 priority: high
 parent: BIT-EP-0006
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [ui, bitacora-app]
 estimate: 5
 created: 2026-10-06T14:29:26Z
-updated: 2026-10-06T14:29:26Z
+updated: 2026-10-06T19:08:16Z
+closed: 2026-10-06T19:08:16Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-T-0190
 type: task
 title: Virtual today's journal and midnight rollover
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0076
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-app, ui, journals]
 estimate: 2
 created: 2026-10-06T14:30:56Z
-updated: 2026-10-06T14:30:56Z
+updated: 2026-10-06T19:08:15Z
+closed: 2026-10-06T19:08:15Z
 ---
 
 ## Description

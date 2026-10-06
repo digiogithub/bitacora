@@ -2,7 +2,7 @@
 id: BIT-T-0186
 type: task
 title: PageView with virtualized outline list and incremental loading
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0075
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-app, ui]
 estimate: 3
 created: 2026-10-06T14:30:56Z
-updated: 2026-10-06T14:30:56Z
+updated: 2026-10-06T19:08:08Z
+closed: 2026-10-06T19:08:08Z
 ---
 
 ## Description

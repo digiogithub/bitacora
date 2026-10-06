@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [git, sync, merge]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T19:00:18Z
+updated: 2026-10-06T19:08:47Z
 requirements:
   R1:
     status: backlog
@@ -79,10 +79,13 @@ requirements:
       code:
         - crates/bitacora-sync/src/writer.rs
         - crates/bitacora-sync/src/engine.rs
+        - crates/bitacora-runtime/src/writer.rs
       tests:
         - crates/bitacora-sync/src/writer.rs
         - crates/bitacora-sync/tests/sync_engine.rs
         - crates/bitacora-sync/tests/auto_commit.rs
+        - crates/bitacora-runtime/tests/sync.rs
+        - crates/bitacora-runtime/tests/session.rs
   R8:
     status: backlog
     trace:

@@ -2,7 +2,7 @@
 id: BIT-T-0341
 type: task
 title: Wire watcher into the command queue and test for no reparse loops
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0067
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-core, bitacora-watch, bitacora-app, test]
 estimate: 2
 created: 2026-10-06T14:34:13Z
-updated: 2026-10-06T14:34:13Z
+updated: 2026-10-06T19:08:32Z
+closed: 2026-10-06T19:08:32Z
 ---
 
 ## Description

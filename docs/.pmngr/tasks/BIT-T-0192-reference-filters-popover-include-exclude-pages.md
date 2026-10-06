@@ -2,7 +2,7 @@
 id: BIT-T-0192
 type: task
 title: Reference filters popover (include/exclude pages)
-status: backlog
+status: done
 priority: medium
 parent: BIT-US-0077
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-app, ui, references]
 estimate: 2
 created: 2026-10-06T14:30:56Z
-updated: 2026-10-06T14:30:56Z
+updated: 2026-10-06T19:08:16Z
+closed: 2026-10-06T19:08:16Z
 ---
 
 ## Description
