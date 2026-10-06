@@ -266,7 +266,8 @@ impl Session {
                 };
             }
             // Agent writes go through the same single-writer queue as the UI (rule 3).
-            let writer = QueueBridge::new(queue.clone(), root.clone(), config.clone());
+            let writer = QueueBridge::new(queue.clone(), root.clone(), config.clone())
+                .with_ref_lookup(session.ref_lookup());
             session.mcp = Some(McpServer::start_with(
                 mcp_config,
                 ServerParts {

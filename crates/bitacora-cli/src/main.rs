@@ -111,4 +111,31 @@ mod tests {
         assert_eq!(cli.command.name(), "serve");
         assert!(Cli::try_parse_from(["bitacora-cli", "serve"]).is_err());
     }
+
+    #[test]
+    fn serve_permission_flags_default_off() {
+        let parse = |extra: &[&str]| {
+            let mut a = vec!["bitacora-cli", "serve", "--graph", "/tmp/g"];
+            a.extend_from_slice(extra);
+            match Cli::try_parse_from(a).expect("parse serve").command {
+                Command::Serve(s) => s,
+                other => panic!("not serve: {}", other.name()),
+            }
+        };
+        let off = parse(&[]);
+        assert!(!off.allow_writes && !off.allow_deletes && !off.api);
+        let on = parse(&["--allow-writes", "--allow-deletes", "--api"]);
+        assert!(on.allow_writes && on.allow_deletes && on.api);
+    }
+
+    #[test]
+    fn serve_help_documents_permission_flags() {
+        use clap::CommandFactory as _;
+        let mut cmd = Cli::command();
+        let serve = cmd.find_subcommand_mut("serve").expect("serve");
+        let help = serve.render_long_help().to_string();
+        for flag in ["--allow-writes", "--allow-deletes", "--api"] {
+            assert!(help.contains(flag), "{help}");
+        }
+    }
 }
