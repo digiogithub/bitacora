@@ -29,6 +29,11 @@ fn allowed_edges() -> BTreeMap<&'static str, BTreeSet<&'static str>> {
         "bitacora-sync",
         "bitacora-mcp",
     ]);
+    let with_runtime = |base: &BTreeSet<&'static str>| {
+        let mut s = base.clone();
+        s.insert("bitacora-runtime");
+        s
+    };
     BTreeMap::from([
         ("bitacora-markdown", set(&[])),
         ("bitacora-config", set(&[])),
@@ -50,8 +55,10 @@ fn allowed_edges() -> BTreeMap<&'static str, BTreeSet<&'static str>> {
             "bitacora-mcp",
             set(&["bitacora-core", "bitacora-index", "bitacora-sync"]),
         ),
-        ("bitacora-app", frontends.clone()),
-        ("bitacora-cli", frontends),
+        // ADR-024: the headless session composing core+index+watch+sync+mcp; no UI.
+        ("bitacora-runtime", frontends.clone()),
+        ("bitacora-app", with_runtime(&frontends)),
+        ("bitacora-cli", with_runtime(&frontends)),
         // Dev-only helpers: nothing may depend on it in [dependencies].
         ("bitacora-testkit", set(&[])),
         ("xtask", set(&[])),

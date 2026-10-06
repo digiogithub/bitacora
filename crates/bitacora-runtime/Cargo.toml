@@ -1,16 +1,12 @@
 [package]
-name = "bitacora-cli"
-description = "Bitacora: headless command-line binary"
+name = "bitacora-runtime"
+description = "Bitacora: headless graph session composing core, index, watch, sync and MCP (ADR-024)"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 publish.workspace = true
-
-[[bin]]
-name = "bitacora-cli"
-path = "src/main.rs"
 
 [lints]
 workspace = true
@@ -19,16 +15,12 @@ workspace = true
 bitacora-config.workspace = true
 bitacora-core.workspace = true
 bitacora-index.workspace = true
+bitacora-watch.workspace = true
 bitacora-sync.workspace = true
 bitacora-mcp.workspace = true
-bitacora-runtime.workspace = true
-clap.workspace = true
-anyhow.workspace = true
-serde.workspace = true
-serde_json.workspace = true
-tokio.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
 
 [dev-dependencies]
-tempfile.workspace = true
 bitacora-testkit.workspace = true
-rusqlite.workspace = true
+tempfile.workspace = true

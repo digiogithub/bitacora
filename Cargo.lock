@@ -819,6 +819,7 @@ dependencies = [
  "bitacora-core",
  "bitacora-index",
  "bitacora-mcp",
+ "bitacora-runtime",
  "bitacora-sync",
  "bitacora-testkit",
  "clap",
@@ -926,6 +927,22 @@ dependencies = [
  "proptest",
  "thiserror 2.0.21",
  "uuid",
+]
+
+[[package]]
+name = "bitacora-runtime"
+version = "0.1.0"
+dependencies = [
+ "bitacora-config",
+ "bitacora-core",
+ "bitacora-index",
+ "bitacora-mcp",
+ "bitacora-sync",
+ "bitacora-testkit",
+ "bitacora-watch",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tracing",
 ]
 
 [[package]]

@@ -27,6 +27,8 @@ const ALLOWED: &[(&str, &str)] = &[
     ("bitacora-core", "editor/fsio.rs"),
     // `reindex --force` deletes the SQLite cache files, never graph files.
     ("bitacora-cli", "cmd/reindex.rs"),
+    // Test-only: copies a fixture graph into a temp dir.
+    ("bitacora-cli", "cmd/serve_tests.rs"),
     // API token store under the app config dir, not the graph.
     ("bitacora-mcp", "tokens.rs"),
 ];
