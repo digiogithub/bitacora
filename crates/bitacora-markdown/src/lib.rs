@@ -7,12 +7,18 @@
 //! 2. [`properties`]: `key:: value` property groups with mldoc's key rules, value interpretation
 //!    and the Markdown `:PROPERTIES:` drawer reader.
 
+pub mod classify;
 pub mod lines;
 pub mod outline;
 pub mod properties;
 pub mod span;
 pub mod tree;
 
+pub use classify::{
+    CARD_KEYS, CanonicalView, DiffClass, IdentityConflict, LineClass, MetadataMerge, PropClass,
+    Side, canonical_view, canonical_view_of, class_of, classify_diff, classify_lines, is_card_key,
+    merge_metadata, union_logbook,
+};
 pub use lines::{Line, LineKind, Lines, ParserOptions, UnclosedRegion};
 pub use outline::{BlockKind, Outline, RawBlock, content_of, pre_block_content, split, split_with};
 pub use span::Span;
