@@ -215,3 +215,33 @@ fn graph_edges_honour_options_and_exclusions() {
     assert!(with_journals.nodes.iter().any(|n| n.is_builtin));
     assert!(with_journals.edges.len() > default.edges.len());
 }
+
+#[test]
+fn backlink_counts_search_and_mentions_back_the_app_views() {
+    let fx = indexed(&[
+        ("pages/Alpha.md", "- see [[Beta]]\n- again [[Beta]]\n"),
+        ("pages/Beta.md", "- ![x](../assets/x.png)\n"),
+        ("pages/Gamma.md", "- unrelated\n"),
+    ]);
+    let r = &fx.reader;
+    let beta = r.page_id("Beta").expect("id").expect("page");
+    let counts = r.backlink_counts().expect("counts");
+    assert_eq!(counts.get(&beta), Some(&2));
+    let gamma = r.page_id("Gamma").expect("id").expect("page");
+    assert_eq!(counts.get(&gamma), None);
+    let hits = r
+        .search("beta", &bitacora_index::search::SearchOptions::default())
+        .expect("search");
+    assert!(matches!(
+        hits.first(),
+        Some(bitacora_index::search::SearchHit::Page { title, .. }) if title == "Beta"
+    ));
+    let mentions = r.blocks_mentioning("assets/x.png", 10).expect("mentions");
+    assert_eq!(mentions.len(), 1);
+    assert!(r.blocks_mentioning("", 10).expect("empty").is_empty());
+    assert!(
+        r.blocks_mentioning("nope.png", 10)
+            .expect("none")
+            .is_empty()
+    );
+}

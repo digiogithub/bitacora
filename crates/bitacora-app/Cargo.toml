@@ -20,6 +20,7 @@ bitacora-core.workspace = true
 bitacora-markdown.workspace = true
 bitacora-index.workspace = true
 bitacora-sync.workspace = true
+bitacora-runtime.workspace = true
 bitacora-mcp.workspace = true
 bitacora-watch.workspace = true
 bitacora-config.workspace = true
@@ -43,3 +44,51 @@ unicode-segmentation.workspace = true
 [dev-dependencies]
 gpui-kit = { workspace = true, features = ["test-support"] }
 tempfile.workspace = true
+
+# Installable bundles (BIT-US-0090): `cargo xtask bundle` (or `cargo packager -p bitacora-app --release`).
+# Paths are relative to this manifest. Signing identities/certificates are NOT configured here:
+# CI injects them through environment variables only on tagged builds (docs/design/release-process.md).
+[package.metadata.packager]
+product-name = "Bitacora"
+identifier = "es.digio.bitacora"
+description = "Outliner for Logseq-compatible Markdown graphs with git sync and an MCP server."
+long-description = "Bitacora is a fast desktop outliner that reads and writes Logseq Markdown graphs, indexes them in SQLite, syncs them with git and serves an MCP endpoint."
+homepage = "https://github.com/digio-es/bitacora"
+authors = ["Digio <jose@digio.es>"]
+publisher = "Digio"
+copyright = "Copyright (c) Digio. MIT licensed."
+license-file = "../../LICENSE"
+category = "Productivity"
+out-dir = "../../target/packager"
+binaries-dir = "../../target/release"
+binaries = [{ path = "bitacora", main = true }]
+icons = [
+    "../../packaging/icons/32x32.png",
+    "../../packaging/icons/128x128.png",
+    "../../packaging/icons/256x256.png",
+    "../../packaging/icons/512x512.png",
+    "../../packaging/icons/bitacora.icns",
+    "../../packaging/icons/bitacora.ico",
+]
+
+[package.metadata.packager.macos]
+minimum-system-version = "12.0"
+# `signing-identity` is injected from the CI environment (never committed); unsigned when absent.
+
+[package.metadata.packager.deb]
+section = "utils"
+# GPUI renders through Vulkan: the loader and an ICD are required at runtime.
+depends = [
+    "libvulkan1",
+    "mesa-vulkan-drivers | libvulkan-driver",
+    "libxkbcommon-x11-0",
+    "libxkbcommon0",
+    "libfontconfig1",
+    "libwayland-client0",
+    "libasound2t64 | libasound2",
+]
+
+[package.metadata.packager.nsis]
+install-mode = "both"
+compression = "lzma"
+languages = ["English", "Spanish"]

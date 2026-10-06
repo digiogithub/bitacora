@@ -2,7 +2,7 @@
 id: BIT-US-0079
 type: story
 title: "Left sidebar navigation: journals, all pages, favorites and recent"
-status: in_progress
+status: done
 priority: medium
 parent: BIT-EP-0006
 milestone: BIT-M-0002
@@ -10,8 +10,9 @@ author: mcp
 labels: [ui, bitacora-app]
 estimate: 5
 created: 2026-10-06T14:29:26Z
-updated: 2026-10-06T19:14:39Z
+updated: 2026-10-06T19:52:58Z
 started: 2026-10-06T19:14:39Z
+closed: 2026-10-06T19:52:58Z
 ---
 
 ## Description

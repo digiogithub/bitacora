@@ -689,8 +689,8 @@ impl BitacoraMcp {
     }
 
     #[tool(
-        description = "Rename a page and rewrite `[[links]]` and `#tags` that point to it (Logseq Editor.renamePage). \
-                       The old file moves to logseq/.recycle. One undo step. Needs the `delete` scope.",
+        description = "Rename a page: its file, namespace children and every `[[link]]`, `#tag` and property reference that points to it (Logseq Editor.renamePage). \
+                       One undo step. If the new title exists the call fails with CONFLICT unless `merge: true`. Needs the `delete` scope.",
         annotations(read_only_hint = false, destructive_hint = true, open_world_hint = false),
         output_schema = schema_for_type::<WriteOut>()
     )]

@@ -2,7 +2,7 @@
 id: BIT-T-0294
 type: task
 title: Status bar sync indicator and Sync now command
-status: backlog
+status: in_progress
 priority: medium
 parent: BIT-US-0047
 milestone: BIT-M-0004
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-app, sync, ui]
 estimate: 2
 created: 2026-10-06T14:32:57Z
-updated: 2026-10-06T14:32:57Z
+updated: 2026-10-06T19:59:19Z
+started: 2026-10-06T19:59:19Z
 ---
 
 ## Description

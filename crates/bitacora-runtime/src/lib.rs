@@ -20,14 +20,18 @@
 mod glue;
 mod live;
 mod rename_lookup;
+mod restore;
 mod session;
 mod store;
+mod sync_ctl;
 mod writer;
 
 pub use live::{DEFAULT_SHUTDOWN_BUDGET, Session, ShutdownReport};
 pub use rename_lookup::IndexRefLookup;
+pub use restore::RestoreReport;
 pub use session::{EngineTune, McpOptions, RuntimeConfig, RuntimeError, RuntimeEvent, SyncOptions};
 pub use store::EchoStore;
+pub use sync_ctl::{BackendInfo, SyncStatusView, SyncWatch};
 pub use writer::{DEFAULT_ACQUIRE_TIMEOUT, QueueGraphWriter};
 
 /// Crate name, used by smoke tests.

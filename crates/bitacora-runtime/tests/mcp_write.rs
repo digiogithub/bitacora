@@ -699,7 +699,6 @@ fn create_page_append_today_rename_with_links_delete_and_undo() {
     env.flush();
     assert!(env.read("pages/New Name.md").contains("alias-note:: x"));
     assert!(!env.graph.join("pages/Old Name.md").exists());
-    assert!(env.graph.join("logseq/.recycle").exists());
     assert_eq!(
         env.read("pages/Linker.md"),
         "- see [[New Name]] and #[[New Name]] and [[other]]\n"
@@ -714,6 +713,49 @@ fn create_page_append_today_rename_with_links_delete_and_undo() {
     );
     assert_eq!(env.read("pages/Linker.md"), before_link);
     assert!(!env.graph.join("pages/New Name.md").exists());
+
+    // rename onto an existing page: structured CONFLICT, nothing changes, unless `merge`.
+    c.ok(
+        "create_page",
+        json!({"name": "Taken", "blocks": [{"content": "taken block"}]}),
+    );
+    env.flush();
+    let refused = c.err(
+        "rename_page",
+        json!({"name": "Old Name", "new_name": "Taken"}),
+    );
+    assert_eq!(refused["code"], "CONFLICT");
+    assert_eq!(refused["target_exists"], "Taken", "{refused}");
+    assert!(env.graph.join("pages/Old Name.md").exists());
+    // Journals are refused by core.
+    assert_eq!(
+        c.err(
+            "rename_page",
+            json!({"name": "Old Name", "new_name": "2024-01-02"})
+        )["code"],
+        "INVALID_ARGUMENT"
+    );
+    let merged = c.ok(
+        "rename_page",
+        json!({"name": "Old Name", "new_name": "Taken", "merge": true}),
+    );
+    assert_eq!(merged["details"]["merged"], json!(true), "{merged}");
+    env.flush();
+    let taken = env.read("pages/Taken.md");
+    assert!(
+        taken.contains("taken block") && taken.contains("Old Name"),
+        "{taken}"
+    );
+    assert!(!env.graph.join("pages/Old Name.md").exists());
+    env.s
+        .undo_agent_entry(merged["audit_id"].as_str().unwrap())
+        .unwrap();
+    env.flush();
+    assert_eq!(
+        env.read("pages/Old Name.md"),
+        "- about Old Name\n  alias-note:: x\n"
+    );
+    assert!(!env.read("pages/Taken.md").contains("about Old Name"));
 
     // delete_page recycles the file; undo brings it back byte for byte.
     let del = c.ok("delete_page", json!({"name": "Linker"}));

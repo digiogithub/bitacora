@@ -2,7 +2,7 @@
 id: BIT-T-0375
 type: task
 title: Active git backend indicator and install-git suggestion
-status: backlog
+status: in_progress
 priority: medium
 parent: BIT-US-0047
 milestone: BIT-M-0004
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-app, sync, ui]
 estimate: 1
 created: 2026-10-06T15:15:10Z
-updated: 2026-10-06T15:15:10Z
+updated: 2026-10-06T19:59:19Z
+started: 2026-10-06T19:59:19Z
 ---
 
 ## Description

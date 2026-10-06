@@ -11,6 +11,26 @@ pub enum Route {
     Page(String),
     /// A block zoomed in, by UUID.
     Block(String),
+    /// The table of all pages.
+    AllPages,
+}
+
+/// Where a click on a ref, tag, bullet or list entry opens its target (Shift+click opens the
+/// right sidebar, BIT-US-0080).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum OpenIn {
+    /// The main area.
+    #[default]
+    Main,
+    /// The right sidebar stack.
+    Sidebar,
+}
+
+impl OpenIn {
+    /// Sidebar when Shift is held.
+    pub fn from_shift(shift: bool) -> Self {
+        if shift { Self::Sidebar } else { Self::Main }
+    }
 }
 
 /// A scroll position of a virtualized list: the first visible item and the pixels scrolled

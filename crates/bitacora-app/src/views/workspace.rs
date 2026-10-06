@@ -3,15 +3,26 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
+use std::rc::Rc;
+
 use async_channel::Sender;
+use bitacora_core::date::Date;
+use bitacora_core::editor::DayRollover;
 use tokio::task::JoinError;
 
-use crate::actions::{GoBack, GoForward, ToggleLeftSidebar, ToggleRightSidebar, ToggleTheme};
-use crate::data::GraphHandle;
+use crate::actions::{
+    FocusRightSidebar, GoAllPages, GoBack, GoForward, GoJournals, OpenCommandPalette, OpenSearch,
+    Quit, ToggleLeftSidebar, ToggleRightSidebar, ToggleTheme,
+};
+use crate::data::{self, GraphHandle};
+use crate::graph_ops::{self, AssetOutcome};
+use crate::graph_state::GraphState;
 use crate::layout::{LAYOUT_VERSION, load_layout, save_layout};
 use crate::nav::Route;
 use crate::recent::{RecentGraphs, graph_name, has_graph_config};
-use crate::session::{GraphSession, SessionEvent, SessionOptions, initial_page};
+use crate::session::{
+    GraphSession, SessionEvent, SessionLink, SessionNotice, SessionOptions, initial_page,
+};
 use crate::theme;
 use crate::tokio_bridge;
 use crate::ui::dock::{DockArea, DockEvent, DockLayout, DockPlacement, DockSkin, panel_handle};
@@ -21,10 +32,12 @@ use crate::ui::{
     Task, Window, div, h_flex, px, v_flex,
 };
 use crate::ui::{Level, notify};
-use crate::views::main_view::MainView;
+use crate::views::main_view::{MainEvent, MainView};
 use crate::views::page_view::PageView;
-use crate::views::panels::{PanelKind, PlaceholderPanel, SharedMainView};
+use crate::views::palette::{Palette, PaletteCommand, PaletteEvent};
+use crate::views::panels::{HubEvent, PaneHub, PanelKind, PlaceholderPanel, SharedHub};
 use crate::views::picker::{GraphPicker, PickerEvent};
+use crate::views::right_sidebar::{RightSidebar, StackEvent};
 use crate::views::sidebar::{LeftSidebar, SidebarEvent, Target};
 use crate::views::status_bar::{AppStatusBar, Slot, SlotState, StatusEvent};
 use rust_i18n::t;
@@ -32,8 +45,27 @@ use rust_i18n::t;
 /// Delay before a layout change is written to disk.
 const SAVE_DEBOUNCE: Duration = Duration::from_millis(500);
 
+/// How long the "files not saved" notice stays up before the app quits.
+const QUIT_NOTICE_TIME: Duration = Duration::from_secs(4);
+
 /// Initial width of the right dock.
 const RIGHT_DOCK_WIDTH: f32 = 280.0;
+
+/// Source of "today" (local calendar date); replaced in tests.
+pub type Clock = Rc<dyn Fn() -> Option<Date>>;
+
+/// A [`Clock`] that can sit in a `Debug` struct.
+struct ClockFn(Clock);
+
+impl std::fmt::Debug for ClockFn {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Clock")
+    }
+}
+
+/// The day clock re-checks the date at least this often (also after the machine slept through
+/// midnight).
+const DAY_CHECK_MAX: Duration = Duration::from_secs(3600);
 
 /// What the workspace needs to know about its environment.
 #[derive(Debug, Clone, Default)]
@@ -48,6 +80,13 @@ pub struct WorkspaceConfig {
     pub index_data_dir: Option<PathBuf>,
     /// Page to show after opening a graph (file path relative to the graph, or a page name).
     pub initial_page: Option<String>,
+    /// Token file of the MCP endpoint (`None` leaves MCP off).
+    pub mcp_token_path: Option<PathBuf>,
+    /// Global config file override (`None`: platform default; tests point it nowhere).
+    pub global_config: Option<PathBuf>,
+    /// Directory of the per-graph UI state (recent pages, right sidebar stack); `None` keeps it
+    /// in memory only.
+    pub state_dir: Option<PathBuf>,
 }
 
 /// The root view of the main window.
@@ -61,9 +100,19 @@ pub struct Workspace {
     status_tx: Sender<StatusEvent>,
     picker: Entity<GraphPicker>,
     main: Entity<MainView>,
+    hub: Entity<PaneHub>,
+    stack: Entity<RightSidebar>,
+    palette: Entity<Palette>,
+    handle: Option<GraphHandle>,
+    graph_state: GraphState,
+    graph_state_file: Option<PathBuf>,
+    clock: ClockFn,
+    rollover: Option<DayRollover>,
+    day_task: Option<Task<()>>,
     recents: RecentGraphs,
     graph_root: Option<PathBuf>,
     session: Option<GraphSession>,
+    link: Option<SessionLink>,
     session_task: Option<Task<()>>,
     picker_visible: bool,
     save_task: Option<Task<()>>,
@@ -85,8 +134,11 @@ impl Workspace {
             .map(RecentGraphs::load)
             .unwrap_or_default();
         let picker = cx.new(|_| GraphPicker::new(recents.graphs().to_vec()));
-        let main = cx.new(MainView::new);
-        cx.set_global(SharedMainView(main.clone()));
+        let main = cx.new(|cx| MainView::new(window, cx));
+        let stack = cx.new(RightSidebar::new);
+        let hub = cx.new(|_| PaneHub::new(main.clone(), stack.clone()));
+        cx.set_global(SharedHub(hub.clone()));
+        let palette = cx.new(|cx| Palette::new(window, cx));
 
         let (dock, skin) = DockSkin::dock_area("workspace", Some(LAYOUT_VERSION), window, cx);
         skin.set_toggle_button_visible(false, cx);
@@ -94,6 +146,11 @@ impl Workspace {
         subscriptions.push(cx.observe(&sidebar, |_, _, cx| cx.notify()));
         subscriptions.push(cx.subscribe_in(&picker, window, Self::on_picker_event));
         subscriptions.push(cx.observe(&main, |_, _, cx| cx.notify()));
+        subscriptions.push(cx.subscribe_in(&main, window, Self::on_main_event));
+        subscriptions.push(cx.subscribe_in(&hub, window, Self::on_hub_event));
+        subscriptions.push(cx.subscribe_in(&stack, window, Self::on_stack_event));
+        subscriptions.push(cx.subscribe_in(&palette, window, Self::on_palette_event));
+        subscriptions.push(cx.observe(&palette, |_, _, cx| cx.notify()));
         subscriptions.push(cx.subscribe_in(&sidebar, window, Self::on_sidebar_event));
 
         let restored = config
@@ -123,9 +180,19 @@ impl Workspace {
             status_tx,
             picker,
             main,
+            hub,
+            stack,
+            palette,
+            handle: None,
+            graph_state: GraphState::default(),
+            graph_state_file: None,
+            clock: ClockFn(Rc::new(data::today_local)),
+            rollover: None,
+            day_task: None,
             recents,
             graph_root: None,
             session: None,
+            link: None,
             session_task: None,
             picker_visible: true,
             save_task: None,
@@ -143,6 +210,26 @@ impl Workspace {
     /// The main area (journals feed and page view with history).
     pub fn main_view(&self) -> &Entity<MainView> {
         &self.main
+    }
+
+    /// Every pane (center panel) of the main area, primary first.
+    pub fn panes(&self, cx: &App) -> Vec<Entity<MainView>> {
+        self.hub.read(cx).panes()
+    }
+
+    /// The right sidebar stack.
+    pub fn right_sidebar(&self) -> &Entity<RightSidebar> {
+        &self.stack
+    }
+
+    /// The search / actions palette.
+    pub fn palette(&self) -> &Entity<Palette> {
+        &self.palette
+    }
+
+    /// Recently visited pages of the open graph, newest first.
+    pub fn recent_pages(&self) -> &[String] {
+        &self.graph_state.recent
     }
 
     /// The page view entity.
@@ -190,10 +277,30 @@ impl Workspace {
             );
         }
         self.close_session(cx);
+        self.graph_state_file = self
+            .config
+            .state_dir
+            .as_deref()
+            .map(|dir| GraphState::file_for(dir, &path));
+        self.graph_state = self
+            .graph_state_file
+            .as_deref()
+            .map(GraphState::load)
+            .unwrap_or_default();
+        let recent_titles = self.graph_state.recent.clone();
+        self.sidebar
+            .update(cx, |sidebar, cx| sidebar.set_recent(recent_titles, cx));
+        let stack_entries = self.graph_state.right_sidebar.clone();
+        self.stack.update(cx, |stack, cx| {
+            stack.clear(cx);
+            stack.restore(&stack_entries, cx);
+        });
         let started = GraphSession::start(
             path.clone(),
             SessionOptions {
                 data_dir: self.config.index_data_dir.clone(),
+                mcp_token_path: self.config.mcp_token_path.clone(),
+                global_config: self.config.global_config.clone(),
             },
         );
         let (session, events) = match started {
@@ -238,7 +345,9 @@ impl Workspace {
             }
         }));
 
-        self.main.update(cx, |main, cx| main.clear_graph(cx));
+        for pane in self.panes(cx) {
+            pane.update(cx, |main, cx| main.clear_graph(cx));
+        }
         cx.notify();
     }
 
@@ -249,7 +358,245 @@ impl Workspace {
         if let Some(session) = self.session.take() {
             cx.background_spawn(async move { session.close() }).detach();
         }
+        self.link = None;
+        self.day_task = None;
+        self.rollover = None;
+        self.handle = None;
+        self.hub.update(cx, |hub, _| hub.set_handle(None));
         self.graph_root = None;
+    }
+
+    /// Replaces the clock (tests).
+    pub fn set_clock(&mut self, clock: Clock) {
+        self.clock = ClockFn(clock);
+    }
+
+    /// Makes today's journal available in core and re-checks the date at every local midnight
+    /// (BIT-US-0057): the journal is a virtual page until it has content, so nothing is written
+    /// here. The journals view lists the new day on its own clock.
+    fn start_day_clock(&mut self, cx: &mut Context<Self>) {
+        let today = (self.clock.0)();
+        self.rollover = today.map(DayRollover::new);
+        if let Some(today) = today {
+            self.ensure_today(today, cx);
+        }
+        self.day_task = Some(cx.spawn(async move |this, cx| {
+            loop {
+                let wait = data::secs_until_midnight().map_or(DAY_CHECK_MAX, |secs| {
+                    Duration::from_secs(secs.saturating_add(1)).min(DAY_CHECK_MAX)
+                });
+                cx.background_executor().timer(wait).await;
+                if this.update(cx, |ws, cx| ws.on_day_tick(cx)).is_err() {
+                    break;
+                }
+            }
+        }));
+    }
+
+    /// Looks at the clock; on a new day today's journal is ensured again.
+    pub fn on_day_tick(&mut self, cx: &mut Context<Self>) {
+        let Some(now) = (self.clock.0)() else {
+            return;
+        };
+        if let Some(day) = self.rollover.as_mut().and_then(|r| r.observe(now)) {
+            self.ensure_today(day, cx);
+        }
+    }
+
+    fn ensure_today(&mut self, day: Date, cx: &mut Context<Self>) {
+        let Some(link) = self.link.clone() else {
+            return;
+        };
+        cx.background_spawn(async move {
+            if let Err(err) = graph_ops::ensure_today(&link.queue, &link.config, day) {
+                tracing::warn!("cannot prepare today's journal: {err}");
+            }
+        })
+        .detach();
+    }
+
+    /// Asks before moving the page `title` to `logseq/.recycle/`.
+    pub fn request_delete_page(
+        &mut self,
+        title: String,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let this = cx.entity();
+        let name = title.clone();
+        let shown = crate::ui::confirm(
+            window,
+            cx,
+            crate::ui::Confirmation {
+                title: t!("delete.page_title", name = title).to_string(),
+                description: t!("delete.page_description").to_string(),
+                ok_text: t!("delete.ok").to_string(),
+                cancel_text: t!("delete.cancel").to_string(),
+            },
+            move |window, cx| {
+                let name = name.clone();
+                this.update(cx, |ws, cx| ws.delete_page_now(name, window, cx));
+            },
+        );
+        if !shown {
+            tracing::debug!("page deletion needs a dialog host");
+        }
+    }
+
+    /// Deletes the page without asking (the caller confirmed): recycle, favorites, recent list.
+    pub fn delete_page_now(&mut self, title: String, window: &mut Window, cx: &mut Context<Self>) {
+        let (Some(link), Some(handle)) = (self.link.clone(), self.handle.clone()) else {
+            return;
+        };
+        let name = title.clone();
+        let task =
+            cx.background_spawn(async move { graph_ops::delete_page(&link.queue, &handle, &name) });
+        cx.spawn_in(window, async move |this, cx| {
+            let result = task.await;
+            let _ = this.update_in(cx, |ws, window, cx| match result {
+                Ok(done) => {
+                    ws.after_page_deleted(&title, done.favorite_removed, window, cx);
+                }
+                Err(err) => notify(
+                    window,
+                    cx,
+                    Level::Error,
+                    t!("delete.failed", error = err.to_string()).to_string(),
+                ),
+            });
+        })
+        .detach();
+    }
+
+    fn after_page_deleted(
+        &mut self,
+        title: &str,
+        favorite_removed: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.graph_state.forget_recent(title);
+        let recent = self.graph_state.recent.clone();
+        self.sidebar.update(cx, |sidebar, cx| {
+            sidebar.set_recent(recent, cx);
+            if favorite_removed {
+                let kept: Vec<String> = sidebar
+                    .favorites()
+                    .iter()
+                    .filter(|f| !f.eq_ignore_ascii_case(title))
+                    .cloned()
+                    .collect();
+                sidebar.set_favorites(kept, cx);
+            }
+        });
+        self.save_graph_state();
+        // The page on screen is gone: show the journals instead.
+        let showing = matches!(self.main.read(cx).route(), Some(Route::Page(n)) if n.eq_ignore_ascii_case(title));
+        if showing {
+            self.navigate(Route::Journals, cx);
+        }
+        notify(
+            window,
+            cx,
+            Level::Success,
+            t!("delete.page_done", name = title).to_string(),
+        );
+    }
+
+    /// The "delete asset" action: refuses (and says so) while another block still uses the file,
+    /// otherwise asks and moves it to `logseq/.recycle/`. `except_block` is the block the user is
+    /// removing the link from.
+    pub fn request_delete_asset(
+        &mut self,
+        link: String,
+        except_block: Option<String>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let (Some(queue), Some(handle)) = (
+            self.link.as_ref().map(|l| l.queue.clone()),
+            self.handle.clone(),
+        ) else {
+            return;
+        };
+        let name = link.rsplit('/').next().unwrap_or(&link).to_owned();
+        let check = {
+            let (handle, link, except) = (handle.clone(), link.clone(), except_block.clone());
+            cx.background_spawn(async move {
+                let path = bitacora_core::recycle::asset_path_from_link(&link)?;
+                graph_ops::asset_references(&handle, &path, except.as_deref()).ok()
+            })
+        };
+        cx.spawn_in(window, async move |this, cx| {
+            let references = check.await;
+            let _ = this.update_in(cx, |_, window, cx| match references {
+                Some(0) => {
+                    let (queue, handle, link, except) = (
+                        queue.clone(),
+                        handle.clone(),
+                        link.clone(),
+                        except_block.clone(),
+                    );
+                    let name_done = name.clone();
+                    let shown = crate::ui::confirm(
+                        window,
+                        cx,
+                        crate::ui::Confirmation {
+                            title: t!("delete.asset_title", name = name).to_string(),
+                            description: t!("delete.asset_description").to_string(),
+                            ok_text: t!("delete.ok").to_string(),
+                            cancel_text: t!("delete.cancel").to_string(),
+                        },
+                        move |window, cx| {
+                            let result =
+                                graph_ops::delete_asset(&queue, &handle, &link, except.as_deref());
+                            let (level, text) = match result {
+                                Ok(AssetOutcome::Recycled(_)) => (
+                                    Level::Success,
+                                    t!("delete.asset_done", name = name_done).to_string(),
+                                ),
+                                Ok(AssetOutcome::Kept { references }) => (
+                                    Level::Info,
+                                    t!("delete.asset_kept", name = name_done, count = references)
+                                        .to_string(),
+                                ),
+                                Err(err) => (
+                                    Level::Error,
+                                    t!("delete.failed", error = err.to_string()).to_string(),
+                                ),
+                            };
+                            notify(window, cx, level, text);
+                        },
+                    );
+                    if !shown {
+                        tracing::debug!("asset deletion needs a dialog host");
+                    }
+                }
+                Some(count) => notify(
+                    window,
+                    cx,
+                    Level::Info,
+                    t!("delete.asset_kept", name = name, count = count).to_string(),
+                ),
+                None => notify(
+                    window,
+                    cx,
+                    Level::Error,
+                    t!("delete.failed", error = name).to_string(),
+                ),
+            });
+        })
+        .detach();
+    }
+
+    /// The command queue of the open graph's session, once it is up.
+    pub fn queue(&self) -> Option<&bitacora_core::queue::CommandQueue> {
+        self.link.as_ref().map(|l| &l.queue)
+    }
+
+    /// The MCP endpoint of the open graph, when the server runs.
+    pub fn mcp_endpoint(&self) -> Option<&str> {
+        self.link.as_ref().and_then(|l| l.mcp_endpoint.as_deref())
     }
 
     fn on_session_event(
@@ -259,38 +606,41 @@ impl Workspace {
         cx: &mut Context<Self>,
     ) {
         match event {
-            SessionEvent::Opened { rebuilt, total } => {
-                if rebuilt {
-                    notify(
-                        window,
-                        cx,
-                        Level::Info,
-                        t!("picker.index_rebuilt").to_string(),
-                    );
-                }
-                self.status.update(cx, |bar, cx| {
-                    bar.apply(StatusEvent::IndexProgress { done: 0, total });
-                    cx.notify();
-                });
+            SessionEvent::Live(link) => {
+                self.link = Some(link);
+                self.start_day_clock(cx);
             }
+            SessionEvent::Notice(notice) => Self::show_notice(&notice, window, cx),
             SessionEvent::Reader(handle) => {
                 let initial = self
                     .config
                     .initial_page
                     .as_deref()
                     .map(|req| requested_route(&handle, req));
-                self.main
-                    .update(cx, |main, cx| main.set_graph(handle, initial, cx));
+                self.handle = Some(handle.clone());
+                self.hub
+                    .update(cx, |hub, _| hub.set_handle(Some(handle.clone())));
+                let favorites = handle.settings.config.favorites();
+                self.sidebar
+                    .update(cx, |sidebar, cx| sidebar.set_favorites(favorites, cx));
+                self.stack
+                    .update(cx, |stack, cx| stack.set_graph(handle.clone(), cx));
+                for (ix, pane) in self.panes(cx).into_iter().enumerate() {
+                    let handle = handle.clone();
+                    let initial = if ix == 0 {
+                        initial.clone()
+                    } else {
+                        Some(Route::Journals)
+                    };
+                    pane.update(cx, |main, cx| main.set_graph(handle, initial, cx));
+                }
             }
             SessionEvent::Index(event) => {
-                self.main
-                    .update(cx, |main, cx| main.on_index_event(&event, cx));
-            }
-            SessionEvent::Progress { done, total } => {
-                self.status.update(cx, |bar, cx| {
-                    bar.apply(StatusEvent::IndexProgress { done, total });
-                    cx.notify();
-                });
+                for pane in self.panes(cx) {
+                    pane.update(cx, |main, cx| main.on_index_event(&event, cx));
+                }
+                self.stack
+                    .update(cx, |stack, cx| stack.on_index_event(&event, cx));
             }
             SessionEvent::Ready(summary) => {
                 tracing::info!(
@@ -303,8 +653,17 @@ impl Workspace {
                 );
                 self.status
                     .update(cx, |bar, cx| bar.set_index(SlotState::Idle, cx));
+                let mcp = if self.mcp_endpoint().is_some() {
+                    SlotState::Idle
+                } else {
+                    SlotState::Off
+                };
+                self.status.update(cx, |bar, cx| bar.set_mcp(mcp, cx));
                 // Pages opened while a cold build was still running may have been incomplete.
-                self.main.update(cx, |main, cx| main.reload(cx));
+                for pane in self.panes(cx) {
+                    pane.update(cx, |main, cx| main.reload(cx));
+                }
+                self.stack.update(cx, |stack, cx| stack.reload(cx));
                 if summary.cold_build {
                     notify(
                         window,
@@ -335,6 +694,31 @@ impl Workspace {
         }
     }
 
+    fn show_notice(notice: &SessionNotice, window: &mut Window, cx: &mut Context<Self>) {
+        let (level, text) = match notice {
+            SessionNotice::WriteFailed(n) => (
+                Level::Error,
+                t!("notice.write_failed", count = n).to_string(),
+            ),
+            SessionNotice::Conflict(n) => {
+                (Level::Warning, t!("notice.conflict", count = n).to_string())
+            }
+            SessionNotice::WatcherDegraded => {
+                (Level::Warning, t!("notice.watcher_degraded").to_string())
+            }
+            SessionNotice::ConfigChanged => (Level::Info, t!("notice.config_changed").to_string()),
+            SessionNotice::IndexError { path, message } => (
+                Level::Warning,
+                t!("notice.index_error", path = path, error = message).to_string(),
+            ),
+            SessionNotice::McpUnavailable(error) => (
+                Level::Warning,
+                t!("notice.mcp_unavailable", error = error).to_string(),
+            ),
+        };
+        notify(window, cx, level, text);
+    }
+
     fn on_picker_event(
         &mut self,
         _: &Entity<GraphPicker>,
@@ -359,7 +743,7 @@ impl Workspace {
         &mut self,
         _: &Entity<LeftSidebar>,
         event: &SidebarEvent,
-        _: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         match event {
@@ -367,23 +751,267 @@ impl Workspace {
                 self.picker_visible = true;
                 cx.notify();
             }
-            SidebarEvent::Navigate(Target::Journals) => {
-                self.main
-                    .update(cx, |main, cx| main.navigate(Route::Journals, cx));
+            SidebarEvent::Navigate(Target::Journals) => self.navigate(Route::Journals, cx),
+            SidebarEvent::Navigate(Target::AllPages) => self.navigate(Route::AllPages, cx),
+            SidebarEvent::Navigate(Target::Page(name)) => {
+                self.navigate(Route::Page(name.clone()), cx);
             }
-            SidebarEvent::Navigate(_) => {}
+            SidebarEvent::OpenInSidebar(name) => {
+                self.open_in_right_sidebar(Route::Page(name.clone()), window, cx);
+            }
         }
+    }
+
+    /// Navigates the primary pane.
+    pub fn navigate(&mut self, route: Route, cx: &mut Context<Self>) {
+        self.main.update(cx, |main, cx| main.navigate(route, cx));
+    }
+
+    /// Shows `route` at the top of the right sidebar stack, opening the dock when it is closed.
+    pub fn open_in_right_sidebar(
+        &mut self,
+        route: Route,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.stack.update(cx, |stack, cx| stack.open(route, cx));
+        self.ensure_right_dock(window, cx);
+    }
+
+    fn ensure_right_dock(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.dock.update(cx, |area, cx| {
+            if !area.is_dock_open(DockPlacement::Right) {
+                area.toggle_dock(DockPlacement::Right, window, cx);
+            }
+        });
+    }
+
+    fn on_main_event(
+        &mut self,
+        _: &Entity<MainView>,
+        event: &MainEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            MainEvent::Visited(route) => {
+                if let Route::Page(name) = route {
+                    self.graph_state.push_recent(name);
+                    let recent = self.graph_state.recent.clone();
+                    self.sidebar
+                        .update(cx, |sidebar, cx| sidebar.set_recent(recent, cx));
+                    self.save_graph_state();
+                }
+                self.sidebar
+                    .update(cx, |sidebar, cx| sidebar.set_current(Some(route), cx));
+            }
+            MainEvent::OpenInSidebar(route) => {
+                self.open_in_right_sidebar(route.clone(), window, cx);
+            }
+        }
+    }
+
+    fn on_hub_event(
+        &mut self,
+        _: &Entity<PaneHub>,
+        event: &HubEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let HubEvent::PaneAdded(pane) = event;
+        self._subscriptions
+            .push(cx.subscribe_in(pane, window, Self::on_main_event));
+        self._subscriptions
+            .push(cx.observe(pane, |_, _, cx| cx.notify()));
+    }
+
+    fn on_stack_event(
+        &mut self,
+        _: &Entity<RightSidebar>,
+        event: &StackEvent,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            StackEvent::Navigate(target) => {
+                use crate::render::inline::NavTarget;
+                match target {
+                    NavTarget::Page(name) => self.navigate(Route::Page(name.clone()), cx),
+                    NavTarget::Block(uuid) => self.navigate(Route::Block(uuid.clone()), cx),
+                    NavTarget::Url(url) => cx.open_url(url),
+                }
+            }
+            StackEvent::OpenInMain(route) => self.navigate(route.clone(), cx),
+            StackEvent::Changed => {
+                self.graph_state.right_sidebar = self.stack.read(cx).entries();
+                self.save_graph_state();
+            }
+        }
+    }
+
+    fn save_graph_state(&self) {
+        if let Some(file) = &self.graph_state_file
+            && let Err(err) = self.graph_state.save(file)
+        {
+            tracing::warn!("cannot save the graph state: {err}");
+        }
+    }
+
+    fn on_palette_event(
+        &mut self,
+        _: &Entity<Palette>,
+        event: &PaletteEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            PaletteEvent::Open { route, sidebar } => {
+                if *sidebar {
+                    self.open_in_right_sidebar(route.clone(), window, cx);
+                } else {
+                    self.navigate(route.clone(), cx);
+                }
+            }
+            PaletteEvent::Run(command) => self.run_command(*command, window, cx),
+            PaletteEvent::Closed => window.focus(&self.focus, cx),
+        }
+    }
+
+    /// Runs an actions-palette command.
+    pub fn run_command(
+        &mut self,
+        command: PaletteCommand,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match command {
+            PaletteCommand::GoJournals => self.navigate(Route::Journals, cx),
+            PaletteCommand::GoAllPages => self.navigate(Route::AllPages, cx),
+            PaletteCommand::GoBack => self.main.update(cx, |m, cx| m.go_back(cx)),
+            PaletteCommand::GoForward => self.main.update(cx, |m, cx| m.go_forward(cx)),
+            PaletteCommand::ToggleLeftSidebar => {
+                self.sidebar.update(cx, |sidebar, cx| sidebar.toggle(cx));
+            }
+            PaletteCommand::ToggleRightSidebar => self.dock.update(cx, |area, cx| {
+                area.toggle_dock(DockPlacement::Right, window, cx);
+            }),
+            PaletteCommand::ToggleTheme => theme::toggle(cx, Some(window)),
+            PaletteCommand::Reindex => self.reindex(window, cx),
+            PaletteCommand::DeletePage => {
+                let page = match self.main.read(cx).route() {
+                    Some(Route::Page(name)) => Some(name.clone()),
+                    _ => None,
+                };
+                match page {
+                    Some(name) => self.request_delete_page(name, window, cx),
+                    None => notify(window, cx, Level::Info, t!("delete.not_a_page").to_string()),
+                }
+            }
+            PaletteCommand::SwitchGraph => {
+                self.picker_visible = true;
+                cx.notify();
+            }
+        }
+    }
+
+    /// Rebuilds the index of the open graph from its files: stops the session, deletes the
+    /// index database (the SQLite cache is disposable, ADR-005) and opens the graph again.
+    pub fn reindex(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(root) = self.graph_root.clone() else {
+            return;
+        };
+        let data_dir = self.config.index_data_dir.clone();
+        let session = self.take_session();
+        self.hub.update(cx, |hub, _| hub.set_handle(None));
+        notify(
+            window,
+            cx,
+            Level::Info,
+            t!("palette.reindexing").to_string(),
+        );
+        let task = cx.background_spawn(async move {
+            if let Some(session) = session {
+                session.close();
+            }
+            let location = match &data_dir {
+                Some(dir) => bitacora_index::IndexLocation::in_data_dir(dir, &root),
+                None => bitacora_index::IndexLocation::for_graph(&root),
+            };
+            if let Ok(location) = location {
+                let db = location.db_path();
+                for suffix in ["", "-wal", "-shm"] {
+                    let mut file = db.clone().into_os_string();
+                    file.push(suffix);
+                    // Nothing to delete is fine; a failure shows up as a rebuilt-from-garbage
+                    // index on open.
+                    let _ = std::fs::remove_file(file);
+                }
+            }
+            root
+        });
+        cx.spawn_in(window, async move |this, cx| {
+            let root = task.await;
+            let _ = this.update_in(cx, |ws, window, cx| {
+                ws.graph_root = None;
+                ws.open_graph(root, window, cx);
+            });
+        })
+        .detach();
+    }
+
+    fn open_search(&mut self, _: &OpenSearch, window: &mut Window, cx: &mut Context<Self>) {
+        if self.picker_visible {
+            return;
+        }
+        let page_id = self.main.read(cx).current_page_id(cx);
+        let handle = self.handle.clone();
+        let recent = self.graph_state.recent.clone();
+        self.palette.update(cx, |palette, cx| {
+            palette.open_search(handle, page_id, recent, window, cx);
+        });
+    }
+
+    fn open_command_palette(
+        &mut self,
+        _: &OpenCommandPalette,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.picker_visible {
+            return;
+        }
+        self.palette
+            .update(cx, |palette, cx| palette.open_commands(window, cx));
+    }
+
+    fn go_journals(&mut self, _: &GoJournals, _: &mut Window, cx: &mut Context<Self>) {
+        self.navigate(Route::Journals, cx);
+    }
+
+    fn go_all_pages(&mut self, _: &GoAllPages, _: &mut Window, cx: &mut Context<Self>) {
+        self.navigate(Route::AllPages, cx);
+    }
+
+    fn focus_right_sidebar(
+        &mut self,
+        _: &FocusRightSidebar,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.ensure_right_dock(window, cx);
+        self.stack
+            .update(cx, |stack, cx| stack.focus_stack(window, cx));
     }
 
     /// The default layout: a page host in the center and the right sidebar dock.
     fn default_layout(area: &mut DockArea, window: &mut Window, cx: &mut Context<DockArea>) {
-        let page = cx.new(|cx| PlaceholderPanel::new(PanelKind::PageHost, cx));
+        let page = cx.new(|cx| PlaceholderPanel::new(PanelKind::PageHost, window, cx));
         area.set_center(
             DockLayout::tabs().panel_view(panel_handle(page), cx),
             window,
             cx,
         );
-        let right = cx.new(|cx| PlaceholderPanel::new(PanelKind::RightSidebar, cx));
+        let right = cx.new(|cx| PlaceholderPanel::new(PanelKind::RightSidebar, window, cx));
         area.set_dock(
             DockPlacement::Right,
             DockLayout::tabs().panel_view(panel_handle(right), cx),
@@ -495,6 +1123,38 @@ impl Workspace {
         });
     }
 
+    /// Hands the session out for the final shutdown (app quit); afterwards the workspace has no
+    /// session left.
+    pub fn take_session(&mut self) -> Option<GraphSession> {
+        self.link = None;
+        self.session_task = None;
+        self.session.take()
+    }
+
+    /// `Quit`: runs the ordered shutdown first and shows a notice when files stayed unwritten.
+    fn quit(&mut self, _: &Quit, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(session) = self.take_session() else {
+            cx.quit();
+            return;
+        };
+        let task = cx.background_spawn(async move {
+            session.shutdown_with_report(crate::session::SHUTDOWN_BUDGET)
+        });
+        cx.spawn_in(window, async move |this, cx| {
+            let report = task.await;
+            let problem = report.as_ref().and_then(shutdown_problem);
+            if let Some(text) = problem {
+                let _ = this.update_in(cx, |_, window, cx| {
+                    notify(window, cx, Level::Error, text);
+                });
+                // Leave the notice on screen for a moment before the window goes away.
+                cx.background_executor().timer(QUIT_NOTICE_TIME).await;
+            }
+            let _ = cx.update(|_, cx| cx.quit());
+        })
+        .detach();
+    }
+
     fn go_back(&mut self, _: &GoBack, _: &mut Window, cx: &mut Context<Self>) {
         self.main.update(cx, |main, cx| main.go_back(cx));
     }
@@ -506,6 +1166,20 @@ impl Workspace {
     fn toggle_theme(&mut self, _: &ToggleTheme, window: &mut Window, cx: &mut Context<Self>) {
         theme::toggle(cx, Some(window));
     }
+}
+
+/// The notice text for a shutdown that left files unwritten or steps unfinished.
+pub fn shutdown_problem(report: &bitacora_runtime::ShutdownReport) -> Option<String> {
+    let unwritten = report.flush.as_ref().map_or(0, |f| {
+        f.unwritten.len().max(f.conflicts.len() + f.failed.len())
+    });
+    if unwritten > 0 {
+        return Some(t!("notice.unwritten_on_quit", count = unwritten).to_string());
+    }
+    if !report.timed_out.is_empty() {
+        return Some(t!("notice.shutdown_slow", steps = report.timed_out.join(", ")).to_string());
+    }
+    None
 }
 
 /// The route for `--page <req>`: a graph-relative file path (derived to its page title) or a
@@ -553,11 +1227,18 @@ impl Render for Workspace {
             .on_action(cx.listener(Self::toggle_left))
             .on_action(cx.listener(Self::toggle_right))
             .on_action(cx.listener(Self::toggle_theme))
+            .on_action(cx.listener(Self::quit))
+            .on_action(cx.listener(Self::open_search))
+            .on_action(cx.listener(Self::open_command_palette))
+            .on_action(cx.listener(Self::go_journals))
+            .on_action(cx.listener(Self::go_all_pages))
+            .on_action(cx.listener(Self::focus_right_sidebar))
             .on_action(cx.listener(Self::go_back))
             .on_action(cx.listener(Self::go_forward))
             .size_full()
             .child(main)
             .child(self.status.clone())
+            .child(self.palette.clone())
     }
 }
 
@@ -645,7 +1326,7 @@ mod tests {
         let sink = events.clone();
         let _sub = cx.update(|_, cx| {
             cx.subscribe(&sidebar, move |_, event: &SidebarEvent, _| {
-                sink.borrow_mut().push(*event);
+                sink.borrow_mut().push(event.clone());
             })
         });
         sidebar.update(cx, |s, cx| s.select(Target::AllPages, cx));
@@ -654,7 +1335,7 @@ mod tests {
             vec![SidebarEvent::Navigate(Target::AllPages)]
         );
         assert_eq!(
-            sidebar.read_with(cx, |s, _| s.active()),
+            sidebar.read_with(cx, |s, _| s.active().cloned()),
             Some(Target::AllPages)
         );
     }
@@ -807,5 +1488,274 @@ mod tests {
         let (ws, cx) = open(cx, Some(file));
         let dock = ws.read_with(cx, |w, _| w.dock().clone());
         assert!(dock.read_with(cx, |d, _| d.is_dock_open(DockPlacement::Right)));
+    }
+
+    fn open_in_graph<'a>(
+        cx: &'a mut TestAppContext,
+        data: &tempfile::TempDir,
+        graph: &tempfile::TempDir,
+    ) -> (Entity<Workspace>, &'a mut VisualTestContext) {
+        let (ws, cx) = cx.add_window_view(|window, cx| {
+            Workspace::new(
+                WorkspaceConfig {
+                    index_data_dir: Some(data.path().to_path_buf()),
+                    state_dir: Some(data.path().join("state")),
+                    global_config: Some(data.path().join("no-global.edn")),
+                    initial_page: Some("Home".into()),
+                    ..WorkspaceConfig::default()
+                },
+                window,
+                cx,
+            )
+        });
+        let path = graph.path().to_path_buf();
+        ws.update_in(cx, |w, window, cx| w.open_graph(path, window, cx));
+        cx.executor().allow_parking();
+        let page = ws.read_with(cx, |w, cx| w.page_view(cx));
+        for _ in 0..400 {
+            cx.run_until_parked();
+            if page.read_with(cx, |p, _| p.title() == Some("Home")) {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        assert_eq!(
+            page.read_with(cx, |p, _| p.title().map(str::to_owned)),
+            Some("Home".into())
+        );
+        (ws, cx)
+    }
+
+    #[gpui_test]
+    fn runtime_session_feeds_favorites_recent_and_the_right_sidebar_per_graph(
+        cx: &mut TestAppContext,
+    ) {
+        use crate::views::main_view::MainEvent;
+        setup(cx);
+        let data = tempfile::tempdir().expect("data");
+        let g = graph();
+        std::fs::create_dir_all(g.path().join("logseq")).expect("logseq");
+        std::fs::write(
+            g.path().join("logseq/config.edn"),
+            "{:favorites [\"Home\" \"World\"]}",
+        )
+        .expect("config");
+        let (ws, cx) = open_in_graph(cx, &data, &g);
+        // The session thread exposes the command queue and the MCP state once it is up.
+        for _ in 0..200 {
+            cx.run_until_parked();
+            if ws.read_with(cx, |w, _| w.queue().is_some()) {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        assert!(ws.read_with(cx, |w, _| w.queue().is_some()));
+        let sidebar = ws.read_with(cx, |w, _| w.sidebar().clone());
+        assert_eq!(
+            sidebar.read_with(cx, |s, _| s.favorites().to_vec()),
+            ["Home", "World"]
+        );
+        // The initial page was recorded as recent.
+        assert_eq!(ws.read_with(cx, |w, _| w.recent_pages().to_vec()), ["Home"]);
+        assert_eq!(
+            sidebar.read_with(cx, |s, _| s.active().cloned()),
+            Some(Target::Page("Home".into()))
+        );
+
+        // A Shift+click on a reference asks the host for the right sidebar.
+        let main = ws.read_with(cx, |w, _| w.main_view().clone());
+        main.update(cx, |_, cx| {
+            cx.emit(MainEvent::OpenInSidebar(Route::Page("World".into())));
+        });
+        let stack = ws.read_with(cx, |w, _| w.right_sidebar().clone());
+        assert_eq!(
+            stack.read_with(cx, |s, _| s.routes()),
+            vec![Route::Page("World".into())]
+        );
+        let dock = ws.read_with(cx, |w, _| w.dock().clone());
+        assert!(dock.read_with(cx, |d, _| d.is_dock_open(DockPlacement::Right)));
+        // ...and the stack and the recent pages are remembered for this graph.
+        let root = g.path().canonicalize().expect("canonical");
+        let saved = crate::graph_state::GraphState::load(
+            &crate::graph_state::GraphState::file_for(&data.path().join("state"), &root),
+        );
+        assert_eq!(saved.recent, ["Home"]);
+        assert_eq!(
+            saved.right_sidebar,
+            vec![crate::graph_state::StackEntry {
+                route: crate::graph_state::StoredRoute::Page("World".into()),
+                collapsed: false
+            }]
+        );
+    }
+
+    #[gpui_test]
+    fn mod_k_opens_the_search_palette_and_escape_returns_the_focus(cx: &mut TestAppContext) {
+        setup(cx);
+        let data = tempfile::tempdir().expect("data");
+        let g = graph();
+        let (ws, cx) = open_in_graph(cx, &data, &g);
+        // Wait for the index handle (the search needs it).
+        cx.run_until_parked();
+        let palette = ws.read_with(cx, |w, _| w.palette().clone());
+        cx.simulate_keystrokes("secondary-k");
+        assert!(palette.read_with(cx, |p, _| p.is_open()));
+        // Frames draw the overlay and move the focus into its query field.
+        for _ in 0..3 {
+            cx.update(|window, cx| {
+                let needed = window.draw(cx);
+                needed.clear(cx);
+            });
+            cx.run_until_parked();
+        }
+        let focused = cx.update(|window, cx| palette.read(cx).has_focus(window, cx));
+        assert!(focused, "focus must be inside the palette");
+        cx.simulate_keystrokes("escape");
+        assert!(!palette.read_with(cx, |p, _| p.is_open()));
+        cx.run_until_parked();
+        cx.simulate_keystrokes("secondary-shift-p");
+        for _ in 0..3 {
+            cx.update(|window, cx| {
+                let needed = window.draw(cx);
+                needed.clear(cx);
+            });
+            cx.run_until_parked();
+        }
+        assert_eq!(
+            palette.read_with(cx, |p, _| p.mode()),
+            Some(crate::views::palette::PaletteMode::Commands)
+        );
+        cx.simulate_keystrokes("escape");
+        assert!(!palette.read_with(cx, |p, _| p.is_open()));
+    }
+
+    #[gpui_test]
+    fn each_dock_panel_owns_its_own_pane(cx: &mut TestAppContext) {
+        setup(cx);
+        let (ws, cx) = open(cx, None);
+        let first = ws.read_with(cx, |w, cx| w.panes(cx));
+        assert_eq!(first.len(), 1);
+        // A second page host (a split) gets a pane of its own instead of sharing the first.
+        let hub = ws.read_with(cx, |w, _| w.hub.clone());
+        let second = cx.update(|window, cx| hub.update(cx, |hub, cx| hub.claim_pane(window, cx)));
+        assert_ne!(first[0].entity_id(), second.entity_id());
+        assert_eq!(ws.read_with(cx, |w, cx| w.panes(cx)).len(), 2);
+        // The primary pane is the one the workspace navigates.
+        assert_eq!(
+            ws.read_with(cx, |w, _| w.main_view().entity_id()),
+            first[0].entity_id()
+        );
+    }
+
+    fn wait_until(
+        cx: &mut VisualTestContext,
+        what: &str,
+        mut done: impl FnMut(&mut VisualTestContext) -> bool,
+    ) {
+        cx.executor().allow_parking();
+        for _ in 0..600 {
+            cx.run_until_parked();
+            if done(cx) {
+                return;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        panic!("timed out waiting for {what}");
+    }
+
+    #[gpui_test]
+    fn todays_journal_is_ensured_on_open_and_at_the_midnight_rollover(cx: &mut TestAppContext) {
+        use bitacora_core::graph::PageKey;
+        setup(cx);
+        let data = tempfile::tempdir().expect("data");
+        let g = graph();
+        let day = std::rc::Rc::new(std::cell::Cell::new(Date::new(2025, 3, 9).expect("date")));
+        let clock_day = day.clone();
+        let (ws, cx) = cx.add_window_view(|window, cx| {
+            let mut ws = Workspace::new(
+                WorkspaceConfig {
+                    index_data_dir: Some(data.path().to_path_buf()),
+                    global_config: Some(data.path().join("no-global.edn")),
+                    ..WorkspaceConfig::default()
+                },
+                window,
+                cx,
+            );
+            // A mocked clock stands in for the system date.
+            ws.set_clock(Rc::new(move || Some(clock_day.get())));
+            ws
+        });
+        let path = g.path().to_path_buf();
+        ws.update_in(cx, |w, window, cx| w.open_graph(path, window, cx));
+        wait_until(cx, "the session link", |cx| {
+            ws.read_with(cx, |w, _| w.queue().is_some())
+        });
+        let (queue, config) = ws.read_with(cx, |w, _| {
+            let link = w.link.clone().expect("link");
+            (link.queue, link.config)
+        });
+        let key_of =
+            |d: Date| PageKey::from_title(&bitacora_core::journal::journal_page(d, &config).title);
+        let first = key_of(day.get());
+        wait_until(cx, "today's journal in core", |_| {
+            queue.snapshot(&first).is_some()
+        });
+        // It is virtual: nothing is written for an untouched day.
+        let _ = queue
+            .flush(bitacora_core::queue::Source::Ui)
+            .expect("flush");
+        let journals = g.path().join("journals");
+        assert!(!journals.exists() || std::fs::read_dir(&journals).expect("dir").count() == 0);
+        // Past midnight: the next tick ensures the new day, still without writing.
+        day.set(Date::new(2025, 3, 10).expect("date"));
+        ws.update(cx, |w, cx| w.on_day_tick(cx));
+        let second = key_of(day.get());
+        wait_until(cx, "the new day in core", |_| {
+            queue.snapshot(&second).is_some()
+        });
+        let _ = queue
+            .flush(bitacora_core::queue::Source::Ui)
+            .expect("flush");
+        assert!(!journals.exists() || std::fs::read_dir(&journals).expect("dir").count() == 0);
+        // A tick on the same day does nothing more.
+        ws.update(cx, |w, cx| w.on_day_tick(cx));
+    }
+
+    #[gpui_test]
+    fn deleting_the_open_page_recycles_it_and_updates_favorites_and_recent(
+        cx: &mut TestAppContext,
+    ) {
+        setup(cx);
+        let data = tempfile::tempdir().expect("data");
+        let g = graph();
+        std::fs::create_dir_all(g.path().join("logseq")).expect("logseq");
+        std::fs::write(
+            g.path().join("logseq/config.edn"),
+            "{:favorites [\"Home\"]}",
+        )
+        .expect("config");
+        let (ws, cx) = open_in_graph(cx, &data, &g);
+        wait_until(cx, "the session link", |cx| {
+            ws.read_with(cx, |w, _| w.queue().is_some())
+        });
+        ws.update_in(cx, |w, window, cx| {
+            w.delete_page_now("Home".into(), window, cx);
+        });
+        let root = g.path().canonicalize().expect("root");
+        wait_until(cx, "the page to be recycled", |_| {
+            root.join("logseq/.recycle/pages_Home.md").exists()
+        });
+        assert!(!root.join("pages/Home.md").exists());
+        wait_until(cx, "the sidebar to refresh", |cx| {
+            ws.read_with(cx, |w, cx| w.sidebar().read(cx).favorites().is_empty())
+        });
+        assert!(ws.read_with(cx, |w, _| w.recent_pages().is_empty()));
+        // The page that was on screen gave way to the journals.
+        assert_eq!(
+            ws.read_with(cx, |w, cx| w.main_view().read(cx).route().cloned()),
+            Some(Route::Journals)
+        );
+        let cfg = std::fs::read_to_string(root.join("logseq/config.edn")).expect("config");
+        assert!(!cfg.contains("Home"), "{cfg}");
     }
 }

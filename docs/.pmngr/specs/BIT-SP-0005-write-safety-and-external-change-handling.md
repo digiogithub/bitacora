@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [core, io]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T19:43:05Z
+updated: 2026-10-06T19:56:33Z
 requirements:
   R1:
     status: backlog
@@ -17,6 +17,7 @@ requirements:
       tests:
         - crates/bitacora-core/tests/command_queue.rs
         - crates/bitacora-core/tests/single_writer_guard.rs
+    verified: {rev: "sha256:eee4f5ef9ee8b32c", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R2:
     status: backlog
     trace:
@@ -26,6 +27,7 @@ requirements:
       tests:
         - crates/bitacora-core/src/write_queue.rs
         - crates/bitacora-core/tests/write_pipeline.rs
+    verified: {rev: "sha256:7a982699299bfa0d", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R3:
     status: backlog
     trace:
@@ -33,11 +35,13 @@ requirements:
         - crates/bitacora-core/src/editor/model.rs#Page
         - crates/bitacora-core/src/editor/flush.rs#Workspace
       tests: [crates/bitacora-core/tests/write_pipeline.rs]
+    verified: {rev: "sha256:47a1cca3effadacb", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R4:
     status: backlog
     trace:
       code: [crates/bitacora-core/src/editor/flush.rs#Workspace]
       tests: [crates/bitacora-core/tests/write_pipeline.rs]
+    verified: {rev: "sha256:a5c79161c10017e5", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R5:
     status: backlog
     trace:
@@ -45,11 +49,13 @@ requirements:
       tests:
         - crates/bitacora-core/tests/crash_safety.rs
         - crates/bitacora-core/tests/write_pipeline.rs
+    verified: {rev: "sha256:134d734aeee6a844", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R6:
     status: backlog
     trace:
       code: [crates/bitacora-core/src/editor/model.rs#Page]
       tests: [crates/bitacora-core/tests/write_pipeline.rs]
+    verified: {rev: "sha256:958de85ea9592a04", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R7:
     status: backlog
     trace:
@@ -57,6 +63,7 @@ requirements:
         - crates/bitacora-core/src/editor/model.rs#Page
         - crates/bitacora-core/src/editor/flush.rs#Workspace
       tests: [crates/bitacora-core/tests/write_pipeline.rs]
+    verified: {rev: "sha256:942a0e5f2ade0020", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R8:
     status: backlog
     trace:
@@ -64,6 +71,7 @@ requirements:
         - crates/bitacora-core/src/editor/flush.rs#Workspace
         - crates/bitacora-core/src/queue.rs#QueueEvent
       tests: [crates/bitacora-core/tests/write_pipeline.rs]
+    verified: {rev: "sha256:9d9b3e7144412ddf", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R9:
     status: backlog
     trace:
@@ -71,6 +79,7 @@ requirements:
       tests:
         - crates/bitacora-core/src/editor/backup.rs
         - crates/bitacora-core/tests/write_pipeline.rs
+    verified: {rev: "sha256:4e58bed493ec6c58", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R10:
     status: backlog
     trace:
@@ -81,6 +90,7 @@ requirements:
       tests:
         - crates/bitacora-core/tests/write_pipeline.rs
         - crates/bitacora-core/src/write_queue.rs
+    verified: {rev: "sha256:d407b925c9858e02", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R11:
     status: backlog
     trace:
@@ -89,6 +99,7 @@ requirements:
         - crates/bitacora-watch/src/ignore.rs#IgnoreRules
         - crates/bitacora-watch/src/process.rs
       tests: [crates/bitacora-watch/tests/watch.rs]
+    verified: {rev: "sha256:d02fb21b8b038531", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R12:
     status: backlog
     trace:
@@ -96,6 +107,7 @@ requirements:
       tests:
         - crates/bitacora-watch/src/echo.rs
         - crates/bitacora-watch/tests/watch.rs
+    verified: {rev: "sha256:46e9a185908a353b", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R13:
     status: backlog
     trace:
@@ -106,6 +118,7 @@ requirements:
       tests:
         - crates/bitacora-core/tests/external_changes.rs
         - crates/bitacora-runtime/tests/external.rs
+    verified: {rev: "sha256:9a8302107540a051", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R14:
     status: backlog
     trace:
@@ -113,6 +126,7 @@ requirements:
         - crates/bitacora-core/src/editor/external.rs
         - crates/bitacora-core/src/queue.rs
       tests: [crates/bitacora-core/tests/external_changes.rs]
+    verified: {rev: "sha256:e20056dd9eb3d2fc", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R15:
     status: backlog
     trace:
@@ -124,6 +138,7 @@ requirements:
       tests:
         - crates/bitacora-core/tests/external_changes.rs
         - crates/bitacora-runtime/tests/external.rs
+    verified: {rev: "sha256:8769be9ce565abe6", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R16:
     status: backlog
     trace:
@@ -134,6 +149,7 @@ requirements:
       tests:
         - crates/bitacora-core/tests/external_changes.rs
         - crates/bitacora-runtime/tests/external.rs
+    verified: {rev: "sha256:5489b1907819d137", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
 ---
 
 ## Purpose

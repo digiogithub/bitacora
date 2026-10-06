@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [git, sync, merge]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T19:34:02Z
+updated: 2026-10-06T20:00:09Z
 requirements:
   R1:
     status: backlog
@@ -15,7 +15,7 @@ requirements:
         - crates/bitacora-sync/src/autocommit.rs
         - crates/bitacora-sync/src/engine.rs
       tests: [crates/bitacora-sync/tests/auto_commit.rs]
-    verified: {rev: "sha256:85ca269e0992b4ec", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
+    verified: {rev: "sha256:85ca269e0992b4ec", commit: 63ab8d8b535728d41079976763fa661f48c4bc4c, at: 2026-10-06T19:59:23Z, by: claude}
   R2:
     status: backlog
     trace:
@@ -25,7 +25,7 @@ requirements:
       tests:
         - crates/bitacora-sync/src/commit_msg.rs
         - crates/bitacora-sync/tests/auto_commit.rs
-    verified: {rev: "sha256:56b197b1fdc6ec3b", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
+    verified: {rev: "sha256:56b197b1fdc6ec3b", commit: 63ab8d8b535728d41079976763fa661f48c4bc4c, at: 2026-10-06T20:00:07Z, by: claude}
   R3:
     status: backlog
     trace:
@@ -35,7 +35,7 @@ requirements:
       tests:
         - crates/bitacora-sync/src/repo_setup.rs
         - crates/bitacora-sync/tests/onboarding.rs
-    verified: {rev: "sha256:5fb1017457cf27ae", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
+    verified: {rev: "sha256:5fb1017457cf27ae", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R4:
     status: backlog
     trace:
@@ -44,15 +44,19 @@ requirements:
         - crates/bitacora-sync/src/merge.rs
         - crates/bitacora-sync/src/state.rs
       tests: [crates/bitacora-sync/tests/sync_engine.rs]
-    verified: {rev: "sha256:8bc8f706bf0e1632", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
+    verified: {rev: "sha256:8bc8f706bf0e1632", commit: 63ab8d8b535728d41079976763fa661f48c4bc4c, at: 2026-10-06T19:59:23Z, by: claude}
   R5:
     status: backlog
     trace:
       code:
         - crates/bitacora-sync/src/engine.rs
         - crates/bitacora-sync/src/state.rs
-      tests: [crates/bitacora-sync/tests/sync_engine.rs]
-    verified: {rev: "sha256:fe08756c4c01b38c", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
+        - crates/bitacora-runtime/src/sync_ctl.rs
+      tests:
+        - crates/bitacora-sync/tests/sync_engine.rs
+        - crates/bitacora-sync/tests/recovery.rs
+        - crates/bitacora-runtime/tests/sync_status.rs
+    verified: {rev: "sha256:fe08756c4c01b38c", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R6:
     status: backlog
     trace:
@@ -67,12 +71,15 @@ requirements:
         - crates/bitacora-sync/src/credentials.rs
         - crates/bitacora-sync/src/askpass.rs
         - crates/bitacora-sync/src/bin/askpass.rs
+        - crates/bitacora-sync/src/state.rs
+        - crates/bitacora-runtime/src/sync_ctl.rs
       tests:
         - crates/bitacora-sync/tests/backends.rs
         - crates/bitacora-sync/src/backend/detect.rs
         - crates/bitacora-sync/tests/git2_push.rs
         - crates/bitacora-sync/tests/askpass.rs
-    verified: {rev: "sha256:a2d25d6021befccb", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
+        - crates/bitacora-sync/tests/recovery.rs
+    verified: {rev: "sha256:a2d25d6021befccb", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R7:
     status: backlog
     trace:
@@ -94,14 +101,17 @@ requirements:
         - crates/bitacora-sync/src/merge/mod.rs
         - crates/bitacora-sync/src/engine.rs
         - crates/bitacora-sync/src/resolve.rs
+        - crates/bitacora-sync/src/recovery.rs
         - crates/bitacora-merge/src/page.rs
       tests:
         - crates/bitacora-sync/src/merge/markers.rs
         - crates/bitacora-sync/src/merge/mod.rs
         - crates/bitacora-sync/tests/merge_matrix.rs
         - crates/bitacora-sync/tests/e2e_conflict.rs
+        - crates/bitacora-sync/tests/recovery.rs
         - crates/bitacora-merge/tests/corpus.rs
         - crates/bitacora-merge/tests/golden.rs
+    verified: {rev: "sha256:640d0e6343db5fa4", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R9:
     status: backlog
     trace:
@@ -115,7 +125,7 @@ requirements:
         - crates/bitacora-merge/tests/corpus.rs
         - crates/bitacora-merge/tests/golden.rs
         - crates/bitacora-merge/tests/merge_matrix.rs
-    verified: {rev: "sha256:bc9e9633311450b3", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
+    verified: {rev: "sha256:bc9e9633311450b3", commit: 63ab8d8b535728d41079976763fa661f48c4bc4c, at: 2026-10-06T20:00:07Z, by: claude}
   R10:
     status: backlog
     trace:
@@ -128,7 +138,7 @@ requirements:
         - crates/bitacora-merge/tests/golden.rs
         - crates/bitacora-merge/tests/corpus.rs
         - crates/bitacora-merge/tests/merge_matrix.rs
-    verified: {rev: "sha256:7c7fbc9f08fb5fe9", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
+    verified: {rev: "sha256:7c7fbc9f08fb5fe9", commit: 63ab8d8b535728d41079976763fa661f48c4bc4c, at: 2026-10-06T20:00:07Z, by: claude}
   R11:
     status: backlog
     trace:
@@ -143,7 +153,7 @@ requirements:
         - crates/bitacora-merge/tests/merge_matrix.rs
         - crates/bitacora-merge/tests/golden.rs
         - crates/bitacora-merge/tests/corpus.rs
-    verified: {rev: "sha256:50feaf0eceab2334", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
+    verified: {rev: "sha256:50feaf0eceab2334", commit: 63ab8d8b535728d41079976763fa661f48c4bc4c, at: 2026-10-06T20:00:07Z, by: claude}
   R12:
     status: backlog
     trace:
@@ -156,7 +166,7 @@ requirements:
         - crates/bitacora-merge/src/structure.rs
         - crates/bitacora-merge/tests/golden.rs
         - crates/bitacora-merge/tests/corpus.rs
-    verified: {rev: "sha256:d99d7600943a5665", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
+    verified: {rev: "sha256:d99d7600943a5665", commit: 63ab8d8b535728d41079976763fa661f48c4bc4c, at: 2026-10-06T20:00:07Z, by: claude}
   R13:
     status: backlog
     trace:
@@ -164,7 +174,7 @@ requirements:
       tests:
         - crates/bitacora-merge/src/marker.rs
         - crates/bitacora-merge/src/block.rs
-    verified: {rev: "sha256:6ba018bc1529a33a", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
+    verified: {rev: "sha256:6ba018bc1529a33a", commit: 63ab8d8b535728d41079976763fa661f48c4bc4c, at: 2026-10-06T20:00:07Z, by: claude}
   R14:
     status: backlog
     trace:
@@ -186,11 +196,16 @@ requirements:
         - crates/bitacora-sync/src/state.rs
         - crates/bitacora-sync/src/engine.rs
         - crates/bitacora-sync/src/resolve.rs
+        - crates/bitacora-sync/src/recovery.rs
+        - crates/bitacora-runtime/src/live.rs
       tests:
         - crates/bitacora-sync/src/store.rs
         - crates/bitacora-sync/src/resolve.rs
         - crates/bitacora-sync/tests/merge_matrix.rs
         - crates/bitacora-sync/tests/sync_engine.rs
+        - crates/bitacora-sync/tests/recovery.rs
+        - crates/bitacora-runtime/tests/sync_status.rs
+    verified: {rev: "sha256:17edc76531e66701", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R16:
     status: backlog
   R17:
@@ -208,6 +223,7 @@ requirements:
         - crates/bitacora-sync/src/merge/mod.rs
         - crates/bitacora-sync/tests/merge_matrix.rs
         - crates/bitacora-sync/tests/sync_engine.rs
+    verified: {rev: "sha256:2daf61292e923287", commit: 63ab8d8b535728d41079976763fa661f48c4bc4c, at: 2026-10-06T20:00:07Z, by: claude}
   R18:
     status: backlog
     trace:
@@ -218,6 +234,7 @@ requirements:
         - crates/bitacora-merge/src/page.rs
         - crates/bitacora-sync/tests/merge_matrix.rs
         - crates/bitacora-sync/tests/sync_engine.rs
+    verified: {rev: "sha256:af01734a9982c8ae", commit: 63ab8d8b535728d41079976763fa661f48c4bc4c, at: 2026-10-06T20:00:07Z, by: claude}
   R19:
     status: backlog
     trace:
@@ -229,12 +246,13 @@ requirements:
         - crates/bitacora-sync/src/merge/renames.rs
         - crates/bitacora-sync/src/resolve.rs
         - crates/bitacora-sync/tests/merge_matrix.rs
+    verified: {rev: "sha256:86b28b064b35e0dc", commit: 63ab8d8b535728d41079976763fa661f48c4bc4c, at: 2026-10-06T20:00:07Z, by: claude}
   R20:
     status: backlog
     trace:
       code: [crates/bitacora-sync/src/repo_setup.rs]
       tests: [crates/bitacora-sync/src/repo_setup.rs]
-    verified: {rev: "sha256:0822359e18053b7c", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
+    verified: {rev: "sha256:0822359e18053b7c", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R21:
     status: backlog
     trace:
@@ -245,8 +263,19 @@ requirements:
       tests:
         - crates/bitacora-sync/src/merge/mod.rs
         - crates/bitacora-sync/tests/merge_matrix.rs
+    verified: {rev: "sha256:bdf305c02058b6ca", commit: 63ab8d8b535728d41079976763fa661f48c4bc4c, at: 2026-10-06T20:00:07Z, by: claude}
   R22:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-sync/src/history.rs
+        - crates/bitacora-merge/src/diff.rs
+        - crates/bitacora-runtime/src/restore.rs
+        - crates/bitacora-runtime/src/live.rs
+      tests:
+        - crates/bitacora-sync/tests/history.rs
+        - crates/bitacora-merge/src/diff.rs
+        - crates/bitacora-runtime/tests/sync_status.rs
 ---
 
 ## Purpose

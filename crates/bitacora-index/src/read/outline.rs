@@ -184,6 +184,26 @@ impl IndexReader {
         Ok(rows)
     }
 
+    /// Blocks whose content contains `needle` verbatim (case-sensitive, no wildcards), at most
+    /// `limit`; used to find the blocks that still reference an asset file.
+    pub fn blocks_mentioning(&self, needle: &str, limit: usize) -> Result<Vec<BlockRow>, Error> {
+        if needle.is_empty() {
+            return Ok(Vec::new());
+        }
+        let conn = self.conn()?;
+        let mut st = conn.prepare(&format!(
+            "SELECT {BLOCK_COLS} FROM blocks b WHERE instr(b.content, ?1) > 0 \
+             ORDER BY b.id LIMIT ?2"
+        ))?;
+        let limit = i64::try_from(limit).unwrap_or(i64::MAX);
+        let mut rows: Vec<BlockRow> = st
+            .query_map(params![needle, limit], block_from_row)?
+            .collect::<Result<_, _>>()?;
+        drop(st);
+        load_properties(&conn, &mut rows)?;
+        Ok(rows)
+    }
+
     /// One block by UUID.
     pub fn block(&self, uuid: &str) -> Result<Option<BlockRow>, Error> {
         let conn = self.conn()?;

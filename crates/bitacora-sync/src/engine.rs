@@ -22,6 +22,10 @@ use crate::merge::{
     BlockLocation, ConflictRecord, ConflictType, MarkerRepair, MemoEntry, MergeInput, Resolution,
     plan_merge, repair_external_markers,
 };
+use crate::recovery::{
+    ExternalOperation, RecoveryReport, STALE_LOCK_AGE, external_operation, git_process_running,
+    remove_stale_index_lock,
+};
 use crate::resolve::{ResolveError, ResolveOutcome, plan_resolution};
 use crate::state::{
     Backoff, MemoryMergeStore, MergeStateStore, PendingMerge, SyncError, SyncState, SyncStatus,
@@ -149,6 +153,21 @@ type RefLookup = Arc<dyn Fn(&str) -> bool + Send + Sync>;
 type Observer = Arc<dyn Fn(&SyncStatus) + Send + Sync>;
 type BlockLocator = Arc<dyn Fn(&str) -> Option<BlockLocation> + Send + Sync>;
 
+fn conflict_pages_of(p: Option<&PendingMerge>) -> Vec<String> {
+    let mut pages: Vec<String> = p
+        .map(|p| {
+            p.conflicts
+                .iter()
+                .filter(|c| c.is_unresolved())
+                .map(|c| c.path.clone())
+                .collect()
+        })
+        .unwrap_or_default();
+    pages.sort();
+    pages.dedup();
+    pages
+}
+
 /// The sync engine for one graph.
 pub struct SyncEngine {
     backend: Box<dyn GitBackend>,
@@ -165,6 +184,7 @@ pub struct SyncEngine {
     last_sync: Option<SystemTime>,
     last_error: Option<String>,
     ahead: usize,
+    behind: usize,
     is_referenced: RefLookup,
     locator: Option<BlockLocator>,
     template: Option<String>,
@@ -195,7 +215,9 @@ impl SyncEngine {
             state: state.clone(),
             ahead: 0,
             last_sync: None,
+            behind: 0,
             conflicts: store.load().map_or(0, |p| p.unresolved()),
+            conflict_pages: conflict_pages_of(store.load().as_ref()),
             last_error: None,
             backend: backend.kind(),
         };
@@ -219,6 +241,7 @@ impl SyncEngine {
             last_sync: None,
             last_error: None,
             ahead: 0,
+            behind: 0,
             is_referenced: Arc::new(|_| false),
             locator: None,
             template: None,
@@ -285,11 +308,14 @@ impl SyncEngine {
 
     /// Current status snapshot.
     pub fn status(&self) -> SyncStatus {
+        let pending = self.store.load();
         SyncStatus {
             state: self.state.clone(),
             ahead: self.ahead,
             last_sync: self.last_sync,
-            conflicts: self.store.load().map_or(0, |p| p.unresolved()),
+            behind: self.behind,
+            conflicts: pending.as_ref().map_or(0, |p| p.unresolved()),
+            conflict_pages: conflict_pages_of(pending.as_ref()),
             last_error: self.last_error.clone(),
             backend: self.backend.kind(),
         }
@@ -419,6 +445,143 @@ impl SyncEngine {
                 self.set_state(SyncState::Conflicted);
             }
         }
+    }
+
+    // ---- recovery -------------------------------------------------------------------------
+
+    /// Startup recovery (BIT-US-0047, R15): restores `Conflicted` from the persisted merge state,
+    /// removes a stale `index.lock` (older than ten minutes, no git process), reports a merge or
+    /// rebase left by another tool as `Error(ExternalOperationInProgress)`, takes over a half-done
+    /// `git pull`, hands files with conflict markers to the merge and schedules an auto-commit
+    /// for work an interrupted session left uncommitted. Never rewrites user content except
+    /// through the marker repair of the normal cycle. Call once before the first cycle.
+    pub fn recover(&mut self) -> RecoveryReport {
+        let mut report = RecoveryReport::default();
+        let Some(git_dir) = crate::repo_setup::git_dir_of(&self.config.graph) else {
+            return report;
+        };
+        match remove_stale_index_lock(
+            &git_dir,
+            SystemTime::now(),
+            STALE_LOCK_AGE,
+            git_process_running(),
+        ) {
+            Ok(removed) => report.stale_lock_removed = removed,
+            Err(e) => report.error = Some(format!("could not remove the stale index.lock: {e}")),
+        }
+        let had_merge_head = git_dir.join("MERGE_HEAD").exists();
+        if let Err(e) = self.take_over_pull_merge() {
+            self.fail_interrupt(e, &mut report);
+            return report;
+        }
+        report.took_over_pull = had_merge_head && !git_dir.join("MERGE_HEAD").exists();
+        if let Some(op) = external_operation(&git_dir) {
+            report.external_operation = Some(op);
+            self.last_error = Some(SyncError::ExternalOperationInProgress.to_string());
+            self.set_state(SyncState::Error(SyncError::ExternalOperationInProgress));
+            self.refresh_ahead();
+            self.publish();
+            return report;
+        }
+        let before = self.store.load().map_or(0, |p| p.unresolved());
+        if let Err(e) = self.repair_markers() {
+            self.fail_interrupt(e, &mut report);
+        }
+        let after = self.store.load().map_or(0, |p| p.unresolved());
+        report.restored_conflicts = before;
+        report.marker_conflicts = after.saturating_sub(before);
+        if after > 0 {
+            self.set_state(SyncState::Conflicted);
+        }
+        match self.backend.status() {
+            Ok(status) => {
+                report.uncommitted_paths = status
+                    .dirty
+                    .iter()
+                    .filter(|d| !is_ignored_path(&d.path))
+                    .count();
+                if report.uncommitted_paths > 0 {
+                    self.note_write();
+                }
+            }
+            Err(e) => report.error = Some(e.to_string()),
+        }
+        self.refresh_ahead();
+        self.publish();
+        report
+    }
+
+    fn fail_interrupt(&mut self, e: Interrupt, report: &mut RecoveryReport) {
+        match e {
+            Interrupt::Fail(g) => {
+                report.error = Some(g.to_string());
+                self.fail(g);
+            }
+            Interrupt::Writer(w) => {
+                let err = SyncError::Writer(w.to_string());
+                report.error = Some(err.to_string());
+                self.last_error = Some(err.to_string());
+                self.set_state(SyncState::Error(err));
+            }
+            Interrupt::Deferred | Interrupt::Restart | Interrupt::Rejected => {
+                self.retry_at = Some(self.timing.now() + self.config.busy_retry);
+            }
+        }
+    }
+
+    /// Abandons a merge, rebase, cherry-pick or revert another tool left in progress ("abort" of
+    /// the abort/fix choice). A rebase is aborted with the system `git rebase --abort`; the
+    /// others drop their state files and reset the index to `HEAD` while the work tree keeps the
+    /// user's files untouched (the marker guard then deals with any markers).
+    ///
+    /// # Errors
+    /// [`GitError`] when git cannot be run or refuses.
+    pub fn abort_external_operation(&mut self) -> Result<(), GitError> {
+        let Some(git_dir) = crate::repo_setup::git_dir_of(&self.config.graph) else {
+            return Err(GitError::NotARepo);
+        };
+        match external_operation(&git_dir) {
+            None => {}
+            Some(ExternalOperation::Rebase) => {
+                let out = std::process::Command::new("git")
+                    .args(["rebase", "--abort"])
+                    .current_dir(&self.config.graph)
+                    .stdin(std::process::Stdio::null())
+                    .output()?;
+                if !out.status.success() {
+                    return Err(GitError::other(
+                        String::from_utf8_lossy(&out.stderr).trim().to_owned(),
+                    ));
+                }
+            }
+            Some(_) => {
+                for f in [
+                    "MERGE_HEAD",
+                    "MERGE_MSG",
+                    "MERGE_MODE",
+                    "AUTO_MERGE",
+                    "SQUASH_MSG",
+                    "CHERRY_PICK_HEAD",
+                    "REVERT_HEAD",
+                ] {
+                    let _ = std::fs::remove_file(git_dir.join(f));
+                }
+                let _ = std::fs::remove_dir_all(git_dir.join("sequencer"));
+                if let Some(head) = self.backend.resolve_ref("HEAD")? {
+                    self.backend.reset_index(&head)?;
+                }
+            }
+        }
+        self.last_error = None;
+        let rest = if self.store.load().is_some() {
+            SyncState::Conflicted
+        } else {
+            SyncState::Idle
+        };
+        self.set_state(rest);
+        self.refresh_ahead();
+        self.publish();
+        Ok(())
     }
 
     // ---- commit ---------------------------------------------------------------------------
@@ -1295,6 +1458,31 @@ impl SyncEngine {
 
     fn refresh_ahead(&mut self) {
         self.ahead = self.count_ahead().unwrap_or(self.ahead);
+        self.behind = self.count_behind().unwrap_or(self.behind);
+    }
+
+    /// Remote commits (as of the last fetch) that are not in the local branch yet.
+    fn count_behind(&self) -> Result<usize, GitError> {
+        let (Some(head), Some(remote)) = (
+            self.backend.resolve_ref("HEAD")?,
+            self.backend.resolve_ref(&self.tracking_ref())?,
+        ) else {
+            return Ok(0);
+        };
+        let mut cur = remote;
+        let mut n = 0;
+        while n < 500 {
+            if cur == head || self.backend.merge_base(&cur, &head)?.as_ref() == Some(&cur) {
+                break;
+            }
+            n += 1;
+            let info = self.backend.commit_info(&cur)?;
+            match info.parents.first() {
+                Some(p) => cur = p.clone(),
+                None => break,
+            }
+        }
+        Ok(n)
     }
 
     /// Local commits that are not on the remote-tracking branch.
@@ -1349,6 +1537,28 @@ pub enum Command {
     Focus(bool),
     /// Close the graph: commit, best-effort push, reply with the final state, stop.
     Close(Sender<SyncState>),
+    /// Startup recovery; replies with the report.
+    Recover(Sender<RecoveryReport>),
+    /// Resolve one conflict of the pending merge.
+    Resolve {
+        /// Conflict id.
+        id: String,
+        /// The user's choice.
+        resolution: Resolution,
+        /// Receives the outcome.
+        reply: Sender<Result<ResolveOutcome, ResolveError>>,
+    },
+    /// Resolve every open conflict of one page with the same choice.
+    ResolvePage {
+        /// Graph-relative page path.
+        path: String,
+        /// The user's choice.
+        resolution: Resolution,
+        /// Receives the outcome.
+        reply: Sender<Result<ResolveOutcome, ResolveError>>,
+    },
+    /// Abandon an external merge/rebase (user chose "abort").
+    AbortExternal(Sender<Result<(), String>>),
     /// Stop without syncing.
     Shutdown,
 }
@@ -1372,6 +1582,59 @@ impl EngineHandle {
             Ok(g) => g.clone(),
             Err(p) => p.into_inner().clone(),
         }
+    }
+
+    fn ask<T>(&self, build: impl FnOnce(Sender<T>) -> Command) -> Option<T> {
+        let (tx, rx) = channel();
+        self.tx.send(build(tx)).ok()?;
+        rx.recv().ok()
+    }
+
+    /// Runs startup recovery on the engine thread and waits for the report.
+    pub fn recover(&self) -> Option<RecoveryReport> {
+        self.ask(Command::Recover)
+    }
+
+    /// Resolves one conflict on the engine thread (blocks until applied).
+    pub fn resolve_conflict(
+        &self,
+        id: &str,
+        resolution: Resolution,
+    ) -> Result<ResolveOutcome, ResolveError> {
+        self.ask(|reply| Command::Resolve {
+            id: id.to_owned(),
+            resolution,
+            reply,
+        })
+        .unwrap_or_else(|| {
+            Err(ResolveError::Failed(
+                "the sync engine is not running".into(),
+            ))
+        })
+    }
+
+    /// Resolves every open conflict of `path` with one choice.
+    pub fn resolve_page(
+        &self,
+        path: &str,
+        resolution: Resolution,
+    ) -> Result<ResolveOutcome, ResolveError> {
+        self.ask(|reply| Command::ResolvePage {
+            path: path.to_owned(),
+            resolution,
+            reply,
+        })
+        .unwrap_or_else(|| {
+            Err(ResolveError::Failed(
+                "the sync engine is not running".into(),
+            ))
+        })
+    }
+
+    /// Abandons an external merge/rebase.
+    pub fn abort_external_operation(&self) -> Result<(), String> {
+        self.ask(Command::AbortExternal)
+            .unwrap_or_else(|| Err("the sync engine is not running".into()))
     }
 
     /// Stops the thread and returns the engine.
@@ -1420,6 +1683,26 @@ fn run_loop(mut engine: SyncEngine, rx: &Receiver<Command>) -> SyncEngine {
                 engine.sync_now();
             }
             Ok(Command::Focus(f)) => engine.set_focused(f),
+            Ok(Command::Recover(reply)) => {
+                let _ = reply.send(engine.recover());
+            }
+            Ok(Command::Resolve {
+                id,
+                resolution,
+                reply,
+            }) => {
+                let _ = reply.send(engine.resolve_conflict(&id, resolution));
+            }
+            Ok(Command::ResolvePage {
+                path,
+                resolution,
+                reply,
+            }) => {
+                let _ = reply.send(engine.resolve_page(&path, &resolution));
+            }
+            Ok(Command::AbortExternal(reply)) => {
+                let _ = reply.send(engine.abort_external_operation().map_err(|e| e.to_string()));
+            }
             Ok(Command::Close(reply)) => {
                 let state = engine.close();
                 let _ = reply.send(state);

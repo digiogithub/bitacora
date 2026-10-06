@@ -25,6 +25,8 @@ enum Command {
     Sync(cmd::sync::SyncArgs),
     /// Diagnose the environment and the graph.
     Doctor(cmd::doctor::DoctorArgs),
+    /// Replace this binary with the newest GitHub release (checksum-verified).
+    SelfUpdate(cmd::self_update::SelfUpdateArgs),
 }
 
 impl Command {
@@ -35,6 +37,7 @@ impl Command {
             Command::Reindex(_) => "reindex",
             Command::Sync(_) => "sync",
             Command::Doctor(_) => "doctor",
+            Command::SelfUpdate(_) => "self-update",
         }
     }
 }
@@ -72,6 +75,16 @@ fn main() -> ExitCode {
                 }
             }
         }
+        Command::SelfUpdate(args) => match cmd::self_update::run(&args) {
+            Ok(o) => {
+                cmd::self_update::print(&o);
+                ExitCode::SUCCESS
+            }
+            Err(e) => {
+                eprintln!("bitacora-cli self-update: {e:#}");
+                ExitCode::FAILURE
+            }
+        },
         Command::Doctor(args) => match cmd::doctor::run(&args) {
             Ok(report) => match cmd::doctor::print(&report, args.graph.json) {
                 Ok(()) if report.healthy() => ExitCode::SUCCESS,
@@ -110,5 +123,32 @@ mod tests {
                 .expect("parse serve");
         assert_eq!(cli.command.name(), "serve");
         assert!(Cli::try_parse_from(["bitacora-cli", "serve"]).is_err());
+    }
+
+    #[test]
+    fn serve_permission_flags_default_off() {
+        let parse = |extra: &[&str]| {
+            let mut a = vec!["bitacora-cli", "serve", "--graph", "/tmp/g"];
+            a.extend_from_slice(extra);
+            match Cli::try_parse_from(a).expect("parse serve").command {
+                Command::Serve(s) => s,
+                other => panic!("not serve: {}", other.name()),
+            }
+        };
+        let off = parse(&[]);
+        assert!(!off.allow_writes && !off.allow_deletes && !off.api);
+        let on = parse(&["--allow-writes", "--allow-deletes", "--api"]);
+        assert!(on.allow_writes && on.allow_deletes && on.api);
+    }
+
+    #[test]
+    fn serve_help_documents_permission_flags() {
+        use clap::CommandFactory as _;
+        let mut cmd = Cli::command();
+        let serve = cmd.find_subcommand_mut("serve").expect("serve");
+        let help = serve.render_long_help().to_string();
+        for flag in ["--allow-writes", "--allow-deletes", "--api"] {
+            assert!(help.contains(flag), "{help}");
+        }
     }
 }

@@ -2,7 +2,7 @@
 id: BIT-T-0219
 type: task
 title: Release notes and version bump via xtask
-status: backlog
+status: done
 priority: medium
 parent: BIT-US-0097
 milestone: BIT-M-0005
@@ -10,7 +10,8 @@ author: mcp
 labels: [release, xtask]
 estimate: 2
 created: 2026-10-06T14:31:13Z
-updated: 2026-10-06T14:31:13Z
+updated: 2026-10-06T19:59:49Z
+closed: 2026-10-06T19:59:49Z
 ---
 
 ## Description

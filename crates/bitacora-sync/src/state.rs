@@ -21,6 +21,25 @@ pub enum SyncError {
     Git(String),
 }
 
+impl SyncError {
+    /// Plain-language message for the status bar.
+    pub fn user_message(&self) -> String {
+        match self {
+            Self::PushRejectedLoop => {
+                "Could not push: the remote keeps changing. Retry in a moment.".to_owned()
+            }
+            Self::Auth(_) => {
+                "Sync failed: authentication problem. Check your credentials.".to_owned()
+            }
+            Self::ExternalOperationInProgress => {
+                "A merge or rebase is in progress in this graph. Finish or abort it.".to_owned()
+            }
+            Self::Writer(_) => "Sync paused: the graph is busy. Retry.".to_owned(),
+            Self::Git(m) => format!("Sync failed: {m}"),
+        }
+    }
+}
+
 impl std::fmt::Display for SyncError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -110,12 +129,57 @@ pub struct SyncStatus {
     pub ahead: usize,
     /// When the last full sync (fetch + integrate + push) finished.
     pub last_sync: Option<SystemTime>,
+    /// Remote commits not merged locally (as of the last fetch).
+    pub behind: usize,
     /// Number of unresolved conflicts.
     pub conflicts: usize,
+    /// Graph-relative paths of the pages with unresolved conflicts, sorted.
+    pub conflict_pages: Vec<String>,
     /// Last error or offline reason.
     pub last_error: Option<String>,
     /// Active backend.
     pub backend: ActiveBackend,
+}
+
+/// Suggestion shown when the built-in backend fails to authenticate (ADR-020).
+pub const INSTALL_GIT_HINT: &str =
+    "Install git for the best authentication support (SSH agent, credential helpers).";
+
+impl SyncStatus {
+    /// Short user-facing line for the status bar (BIT-US-0047): "Synced", "N local commits not
+    /// synced", "Conflicts (N)", "Offline", or the error text.
+    pub fn user_message(&self) -> String {
+        let commits = |n: usize| {
+            format!(
+                "{n} local commit{} not synced",
+                if n == 1 { "" } else { "s" }
+            )
+        };
+        match &self.state {
+            SyncState::Disabled => "Sync is off".to_owned(),
+            SyncState::Conflicted => format!("Conflicts ({})", self.conflicts),
+            SyncState::Error(e) => e.user_message(),
+            SyncState::Offline if self.ahead > 0 => format!("Offline - {}", commits(self.ahead)),
+            SyncState::Offline => "Offline".to_owned(),
+            SyncState::Idle | SyncState::Dirty if self.ahead > 0 => commits(self.ahead),
+            SyncState::Idle => "Synced".to_owned(),
+            SyncState::Dirty => "Changes not yet committed".to_owned(),
+            SyncState::Committing => "Committing...".to_owned(),
+            _ => "Syncing...".to_owned(),
+        }
+    }
+
+    /// The "install git" suggestion, only when the built-in backend hit an authentication error.
+    pub fn backend_hint(&self) -> Option<&'static str> {
+        (self.backend == ActiveBackend::GixOnly
+            && matches!(self.state, SyncState::Error(SyncError::Auth(_))))
+        .then_some(INSTALL_GIT_HINT)
+    }
+
+    /// Whether the status bar should offer "Retry" next to the message.
+    pub fn can_retry(&self) -> bool {
+        matches!(self.state, SyncState::Error(_) | SyncState::Offline)
+    }
 }
 
 /// Offline back-off schedule: 30 s, 1 m, 2 m, 5 m, 10 m (cap); reset on network change.

@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [core, compat]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T19:30:29Z
+updated: 2026-10-06T20:00:00Z
 requirements:
   R1:
     status: backlog
@@ -28,7 +28,7 @@ requirements:
         - crates/bitacora-config/src/edn.rs
         - crates/bitacora-config/src/accessors.rs
       tests: [crates/bitacora-config/tests/load.rs]
-    verified: {rev: "sha256:4d3240131f1012c0", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
+    verified: {rev: "sha256:4d3240131f1012c0", commit: 63ab8d8b535728d41079976763fa661f48c4bc4c, at: 2026-10-06T19:59:23Z, by: claude}
   R4:
     status: backlog
     trace:
@@ -36,12 +36,13 @@ requirements:
         - crates/bitacora-config/src/cst.rs
         - crates/bitacora-config/src/edit.rs
       tests: [crates/bitacora-config/tests/edit_golden.rs]
-    verified: {rev: "sha256:3efecd8adf33f7c8", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
+    verified: {rev: "sha256:3efecd8adf33f7c8", commit: 63ab8d8b535728d41079976763fa661f48c4bc4c, at: 2026-10-06T19:59:23Z, by: claude}
   R5:
     status: backlog
     trace:
       code: [crates/bitacora-core/src/naming.rs#derive_title]
       tests: [crates/bitacora-core/src/naming.rs#derive_title_pipeline]
+    verified: {rev: "sha256:e1b344492198bca4", commit: 63ab8d8b535728d41079976763fa661f48c4bc4c, at: 2026-10-06T19:59:23Z, by: claude}
   R6:
     status: backlog
     trace:
@@ -59,12 +60,13 @@ requirements:
         - crates/bitacora-core/src/naming.rs#legacy_vectors
         - crates/bitacora-core/src/naming.rs#title_property_predicate
         - crates/bitacora-core/tests/page_lifecycle.rs#legacy_graph_writes_title_property_for_lossy_names
+    verified: {rev: "sha256:ba20a74794c25923", commit: 63ab8d8b535728d41079976763fa661f48c4bc4c, at: 2026-10-06T19:59:23Z, by: claude}
   R8:
     status: backlog
     trace:
       code: [crates/bitacora-core/src/graph.rs]
       tests:
-        - crates/bitacora-core/src/graph.rs#tests
+        - crates/bitacora-core/src/graph.rs
         - crates/bitacora-core/tests/graph_fixtures.rs
   R9:
     status: backlog
@@ -89,11 +91,16 @@ requirements:
         - crates/bitacora-core/src/journal.rs#journal_file_path
         - crates/bitacora-core/src/editor/lifecycle.rs#ensure_today
         - crates/bitacora-core/src/editor/rename.rs#plan_rename
+        - crates/bitacora-core/src/queue.rs#Request
+        - crates/bitacora-app/src/graph_ops.rs#ensure_today
+        - crates/bitacora-app/src/views/workspace.rs#start_day_clock
       tests:
         - crates/bitacora-core/src/journal.rs#file_paths
         - crates/bitacora-core/tests/page_lifecycle.rs#today_is_virtual_until_typed
         - crates/bitacora-core/tests/page_lifecycle.rs#journal_directory_and_file_format_are_configurable
         - crates/bitacora-core/tests/page_rename.rs#journals_are_never_renamed
+        - crates/bitacora-app/src/views/workspace.rs#todays_journal_is_ensured_on_open_and_at_the_midnight_rollover
+        - crates/bitacora-app/src/graph_ops.rs#todays_journal_is_virtual_until_it_has_content
   R12:
     status: backlog
     trace:
@@ -115,7 +122,7 @@ requirements:
         - crates/bitacora-runtime/src/rename_lookup.rs
       tests:
         - crates/bitacora-core/tests/page_rename.rs
-        - crates/bitacora-core/src/rename.rs#tests
+        - crates/bitacora-core/src/rename.rs
         - crates/bitacora-runtime/tests/rename.rs
   R14:
     status: backlog
@@ -126,11 +133,17 @@ requirements:
         - crates/bitacora-core/src/editor/fsio.rs#recycle
         - crates/bitacora-core/src/editor/op.rs#DeleteAsset
         - crates/bitacora-core/src/editor/rename.rs#plan_merge
+        - crates/bitacora-app/src/graph_ops.rs#delete_page
+        - crates/bitacora-app/src/graph_ops.rs#delete_asset
+        - crates/bitacora-app/src/graph_ops.rs#favorites_remove
       tests:
         - crates/bitacora-core/tests/page_lifecycle.rs#deleting_a_page_recycles_its_file
         - crates/bitacora-core/tests/page_lifecycle.rs#deleting_an_asset_recycles_it_and_undo_restores_it
         - crates/bitacora-core/tests/page_lifecycle.rs#fs_store_recycles_with_rename_and_overwrites
         - crates/bitacora-core/tests/page_rename.rs#merge_appends_blocks_recycles_the_source_and_rewrites_refs
+        - crates/bitacora-app/src/graph_ops.rs#deleting_a_page_recycles_the_file_and_drops_the_favorite
+        - crates/bitacora-app/src/graph_ops.rs#an_unreferenced_asset_is_recycled_and_a_referenced_one_is_kept
+    verified: {rev: "sha256:4259a0e3887439da", commit: 63ab8d8b535728d41079976763fa661f48c4bc4c, at: 2026-10-06T19:59:23Z, by: claude}
   R15:
     status: backlog
   R16:
@@ -151,7 +164,7 @@ requirements:
         - crates/bitacora-core/src/graph.rs
         - crates/bitacora-core/src/editor/cmd.rs#set_page_property
       tests:
-        - crates/bitacora-core/src/graph.rs#tests
+        - crates/bitacora-core/src/graph.rs
         - crates/bitacora-core/tests/page_lifecycle.rs#page_property_goes_into_the_pre_block
         - crates/bitacora-core/tests/page_lifecycle.rs#page_property_in_front_matter_page_stays_front_matter
   R19:
@@ -167,7 +180,8 @@ requirements:
     status: backlog
     trace:
       code: [crates/bitacora-core/src/graph.rs]
-      tests: [crates/bitacora-core/src/graph.rs#tests]
+      tests:
+        - crates/bitacora-core/src/graph.rs#org_pages_are_read_only_and_adoc_ignored
 ---
 
 ## Purpose

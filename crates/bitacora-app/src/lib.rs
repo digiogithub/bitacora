@@ -17,6 +17,8 @@ pub mod app;
 pub mod cli;
 pub mod data;
 pub mod events;
+pub mod graph_ops;
+pub mod graph_state;
 pub mod keymap;
 pub mod layout;
 pub mod logging;

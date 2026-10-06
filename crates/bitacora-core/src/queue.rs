@@ -112,6 +112,15 @@ pub enum Request {
         /// Deleted files.
         paths: Vec<GraphPath>,
     },
+    /// Make today's journal available for editing: loads it from its file or creates a virtual
+    /// page (with the default template) that is only written once it has content
+    /// (BIT-US-0057). `today` is the local calendar date.
+    EnsureToday {
+        /// Local calendar date.
+        today: crate::date::Date,
+        /// Configuration used for the journal title, file name and template.
+        cfg: Box<bitacora_config::EffectiveConfig>,
+    },
     /// The file of a loaded page changed on disk (BIT-US-0068, BIT-US-0069): a clean page is
     /// reloaded keeping its block ids, a dirty one gets the external edits merged block by block
     /// (3-way, base = the bytes last read or written). A real conflict keeps our content, stops
@@ -147,6 +156,8 @@ pub enum Response {
     Resolved(FlushReport, Option<TakeDisk>),
     /// Pages dropped because their file was deleted externally.
     Removed(Vec<PageKey>),
+    /// Result of [`Request::EnsureToday`]: `None` when journals are disabled.
+    Journal(Option<crate::editor::lifecycle::Opened>),
     /// What an [`Request::ExternalChange`] did.
     External(ExternalOutcome),
     /// An undo was performed.
@@ -1187,6 +1198,17 @@ impl Worker {
                     self.emit(&QueueEvent::PageReloaded(key));
                 }
                 Ok(Response::Loaded)
+            }
+            Request::EnsureToday { today, cfg } => {
+                let opened = self
+                    .ws
+                    .ensure_today(today, &cfg, &*self.store)
+                    .map_err(|e| QueueError::Invalid(e.to_string()))?;
+                if let Some(o) = &opened {
+                    self.seq += 1;
+                    self.publish(std::slice::from_ref(o.key()));
+                }
+                Ok(Response::Journal(opened))
             }
             Request::Flush => {
                 let r = self.ws.flush(&mut *self.store);

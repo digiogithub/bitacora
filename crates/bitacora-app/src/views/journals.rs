@@ -13,6 +13,7 @@ use bitacora_index::IndexEvent;
 use rust_i18n::t;
 
 use crate::data::{self, GraphHandle, JournalDay};
+use crate::nav::OpenIn;
 use crate::nav::Scroll;
 use crate::render::inline::NavTarget;
 use crate::render::model::{Row, toggle_row, visible_rows};
@@ -406,8 +407,8 @@ impl JournalsView {
         let this = cx.entity();
         let nav: Nav = {
             let this = this.clone();
-            Rc::new(move |target: NavTarget, cx: &mut App| {
-                this.update(cx, |_, cx| cx.emit(PageEvent::Navigate(target)));
+            Rc::new(move |target: NavTarget, open: OpenIn, cx: &mut App| {
+                this.update(cx, |_, cx| cx.emit(PageEvent::open(target, open)));
             })
         };
         let root = self.handle.as_ref().map(|h| h.root.clone());

@@ -11,17 +11,29 @@ use crate::nav::{NavHistory, Route, Scroll};
 use crate::render::inline::NavTarget;
 use crate::ui::button::{Button, ButtonVariants as _};
 use crate::ui::{
-    ActiveTheme as _, AppContext as _, Context, Disableable as _, Entity, IconName, IntoElement,
-    ParentElement as _, Render, Sizable as _, Styled as _, Subscription, Window, div, h_flex, px,
-    v_flex,
+    ActiveTheme as _, App, AppContext as _, Context, Disableable as _, Entity, EventEmitter,
+    IconName, IntoElement, ParentElement as _, Render, Sizable as _, Styled as _, Subscription,
+    Window, div, h_flex, px, v_flex,
 };
+use crate::views::all_pages::AllPagesView;
 use crate::views::journals::JournalsView;
 use crate::views::page_view::{PageEvent, PageView};
 
-/// Journals feed plus page view with history.
+/// What a pane tells its host.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MainEvent {
+    /// The pane now shows this route (recent pages, sidebar highlight).
+    Visited(Route),
+    /// Show this route in the right sidebar (Shift+click).
+    OpenInSidebar(Route),
+}
+
+/// Journals feed, all-pages table and page view with history: one pane of the main area. Every
+/// pane (dock panel) owns its own `MainView`, so splitting the main area never shares state.
 pub struct MainView {
     page: Entity<PageView>,
     journals: Entity<JournalsView>,
+    all_pages: Entity<AllPagesView>,
     handle: Option<GraphHandle>,
     history: NavHistory,
     pending: Option<Route>,
@@ -36,18 +48,23 @@ impl std::fmt::Debug for MainView {
     }
 }
 
+impl EventEmitter<MainEvent> for MainView {}
+
 impl MainView {
     /// Creates the views; nothing is shown until [`MainView::set_graph`].
-    pub fn new(cx: &mut Context<Self>) -> Self {
+    pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let page = cx.new(PageView::new);
         let journals = cx.new(JournalsView::new);
+        let all_pages = cx.new(|cx| AllPagesView::new(window, cx));
         let subscriptions = vec![
             cx.subscribe(&page, Self::on_page_event),
             cx.subscribe(&journals, Self::on_page_event),
+            cx.subscribe(&all_pages, Self::on_page_event),
         ];
         Self {
             page,
             journals,
+            all_pages,
             handle: None,
             history: NavHistory::new(),
             pending: None,
@@ -63,6 +80,19 @@ impl MainView {
     /// The journals view entity.
     pub fn journals(&self) -> &Entity<JournalsView> {
         &self.journals
+    }
+
+    /// The all-pages view entity.
+    pub fn all_pages(&self) -> &Entity<AllPagesView> {
+        &self.all_pages
+    }
+
+    /// Index id of the page on screen (the "this page" search scope).
+    pub fn current_page_id(&self, cx: &App) -> Option<i64> {
+        match self.route()? {
+            Route::Page(_) => self.page.read(cx).header().page_id,
+            Route::Journals | Route::AllPages | Route::Block(_) => None,
+        }
     }
 
     /// The route being shown.
@@ -98,12 +128,14 @@ impl MainView {
     pub fn clear_graph(&mut self, cx: &mut Context<Self>) {
         self.handle = None;
         self.history = NavHistory::new();
+        self.all_pages.update(cx, |v, cx| v.clear(cx));
         cx.notify();
     }
 
     fn current_scroll(&self, cx: &Context<Self>) -> Option<Scroll> {
         Some(match self.route()? {
             Route::Journals => self.journals.read(cx).scroll(),
+            Route::AllPages => Scroll::default(),
             Route::Page(_) | Route::Block(_) => self.page.read(cx).scroll(),
         })
     }
@@ -118,6 +150,7 @@ impl MainView {
             self.history.set_scroll(scroll);
         }
         self.history.visit(route.clone());
+        cx.emit(MainEvent::Visited(route.clone()));
         self.display(handle, route, None, cx);
     }
 
@@ -132,6 +165,7 @@ impl MainView {
             Route::Journals => self
                 .journals
                 .update(cx, |j, cx| j.show(handle, restore, cx)),
+            Route::AllPages => self.all_pages.update(cx, |v, cx| v.show(handle, cx)),
             Route::Page(_) | Route::Block(_) => {
                 self.page
                     .update(cx, |p, cx| p.show(handle, route, restore, cx));
@@ -149,6 +183,7 @@ impl MainView {
             self.history.set_scroll(scroll);
         }
         if let Some(entry) = self.history.back() {
+            cx.emit(MainEvent::Visited(entry.route.clone()));
             self.display(handle, entry.route, Some(entry.scroll), cx);
         }
     }
@@ -162,6 +197,7 @@ impl MainView {
             self.history.set_scroll(scroll);
         }
         if let Some(entry) = self.history.forward() {
+            cx.emit(MainEvent::Visited(entry.route.clone()));
             self.display(handle, entry.route, Some(entry.scroll), cx);
         }
     }
@@ -170,6 +206,7 @@ impl MainView {
     pub fn reload(&mut self, cx: &mut Context<Self>) {
         match self.route() {
             Some(Route::Journals) => self.journals.update(cx, |j, cx| j.refresh(cx)),
+            Some(Route::AllPages) => self.all_pages.update(cx, |v, cx| v.reload(cx)),
             Some(_) => self.page.update(cx, |p, cx| p.reload(cx)),
             None => {}
         }
@@ -181,6 +218,7 @@ impl MainView {
             Some(Route::Journals) => self
                 .journals
                 .update(cx, |j, cx| j.on_index_event(event, cx)),
+            Some(Route::AllPages) => self.all_pages.update(cx, |v, cx| v.on_index_changed(cx)),
             Some(_) => self.page.update(cx, |p, cx| p.on_index_event(event, cx)),
             None => {}
         }
@@ -192,11 +230,20 @@ impl MainView {
         event: &PageEvent,
         cx: &mut Context<Self>,
     ) {
-        let PageEvent::Navigate(target) = event;
-        match target {
-            NavTarget::Url(url) => cx.open_url(url),
-            NavTarget::Page(name) => self.navigate(Route::Page(name.clone()), cx),
-            NavTarget::Block(uuid) => self.navigate(Route::Block(uuid.clone()), cx),
+        let (PageEvent::Navigate(target) | PageEvent::OpenInSidebar(target)) = event;
+        let sidebar = matches!(event, PageEvent::OpenInSidebar(_));
+        let route = match target {
+            NavTarget::Url(url) => {
+                cx.open_url(url);
+                return;
+            }
+            NavTarget::Page(name) => Route::Page(name.clone()),
+            NavTarget::Block(uuid) => Route::Block(uuid.clone()),
+        };
+        if sidebar {
+            cx.emit(MainEvent::OpenInSidebar(route));
+        } else {
+            self.navigate(route, cx);
         }
     }
 }
@@ -207,7 +254,11 @@ impl Render for MainView {
         let this = cx.entity();
         let back = this.clone();
         let forward = this;
-        let showing_journals = matches!(self.route(), Some(Route::Journals));
+        let shown = match self.route() {
+            Some(Route::Journals) => self.journals.clone().into_any_element(),
+            Some(Route::AllPages) => self.all_pages.clone().into_any_element(),
+            _ => self.page.clone().into_any_element(),
+        };
         v_flex()
             .size_full()
             .bg(theme.background)
@@ -235,11 +286,7 @@ impl Render for MainView {
                             .on_click(move |_, _, cx| forward.update(cx, |m, cx| m.go_forward(cx))),
                     ),
             )
-            .child(div().flex_1().min_h_0().child(if showing_journals {
-                self.journals.clone().into_any_element()
-            } else {
-                self.page.clone().into_any_element()
-            }))
+            .child(div().flex_1().min_h_0().child(shown))
     }
 }
 
@@ -259,7 +306,7 @@ mod tests {
     }
 
     fn open(cx: &mut TestAppContext) -> (Entity<MainView>, &mut VisualTestContext) {
-        cx.add_window_view(|_, cx| MainView::new(cx))
+        cx.add_window_view(MainView::new)
     }
 
     fn settle(

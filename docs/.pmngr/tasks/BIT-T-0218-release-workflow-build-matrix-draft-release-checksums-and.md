@@ -2,7 +2,7 @@
 id: BIT-T-0218
 type: task
 title: "Release workflow: build matrix, draft release, checksums and attestations"
-status: backlog
+status: in_review
 priority: high
 parent: BIT-US-0097
 milestone: BIT-M-0005
@@ -10,7 +10,8 @@ author: mcp
 labels: [release, ci]
 estimate: 3
 created: 2026-10-06T14:31:13Z
-updated: 2026-10-06T14:31:13Z
+updated: 2026-10-06T19:59:49Z
+started: 2026-10-06T19:59:49Z
 ---
 
 ## Description
