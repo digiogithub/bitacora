@@ -7,16 +7,20 @@
 //! 2. [`properties`]: `key:: value` property groups with mldoc's key rules, value interpretation
 //!    and the Markdown `:PROPERTIES:` drawer reader.
 
+pub mod block;
 pub mod canonical;
 pub mod classify;
 pub mod doc;
 pub mod edit;
 pub mod image_meta;
+pub mod inline;
 pub mod lines;
 pub mod outline;
+pub mod page_props;
 pub mod properties;
 pub mod serialize;
 pub mod span;
+pub mod tasks;
 pub mod tree;
 
 pub use canonical::{Eol, IndentUnit, convert_drawers, write_block, write_pre_block};

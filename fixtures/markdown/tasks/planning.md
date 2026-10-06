@@ -1,0 +1,47 @@
+- a
+  SCHEDULED: <2024-01-01 Mon .+1d>
+- b
+  SCHEDULED: <2024-01-01 Mon +1w>
+- c
+  SCHEDULED: <2024-01-01 Mon ++2m>
+- d
+  DEADLINE: <2024-01-01 Mon 10:30 +1y>
+- e
+  DEADLINE: [2024-01-01 Mon]
+- f
+  SCHEDULED: <2024-01-01 Mon +1h>
+- g
+  SCHEDULED: <2024-01-01 Mon> DEADLINE: <2024-02-01 Thu>
+- h
+  SCHEDULED: <2024-01-01 Mon>
+  DEADLINE: <2024-02-01 Thu>
+- i
+  CLOSED: [2024-01-01 Mon 10:00]
+- j
+  SCHEDULED: <2024-01-01>
+- k
+  SCHEDULED:<2024-01-01 Mon>
+- l
+  scheduled: <2024-01-01 Mon>
+- m
+  text
+  SCHEDULED: <2024-01-01 Mon>
+- n
+  key:: v
+  SCHEDULED: <2024-01-01 Mon>
+- o SCHEDULED: <2024-01-01 Mon>
+- p
+  DEADLINE: <2024-01-01 Mon>--<2024-01-05 Fri>
+- q
+  SCHEDULED: <2024-01-01 Mon 9:05>
+- r
+  SCHEDULED: <2024-01-01 Mon -2d>
+- s
+  SCHEDULED: <2024-01-01 Mon +1x>
+- TODO t [#A]
+  SCHEDULED: <2024-03-04 Mon>
+  :LOGBOOK:
+  CLOCK: [2024-03-04 Mon 10:00:00]
+  :END:
+- u
+  SCHEDULED: <2024-12-31 Tue .+1m>
