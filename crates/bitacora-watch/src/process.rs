@@ -76,7 +76,7 @@ impl Processor {
     /// Reports every file we already announced that no longer exists. Used by the periodic
     /// rescan: its own mtime baseline cannot know a file that appeared and vanished between two
     /// ticks (or whose removal the OS watcher lost), but `known` does.
-    pub(crate) fn sweep_missing(&mut self) {
+    pub(crate) fn sweep_missing(&mut self) -> usize {
         let mut missing: Vec<String> = self
             .known
             .keys()
@@ -89,9 +89,16 @@ impl Processor {
             .cloned()
             .collect();
         missing.sort();
+        let n = missing.len();
         for rel in missing {
             self.removed(&rel);
         }
+        n
+    }
+
+    /// Number of files currently announced (diagnostics).
+    pub(crate) fn known_len(&self) -> usize {
+        self.known.len()
     }
 
     fn touch(&mut self, abs: &Path) {
