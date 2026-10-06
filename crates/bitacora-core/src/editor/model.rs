@@ -297,17 +297,35 @@ impl Page {
         bytes: &[u8],
         ids: &IdGen,
     ) -> Self {
+        Self::load_reusing(key, title, path, bytes, ids, &[])
+    }
+
+    /// Like [`Page::load`] but block `k` in document order keeps the id `reuse[k]` when that is
+    /// `Some` (block alignment after an external change keeps session ids stable).
+    #[must_use]
+    pub fn load_reusing(
+        key: PageKey,
+        title: impl Into<String>,
+        path: Option<GraphPath>,
+        bytes: &[u8],
+        ids: &IdGen,
+        reuse: &[Option<BlockId>],
+    ) -> Self {
         let mut page = Self::empty(key, title, path.clone());
         page.disk_path = path;
         page.disk = Some(DiskSnapshot::new(bytes));
         let mut doc = Document::parse(bytes.to_vec());
-        page.attach_from_document(&mut doc, Some(ids));
+        page.attach_from_document(&mut doc, Some((ids, reuse)));
         page
     }
 
     /// Fills the tree from `doc` (allocating ids when `ids` is given) or re-assigns origins from
     /// it (when `ids` is `None`, in document order, requires an identical structure).
-    fn attach_from_document(&mut self, doc: &mut Document, ids: Option<&IdGen>) {
+    fn attach_from_document(
+        &mut self,
+        doc: &mut Document,
+        ids: Option<(&IdGen, &[Option<BlockId>])>,
+    ) {
         self.generation += 1;
         let generation = self.generation;
         self.preamble = doc.pre_block_text().map(std::borrow::Cow::into_owned);
@@ -317,6 +335,7 @@ impl Page {
         };
         let order = self.dfs();
         let mut stack: Vec<BlockId> = Vec::new();
+        let mut seq = 0usize;
         for (i, node) in doc.blocks.iter().enumerate() {
             let Node::Original { block, depth } = node else {
                 continue;
@@ -332,9 +351,15 @@ impl Page {
                 depth: *depth,
                 text_hash: text_hash(&text),
             };
-            if let Some(ids) = ids {
+            if let Some((ids, reuse)) = ids {
                 stack.truncate(depth.saturating_sub(1));
-                let id = ids.next();
+                let id = reuse
+                    .get(seq)
+                    .copied()
+                    .flatten()
+                    .filter(|r| !self.blocks.contains_key(r))
+                    .unwrap_or_else(|| ids.next());
+                seq += 1;
                 let parent = stack.last().copied();
                 let mut b = Block {
                     id,

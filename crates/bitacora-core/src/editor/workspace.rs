@@ -55,7 +55,7 @@ pub struct PendingEdit {
 #[derive(Debug, Default)]
 pub struct Workspace {
     pages: BTreeMap<PageKey, Page>,
-    ids: IdGen,
+    pub(crate) ids: IdGen,
     block_page: HashMap<BlockId, PageKey>,
     uuids: UuidIndex,
     pub(crate) touched: BTreeSet<PageKey>,
@@ -63,6 +63,9 @@ pub struct Workspace {
     pending_restores: BTreeSet<GraphPath>,
     pending_edits: BTreeMap<GraphPath, PendingEdit>,
     pub(crate) next_tx: u64,
+    pub(crate) conflicted: BTreeMap<PageKey, Arc<super::external::ConflictNotice>>,
+    pub(crate) editing: Option<BlockId>,
+    pub(crate) external_events: Vec<super::external::ExternalEvent>,
 }
 
 impl Workspace {
@@ -104,6 +107,7 @@ impl Workspace {
     /// Removes a page and its index entries.
     pub fn remove_page(&mut self, key: &PageKey) -> Option<Page> {
         let page = self.pages.remove(key)?;
+        self.conflicted.remove(key);
         for b in page.blocks.values() {
             self.block_page.remove(&b.id);
             self.uuids.remove(b.uuid);

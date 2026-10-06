@@ -13,6 +13,8 @@ use bitacora_runtime::{McpOptions, QueueGraphWriter, RuntimeEvent, Session};
 use bitacora_sync::writer::{FileChange, GraphWriter, WriterError};
 use common::{PAGE, blocks, config, drain, graph_with, index_has, wait_for};
 
+const LONG: &str = "- Alpha block with some words in it\n- Beta block stays as it is\n";
+
 #[test]
 fn open_reconciles_the_index() {
     let tmp = tempfile::tempdir().unwrap();
@@ -107,7 +109,8 @@ fn external_write_updates_index_and_reloads_core() {
     });
     let now = blocks(&s, &key);
     assert_eq!(now[1].1, "Beta changed outside");
-    assert_ne!(now[1].0, old_ids[1].0, "reload allocates fresh block ids");
+    assert_eq!(now[0].0, old_ids[0].0, "untouched blocks keep their ids");
+    assert_eq!(now[2].0, old_ids[2].0, "untouched blocks keep their ids");
     wait_for("index", Duration::from_secs(10), || {
         index_has(&s, "changed outside").then_some(())
     });
@@ -133,7 +136,7 @@ fn new_and_deleted_external_files_reach_the_index() {
 #[test]
 fn external_change_to_a_dirty_page_never_overwrites_the_file() {
     let tmp = tempfile::tempdir().unwrap();
-    let graph = graph_with(tmp.path(), &[("pages/p.md", PAGE)]);
+    let graph = graph_with(tmp.path(), &[("pages/p.md", LONG)]);
     let mut cfg = config(&graph, &tmp.path().join("data"));
     cfg.debounce = None; // only explicit flushes write
     let s = Session::open(cfg).unwrap();
@@ -146,12 +149,13 @@ fn external_change_to_a_dirty_page_never_overwrites_the_file() {
             "edit",
             Cmd::SetText {
                 id,
-                text: "mine".into(),
+                text: "Alpha block with mine words in it".into(),
             },
         )
         .unwrap();
 
-    let theirs = "- Alpha\n- Beta\n- Theirs\n";
+    // The same block changed on both sides: a real conflict.
+    let theirs = "- Alpha block with theirs words in it\n- Beta block stays as it is\n";
     std::fs::write(graph.join("pages/p.md"), theirs).unwrap();
     wait_for("dirty notice", Duration::from_secs(10), || {
         events.try_iter().find_map(|e| match e {

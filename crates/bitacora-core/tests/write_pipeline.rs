@@ -271,11 +271,11 @@ fn touched_only_file_is_still_written() {
 
 #[test]
 fn externally_modified_file_is_never_overwritten() {
-    let (dir, mut store, mut ws) = fs_graph("- a\n");
-    set_first(&mut ws, "mine");
+    let (dir, mut store, mut ws) = fs_graph("- the quick brown fox jumps over\n");
+    set_first(&mut ws, "the quick brown fox leaps over");
     // Same length, other content and a different mtime: must be caught by the hash.
     let p = dir.path().join("pages/p.md");
-    std::fs::write(&p, "- z\n").unwrap();
+    std::fs::write(&p, "- the quick brown fox bounds over\n").unwrap();
     let f = std::fs::File::options().write(true).open(&p).unwrap();
     f.set_modified(SystemTime::now() + Duration::from_secs(5))
         .unwrap();
@@ -284,7 +284,7 @@ fn externally_modified_file_is_never_overwritten() {
     assert!(r.written.is_empty());
     assert_eq!(
         read(dir.path(), "pages/p.md"),
-        "- z\n",
+        "- the quick brown fox bounds over\n",
         "external bytes intact"
     );
     assert!(ws.page(&key()).unwrap().needs_write());
@@ -418,18 +418,25 @@ fn backups_keep_only_the_newest_six() {
 
 #[test]
 fn keep_mine_backs_up_the_external_version_then_overwrites() {
-    let mut ws = open("- a\n");
+    let mut ws = open("- the quick brown fox jumps over\n");
     let mut store = MemStore::default();
-    store.files.insert(path(), b"- a\n".to_vec());
-    set_first(&mut ws, "mine");
-    store.files.insert(path(), b"- external\n".to_vec());
+    store
+        .files
+        .insert(path(), b"- the quick brown fox jumps over\n".to_vec());
+    set_first(&mut ws, "the quick brown fox leaps over");
+    store
+        .files
+        .insert(path(), b"- the quick brown fox bounds over\n".to_vec());
     assert_eq!(ws.flush(&mut store).conflicts, vec![key()]);
     let r = ws.resolve_keep_mine(&key(), &mut store, SystemTime::now());
     assert!(r.is_complete(), "{r:?}");
-    assert_eq!(store.files[&path()], b"- mine\n");
+    assert_eq!(store.files[&path()], b"- the quick brown fox leaps over\n");
     let baks = bak_files(&store);
     assert_eq!(baks.len(), 1);
-    assert_eq!(store.files[&gp(&baks[0])], b"- external\n");
+    assert_eq!(
+        store.files[&gp(&baks[0])],
+        b"- the quick brown fox bounds over\n"
+    );
     assert!(!ws.page(&key()).unwrap().needs_write());
 }
 
@@ -643,18 +650,25 @@ fn shutdown_flushes_pending_edits() {
 
 #[test]
 fn shutdown_reports_pages_that_could_not_be_saved() {
-    let (dir, store, ws) = fs_graph("- a\n");
+    let (dir, store, ws) = fs_graph("- the quick brown fox jumps over\n");
     let (q, join) = CommandQueue::spawn(ws, Box::new(store), QueueConfig::default());
-    edit(&q, "mine");
-    std::fs::write(dir.path().join("pages/p.md"), "- external, longer\n").unwrap();
+    edit(&q, "the quick brown fox leaps over");
+    std::fs::write(
+        dir.path().join("pages/p.md"),
+        "- the quick brown fox bounds over, longer\n",
+    )
+    .unwrap();
     let (_ws, report) = join.shutdown_with_report().expect("shutdown");
     assert_eq!(report.conflicts, vec![key()]);
-    assert_eq!(read(dir.path(), "pages/p.md"), "- external, longer\n");
+    assert_eq!(
+        read(dir.path(), "pages/p.md"),
+        "- the quick brown fox bounds over, longer\n"
+    );
 }
 
 #[test]
 fn conflicts_are_reported_once_and_resolved_with_keep_mine() {
-    let (dir, store, ws) = fs_graph("- a\n");
+    let (dir, store, ws) = fs_graph("- the quick brown fox jumps over\n");
     let conflicts = Arc::new(Mutex::new(0usize));
     let c = conflicts.clone();
     let cfg = QueueConfig {
@@ -666,8 +680,12 @@ fn conflicts_are_reported_once_and_resolved_with_keep_mine() {
         ..fast()
     };
     let (q, join) = CommandQueue::spawn(ws, Box::new(store), cfg);
-    std::fs::write(dir.path().join("pages/p.md"), "- external!\n").unwrap();
-    edit(&q, "mine");
+    std::fs::write(
+        dir.path().join("pages/p.md"),
+        "- the quick brown fox bounds over!\n",
+    )
+    .unwrap();
+    edit(&q, "the quick brown fox leaps over");
     assert!(wait_for(|| *conflicts.lock().unwrap() == 1));
     std::thread::sleep(Duration::from_millis(300));
     assert_eq!(
@@ -675,7 +693,10 @@ fn conflicts_are_reported_once_and_resolved_with_keep_mine() {
         1,
         "parked, not retried in a loop"
     );
-    assert_eq!(read(dir.path(), "pages/p.md"), "- external!\n");
+    assert_eq!(
+        read(dir.path(), "pages/p.md"),
+        "- the quick brown fox bounds over!\n"
+    );
     let r = q
         .execute(
             Source::Ui,
@@ -686,7 +707,10 @@ fn conflicts_are_reported_once_and_resolved_with_keep_mine() {
         )
         .expect("resolve");
     assert!(matches!(r, Response::Resolved(rep, None) if rep.is_complete()));
-    assert_eq!(read(dir.path(), "pages/p.md"), "- mine\n");
+    assert_eq!(
+        read(dir.path(), "pages/p.md"),
+        "- the quick brown fox leaps over\n"
+    );
     let bak = dir.path().join("logseq/bak/pages/p");
     let files: Vec<_> = std::fs::read_dir(bak).unwrap().collect();
     assert_eq!(files.len(), 1);
