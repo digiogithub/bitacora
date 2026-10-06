@@ -1,0 +1,19 @@
+# Bitacora git attributes.
+#
+# Source files are normalised to LF on every OS.
+* text=auto eol=lf
+
+# Fixtures are test inputs whose exact bytes matter (CRLF, BOM, tabs, trailing
+# whitespace). `-text` disables EOL conversion and BOM handling on checkout
+# (also with core.autocrlf=true on Windows). We keep `diff` enabled so Markdown
+# fixtures stay reviewable; only `linguist-vendored` hides them from language
+# statistics. Integrity is enforced by `cargo xtask fixtures verify`.
+fixtures/** -text linguist-vendored
+
+# Binary assets.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.pdf binary
+*.ico binary
