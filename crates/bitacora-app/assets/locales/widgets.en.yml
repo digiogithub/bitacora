@@ -1,0 +1,19 @@
+widgets:
+  edit_source: Edit
+  query:
+    title: Query results
+    count: "%{count} results"
+    running: Running...
+    view_list: List
+    view_table: Table
+    columns: Columns
+    refresh: Refresh
+    empty: No results
+    error: "Query error: %{message}"
+    unsupported: "Unsupported query: %{message}"
+    truncated: "Only the first %{count} results are shown."
+  embed:
+    loading: Loading embed...
+    missing: The embedded page or block was not found.
+    circular: Circular embed
+    too_deep: "Embeds are nested too deeply (limit %{max})."

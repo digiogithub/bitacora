@@ -941,6 +941,7 @@ impl Workspace {
                 }
             }
             SessionEvent::Index(event) => {
+                crate::views::widgets::on_index_event(&event, cx);
                 for pane in self.panes(cx) {
                     pane.update(cx, |main, cx| main.on_index_event(&event, cx));
                 }
