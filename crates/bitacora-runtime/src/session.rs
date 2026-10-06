@@ -510,7 +510,15 @@ impl Pump {
 
     fn external_upsert(&self, path: &GraphPath, f: &FileEvent) {
         let out = match (self.loaded_page(path), f.bytes.as_ref()) {
-            (Some(key), Some(bytes)) => self.apply(&key, path, bytes.to_vec()),
+            (Some(key), Some(bytes)) => {
+                // The event's bytes were read some debounce intervals ago; a later write of ours
+                // (or another tool's) may have superseded them. Apply what is on disk now so a
+                // stale event can never roll a loaded page back; fall back to the event's bytes
+                // when the file cannot be read.
+                let current =
+                    std::fs::read(path.to_fs_path(&self.root)).unwrap_or_else(|_| bytes.to_vec());
+                self.apply(&key, path, current)
+            }
             _ => None,
         };
         let p = path.to_string();
