@@ -55,3 +55,4 @@ Orchestrated by the main Claude Code session; implementation by Claude Code suba
 - Config: rewrite-edn oracle outputs (needs Babashka).
 - Merge: BIT-SP-0006.R14 second scenario (write `id::` for newly referenced blocks in merge commit) — do in sync orchestration (US-0053). Metadata-only change vs delete keeps delete (documented risk).
 - Requirements verification: needs JUnit via nextest + `gintrack spec ingest` (being prototyped in US-0095).
+- Index: canonical_dump queries blocks_fts_tri_docsize (fails when search.substring off); search.substring config key + persistence (wire in settings US-0107); fuzzy title list cache for huge graphs.
