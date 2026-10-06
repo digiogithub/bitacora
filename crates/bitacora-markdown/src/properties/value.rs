@@ -164,6 +164,10 @@ mod tests {
             pages(&["Mine", "My page alias"])
         );
         assert_eq!(eval("tags", "a，b"), pages(&["a", "b"]));
+        // YAML flow lists are NOT understood by Logseq 0.10.x (`sep-by-comma` on the Plain text
+        // `[a, b]`), so the odd names `[a` and `b]` are what Logseq itself records. Kept for
+        // compatibility; verified against mldoc 1.5.7 (`fixtures/markdown/page-props/cases.txt`).
+        assert_eq!(eval("tags", "[a, b]"), pages(&["[a", "b]"]));
     }
 
     #[test]

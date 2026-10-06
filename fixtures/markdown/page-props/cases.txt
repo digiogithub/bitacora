@@ -175,3 +175,19 @@ good:: w
 tags:: a, b
 tags:: c
 - x
+====
+---
+title: T
+alias:
+  - x
+  - y z
+tags: [a, b]
+---
+- block
+====
+---
+title: T
+tags: [a, b]
+alias: [[c]], d
+---
+- block

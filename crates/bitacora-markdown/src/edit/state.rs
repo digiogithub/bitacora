@@ -13,6 +13,8 @@ use crate::edit::{
 use crate::lines::ParserOptions;
 use crate::properties::scan_properties;
 use crate::span::Span;
+use crate::tasks::timestamp::{days_from_civil, parse_repeater, weekday_name};
+use crate::tasks::{Date, Marker, Time, Timestamp as TaskTimestamp};
 
 /// Where the collapsed state lives (the "store collapse state in files" setting).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -40,13 +42,15 @@ pub fn set_collapsed(content: &str, collapsed: bool, mode: CollapseMode) -> Stri
     }
 }
 
-/// An org-mode timestamp as used by SCHEDULED/DEADLINE.
+/// An org-mode timestamp to write into SCHEDULED/DEADLINE. The weekday is computed; the text is
+/// produced by [`tasks::Timestamp::format`](crate::tasks::Timestamp::format) so reading and
+/// writing share one canonical form.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Timestamp {
     /// `<...>` (true) or `[...]` (false).
     pub active: bool,
     /// Year.
-    pub year: i32,
+    pub year: u32,
     /// Month 1-12.
     pub month: u32,
     /// Day 1-31.
@@ -57,24 +61,48 @@ pub struct Timestamp {
     pub repeater: Option<String>,
 }
 
+impl Timestamp {
+    /// The equivalent read-side timestamp (empty span). A repeater that is not a valid
+    /// `+Nu` / `++Nu` / `.+Nu` token is dropped here; [`fmt::Display`] still writes it verbatim.
+    #[must_use]
+    pub fn to_task_timestamp(&self) -> TaskTimestamp {
+        TaskTimestamp {
+            span: Span::new(0, 0),
+            active: self.active,
+            date: Date {
+                year: self.year,
+                month: self.month,
+                day: self.day,
+            },
+            weekday: weekday_name(
+                i32::try_from(self.year).unwrap_or(i32::MAX),
+                self.month,
+                self.day,
+            )
+            .to_owned(),
+            time: self.time.map(|(hour, min)| Time {
+                hour,
+                min,
+                sec: None,
+            }),
+            end_time: None,
+            repeater: self.repeater.as_deref().and_then(parse_repeater),
+        }
+    }
+}
+
 impl fmt::Display for Timestamp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let (open, close) = if self.active { ('<', '>') } else { ('[', ']') };
-        write!(
-            f,
-            "{open}{:04}-{:02}-{:02} {}",
-            self.year,
-            self.month,
-            self.day,
-            weekday(self.year, self.month, self.day)
-        )?;
-        if let Some((h, m)) = self.time {
-            write!(f, " {h:02}:{m:02}")?;
+        let task = self.to_task_timestamp();
+        let text = task.format();
+        match (&self.repeater, &task.repeater) {
+            // Not a recognised repeater: written as is, like before the unification.
+            (Some(raw), None) => {
+                let close = text.len() - 1;
+                write!(f, "{} {raw}{}", &text[..close], &text[close..])
+            }
+            _ => f.write_str(&text),
         }
-        if let Some(r) = &self.repeater {
-            write!(f, " {r}")?;
-        }
-        write!(f, "{close}")
     }
 }
 
@@ -102,7 +130,7 @@ impl ClockTime {
             self.year,
             self.month,
             self.day,
-            weekday(self.year, self.month, self.day),
+            weekday_name(self.year, self.month, self.day),
             self.hour,
             self.minute,
             self.second
@@ -135,24 +163,6 @@ impl ClockTime {
             second: time.next().map_or(Some(0), |s| s.parse().ok())?,
         })
     }
-}
-
-/// Days since 1970-01-01 for a proleptic Gregorian date.
-fn days_from_civil(y: i32, m: u32, d: u32) -> i64 {
-    let y = i64::from(if m <= 2 { y - 1 } else { y });
-    let era = y.div_euclid(400);
-    let yoe = y - era * 400;
-    let m = i64::from(m);
-    let doy = (153 * (if m > 2 { m - 3 } else { m + 9 }) + 2) / 5 + i64::from(d) - 1;
-    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
-    era * 146_097 + doe - 719_468
-}
-
-fn weekday(y: i32, m: u32, d: u32) -> &'static str {
-    const NAMES: [&str; 7] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-    // 1970-01-01 was a Thursday (index 3).
-    let idx = (days_from_civil(y, m, d) + 3).rem_euclid(7);
-    NAMES[usize::try_from(idx).unwrap_or(0)]
 }
 
 fn set_planning(content: &str, keyword: &str, ts: Option<&Timestamp>) -> String {
@@ -281,20 +291,6 @@ pub fn clock_out(content: &str, now: ClockTime) -> String {
     content.to_owned()
 }
 
-const MARKERS: [&str; 11] = [
-    "TODO",
-    "DOING",
-    "DONE",
-    "LATER",
-    "NOW",
-    "WAITING",
-    "WAIT",
-    "CANCELED",
-    "CANCELLED",
-    "STARTED",
-    "IN-PROGRESS",
-];
-
 /// Offset just after optional ATX hashes + space on the head line.
 fn marker_offset(head: &str) -> usize {
     let hashes = head.bytes().take_while(|&b| b == b'#').count();
@@ -311,18 +307,19 @@ fn marker_offset(head: &str) -> usize {
 /// leaves the content unchanged.
 #[must_use]
 pub fn set_marker(content: &str, marker: Option<&str>) -> String {
-    if marker.is_some_and(|m| !MARKERS.contains(&m)) {
+    if marker.is_some_and(|m| Marker::from_word(m).is_none()) {
         return content.to_owned();
     }
     let head_end = content.find('\n').unwrap_or(content.len());
     let head = &content[..head_end];
     let at = marker_offset(head);
     let rest = &head[at..];
-    let existing = MARKERS
-        .iter()
-        .find(|m| rest.strip_prefix(**m).is_some_and(|r| r.starts_with(' ')));
+    let existing = Marker::ALL.iter().find(|m| {
+        rest.strip_prefix(m.as_str())
+            .is_some_and(|r| r.starts_with(' '))
+    });
     let (from, to) = match existing {
-        Some(m) => (at, at + m.len() + 1),
+        Some(m) => (at, at + m.as_str().len() + 1),
         None => (at, at),
     };
     let insert = marker.map_or_else(String::new, |m| format!("{m} "));

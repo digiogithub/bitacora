@@ -1,0 +1,22 @@
+# Known divergences between bitacora-markdown and the mldoc 1.5.7 oracle, checked by
+# crates/bitacora-markdown/tests/mldoc_corpus.rs.
+#
+# Format: <path under fixtures/>#<block index or "all">:<field> | <reason>
+# Fields: count, start, level, marker, priority, props, pages, blockrefs.
+# An entry that stops diverging fails the test (remove it); a new divergence fails it too (fix the
+# parser or add an entry with a reason). Refresh with BITACORA_MLDOC_REPORT=1.
+
+markdown/divergences/inline-html-and-tag.md#0:pages | Inline HTML without a matching close tag (`<br> [[a]] <br/>`): mldoc swallows the span as HTML so `[[a]]` is not a reference; we keep scanning it as a page ref (conservative: the link is real text for the user).
+markdown/divergences/lone-marker-eof.md#1:marker | `- TODO` as the very last line without a trailing newline: mldoc reads the marker, we need the marker word followed by a space or a newline (a bare marker at EOF is plain title text).
+
+# Divergences that exist but are NOT visible to the compared fields (kept here as documentation;
+# the dedicated oracles in tools/mldoc-diff cover the surrounding behaviour):
+#
+# - Stray `:END:` line: mldoc swallows following bullets into the unterminated drawer; we do not
+#   replicate that (user data is never hidden). Fixture: markdown/divergences/stray-end.md. Block
+#   boundaries agree here, so no entry is needed.
+# - `SCHEDULED: <2024-01-01 Mon +1w 10:30>`: repeater before the time; mldoc ignores the time, we
+#   keep the repeater. Planning dates are compared by the tasks fixtures, not by this harness.
+#   Fixture: markdown/divergences/repeater-time-order.md.
+# - `#[[a]]b`: the tag name/extent differs from mldoc (see the BIT-US-0083 change record); the
+#   referenced page set is identical, so no entry is needed. Fixture: markdown/divergences/inline-html-and-tag.md.

@@ -36,5 +36,7 @@
 {"case":"title:: only","properties":[["title","only"]]},
 {"case":"a::b\nc:: d\n- x","properties":[["c","d"]]},
 {"case":"\"quoted\":: v\ngood:: w\n- a","properties":[["\"quoted\"","v"],["good","w"]]},
-{"case":"tags:: a, b\ntags:: c\n- x","properties":[["tags","a, b"],["tags","c"]]}
+{"case":"tags:: a, b\ntags:: c\n- x","properties":[["tags","a, b"],["tags","c"]]},
+{"case":"---\ntitle: T\nalias:\n  - x\n  - y z\ntags: [a, b]\n---\n- block","properties":[]},
+{"case":"---\ntitle: T\ntags: [a, b]\nalias: [[c]], d\n---\n- block","properties":[["title","T"],["tags","[a, b]"],["alias","[[c]], d"]]}
 ]
