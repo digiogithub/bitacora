@@ -152,6 +152,10 @@ impl Processor {
         if self.echo.is_echo(rel, hash) || prev == Some(hash) {
             return;
         }
+        // Logseq ignores a journal that holds only an empty bullet (an untouched day).
+        if is_blank_journal(rel, &bytes) {
+            return;
+        }
         self.emit(WatchEvent::File(FileEvent {
             rel_path: rel.to_owned(),
             kind: FileEventKind::Upserted,
@@ -235,4 +239,10 @@ pub(crate) fn walk_into(
             visit(rel, &md);
         }
     }
+}
+
+/// A journal file whose trimmed content is just `-`: an untouched day, not worth a re-parse.
+/// (The "equals the default template" case needs the graph config and is not decided here.)
+fn is_blank_journal(rel: &str, bytes: &[u8]) -> bool {
+    rel.starts_with("journals/") && bytes.trim_ascii() == b"-"
 }
