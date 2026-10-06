@@ -29,6 +29,13 @@ pub struct WatchConfig {
     pub poll_fallback: bool,
     /// Skip the OS watcher and only poll (tests, network file systems).
     pub force_polling: bool,
+    /// Interval of the safety rescan that runs next to a working OS watcher, to catch events the
+    /// OS never delivered (FSEvents may drop the files of a freshly created directory). Default
+    /// 30 s on macOS, disabled elsewhere; `None` disables it.
+    pub safety_scan_interval: Option<Duration>,
+    /// Print every raw debounced event to stderr (diagnostics; captured by the test harness and
+    /// shown only when a test fails).
+    pub trace_events: bool,
 }
 
 impl Default for WatchConfig {
@@ -38,6 +45,12 @@ impl Default for WatchConfig {
             poll_interval: Duration::from_secs(5),
             poll_fallback: true,
             force_polling: false,
+            safety_scan_interval: if cfg!(target_os = "macos") {
+                Some(Duration::from_secs(30))
+            } else {
+                None
+            },
+            trace_events: false,
         }
     }
 }
@@ -48,6 +61,7 @@ struct Shared {
     processor: Arc<Mutex<Processor>>,
     sink: Sink,
     poll_interval: Duration,
+    trace_events: bool,
     /// Dropping the sender stops the polling thread.
     poll_stop: Mutex<Option<Sender<()>>>,
 }
@@ -68,12 +82,12 @@ impl Shared {
             ),
             fallback_polling: true,
         }));
+        *stop = Some(self.spawn_poller(self.poll_interval));
+    }
+
+    fn spawn_poller(&self, interval: Duration) -> Sender<()> {
         let poller = Poller::new(self.root.clone(), self.ignore.clone());
-        *stop = Some(poll::spawn(
-            poller,
-            Arc::clone(&self.processor),
-            self.poll_interval,
-        ));
+        poll::spawn(poller, Arc::clone(&self.processor), interval)
     }
 }
 
@@ -82,6 +96,8 @@ impl Shared {
 pub struct GraphWatcher {
     shared: Arc<Shared>,
     _debouncer: Option<Debouncer<RecommendedWatcher, RecommendedCache>>,
+    /// Dropping the sender stops the safety rescan thread.
+    _safety_stop: Option<Sender<()>>,
 }
 
 impl std::fmt::Debug for GraphWatcher {
@@ -126,6 +142,7 @@ impl GraphWatcher {
             processor,
             sink,
             poll_interval: cfg.poll_interval,
+            trace_events: cfg.trace_events,
             poll_stop: Mutex::new(None),
         });
 
@@ -134,6 +151,7 @@ impl GraphWatcher {
             return Ok(Self {
                 shared,
                 _debouncer: None,
+                _safety_stop: None,
             });
         }
 
@@ -158,9 +176,15 @@ impl GraphWatcher {
                 None
             }
         };
+        // Safety net next to a working OS watcher: a slow mtime rescan.
+        let safety_stop = match (&debouncer, cfg.safety_scan_interval) {
+            (Some(_), Some(interval)) if !interval.is_zero() => Some(shared.spawn_poller(interval)),
+            _ => None,
+        };
         Ok(Self {
             shared,
             _debouncer: debouncer,
+            _safety_stop: safety_stop,
         })
     }
 
@@ -189,6 +213,11 @@ impl Drop for GraphWatcher {
 fn handle(shared: &Shared, allow_poll: bool, res: DebounceEventResult) {
     match res {
         Ok(events) => {
+            if shared.trace_events {
+                for ev in &events {
+                    eprintln!("[watch raw] {ev:?}");
+                }
+            }
             let (rescan, ops) = plan(events);
             if rescan {
                 (shared.sink)(WatchEvent::Rescan);
