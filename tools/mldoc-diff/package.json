@@ -1,0 +1,8 @@
+{
+  "name": "mldoc-diff",
+  "private": true,
+  "description": "Differential testing helpers: run mldoc 1.5.7 (the parser Logseq ships) over fixtures",
+  "dependencies": {
+    "mldoc": "1.5.7"
+  }
+}
