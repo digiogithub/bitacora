@@ -8,7 +8,7 @@ milestone: BIT-M-0003
 author: mcp
 labels: [core, io]
 created: 2026-10-06T14:21:13Z
-updated: 2026-10-06T14:21:13Z
+updated: 2026-10-06T15:12:33Z
 ---
 
 ## Description
@@ -20,4 +20,4 @@ Single-writer command queue, debounced atomic writes (temp + fsync + rename), pr
 - Our own writes never trigger a reparse loop.
 
 ## Notes
-ADR-011. See [[block-editor]] §5–6.
+ADR-011. See [[block-editor]] §5–6. ADR-016: the external-edit merge uses the shared `bitacora-merge` crate. ADR-017: merge base kept in memory only (no `file_snapshots`); after restart, reload if clean, else 2-way diff in the conflict notice.

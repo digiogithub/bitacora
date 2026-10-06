@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [core, io]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T14:26:54Z
+updated: 2026-10-06T15:08:30Z
 requirements:
   R1:
     status: backlog
@@ -282,7 +282,7 @@ If the block currently in edit mode (or with an uncommitted buffer) changes on d
 
 ### BIT-SP-0005.R15 — Non-overlapping external edits to a dirty page are merged at block granularity
 
-When a dirty page meets changed disk content (pre-write check or watcher), the core SHOULD run a block-level 3-way merge with base = `parse(disk.bytes)`, theirs = `parse(new bytes)`, ours = the in-memory page, aligning blocks by uuid first, then by `(parent path, text)` LCS. If the sets of changed blocks are disjoint and structural changes do not conflict, theirs' changes SHALL be applied as ops onto ours in a non-undoable "External change" transaction and the page written normally; otherwise the page SHALL go to the conflict path. The merge SHALL never insert conflict markers into files.
+When a dirty page meets changed disk content (pre-write check or watcher), the core SHOULD run a block-level 3-way merge with base = `parse(disk.bytes)`, theirs = `parse(new bytes)`, ours = the in-memory page, aligning blocks by uuid first, then by `(parent path, text)` LCS. The merge SHALL be the shared implementation in the `bitacora-merge` crate (ADR-016). The base is the last bytes Bitacora read or wrote for that file, kept in memory only (ADR-017); there is no on-disk snapshot. If the sets of changed blocks are disjoint and structural changes do not conflict, theirs' changes SHALL be applied as ops onto ours in a non-undoable "External change" transaction and the page written normally; otherwise the page SHALL go to the conflict path. When no base is available (e.g. after a restart), a file with no pending local edits SHALL simply be reloaded, and a page with pending local edits SHALL go to the conflict path with a 2-way per-block diff (disk vs ours). The merge SHALL never insert conflict markers into files.
 
 #### Scenario: Disjoint edits merge
 - GIVEN base `- a\n- b\n- c`, ours edits `a` → `A` (unwritten), theirs edits `c` → `C`
@@ -297,9 +297,15 @@ When a dirty page meets changed disk content (pre-write check or watcher), the c
 - GIVEN ours edits `b` → `b1` and theirs edits `b` → `b2`
 - THEN no write happens and the conflict notice is shown
 
+#### Scenario: No base after restart
+- GIVEN Bitacora restarted and holds no base for `pages/foo.md`
+- WHEN the file changes on disk and the page has no pending local edits
+- THEN the page is reloaded without a prompt
+- AND IF local edits are pending THEN no write happens and the conflict notice shows a 2-way per-block diff
+
 ### BIT-SP-0005.R16 — Unresolvable external changes show a non-modal conflict notice with keep-mine / take-disk / show-diff
 
-When an external change cannot be merged, the app SHALL keep the in-memory version, stop writing that page, and show a non-modal banner on the page "Page changed on disk" with actions [Keep mine (overwrite)], [Take disk version] and [Show diff]. Keep mine SHALL back up the disk version to `logseq/bak` and then write ours. Take disk SHALL back up ours to `logseq/bak`, reload the disk version, and add an undoable transaction restoring ours. Show diff SHALL display a block-level diff of disk vs ours. Other pages SHALL keep saving normally while the banner is open. The conflicted state SHALL also be exposed to MCP writes, which SHALL be refused on that page with an explicit error.
+When an external change cannot be merged, the app SHALL keep the in-memory version, stop writing that page, and show a non-modal banner on the page "Page changed on disk" with actions [Keep mine (overwrite)], [Take disk version] and [Show diff]. Keep mine SHALL back up the disk version to `logseq/bak` and then write ours. Take disk SHALL back up ours to `logseq/bak`, reload the disk version, and add an undoable transaction restoring ours. Show diff SHALL display a block-level diff of disk vs ours; when no merge base is available (after a restart, ADR-017) this 2-way per-block diff is the only comparison offered. Other pages SHALL keep saving normally while the banner is open. The conflicted state SHALL also be exposed to MCP writes, which SHALL be refused on that page with an explicit error.
 
 #### Scenario: Keep mine
 - GIVEN a conflict on `pages/foo.md`

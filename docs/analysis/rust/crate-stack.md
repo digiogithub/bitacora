@@ -118,7 +118,8 @@ bitacora/
 │  ├─ bitacora-markdown/      # lossless outline parser/serializer, inline tokenizer (pulldown-cmark), Logseq dialect quirks, round-trip tests
 │  ├─ bitacora-config/        # config.edn read (edn-rs) + lossless CST edits; app settings (serde)
 │  ├─ bitacora-index/         # rusqlite schema, FTS5, backlinks, incremental reindex from core events  → [[sqlite-index-schema]]
-│  ├─ bitacora-sync/          # git2: commit cadence, fetch/merge/push, block-level 3-way merge (diffy/imara-diff), credentials (keyring) → [[git-sync-merge]]
+│  ├─ bitacora-merge/         # block-aware 3-way merge (ADR-016)
+│  ├─ bitacora-sync/          # (see ADR-007: git CLI + gix) commit cadence, fetch/merge/push, block-level 3-way merge (diffy/imara-diff), credentials (keyring) → [[git-sync-merge]]
 │  ├─ bitacora-watch/         # notify-debouncer-full wrapper, echo suppression (can live inside core if small)
 │  ├─ bitacora-mcp/           # rmcp tools/resources over core+index; axum streamable-HTTP + stdio transports → [[mcp-server]]
 │  ├─ bitacora-app/           # GPUI binary: gpui-kit, views, BlockEditor, keymaps, themes, i18n, tokio bridge, packaging metadata

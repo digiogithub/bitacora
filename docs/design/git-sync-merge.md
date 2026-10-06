@@ -125,15 +125,18 @@ On start: if `.git/bitacora/merge-state.json` exists → restore `Conflicted`. I
 | **gix** (gitoxide, v0.88.0, Sept 2026) | Pure Rust, fast, safe, good for status/diff/blob reads, merge-base, tree diff; per `crate-status.md` now also has push, tree merge, checkout/reset | Pre-1.0 API churn (minor bumps break); network transport shells out to `ssh` (good) but HTTP auth goes through its own credential-helper implementation; newest write paths (push, rebase) less battle-tested than git CLI |
 | **git CLI** (`std::process::Command`) | Exact behaviour users expect; **all auth works**: `~/.ssh/config`, ssh-agent / Pageant / 1Password agent, `credential.helper` (osxkeychain, libsecret, manager), GCM OAuth for GitHub/GitLab/Azure; hooks, signing, LFS respected | Needs git installed (macOS: Xcode CLT; Windows: Git for Windows); parse porcelain output; process spawn cost (~5–20 ms) |
 
-**Recommendation: hybrid**
-- **Network + ref-writing ops via git CLI**: `fetch`, `push`, `commit` (plain `git commit`, so user hooks and signing config apply; merge commits are built with `git commit-tree` + `git update-ref` from the tree that gix wrote), `clone`, `ls-remote`. Run with `GIT_TERMINAL_PROMPT=0`, `GIT_ASKPASS=<bitacora askpass helper>` (prompts in the app UI when a helper has nothing), `LC_ALL=C`, `-c core.quotepath=false`, `-c core.autocrlf=false`. Bundle **MinGit** on Windows (Logseq bundles git via `dugite`, same idea) and fall back to the system git if newer; on macOS/Linux require system git ≥ 2.38 and detect at startup.
+**Recommendation: hybrid with a pure-Rust fallback (ADR-007 amended by ADR-020)**
+- **Git is not bundled** (no MinGit, ADR-020). At startup Bitacora detects a system `git` on `PATH` (or `sync.git_binary`) and checks the minimum version (≥ 2.38). If found, the hybrid split below applies (`CliBackend` + `GixBackend`). If not found (or too old), a **gix-only backend** handles everything, including fetch/push/clone/commit/update-ref: HTTPS credentials via gix's credential handling backed by the OS keyring (`keyring` crate) and the in-app prompt, SSH via the gix transport. The UI shows which backend is active and, when auth fails on the gix fallback, suggests installing git.
+- **Network + ref-writing ops via git CLI**: `fetch`, `push`, `commit` (plain `git commit`, so user hooks and signing config apply; merge commits are built with `git commit-tree` + `git update-ref` from the tree that gix wrote), `clone`, `ls-remote`. Run with `GIT_TERMINAL_PROMPT=0`, `GIT_ASKPASS=<bitacora askpass helper>` (prompts in the app UI when a helper has nothing), `LC_ALL=C`, `-c core.quotepath=false`, `-c core.autocrlf=false`. Used only when a system git ≥ 2.38 is detected; git is never bundled (ADR-020).
 - **Read-side via `gix`**: status/dirty detection, reading base/ours/theirs blobs, merge-base, tree diffs with rename detection, building the merged tree objects (`write_blob`, tree editor). This avoids hundreds of process spawns during a merge and keeps the merge pure Rust and testable.
-- Abstract behind a `GitBackend` trait (`fetch`, `push`, `merge_base`, `read_blob`, `diff_trees`, `write_tree`, `commit`, `update_ref`, `status`) with a `CliBackend` and `GixBackend`; tests use a temp-dir repo. Re-evaluate moving fetch/push to gix once its auth story (ssh config, GCM) matches the CLI.
+- Abstract behind a `GitBackend` trait (`fetch`, `push`, `merge_base`, `read_blob`, `diff_trees`, `write_tree`, `commit`, `update_ref`, `status`) with a `CliBackend` and `GixBackend`; the `GixBackend` also implements the network and ref-writing ops so it can run alone (ADR-020). Tests use a temp-dir repo, and the sync integration suite runs against both backends (CLI-hybrid and gix-only).
 - Never let git's text merge touch `.md`: put `*.md merge=binary` (and `logseq/config.edn merge=binary`) in `.git/info/attributes`. With the built-in `binary` driver an accidental `git merge`/`git pull` run by the user keeps "ours" in the work tree and marks the path conflicted **without inserting markers**; Bitacora detects the unmerged index entries on its next tick and resolves those paths with its own merge (§5.4).
 
 ---
 
 ## 4. Block-aware 3-way merge
+
+The algorithm of this section (model, matching, classification, `merge_page`, byte-preserving emit) lives in the crate **`bitacora-merge`** (`crates/bitacora-merge/`, depends only on `bitacora-markdown`), so `bitacora-sync` (git) and `bitacora-core` (external edits, [[block-editor]] §6.2) share one implementation (ADR-016). `bitacora-sync` keeps only the git-specific parts: orchestration over trees, renames, persisted merge state, resolution memo and external-marker import.
 
 ### 4.1 Model
 
@@ -354,7 +357,7 @@ Read as UTF-8 (BOM stripped and restored per file), compare normalised, write wi
 | `sync.squash_auto_commits` | true |
 | `sync.author_name/email` | from onboarding |
 | `sync.collapsed_policy` | `ours` |
-| `sync.git_binary` | auto-detect / bundled |
+| `sync.git_binary` | auto-detect on `PATH`; none found → gix-only backend (ADR-020) |
 
 ---
 
@@ -383,6 +386,6 @@ Read as UTF-8 (BOM stripped and restored per file), compare normalised, write wi
 2. Should `collapsed::` be moved out of files into device-local state (fewer diffs) while keeping Logseq compatibility (Logseq writes it)?
 3. Fuzzy matching threshold (0.6) and the risk of mis-pairing short blocks like "- TODO" — needs a corpus test from real graphs.
 4. Should Bitacora auto-add `id::` to every block (stable identity, better merges) at the cost of noisier files vs Logseq's "only when referenced"?
-5. Bundle git on macOS/Linux too (AppImage/Flatpak sandboxes may lack it) or require system git?
+5. ~~Bundle git on macOS/Linux too or require system git?~~ **Resolved (ADR-020):** never bundle; use system git when present, else the gix-only backend.
 6. Whiteboards: is a shape-level merge (tldraw JSON by shape id) worth doing in v2?
 7. Multiple remotes / multi-branch per device for "drafts"? Out of scope for v1.

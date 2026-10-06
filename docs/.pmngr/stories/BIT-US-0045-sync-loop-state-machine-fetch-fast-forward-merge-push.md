@@ -10,7 +10,7 @@ author: mcp
 labels: [git, sync, state-machine]
 estimate: 13
 created: 2026-10-06T14:28:30Z
-updated: 2026-10-06T14:28:30Z
+updated: 2026-10-06T15:15:56Z
 ---
 
 ## Description
@@ -23,7 +23,7 @@ As a user with several devices, I want Bitacora to fetch, integrate and push aut
 - Plain push; non-fast-forward → refetch, max 5 attempts with 1–8 s jitter → `Error(PushRejectedLoop)`.
 - Offline back-off 30 s → 10 min cap, reset on network change; local commits continue.
 - Never runs while a write transaction is pending; flushes editors before merging.
-- Two clones syncing through a temp bare repo converge in integration tests.
+- Two clones syncing through a temp bare repo converge in integration tests, with the suite run against both backends (system git hybrid and gix-only, BIT-T-0376).
 
 ## Notes
-Implements: BIT-SP-0006.R4, BIT-SP-0006.R5, BIT-SP-0006.R7, BIT-SP-0006.R14. See [[git-sync-merge]] §2.2–2.5, §6. ADR-007, ADR-011.
+Implements: BIT-SP-0006.R4, BIT-SP-0006.R5, BIT-SP-0006.R7, BIT-SP-0006.R14. See [[git-sync-merge]] §2.2–2.5, §6. ADR-007, ADR-011, ADR-020.

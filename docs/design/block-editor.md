@@ -69,7 +69,7 @@ pub struct Page {
 }
 
 pub struct DiskSnapshot {
-    pub bytes: Arc<[u8]>,                  // last bytes read from or written to disk (merge base)
+    pub bytes: Arc<[u8]>,                  // last bytes read from or written to disk (merge base; in memory only, ADR-017)
     pub hash: blake3::Hash,
     pub mtime: SystemTime,
     pub len: u64,
@@ -339,6 +339,12 @@ if the changed block sets are disjoint and structural changes do not conflict â†
 else â†’ conflict: keep ours in memory, show a non-modal banner "Page changed on disk" with
    [Keep mine (overwrite)] [Take disk version] [Show diff] (per-block conflict markers later)
 ```
+
+The merge itself is `bitacora_merge::merge_page` from the `bitacora-merge` crate, shared with git sync
+(ADR-016); core only adapts its result into ops. The base is the in-memory `DiskSnapshot.bytes`; there is no
+on-disk snapshot store (no `file_snapshots` table, ADR-017). After a restart there is no base for a file that was not
+loaded/touched since: an external change with no pending local edits is simply reloaded; if local edits are pending,
+Bitacora falls back to a 2-way per-block diff (disk vs ours) surfaced in the "Page changed on disk" notice.
 
 Logseq simply refuses to write and opens a diff modal (`src/main/frontend/handler/events.cljs:374-380`,
 `src/main/frontend/components/diff.cljs:27`). The merge above handles the common case silently: Logseq or git

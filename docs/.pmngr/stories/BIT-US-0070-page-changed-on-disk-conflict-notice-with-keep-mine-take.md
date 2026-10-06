@@ -10,7 +10,7 @@ author: mcp
 labels: [ui, io, bitacora-app, bitacora-core]
 estimate: 5
 created: 2026-10-06T14:29:01Z
-updated: 2026-10-06T14:29:01Z
+updated: 2026-10-06T15:12:33Z
 ---
 
 ## Description
@@ -22,8 +22,9 @@ As a user whose page was edited both in Bitacora and elsewhere, I want a clear n
 - Keep mine: back up disk version to `logseq/bak`, write ours (with fresh hash check).
 - Take disk: back up ours, reload disk version, push an undoable transaction to restore ours.
 - Show diff: block-level side-by-side diff of disk vs ours.
+- No merge base available (after restart, ADR-017) with pending local edits: the page goes straight to this notice and Show diff presents a 2-way per-block diff (disk vs ours).
 - MCP writes to a conflicted page are refused with "page has an unresolved on-disk conflict".
 
 ## Notes
 Implements: BIT-SP-0005.R16.
-See [[block-editor]] §6.2, §9 item 14; [[04-editor-outliner-operations]] §5 steps 7–8 (Logseq diff modal); [[mcp-server]]. ADR-011.
+See [[block-editor]] §6.2, §9 item 14; [[04-editor-outliner-operations]] §5 steps 7–8 (Logseq diff modal); [[mcp-server]]. ADR-011, ADR-017.

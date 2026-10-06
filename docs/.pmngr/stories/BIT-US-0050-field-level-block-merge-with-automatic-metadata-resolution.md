@@ -5,12 +5,12 @@ title: Field-level block merge with automatic metadata resolution
 status: backlog
 priority: critical
 parent: BIT-EP-0012
-milestone: BIT-M-0004
+milestone: BIT-M-0003
 author: mcp
 labels: [merge, sync, metadata]
 estimate: 8
 created: 2026-10-06T14:28:30Z
-updated: 2026-10-06T14:28:30Z
+updated: 2026-10-06T15:17:28Z
 ---
 
 ## Description
@@ -25,3 +25,5 @@ As a user editing on several devices, I want metadata differences (collapsed sta
 
 ## Notes
 Implements: BIT-SP-0006.R10, BIT-SP-0006.R11, BIT-SP-0006.R13. See [[git-sync-merge]] §4.3, [[02-markdown-block-syntax]] §5.3–5.4. ADR-009.
+ADR-016: implemented in the `bitacora-merge` crate (`crates/bitacora-merge/src/{fields,meta,marker}.rs`), shared by `bitacora-core` and `bitacora-sync`.
+Needed by BIT-US-0069 (ADR-016).

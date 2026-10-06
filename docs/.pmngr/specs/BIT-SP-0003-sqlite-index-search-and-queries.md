@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [index, search]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T14:24:44Z
+updated: 2026-10-06T15:08:30Z
 requirements:
   R1:
     status: backlog
@@ -92,7 +92,7 @@ The system SHALL keep `schema_version` in `PRAGMA user_version` and `parser_vers
 
 ### BIT-SP-0003.R3 — Schema v1 tables, FTS tables and derived views
 
-The system SHALL create the schema defined in [[sqlite-index-schema]] §3: tables `meta`, `files`, `file_snapshots`, `pages`, `page_aliases`, `page_tags`, `blocks`, `block_page_refs`, `block_block_refs`, `block_properties`, `block_property_values`, `diagnostics`; FTS5 tables `blocks_fts` (`unicode61 remove_diacritics 2`, prefix 2 3), `blocks_fts_tri` (`trigram`) and `pages_fts` (`trigram`) as external-content tables maintained by triggers; and the views `block_path_refs`, `page_properties`, `page_property_values` and `tasks`. Connections SHALL be opened with WAL, `synchronous=NORMAL`, `foreign_keys=ON`, `busy_timeout=5000` and a bundled SQLite >= 3.45.
+The system SHALL create the schema defined in [[sqlite-index-schema]] §3: tables `meta`, `files`, `pages`, `page_aliases`, `page_tags`, `blocks`, `block_page_refs`, `block_block_refs`, `block_properties`, `block_property_values`, `diagnostics`; FTS5 tables `blocks_fts` (`unicode61 remove_diacritics 2`, prefix 2 3), `blocks_fts_tri` (`trigram`) and `pages_fts` (`trigram`) as external-content tables maintained by triggers; and the views `block_path_refs`, `page_properties`, `page_property_values` and `tasks`. There is no `file_snapshots` table: the merge base for external edits is kept in memory only (ADR-017). Connections SHALL be opened with WAL, `synchronous=NORMAL`, `foreign_keys=ON`, `busy_timeout=5000` and a bundled SQLite >= 3.45.
 
 #### Scenario: Fresh schema
 - GIVEN an empty data directory
@@ -125,7 +125,7 @@ The system SHALL store each file's outline as pre-order `ord`, `subtree_end`, `d
 
 ### BIT-SP-0003.R5 — Transactional per-file replace with page upsert and placeholder GC
 
-The system SHALL replace all rows derived from one file (blocks, refs, properties, aliases, tags, diagnostics, snapshot) in a single `BEGIN IMMEDIATE` transaction; SHALL upsert pages by normalized name (`page-name-sanity-lc`) so `pages.id` stays stable; SHALL demote a page whose defining file disappeared or no longer defines it to a placeholder (`file_id = NULL`); and SHALL garbage-collect placeholder pages that nothing references, never deleting built-in pages (`TODO`, `DONE`, `A`, `B`, `C`, `Contents`, `Favorites`, `card`). Readers SHALL never observe a partially replaced file.
+The system SHALL replace all rows derived from one file (blocks, refs, properties, aliases, tags, diagnostics) in a single `BEGIN IMMEDIATE` transaction; SHALL upsert pages by normalized name (`page-name-sanity-lc`) so `pages.id` stays stable; SHALL demote a page whose defining file disappeared or no longer defines it to a placeholder (`file_id = NULL`); and SHALL garbage-collect placeholder pages that nothing references, never deleting built-in pages (`TODO`, `DONE`, `A`, `B`, `C`, `Contents`, `Favorites`, `card`). Readers SHALL never observe a partially replaced file. No file content snapshot is stored in the index (ADR-017).
 
 #### Scenario: Placeholder GC
 - GIVEN `pages/a.md` is the only file containing `[[Zeta]]` and no `zeta.md` exists
@@ -248,7 +248,7 @@ The system SHALL record in `diagnostics` (with file, kind, severity, line and me
 
 ### BIT-SP-0003.R12 — Block UUID carry-over across reparses
 
-The system SHOULD keep block UUIDs stable across reparses of a file when `id::` is absent, assigning UUIDs with precedence explicit `id::` (`uuid_source = 1`) > carried over by a Myers/patience diff of `(depth, content_hash)` sequences with positional pairing at similarity >= 0.5 (`uuid_source = 2`) > fresh UUIDv7 (`uuid_source = 0`), and SHALL expose `uuid_source` so the editor writes `id::` before a block is referenced. File renames detected by equal hash SHOULD carry UUIDs from the old path. A zstd snapshot of the last indexed content SHOULD be kept in `file_snapshots` as the diff baseline.
+The system SHOULD keep block UUIDs stable across reparses of a file when `id::` is absent, assigning UUIDs with precedence explicit `id::` (`uuid_source = 1`) > carried over by a Myers/patience diff of `(depth, content_hash)` sequences with positional pairing at similarity >= 0.5 (`uuid_source = 2`) > fresh UUIDv7 (`uuid_source = 0`), and SHALL expose `uuid_source` so the editor writes `id::` before a block is referenced. File renames detected by equal hash SHOULD carry UUIDs from the old path. The diff baseline is the file's previous `blocks` rows (including their `content`), read before the per-file replace; no `file_snapshots` table is kept (ADR-017).
 
 #### Scenario: Edit elsewhere keeps UUID
 - GIVEN a page with blocks A, B, C without `id::` and B's index UUID is U

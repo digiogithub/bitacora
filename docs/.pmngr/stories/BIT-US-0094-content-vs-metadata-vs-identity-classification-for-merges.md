@@ -10,7 +10,7 @@ author: mcp
 labels: [markdown, compat, merge]
 estimate: 3
 created: 2026-10-06T14:30:45Z
-updated: 2026-10-06T14:30:45Z
+updated: 2026-10-06T15:11:13Z
 ---
 
 ## Description
@@ -24,4 +24,4 @@ As the git sync engine, I want `bitacora-markdown` to classify every property li
 
 ## Notes
 Implements: BIT-SP-0001.R16.
-See [[02-markdown-block-syntax]] §5.4; [[git-sync-merge]]; ADR-008, ADR-009. Consumed by BIT-EP-0012.
+See [[02-markdown-block-syntax]] §5.4; [[git-sync-merge]]; ADR-008, ADR-009. Consumed by the `bitacora-merge` crate (ADR-016), which serves both BIT-EP-0012 (git) and BIT-US-0069 (external edits); classification stays in `bitacora-markdown`, merge logic built on it lives in `bitacora-merge`.

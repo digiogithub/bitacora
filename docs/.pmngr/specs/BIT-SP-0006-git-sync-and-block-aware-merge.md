@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [git, sync, merge]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T14:26:22Z
+updated: 2026-10-06T15:14:25Z
 requirements:
   R1:
     status: backlog
@@ -151,24 +151,34 @@ Network failures during fetch/push SHALL set state `Offline` without losing loca
 - WHEN the OS reports network up
 - THEN a sync starts immediately and the back-off resets to 30 s
 
-### BIT-SP-0006.R6 — Git CLI for network and ref writes, gix for reads, behind GitBackend
+### BIT-SP-0006.R6 — System git CLI for network and ref writes when installed, gix otherwise, behind GitBackend
 
-Per ADR-007 the system SHALL run `fetch`, `push`, `commit`, `commit-tree`, `update-ref`, `clone` and `ls-remote` through the git CLI with `GIT_TERMINAL_PROMPT=0`, `GIT_ASKPASS=<bitacora askpass helper>`, `LC_ALL=C`, `-c core.quotepath=false`, `-c core.autocrlf=false`, so SSH agents, `~/.ssh/config`, credential helpers and Git Credential Manager work on Linux, macOS and Windows. It SHOULD use `gix` for status, blob/tree reads, merge-base, tree diffs with rename detection and writing merged trees. Both SHALL sit behind a `GitBackend` trait (git2 only as optional fallback implementation). The system SHALL detect git ≥ 2.38 at startup (bundled MinGit on Windows) and report a clear error otherwise.
+Per ADR-007 as amended by ADR-020, git SHALL NOT be bundled. At startup the system SHALL detect a system `git` (setting `sync.git_binary`, else `PATH`) and check its version (≥ 2.38). When a suitable git is found, the system SHALL run `fetch`, `push`, `commit`, `commit-tree`, `update-ref`, `clone` and `ls-remote` through the git CLI with `GIT_TERMINAL_PROMPT=0`, `GIT_ASKPASS=<bitacora askpass helper>`, `LC_ALL=C`, `-c core.quotepath=false`, `-c core.autocrlf=false`, so SSH agents, `~/.ssh/config`, credential helpers and Git Credential Manager work on Linux, macOS and Windows. When no suitable git is found, the system SHALL use a pure-Rust `gix` backend for all operations, including fetch, push, clone, commit and ref updates, with HTTPS credentials from the OS keyring / in-app prompt and SSH via the gix transport. It SHOULD use `gix` for status, blob/tree reads, merge-base, tree diffs with rename detection and writing merged trees in both modes. All backends SHALL sit behind a `GitBackend` trait (git2 only as optional fallback implementation). The UI SHALL show which backend is active and SHALL suggest installing git when authentication fails on the gix fallback.
 
 #### Scenario: SSH host alias
-- GIVEN remote `git@work:me/notes.git` and `~/.ssh/config` defines `Host work` with an `IdentityFile`
+- GIVEN system git is installed, remote `git@work:me/notes.git` and `~/.ssh/config` defines `Host work` with an `IdentityFile`
 - WHEN sync fetches
 - THEN the fetch succeeds using the CLI's ssh configuration
 
 #### Scenario: Missing credentials
-- GIVEN an HTTPS remote and no credential helper
+- GIVEN system git is installed, an HTTPS remote and no credential helper
 - WHEN push needs a password
 - THEN git invokes the Bitacora askpass helper, the app shows a credential prompt, and git never blocks on a terminal prompt
 
 #### Scenario: Old git
 - GIVEN the system git is 2.30
 - WHEN sync is enabled
-- THEN state is `Error(GitTooOld)` with text "git ≥ 2.38 required"
+- THEN the gix-only backend is selected and the status shows "gix (system git 2.30 < 2.38 ignored)"
+
+#### Scenario: No git installed
+- GIVEN no `git` on `PATH` and an HTTPS remote whose token is stored in the OS keyring
+- WHEN sync runs
+- THEN fetch, merge commit and push complete through the gix backend and the status indicator shows the gix backend as active
+
+#### Scenario: Auth fails on fallback
+- GIVEN the gix backend is active and SSH auth fails
+- WHEN the error is shown
+- THEN the message suggests installing git to use the system SSH configuration
 
 ### BIT-SP-0006.R7 — Serialize sync with the graph write lock and flush editors first
 

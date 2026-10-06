@@ -64,7 +64,8 @@ flowchart LR
   MDP["bitacora-markdown (lossless parser/serializer)"]
   IDX["bitacora-index (SQLite + FTS5)"]
   W["bitacora-watch (notify)"]
-  SYNC["bitacora-sync (git CLI + gix, block merge)"]
+  SYNC["bitacora-sync (git CLI + gix)"]
+  MRG["bitacora-merge (block 3-way merge)"]
   MCP["bitacora-mcp (rmcp + axum, tokio)"]
   AG["AI agents"]
 
@@ -81,6 +82,9 @@ flowchart LR
   IDX --> MCP
   SYNC <--> GIT
   SYNC -- "merged files" --> CQ
+  SYNC --> MRG
+  CQ --> MRG
+  MRG <--> MDP
 ```
 
 Key rules:
@@ -101,7 +105,8 @@ See [[crate-stack]] §5. Summary:
 | `bitacora-core` | Graph/Page/Block model, title ↔ path mapping, `Op` enum, transactions, undo, journals, command queue, writer |
 | `bitacora-watch` | `notify` + debouncer, echo suppression |
 | `bitacora-index` | rusqlite schema, migrations, incremental reindex, search, backlinks, query DSL → SQL |
-| `bitacora-sync` | `GitBackend` (CLI + gix), sync loop, block-aware 3-way merge, conflict model |
+| `bitacora-merge` | Block-aware 3-way merge of Logseq pages: block matching, metadata auto-resolution, conflict model (ADR-016) |
+| `bitacora-sync` | `GitBackend` (CLI + gix), sync loop, uses `bitacora-merge`, persisted conflict state |
 | `bitacora-mcp` | rmcp tools/resources/prompts, axum Streamable HTTP, auth |
 | `bitacora-app` | GPUI binary: views, BlockEditor, keymaps, themes, i18n, tokio bridge |
 | `bitacora-cli` | Headless binary: `serve` (MCP without UI), `reindex`, `sync`, `doctor` |
@@ -126,6 +131,12 @@ See [[crate-stack]] §5. Summary:
 | ADR-013 | Logseq naming: support both `:file/name-format :triple-lowbar` and legacy; missing key = legacy | [[01-file-graph-layout]] |
 | ADR-014 | License MIT. Never copy code from GPL Zed crates; `cargo deny` license check in CI | GPUI is Apache-2.0; most Zed crates are GPL. |
 | ADR-015 | **Clean-room compatibility with Logseq.** Logseq is AGPL-3.0: never copy or translate its source code, templates or test files into Bitacora. Re-implement behaviour from the specs in `docs/analysis/`, write our own test vectors (facts such as "`a/b` maps to `a___b.md`" are fine), and only use Logseq-produced graphs as fixtures when their license allows it | Keeps the MIT license valid. |
+| ADR-016 | Block-aware 3-way merge lives in its own crate **`bitacora-merge`** (depends only on `bitacora-markdown`); used by `bitacora-core` for external edits (M2, BIT-US-0069) and by `bitacora-sync` for git (M3, BIT-EP-0012). Content/metadata classification stays in `bitacora-markdown` | One implementation, testable in isolation with the golden merge matrix. |
+| ADR-017 | Merge base for external edits is kept **in memory only**: the last bytes Bitacora read or wrote for each loaded/touched file (`HashMap<FileId, Arc<[u8]>>` in core). No `file_snapshots` table. After a restart there is no base: an external change to a file with no pending local edits is simply reloaded; if local edits are pending, fall back to a 2-way per-block diff surfaced in the conflict notice | Simplicity and zero disk cost; git history covers long-term recovery. |
+| ADR-018 | Auto-update with **Velopack**, validated by an early spike (M0/M1) against cargo-packager bundles; fallback = update notice + download link from GitHub Releases | [[crate-stack]] |
+| ADR-020 | **Git is not bundled.** At startup detect a system `git` (on `PATH`, minimum version checked); if present, `CliBackend` handles network and commits (ADR-007). If absent, fall back to a **pure-Rust backend on `gix`** for everything, including fetch/push/commit (HTTPS via credential store/keyring, SSH via `gix` transport). Both behind the `GitBackend` trait; the UI shows which backend is active and suggests installing git when auth fails on the fallback | User preference: no MinGit bundling; app still works without git installed. Amends ADR-007. |
+| ADR-021 | The **`logseq/docs`** graph (MIT-licensed, github.com/logseq/docs) may be used as a test fixture: copy only `pages/`, `journals/`, `logseq/config.edn` from a pinned file-graph-era commit, plus its `LICENSE.md` and a provenance note; no large media (`assets/`, `gifs/`, `screenshots/`) | Real-world corpus with compatible license. |
+| ADR-019 | Pando local config (`.pando.toml`) and data (`.pando/`) are not versioned (gitignored) | Machine-local paths and state. |
 
 ## 6. Milestones
 
@@ -141,7 +152,6 @@ The backlog lives in gintrack project **BIT** (`docs/.pmngr`).
 
 ## 7. Open decisions
 
-- Snapshot storage for external-edit 3-way merges (base = last content Bitacora wrote/read; stored compressed in the index DB vs in memory only).
-- Auto-update channel (Velopack vs notice + download) — see [[crate-stack]].
-- Minimum git version on macOS/Linux and MinGit bundling on Windows.
-- The block-level 3-way merge is first needed in M2 for external edits (BIT-US-0069) and reused by git sync in M3 (BIT-EP-0012): implement it once in a shared module (`bitacora-core::merge` or a `bitacora-merge` crate) — decide before starting BIT-US-0069.
+- Minimum system git version accepted by `CliBackend` (proposal: 2.38).
+
+Resolved on 2026-10-06: merge location (ADR-016), external-edit merge base (ADR-017), auto-update channel (ADR-018), pando config not versioned (ADR-019), git without bundling + gix fallback (ADR-020), `logseq/docs` fixture (ADR-021).

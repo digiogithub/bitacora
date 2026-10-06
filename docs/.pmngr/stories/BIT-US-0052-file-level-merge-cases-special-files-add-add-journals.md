@@ -10,7 +10,7 @@ author: mcp
 labels: [merge, sync, files]
 estimate: 8
 created: 2026-10-06T14:28:30Z
-updated: 2026-10-06T14:28:30Z
+updated: 2026-10-06T15:10:56Z
 ---
 
 ## Description
@@ -25,3 +25,4 @@ As a user, I want config, CSS, whiteboards, assets, concurrently created journal
 
 ## Notes
 Implements: BIT-SP-0006.R17, BIT-SP-0006.R18, BIT-SP-0006.R19. See [[git-sync-merge]] §5, [[01-file-graph-layout]], [[05-git-and-apis]] §1.5 (journal template guard).
+ADR-016: add/add page merge and line diff3 live in `bitacora-merge`; path policies (incl. `config.edn` via `bitacora-config`), renames, delete/modify and asset copies stay in `bitacora-sync`.

@@ -11,7 +11,7 @@ All code, comments, commit messages, docs and backlog items are written in **Eng
    - Markdown parsing/serialization → `docs/analysis/logseq/02-markdown-block-syntax.md`, `docs/analysis/logseq/01-file-graph-layout.md`
    - Editor / outliner ops → `docs/design/block-editor.md`, `docs/analysis/logseq/04-editor-outliner-operations.md`
    - Index / search / queries → `docs/design/sqlite-index-schema.md`, `docs/analysis/logseq/03-parsing-indexing-search.md`
-   - Git sync / merge → `docs/design/git-sync-merge.md`, `docs/analysis/logseq/05-git-and-apis.md`
+   - Git sync / merge (`bitacora-merge`, `bitacora-sync`) → `docs/design/git-sync-merge.md`, `docs/analysis/logseq/05-git-and-apis.md`
    - MCP server → `docs/design/mcp-server.md`
    - UI / crates → `docs/analysis/rust/gpui-and-gpui-kit.md`, `docs/analysis/rust/crate-stack.md`
 3. The backlog item you are implementing (see §5).
@@ -28,7 +28,8 @@ crates/
   bitacora-core/           # model, title<->path, Op/transactions/undo, command queue, writer
   bitacora-watch/          # notify + debouncer, echo suppression
   bitacora-index/          # rusqlite + FTS5, reindex pipeline, search, query DSL
-  bitacora-sync/           # GitBackend (git CLI + gix), sync loop, block-aware 3-way merge
+  bitacora-merge/          # block-aware 3-way merge (used by core for external edits and by sync for git)
+  bitacora-sync/           # GitBackend (git CLI + gix), sync loop, conflict state
   bitacora-mcp/            # rmcp + axum Streamable HTTP server
   bitacora-app/            # GPUI Kit desktop binary (the ONLY crate depending on gpui-kit)
   bitacora-cli/            # headless binary (serve, reindex, sync, doctor)
@@ -37,7 +38,7 @@ fixtures/graphs/           # Logseq sample graphs used by tests
 docs/                      # knowledge base (Markdown, wikilinks) + gintrack backlog in docs/.pmngr
 ```
 
-Dependency direction: `markdown` ← `core` ← {`index`, `sync`, `mcp`} ← {`app`, `cli`}. Never add a reverse edge.
+Dependency direction: `markdown` ← `merge` ← `core` ← {`index`, `sync`, `mcp`} ← {`app`, `cli`} (`sync` also uses `merge` directly). Never add a reverse edge.
 
 ## 3. Non-negotiable rules
 

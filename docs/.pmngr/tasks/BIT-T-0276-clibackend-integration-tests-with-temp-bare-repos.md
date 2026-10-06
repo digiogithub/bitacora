@@ -10,7 +10,7 @@ author: mcp
 labels: [bitacora-sync, git, testing]
 estimate: 2
 created: 2026-10-06T14:32:57Z
-updated: 2026-10-06T14:32:57Z
+updated: 2026-10-06T15:15:35Z
 ---
 
 ## Description
@@ -18,6 +18,7 @@ updated: 2026-10-06T14:32:57Z
 
 ## Acceptance Criteria
 - Runs on Linux/macOS/Windows CI in < 10 s.
+- The same scenarios run against the gix-only backend (shared `tests/support`, see BIT-T-0376).
 
 ## Notes
-Story BIT-US-0041. Verifies BIT-SP-0006.R3, BIT-SP-0006.R4, BIT-SP-0006.R6. AGENTS.md §6.
+Story BIT-US-0041. Verifies BIT-SP-0006.R3, BIT-SP-0006.R4, BIT-SP-0006.R6. AGENTS.md §6. ADR-020.

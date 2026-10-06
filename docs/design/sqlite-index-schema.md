@@ -111,6 +111,7 @@ CREATE TABLE files (
 
 -- Last indexed content (zstd). Baseline for UUID carry-over diffs,
 -- "modified on disk" diffs and 3-way merges. Optional (see Open questions).
+-- NOTE: dropped by ADR-017 (merge base kept in memory). Kept here for reference only; do not implement.
 CREATE TABLE file_snapshots (
   file_id  INTEGER PRIMARY KEY REFERENCES files(id) ON DELETE CASCADE,
   content  BLOB NOT NULL
@@ -727,7 +728,7 @@ Compile `[:find … :in $ … :where …]` into SQL by treating each attribute a
 ## 10. Open questions
 
 1. **Index location:** keep `<app-data>/…/index.sqlite` (invisible to git and sync, but lost when the graph is moved to another machine) or use `<graph>/.bitacora/index.sqlite` (portable, Logseq ignores it, but users must gitignore it)?
-2. **`file_snapshots`:** is storing a compressed copy of the whole graph acceptable (about 30–50 % of the graph size)? Is it needed if git is always available (see [[05-git-and-apis]])?
+2. ~~**`file_snapshots`:** is storing a compressed copy of the whole graph acceptable?~~ **Resolved (ADR-017 in [[architecture]]): no.** The merge base is kept in memory only; do not create the `file_snapshots` table.
 3. **UUID policy:** is §2.3 carry-over plus "write `id::` on first reference" enough, or do we want deterministic UUIDs (UUIDv5 over file path + outline path) for blocks without `id::`, which are stable across rebuilds but not across edits?
 4. **Duplicate page titles:** index the second file's blocks under the same page (current proposal: first file owns page metadata, both files' blocks are listed and a diagnostic is shown), or skip the second file like Logseq (`src/main/frontend/handler/repo.cljs:226-236`)?
 5. **Tokenizers:** is `unicode61` + `trigram` the right pair, or should `blocks_fts` use a custom ICU or jieba tokenizer for CJK word segmentation instead of trigram?

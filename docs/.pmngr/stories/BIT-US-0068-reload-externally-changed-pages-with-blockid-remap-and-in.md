@@ -10,7 +10,7 @@ author: mcp
 labels: [core, io, bitacora-core, bitacora-app]
 estimate: 8
 created: 2026-10-06T14:29:01Z
-updated: 2026-10-06T14:29:01Z
+updated: 2026-10-06T15:12:33Z
 ---
 
 ## Description
@@ -25,3 +25,4 @@ As a user with a page open while git pulls or Logseq edits it, I want the page t
 ## Notes
 Implements: BIT-SP-0005.R13, BIT-SP-0005.R14.
 See [[block-editor]] §4 (external reloads), §6.3; [[04-editor-outliner-operations]] §5.1 (Logseq has no read-side protection).
+ADR-016: `align` should reuse the block matcher of `bitacora-merge` (BIT-T-0351) rather than a second implementation. ADR-017: base is the in-memory `DiskSnapshot`; after a restart a clean page is simply reloaded.

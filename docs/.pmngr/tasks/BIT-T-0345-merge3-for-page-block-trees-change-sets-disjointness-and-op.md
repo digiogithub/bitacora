@@ -10,15 +10,15 @@ author: mcp
 labels: [bitacora-core, merge]
 estimate: 5
 created: 2026-10-06T14:34:14Z
-updated: 2026-10-06T14:34:14Z
+updated: 2026-10-06T15:08:58Z
 ---
 
 ## Description
-`crates/bitacora-core/src/external/merge3.rs`: `merge3(base, theirs, ours: &Page) -> MergeOutcome`. Compute change sets via `align(base, theirs)` and `align(base, ours)`: per block {text edit, delete, insert at (parent, after), move}. Clean when no block is changed on both sides (identical changes count as no conflict) and inserts/moves don't target a block deleted by the other side. Output: `Vec<Op>` applying theirs' changes to ours (inserts ordered theirs-first at the same anchor). Otherwise `Conflict(Vec<BlockConflict { kind, base, ours, theirs }>)`. Hidden-property-only differences (e.g. `collapsed::`) follow ADR-009 auto-resolution rules where both sides touched only metadata.
+`crates/bitacora-core/src/external/merge3.rs`: `merge3(base, theirs, ours: &Page) -> MergeOutcome`, a thin adapter over `bitacora_merge::merge_page` (crate `crates/bitacora-merge`, ADR-016). Serialize ours (or build the merge model from it), call `merge_page(base_bytes, ours_bytes, theirs_bytes)`, and translate the result back into core terms: per block {text edit, delete, insert at (parent, after), move} from theirs becomes a `Vec<Op>` applied to ours (inserts ordered theirs-first at the same anchor), using the block pairing returned by `bitacora-merge` to map onto existing `BlockId`s. Clean when `bitacora-merge` reports no conflicts; otherwise `Conflict(Vec<BlockConflict { kind, base, ours, theirs }>)` mapped from its conflict records. Hidden-property-only differences (e.g. `collapsed::`) follow ADR-009 auto-resolution rules, which live in `bitacora-merge`. No merge algorithm is duplicated in core.
 
 ## Acceptance Criteria
-- Pure function, no I/O; unit tests for each change kind combination.
+- Pure function, no I/O; unit tests for each change kind combination through the adapter.
 - Never produces conflict markers.
 
 ## Notes
-Story BIT-US-0069. Implements BIT-SP-0005.R15. ADR-008, ADR-009. Coordinate with the sync merge in BIT-EP-0012 (shared module or common trait).
+Story BIT-US-0069. Implements BIT-SP-0005.R15. ADR-008, ADR-009, ADR-016. Depends on the `bitacora-merge` page merge (BIT-US-0049..BIT-US-0051).
