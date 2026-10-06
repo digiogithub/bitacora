@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [markdown, compat]
 created: 2026-10-06T14:21:20Z
-updated: 2026-10-06T17:23:57Z
+updated: 2026-10-06T17:35:09Z
 requirements:
   R1:
     status: backlog
@@ -39,7 +39,7 @@ requirements:
       tests:
         - crates/bitacora-markdown/src/page_props.rs
         - crates/bitacora-markdown/tests/page_props_fixtures.rs
-        - fixtures/markdown/page-props/cases.txt
+        - crates/bitacora-markdown/tests/mldoc_corpus.rs
   R4:
     status: backlog
     trace:
@@ -74,7 +74,7 @@ requirements:
         - crates/bitacora-markdown/src/inline/refs.rs
         - crates/bitacora-markdown/tests/inline_fixtures.rs
         - crates/bitacora-markdown/tests/inline_robustness.rs
-        - fixtures/markdown/inline/cases.txt
+        - crates/bitacora-markdown/tests/mldoc_corpus.rs
   R9:
     status: backlog
     trace:
@@ -82,7 +82,7 @@ requirements:
       tests:
         - crates/bitacora-markdown/src/tasks/head.rs
         - crates/bitacora-markdown/tests/tasks_fixtures.rs
-        - fixtures/markdown/tasks/markers.md
+        - crates/bitacora-markdown/tests/mldoc_corpus.rs
   R10:
     status: backlog
     trace:
@@ -93,8 +93,6 @@ requirements:
         - crates/bitacora-markdown/src/tasks/timestamp.rs
         - crates/bitacora-markdown/src/tasks/drawer.rs
         - crates/bitacora-markdown/tests/tasks_fixtures.rs
-        - fixtures/markdown/tasks/planning.md
-        - fixtures/markdown/tasks/logbook.md
   R11:
     status: backlog
     trace:
@@ -111,6 +109,7 @@ requirements:
       tests:
         - crates/bitacora-markdown/src/serialize.rs
         - crates/bitacora-markdown/tests/serializer.rs
+        - crates/bitacora-markdown/tests/roundtrip_suite.rs
   R13:
     status: backlog
     trace:
@@ -168,6 +167,7 @@ requirements:
         - crates/bitacora-markdown/src/properties/scan.rs
         - crates/bitacora-markdown/tests/outline_fixtures.rs
         - crates/bitacora-markdown/tests/outline_roundtrip.rs
+        - crates/bitacora-markdown/tests/roundtrip_suite.rs
 ---
 
 ## Purpose

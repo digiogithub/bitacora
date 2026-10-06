@@ -2,7 +2,7 @@
 id: BIT-T-0285
 type: task
 title: Squash unpushed auto commits from the same device
-status: backlog
+status: done
 priority: medium
 parent: BIT-US-0044
 milestone: BIT-M-0004
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-sync, commit]
 estimate: 2
 created: 2026-10-06T14:32:57Z
-updated: 2026-10-06T14:32:57Z
+updated: 2026-10-06T17:48:56Z
+closed: 2026-10-06T17:48:56Z
 ---
 
 ## Description

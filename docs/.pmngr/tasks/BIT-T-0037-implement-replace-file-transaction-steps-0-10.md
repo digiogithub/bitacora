@@ -2,7 +2,7 @@
 id: BIT-T-0037
 type: task
 title: Implement replace_file transaction (steps 0-10)
-status: backlog
+status: done
 priority: critical
 parent: BIT-US-0006
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-index, index]
 estimate: 5
 created: 2026-10-06T14:27:35Z
-updated: 2026-10-06T14:27:35Z
+updated: 2026-10-06T17:53:44Z
+closed: 2026-10-06T17:53:44Z
 ---
 
 ## Description

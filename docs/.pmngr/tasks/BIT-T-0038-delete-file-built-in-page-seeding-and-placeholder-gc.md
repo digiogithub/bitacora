@@ -2,7 +2,7 @@
 id: BIT-T-0038
 type: task
 title: delete_file, built-in page seeding and placeholder GC
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0006
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-index, index]
 estimate: 2
 created: 2026-10-06T14:27:35Z
-updated: 2026-10-06T15:11:55Z
+updated: 2026-10-06T17:53:44Z
+closed: 2026-10-06T17:53:44Z
 ---
 
 ## Description

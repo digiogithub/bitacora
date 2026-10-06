@@ -2,14 +2,15 @@
 id: BIT-T-0253
 type: task
 title: Property-based round-trip and single-edit stability tests
-status: backlog
+status: done
 parent: BIT-US-0095
 milestone: BIT-M-0002
 author: mcp
 labels: [bitacora-markdown, test, proptest]
 estimate: 2
 created: 2026-10-06T14:32:01Z
-updated: 2026-10-06T14:32:01Z
+updated: 2026-10-06T17:36:00Z
+closed: 2026-10-06T17:36:00Z
 ---
 
 ## Description

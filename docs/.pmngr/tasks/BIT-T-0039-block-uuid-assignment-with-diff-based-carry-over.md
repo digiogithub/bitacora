@@ -2,7 +2,7 @@
 id: BIT-T-0039
 type: task
 title: Block UUID assignment with diff-based carry-over
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0006
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-index, index]
 estimate: 3
 created: 2026-10-06T14:27:35Z
-updated: 2026-10-06T15:11:55Z
+updated: 2026-10-06T17:53:44Z
+closed: 2026-10-06T17:53:44Z
 ---
 
 ## Description

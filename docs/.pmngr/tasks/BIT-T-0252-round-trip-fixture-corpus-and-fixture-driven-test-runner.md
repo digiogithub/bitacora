@@ -2,14 +2,15 @@
 id: BIT-T-0252
 type: task
 title: Round-trip fixture corpus and fixture-driven test runner
-status: backlog
+status: done
 parent: BIT-US-0095
 milestone: BIT-M-0002
 author: mcp
 labels: [bitacora-markdown, test, fixtures]
 estimate: 3
 created: 2026-10-06T14:32:01Z
-updated: 2026-10-06T14:32:01Z
+updated: 2026-10-06T17:36:00Z
+closed: 2026-10-06T17:36:00Z
 ---
 
 ## Description

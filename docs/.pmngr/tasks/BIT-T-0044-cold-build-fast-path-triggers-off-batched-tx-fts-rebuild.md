@@ -2,7 +2,7 @@
 id: BIT-T-0044
 type: task
 title: Cold build fast path (triggers off, batched tx, FTS rebuild, ANALYZE)
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0007
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-index, index, performance]
 estimate: 3
 created: 2026-10-06T14:27:35Z
-updated: 2026-10-06T14:27:35Z
+updated: 2026-10-06T17:53:44Z
+closed: 2026-10-06T17:53:44Z
 ---
 
 ## Description

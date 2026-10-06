@@ -2,7 +2,7 @@
 id: BIT-T-0288
 type: task
 title: Push retry loop with jitter, offline back-off and fetch scheduling
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0045
 milestone: BIT-M-0004
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-sync, state-machine, network]
 estimate: 2
 created: 2026-10-06T14:32:57Z
-updated: 2026-10-06T14:32:57Z
+updated: 2026-10-06T17:48:56Z
+closed: 2026-10-06T17:48:56Z
 ---
 
 ## Description

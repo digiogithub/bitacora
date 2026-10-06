@@ -2,7 +2,7 @@
 id: BIT-US-0045
 type: story
 title: "Sync loop state machine: fetch, fast-forward, merge, push, offline"
-status: backlog
+status: done
 priority: critical
 parent: BIT-EP-0011
 milestone: BIT-M-0004
@@ -10,7 +10,9 @@ author: mcp
 labels: [git, sync, state-machine]
 estimate: 13
 created: 2026-10-06T14:28:30Z
-updated: 2026-10-06T15:15:56Z
+updated: 2026-10-06T17:48:59Z
+started: 2026-10-06T17:35:09Z
+closed: 2026-10-06T17:48:59Z
 ---
 
 ## Description

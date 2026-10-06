@@ -2,7 +2,7 @@
 id: BIT-US-0044
 type: story
 title: Idle-debounced auto-commit with structured messages and squashing
-status: backlog
+status: done
 priority: high
 parent: BIT-EP-0011
 milestone: BIT-M-0004
@@ -10,7 +10,9 @@ author: mcp
 labels: [git, sync, commit]
 estimate: 5
 created: 2026-10-06T14:28:30Z
-updated: 2026-10-06T14:28:30Z
+updated: 2026-10-06T17:48:59Z
+started: 2026-10-06T17:35:09Z
+closed: 2026-10-06T17:48:59Z
 ---
 
 ## Description

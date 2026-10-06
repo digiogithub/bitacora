@@ -2,7 +2,7 @@
 id: BIT-T-0046
 type: task
 title: Rebuild-equals-incremental property test with canonical index dump
-status: backlog
+status: done
 priority: critical
 parent: BIT-US-0007
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-index, testing]
 estimate: 3
 created: 2026-10-06T14:27:35Z
-updated: 2026-10-06T14:27:35Z
+updated: 2026-10-06T17:53:44Z
+closed: 2026-10-06T17:53:44Z
 ---
 
 ## Description

@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [index, search]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T17:32:59Z
+updated: 2026-10-06T17:53:52Z
 requirements:
   R1:
     status: backlog
@@ -38,10 +38,25 @@ requirements:
         - crates/bitacora-index/tests/parse_golden.rs
   R5:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-index/src/replace.rs
+        - crates/bitacora-index/src/writer.rs
+      tests: [crates/bitacora-index/tests/writer.rs]
   R6:
     status: backlog
+    trace:
+      code: [crates/bitacora-index/src/reconcile.rs]
+      tests: [crates/bitacora-index/tests/reconcile.rs]
   R7:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-index/src/reconcile.rs
+        - crates/bitacora-index/src/writer.rs
+      tests:
+        - crates/bitacora-index/tests/reconcile.rs
+        - crates/bitacora-index/tests/writer.rs
   R8:
     status: backlog
     trace:
@@ -63,8 +78,18 @@ requirements:
         - crates/bitacora-index/tests/parse_unit.rs#comma_separated_keys_from_config
   R11:
     status: backlog
+    trace:
+      code: [crates/bitacora-index/src/replace.rs]
+      tests: [crates/bitacora-index/tests/writer.rs]
   R12:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-index/src/carry.rs
+        - crates/bitacora-index/src/replace.rs
+      tests:
+        - crates/bitacora-index/tests/writer.rs
+        - crates/bitacora-index/tests/reconcile.rs
   R13:
     status: backlog
     trace:
@@ -78,6 +103,15 @@ requirements:
     status: backlog
   R16:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-index/src/writer.rs
+        - crates/bitacora-index/src/reconcile.rs
+        - crates/bitacora-index/src/dump.rs
+      tests:
+        - crates/bitacora-index/tests/property.rs
+        - crates/bitacora-index/tests/reconcile.rs
+        - crates/bitacora-index/tests/bench_cold_build.rs
   R17:
     status: backlog
   R18:

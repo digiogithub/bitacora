@@ -2,7 +2,7 @@
 id: BIT-T-0376
 type: task
 title: Run the sync integration suite against both backends (system git hybrid and gix-only)
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0045
 milestone: BIT-M-0004
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-sync, testing, ci]
 estimate: 2
 created: 2026-10-06T15:15:10Z
-updated: 2026-10-06T15:15:10Z
+updated: 2026-10-06T17:48:56Z
+closed: 2026-10-06T17:48:56Z
 ---
 
 ## Description

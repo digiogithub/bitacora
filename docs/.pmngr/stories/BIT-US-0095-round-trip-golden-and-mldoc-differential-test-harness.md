@@ -2,7 +2,7 @@
 id: BIT-US-0095
 type: story
 title: Round-trip, golden and mldoc differential test harness
-status: backlog
+status: done
 priority: critical
 parent: BIT-EP-0003
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [markdown, compat, test]
 estimate: 8
 created: 2026-10-06T14:30:45Z
-updated: 2026-10-06T15:16:54Z
+updated: 2026-10-06T17:36:00Z
+closed: 2026-10-06T17:36:00Z
 ---
 
 ## Description

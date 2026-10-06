@@ -2,7 +2,7 @@
 id: BIT-T-0103
 type: task
 title: Write the IME and text-input manual test checklist
-status: in_progress
+status: done
 priority: critical
 parent: BIT-US-0072
 milestone: BIT-M-0001
@@ -10,8 +10,9 @@ author: mcp
 labels: [spike, ime, docs, bitacora-app]
 estimate: 1
 created: 2026-10-06T14:29:45Z
-updated: 2026-10-06T17:33:08Z
+updated: 2026-10-06T17:59:48Z
 started: 2026-10-06T17:33:08Z
+closed: 2026-10-06T17:59:48Z
 ---
 
 ## Description

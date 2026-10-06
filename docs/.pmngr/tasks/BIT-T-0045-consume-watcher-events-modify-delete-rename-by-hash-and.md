@@ -2,7 +2,7 @@
 id: BIT-T-0045
 type: task
 title: "Consume watcher events: modify, delete, rename-by-hash and overflow"
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0007
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-index, index]
 estimate: 2
 created: 2026-10-06T14:27:35Z
-updated: 2026-10-06T14:27:35Z
+updated: 2026-10-06T17:53:44Z
+closed: 2026-10-06T17:53:44Z
 ---
 
 ## Description

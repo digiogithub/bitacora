@@ -2,7 +2,7 @@
 id: BIT-T-0287
 type: task
 title: "Integrate step: fast-forward and merge commit applied through the core writer"
-status: backlog
+status: done
 priority: critical
 parent: BIT-US-0045
 milestone: BIT-M-0004
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-sync, bitacora-core, state-machine]
 estimate: 3
 created: 2026-10-06T14:32:57Z
-updated: 2026-10-06T14:32:57Z
+updated: 2026-10-06T17:48:56Z
+closed: 2026-10-06T17:48:56Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-US-0006
 type: story
 title: Single-writer transactional per-file replace with page GC and UUID carry-over
-status: backlog
+status: done
 priority: critical
 parent: BIT-EP-0005
 milestone: BIT-M-0002
@@ -10,7 +10,9 @@ author: mcp
 labels: [index, bitacora-index]
 estimate: 8
 created: 2026-10-06T14:25:24Z
-updated: 2026-10-06T15:12:12Z
+updated: 2026-10-06T17:53:44Z
+started: 2026-10-06T17:34:50Z
+closed: 2026-10-06T17:53:44Z
 ---
 
 ## Description

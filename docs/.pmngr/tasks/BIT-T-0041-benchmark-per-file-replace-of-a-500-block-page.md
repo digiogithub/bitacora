@@ -2,7 +2,7 @@
 id: BIT-T-0041
 type: task
 title: Benchmark per-file replace of a 500-block page
-status: backlog
+status: done
 priority: medium
 parent: BIT-US-0006
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-index, benchmark, performance]
 estimate: 1
 created: 2026-10-06T14:27:35Z
-updated: 2026-10-06T14:27:35Z
+updated: 2026-10-06T17:53:44Z
+closed: 2026-10-06T17:53:44Z
 ---
 
 ## Description

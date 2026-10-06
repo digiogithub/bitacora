@@ -6,12 +6,24 @@ status: backlog
 author: mcp
 labels: [git, sync, merge]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T17:30:31Z
+updated: 2026-10-06T17:48:44Z
 requirements:
   R1:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-sync/src/autocommit.rs
+        - crates/bitacora-sync/src/engine.rs
+      tests: [crates/bitacora-sync/tests/auto_commit.rs]
   R2:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-sync/src/commit_msg.rs
+        - crates/bitacora-sync/src/autocommit.rs
+      tests:
+        - crates/bitacora-sync/src/commit_msg.rs
+        - crates/bitacora-sync/tests/auto_commit.rs
   R3:
     status: backlog
     trace:
@@ -23,8 +35,19 @@ requirements:
         - crates/bitacora-sync/tests/onboarding.rs
   R4:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-sync/src/engine.rs
+        - crates/bitacora-sync/src/merge.rs
+        - crates/bitacora-sync/src/state.rs
+      tests: [crates/bitacora-sync/tests/sync_engine.rs]
   R5:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-sync/src/engine.rs
+        - crates/bitacora-sync/src/state.rs
+      tests: [crates/bitacora-sync/tests/sync_engine.rs]
   R6:
     status: backlog
     trace:
@@ -40,6 +63,14 @@ requirements:
         - crates/bitacora-sync/src/backend/detect.rs
   R7:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-sync/src/writer.rs
+        - crates/bitacora-sync/src/engine.rs
+      tests:
+        - crates/bitacora-sync/src/writer.rs
+        - crates/bitacora-sync/tests/sync_engine.rs
+        - crates/bitacora-sync/tests/auto_commit.rs
   R8:
     status: backlog
   R9:

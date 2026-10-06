@@ -2,7 +2,7 @@
 id: BIT-T-0284
 type: task
 title: Idle debouncer with hard cap and commit step under the graph write lock
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0044
 milestone: BIT-M-0004
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-sync, commit]
 estimate: 3
 created: 2026-10-06T14:32:57Z
-updated: 2026-10-06T14:32:57Z
+updated: 2026-10-06T17:48:56Z
+closed: 2026-10-06T17:48:56Z
 ---
 
 ## Description

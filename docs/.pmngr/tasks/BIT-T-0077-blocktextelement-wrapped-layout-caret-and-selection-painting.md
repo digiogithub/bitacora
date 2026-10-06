@@ -2,7 +2,7 @@
 id: BIT-T-0077
 type: task
 title: "BlockTextElement: wrapped layout, caret and selection painting"
-status: in_progress
+status: done
 priority: critical
 parent: BIT-US-0040
 milestone: BIT-M-0001
@@ -10,8 +10,9 @@ author: mcp
 labels: [spike, block-editor, bitacora-app]
 estimate: 5
 created: 2026-10-06T14:28:47Z
-updated: 2026-10-06T17:09:41Z
+updated: 2026-10-06T17:59:48Z
 started: 2026-10-06T17:09:41Z
+closed: 2026-10-06T17:59:48Z
 ---
 
 ## Description

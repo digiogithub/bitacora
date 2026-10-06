@@ -2,14 +2,15 @@
 id: BIT-T-0254
 type: task
 title: mldoc 1.5.7 differential testing tool
-status: backlog
+status: done
 parent: BIT-US-0095
 milestone: BIT-M-0002
 author: mcp
 labels: [bitacora-markdown, test, tooling]
 estimate: 3
 created: 2026-10-06T14:32:01Z
-updated: 2026-10-06T14:32:01Z
+updated: 2026-10-06T17:36:00Z
+closed: 2026-10-06T17:36:00Z
 ---
 
 ## Description

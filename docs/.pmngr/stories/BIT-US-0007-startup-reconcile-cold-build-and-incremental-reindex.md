@@ -2,7 +2,7 @@
 id: BIT-US-0007
 type: story
 title: Startup reconcile, cold build and incremental reindex pipeline
-status: backlog
+status: done
 priority: critical
 parent: BIT-EP-0005
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [index, bitacora-index, performance]
 estimate: 8
 created: 2026-10-06T14:25:24Z
-updated: 2026-10-06T14:25:24Z
+updated: 2026-10-06T17:53:44Z
+closed: 2026-10-06T17:53:44Z
 ---
 
 ## Description

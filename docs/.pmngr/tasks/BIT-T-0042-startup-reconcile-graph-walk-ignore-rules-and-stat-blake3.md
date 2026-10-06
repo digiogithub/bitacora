@@ -2,7 +2,7 @@
 id: BIT-T-0042
 type: task
 title: "Startup reconcile: graph walk, ignore rules and stat/blake3 change filter"
-status: backlog
+status: done
 priority: critical
 parent: BIT-US-0007
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-index, index]
 estimate: 3
 created: 2026-10-06T14:27:35Z
-updated: 2026-10-06T14:27:35Z
+updated: 2026-10-06T17:53:44Z
+closed: 2026-10-06T17:53:44Z
 ---
 
 ## Description
