@@ -2,7 +2,7 @@
 id: BIT-US-0053
 type: story
 title: Merge orchestration, persisted conflict state and marker-free guarantee
-status: in_progress
+status: done
 priority: critical
 parent: BIT-EP-0012
 milestone: BIT-M-0004
@@ -10,8 +10,9 @@ author: mcp
 labels: [merge, sync, conflicts]
 estimate: 8
 created: 2026-10-06T14:28:30Z
-updated: 2026-10-06T18:41:31Z
+updated: 2026-10-06T19:00:00Z
 started: 2026-10-06T18:41:31Z
+closed: 2026-10-06T19:00:00Z
 ---
 
 ## Description

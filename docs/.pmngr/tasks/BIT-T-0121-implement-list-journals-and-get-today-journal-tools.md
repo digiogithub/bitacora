@@ -2,7 +2,7 @@
 id: BIT-T-0121
 type: task
 title: Implement list_journals and get_today_journal tools
-status: in_progress
+status: done
 priority: medium
 parent: BIT-US-0017
 milestone: BIT-M-0002
@@ -10,8 +10,9 @@ author: mcp
 labels: [bitacora-mcp, tools, read, journals]
 estimate: 2
 created: 2026-10-06T14:29:55Z
-updated: 2026-10-06T18:44:25Z
+updated: 2026-10-06T19:01:03Z
 started: 2026-10-06T18:44:25Z
+closed: 2026-10-06T19:01:03Z
 ---
 
 ## Description

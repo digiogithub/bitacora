@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [git, sync, merge]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T18:35:37Z
+updated: 2026-10-06T19:00:18Z
 requirements:
   R1:
     status: backlog
@@ -85,6 +85,16 @@ requirements:
         - crates/bitacora-sync/tests/auto_commit.rs
   R8:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-sync/src/merge/markers.rs
+        - crates/bitacora-sync/src/merge/mod.rs
+        - crates/bitacora-sync/src/engine.rs
+        - crates/bitacora-sync/src/resolve.rs
+      tests:
+        - crates/bitacora-sync/src/merge/markers.rs
+        - crates/bitacora-sync/src/merge/mod.rs
+        - crates/bitacora-sync/tests/merge_matrix.rs
   R9:
     status: backlog
     trace:
@@ -141,18 +151,65 @@ requirements:
   R14:
     status: backlog
     trace:
-      code: [crates/bitacora-merge/src/page.rs]
-      tests: [crates/bitacora-merge/tests/merge_matrix.rs]
+      code:
+        - crates/bitacora-merge/src/page.rs
+        - crates/bitacora-merge/src/resolve.rs
+        - crates/bitacora-sync/src/merge/mod.rs
+      tests:
+        - crates/bitacora-merge/tests/merge_matrix.rs
+        - crates/bitacora-merge/src/resolve.rs
+        - crates/bitacora-sync/tests/merge_matrix.rs
   R15:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-sync/src/store.rs
+        - crates/bitacora-sync/src/state.rs
+        - crates/bitacora-sync/src/engine.rs
+        - crates/bitacora-sync/src/resolve.rs
+      tests:
+        - crates/bitacora-sync/src/store.rs
+        - crates/bitacora-sync/src/resolve.rs
+        - crates/bitacora-sync/tests/merge_matrix.rs
+        - crates/bitacora-sync/tests/sync_engine.rs
   R16:
     status: backlog
   R17:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-sync/src/merge/policy.rs
+        - crates/bitacora-sync/src/merge/edn.rs
+        - crates/bitacora-sync/src/merge/files.rs
+        - crates/bitacora-sync/src/merge/mod.rs
+      tests:
+        - crates/bitacora-sync/src/merge/policy.rs
+        - crates/bitacora-sync/src/merge/edn.rs
+        - crates/bitacora-sync/src/merge/files.rs
+        - crates/bitacora-sync/src/merge/mod.rs
+        - crates/bitacora-sync/tests/merge_matrix.rs
+        - crates/bitacora-sync/tests/sync_engine.rs
   R18:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-merge/src/page.rs
+        - crates/bitacora-merge/src/meta.rs
+      tests:
+        - crates/bitacora-merge/src/page.rs
+        - crates/bitacora-sync/tests/merge_matrix.rs
+        - crates/bitacora-sync/tests/sync_engine.rs
   R19:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-sync/src/merge/mod.rs
+        - crates/bitacora-sync/src/merge/renames.rs
+        - crates/bitacora-sync/src/resolve.rs
+      tests:
+        - crates/bitacora-sync/src/merge/renames.rs
+        - crates/bitacora-sync/src/resolve.rs
+        - crates/bitacora-sync/tests/merge_matrix.rs
   R20:
     status: backlog
     trace:
@@ -161,6 +218,14 @@ requirements:
     verified: {rev: "sha256:0822359e18053b7c", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
   R21:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-sync/src/merge/mod.rs
+        - crates/bitacora-sync/src/store.rs
+        - crates/bitacora-sync/src/engine.rs
+      tests:
+        - crates/bitacora-sync/src/merge/mod.rs
+        - crates/bitacora-sync/tests/merge_matrix.rs
   R22:
     status: backlog
 ---

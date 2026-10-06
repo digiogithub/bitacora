@@ -12,8 +12,9 @@ use tokio::sync::watch;
 
 use crate::Error;
 use crate::guard::{GuardState, guard};
-use crate::handler::BitacoraMcp;
+use crate::handler::{BitacoraMcp, Services};
 use crate::reader::GraphReader;
+use crate::status::{DisabledSync, SyncStatusProvider};
 use crate::tokens::TokenStore;
 
 /// Default `mcp.port` (Logseq's API uses 12315).
@@ -67,6 +68,18 @@ impl McpServer {
         reader: Arc<dyn GraphReader>,
         tokens: Arc<TokenStore>,
     ) -> Result<Self, Error> {
+        Self::start_with_sync(config, reader, Arc::new(DisabledSync), tokens)
+    }
+
+    /// Like [`start`](Self::start) with a sync status source for `git_sync_status` and
+    /// `bitacora://sync/status`.
+    pub fn start_with_sync(
+        config: McpConfig,
+        reader: Arc<dyn GraphReader>,
+        sync: Arc<dyn SyncStatusProvider>,
+        tokens: Arc<TokenStore>,
+    ) -> Result<Self, Error> {
+        let services = Arc::new(Services { reader, sync });
         if !config.bind.is_loopback() {
             return Err(Error::NonLoopbackBind(config.bind));
         }
@@ -104,7 +117,7 @@ impl McpServer {
         };
         let rmcp_cancel = http_config.cancellation_token.clone();
         let mcp = StreamableHttpService::new(
-            move || Ok(BitacoraMcp::new(Arc::clone(&reader))),
+            move || Ok(BitacoraMcp::new(Arc::clone(&services))),
             Arc::new(LocalSessionManager::default()),
             http_config,
         );

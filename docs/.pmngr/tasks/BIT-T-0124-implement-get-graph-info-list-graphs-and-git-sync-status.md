@@ -2,7 +2,7 @@
 id: BIT-T-0124
 type: task
 title: Implement get_graph_info, list_graphs and git_sync_status tools
-status: in_progress
+status: done
 priority: medium
 parent: BIT-US-0018
 milestone: BIT-M-0002
@@ -10,8 +10,9 @@ author: mcp
 labels: [bitacora-mcp, tools, read]
 estimate: 2
 created: 2026-10-06T14:29:55Z
-updated: 2026-10-06T18:44:25Z
+updated: 2026-10-06T19:01:03Z
 started: 2026-10-06T18:44:25Z
+closed: 2026-10-06T19:01:03Z
 ---
 
 ## Description

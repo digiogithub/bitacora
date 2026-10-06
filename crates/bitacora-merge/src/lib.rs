@@ -13,8 +13,10 @@ pub mod matcher;
 pub mod meta;
 pub mod model;
 pub mod page;
+pub mod resolve;
 pub mod structure;
 
+pub use bitacora_markdown::Side;
 pub use block::{MergedBlock, merge_block};
 pub use conflict::{Conflict, ConflictKind, IdRewrite, Note, NoteKind, PageConflict};
 pub use fields::{Diff3, FieldResult, diff3, merge_content, merge_user_props};
@@ -22,7 +24,8 @@ pub use marker::{TitleParts, marker_rank, merge_planning, merge_title, split_tit
 pub use matcher::{Matching, Triple, match_blocks, match_pages};
 pub use meta::{MergeEnv, merge_meta};
 pub use model::{BlockKey, FileStyle, MergeBlock, MergePage, Meta, PropEntry};
-pub use page::{MergeResult, merge_lines, merge_page};
+pub use page::{MergeResult, is_trivial_page, merge_lines, merge_page};
+pub use resolve::{Choice, add_page_alias, ensure_block_ids, resolve_conflict};
 
 /// Errors produced by this crate.
 #[derive(Debug, thiserror::Error)]

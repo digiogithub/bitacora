@@ -215,9 +215,19 @@ Naming: snake_case MCP names; each lists the Logseq plugin API it mirrors. All t
 - **SHOULD** use `rmcp` (official SDK) with `transport-streamable-http-server` on axum, isolated behind an internal module.
 - **SHOULD** return both structured JSON and Markdown text in tool results.
 
+## Implementation notes (read side, BIT-US-0017/0018/0019)
+
+- `GraphReader` (crate `bitacora-mcp`) is the synchronous read trait; `IndexGraphReader` implements it over `bitacora-index` (`IndexReader`, `search::search`) plus the graph folder (raw page text, `logseq/config.edn`, `assets/`). `mcp -> index` is an allowed edge, so no adapter outside the crate was needed. Sync status comes from `SyncStatusProvider` (default `DisabledSync`); the app/CLI supplies a real one via `McpServer::start_with_sync`.
+- Every tool checks the `read` scope from the `TokenInfo` the guard stores in the request extensions; missing scope yields an `isError` result with `FORBIDDEN_SCOPE` (resources/prompts return a JSON-RPC error).
+- Tool results carry `structuredContent` (with an `outputSchema`) and a Markdown text rendering capped at 20k characters. Lists paginate with opaque `cursor`/`next_cursor`; tree tools cap blocks per call (default 500).
+- `version` of a block is `blake3(uuid, content)[..16]`; the page `etag` is the first 16 hex characters of the indexed file hash.
+- `query` evaluates only `and`, `(task ..)`, `(priority ..)`, `[[page]]` and `"text"` until the DSL compiler (BIT-US-0101) exists; other terms return `NOT_SUPPORTED`, datalog `INVALID_QUERY`.
+- Subscriptions use the legacy `resources/subscribe` request (stateful sessions); index events are mapped to page, journal and block URIs and sent as `notifications/resources/updated`. The headless CLI polls `Indexer::reconcile` every 2 s until the watcher is wired in.
+- Assets are confined to `assets/` (canonicalised, symlink escapes refused) and capped at 5 MiB.
+
 ## Open questions
 
-1. Session mode: stateless (`StreamableHttpServerConfig` JSON-response mode) is simpler; stateful sessions are needed for resource subscriptions — enable both?
+1. Session mode: stateless (`StreamableHttpServerConfig` JSON-response mode) is simpler; stateful sessions are needed for resource subscriptions — enable both? (Resolved: both are implemented, `McpConfig::stateful` selects; subscriptions need stateful.)
 2. Should every block touched by an agent get a persistent `id::` (more file churn) or should agents use ephemeral handles valid only for the session?
 3. How rich should `query` be — full Logseq simple-query parity, or a documented subset + `sql_query`?
 4. "Confirm writes" UX: per call toast vs batched review panel? What happens when the app is in tray with no window?

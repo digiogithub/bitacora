@@ -2,7 +2,7 @@
 id: BIT-T-0361
 type: task
 title: Add/add page merge with empty-template rule and lazy journal file creation
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0052
 milestone: BIT-M-0004
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-merge, bitacora-core, merge, journals]
 estimate: 2
 created: 2026-10-06T14:34:49Z
-updated: 2026-10-06T15:10:04Z
+updated: 2026-10-06T18:59:52Z
+closed: 2026-10-06T18:59:52Z
 ---
 
 ## Description
