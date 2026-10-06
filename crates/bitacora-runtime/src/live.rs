@@ -19,6 +19,7 @@ use bitacora_mcp::{
     AuditFilter, AuditRecord, IndexGraphReader, McpServer, QueueBridge, ServerParts, TokenStore,
     UndoError, WritePolicy,
 };
+use bitacora_sync::credentials::CredentialProvider;
 use bitacora_sync::engine::{
     Command as SyncCommand, EngineConfig, EngineHandle, SyncEngine, SystemTiming, Timing,
 };
@@ -30,7 +31,10 @@ use bitacora_sync::recovery::RecoveryReport;
 use bitacora_sync::resolve::{ResolveError, ResolveOutcome};
 use bitacora_sync::state::{MemoryMergeStore, MergeStateStore, SyncState, SyncStatus};
 use bitacora_sync::store::JsonMergeStore;
-use bitacora_sync::{CliConfig, detect_git, select_backend};
+use bitacora_sync::{
+    CliBackend, CliConfig, GitBackend, GitDetection, GixBackend, HybridBackend, detect_git,
+    select_backend,
+};
 use bitacora_watch::{EchoFilter, GraphWatcher, IgnoreRules};
 
 use crate::glue::{SlotStatus, block_locator, journal_template_text};
@@ -102,6 +106,25 @@ fn graph_name(root: &Path) -> String {
         .map_or_else(|| "graph".to_owned(), |n| n.to_string_lossy().into_owned())
 }
 
+fn backend_with_credentials(
+    detection: &GitDetection,
+    root: &Path,
+    cli: CliConfig,
+    provider: &Arc<dyn CredentialProvider>,
+) -> Result<Box<dyn GitBackend>, RuntimeError> {
+    let sync_err = |e: bitacora_sync::GitError| RuntimeError::Sync(e.to_string());
+    let gix = GixBackend::open(root)
+        .map_err(sync_err)?
+        .with_credentials(Arc::clone(provider));
+    Ok(match detection {
+        GitDetection::Found { path, .. } => Box::new(HybridBackend::new(
+            CliBackend::new(root, path.clone(), cli),
+            gix,
+        )),
+        GitDetection::Missing | GitDetection::TooOld { .. } => Box::new(gix),
+    })
+}
+
 fn build_engine(
     root: &Path,
     queue: &CommandQueue,
@@ -111,8 +134,14 @@ fn build_engine(
 ) -> Result<(SyncEngine, SyncWatch), RuntimeError> {
     let detection = opts.detection.clone().unwrap_or_else(|| detect_git(None));
     let backend_info = BackendInfo::from_detection(&detection);
-    let backend = select_backend(&detection, root, CliConfig::default())
-        .map_err(|e| RuntimeError::Sync(e.to_string()))?;
+    let cli = opts.cli.clone().unwrap_or_default();
+    let backend = match &opts.credentials {
+        // The gix half pushes through libgit2 and needs the provider for HTTPS/SSH secrets.
+        Some(provider) => backend_with_credentials(&detection, root, cli, provider)?,
+        None => {
+            select_backend(&detection, root, cli).map_err(|e| RuntimeError::Sync(e.to_string()))?
+        }
+    };
     let mut ec = EngineConfig::new(root, &opts.device, &opts.branch);
     if let Some(tune) = &opts.tune {
         tune(&mut ec);
