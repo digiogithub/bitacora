@@ -2,7 +2,7 @@
 id: BIT-T-0138
 type: task
 title: "BlockEditor GPUI element: multi-line text layout, caret, selection and soft wrap"
-status: backlog
+status: done
 priority: critical
 parent: BIT-US-0030
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-app, editor, ui]
 estimate: 5
 created: 2026-10-06T14:30:00Z
-updated: 2026-10-06T14:30:00Z
+updated: 2026-10-06T21:12:28Z
+closed: 2026-10-06T21:12:28Z
 ---
 
 ## Description

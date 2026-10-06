@@ -2,7 +2,7 @@
 id: BIT-T-0139
 type: task
 title: Click-to-caret mapping from rendered inline runs to source offsets
-status: backlog
+status: done
 priority: critical
 parent: BIT-US-0030
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-app, editor, ui]
 estimate: 3
 created: 2026-10-06T14:30:00Z
-updated: 2026-10-06T14:30:00Z
+updated: 2026-10-06T21:12:28Z
+closed: 2026-10-06T21:12:28Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-US-0068
 type: story
 title: Reload externally changed pages with BlockId remap and in-progress edit protection
-status: in_progress
+status: done
 priority: high
 parent: BIT-EP-0008
 milestone: BIT-M-0003
@@ -10,8 +10,9 @@ author: mcp
 labels: [core, io, bitacora-core, bitacora-app]
 estimate: 8
 created: 2026-10-06T14:29:01Z
-updated: 2026-10-06T19:42:38Z
+updated: 2026-10-06T21:12:42Z
 started: 2026-10-06T19:42:38Z
+closed: 2026-10-06T21:12:42Z
 ---
 
 ## Description

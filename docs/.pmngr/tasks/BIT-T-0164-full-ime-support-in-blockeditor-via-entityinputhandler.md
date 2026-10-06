@@ -2,7 +2,7 @@
 id: BIT-T-0164
 type: task
 title: Full IME support in BlockEditor via EntityInputHandler marked text
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0031
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-app, editor, ime]
 estimate: 3
 created: 2026-10-06T14:30:44Z
-updated: 2026-10-06T14:30:44Z
+updated: 2026-10-06T21:12:28Z
+closed: 2026-10-06T21:12:28Z
 ---
 
 ## Description

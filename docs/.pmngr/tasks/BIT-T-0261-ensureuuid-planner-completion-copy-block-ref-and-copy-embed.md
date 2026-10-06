@@ -2,7 +2,7 @@
 id: BIT-T-0261
 type: task
 title: EnsureUuid planner, (( completion, copy block ref and copy embed
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0038
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-core, bitacora-app, autocomplete]
 estimate: 3
 created: 2026-10-06T14:32:23Z
-updated: 2026-10-06T14:32:23Z
+updated: 2026-10-06T21:12:28Z
+closed: 2026-10-06T21:12:28Z
 ---
 
 ## Description

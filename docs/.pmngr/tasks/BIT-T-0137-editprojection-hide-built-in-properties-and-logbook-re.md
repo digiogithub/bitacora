@@ -2,7 +2,7 @@
 id: BIT-T-0137
 type: task
 title: "EditProjection: hide built-in properties and LOGBOOK, re-insert at anchors"
-status: backlog
+status: done
 priority: critical
 parent: BIT-US-0030
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-core, editor]
 estimate: 2
 created: 2026-10-06T14:30:00Z
-updated: 2026-10-06T14:30:00Z
+updated: 2026-10-06T21:12:07Z
+closed: 2026-10-06T21:12:07Z
 ---
 
 ## Description

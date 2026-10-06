@@ -2,7 +2,7 @@
 id: BIT-US-0034
 type: story
 title: Indent, outdent and move blocks up/down
-status: in_progress
+status: done
 priority: critical
 parent: BIT-EP-0007
 milestone: BIT-M-0003
@@ -10,8 +10,9 @@ author: mcp
 labels: [editor, outliner, bitacora-core, bitacora-app]
 estimate: 5
 created: 2026-10-06T14:28:07Z
-updated: 2026-10-06T20:22:06Z
+updated: 2026-10-06T21:12:41Z
 started: 2026-10-06T20:22:06Z
+closed: 2026-10-06T21:12:41Z
 ---
 
 ## Description

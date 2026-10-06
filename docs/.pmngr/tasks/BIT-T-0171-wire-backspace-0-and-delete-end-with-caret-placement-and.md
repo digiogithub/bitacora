@@ -2,7 +2,7 @@
 id: BIT-T-0171
 type: task
 title: Wire Backspace@0 and Delete@end with caret placement and refusal notices
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0033
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-app, editor]
 estimate: 2
 created: 2026-10-06T14:30:44Z
-updated: 2026-10-06T14:30:44Z
+updated: 2026-10-06T21:12:28Z
+closed: 2026-10-06T21:12:28Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-T-0344
 type: task
 title: Protect the in-progress edit buffer and conflicted-block choice UI
-status: in_progress
+status: done
 priority: high
 parent: BIT-US-0068
 milestone: BIT-M-0003
@@ -10,8 +10,9 @@ author: mcp
 labels: [bitacora-app, bitacora-core, editor]
 estimate: 3
 created: 2026-10-06T14:34:14Z
-updated: 2026-10-06T19:42:48Z
+updated: 2026-10-06T21:12:31Z
 started: 2026-10-06T19:42:48Z
+closed: 2026-10-06T21:12:31Z
 ---
 
 ## Description

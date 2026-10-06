@@ -2,7 +2,7 @@
 id: BIT-T-0141
 type: task
 title: Autopair and pair deletion rules in the BlockEditor
-status: backlog
+status: done
 priority: medium
 parent: BIT-US-0030
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-app, editor]
 estimate: 2
 created: 2026-10-06T14:30:00Z
-updated: 2026-10-06T14:30:00Z
+updated: 2026-10-06T21:12:28Z
+closed: 2026-10-06T21:12:28Z
 ---
 
 ## Description

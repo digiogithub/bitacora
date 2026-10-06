@@ -2,7 +2,7 @@
 id: BIT-US-0030
 type: story
 title: "Edit mode: click-to-caret BlockEditor with hidden-property projection and buffer flush"
-status: backlog
+status: done
 priority: critical
 parent: BIT-EP-0007
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [editor, ui, bitacora-app, bitacora-core]
 estimate: 8
 created: 2026-10-06T14:28:07Z
-updated: 2026-10-06T14:28:07Z
+updated: 2026-10-06T21:12:41Z
+closed: 2026-10-06T21:12:41Z
 ---
 
 ## Description

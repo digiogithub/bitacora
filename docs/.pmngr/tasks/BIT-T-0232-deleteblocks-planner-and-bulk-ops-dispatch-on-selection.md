@@ -2,7 +2,7 @@
 id: BIT-T-0232
 type: task
 title: DeleteBlocks planner and bulk ops dispatch on selection
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0036
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-core, bitacora-app, outliner]
 estimate: 2
 created: 2026-10-06T14:31:33Z
-updated: 2026-10-06T14:31:33Z
+updated: 2026-10-06T21:12:28Z
+closed: 2026-10-06T21:12:28Z
 ---
 
 ## Description

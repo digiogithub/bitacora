@@ -2,7 +2,7 @@
 id: BIT-T-0165
 type: task
 title: Write and run the manual IME and keymap checklist on Linux, macOS and Windows
-status: backlog
+status: in_review
 priority: medium
 parent: BIT-US-0031
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-app, test, ime]
 estimate: 2
 created: 2026-10-06T14:30:44Z
-updated: 2026-10-06T14:30:44Z
+updated: 2026-10-06T21:12:28Z
+started: 2026-10-06T21:12:28Z
 ---
 
 ## Description

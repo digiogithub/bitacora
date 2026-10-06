@@ -2,7 +2,7 @@
 id: BIT-US-0037
 type: story
 title: Copy, cut and paste of block subtrees and Markdown text
-status: in_progress
+status: done
 priority: high
 parent: BIT-EP-0007
 milestone: BIT-M-0003
@@ -10,8 +10,9 @@ author: mcp
 labels: [editor, clipboard, bitacora-core, bitacora-app]
 estimate: 8
 created: 2026-10-06T14:28:07Z
-updated: 2026-10-06T20:22:06Z
+updated: 2026-10-06T21:12:42Z
 started: 2026-10-06T20:22:06Z
+closed: 2026-10-06T21:12:42Z
 ---
 
 ## Description
