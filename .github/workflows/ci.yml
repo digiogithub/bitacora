@@ -1,0 +1,152 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      intel:
+        description: "Also test bitacora-app on Intel macOS (macos-13)"
+        type: boolean
+        default: false
+
+# Cancel superseded runs of the same PR / branch.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  # Keeps the GitHub cache (10 GB limit) small; GPUI debug info is huge.
+  CARGO_PROFILE_DEV_DEBUG: "0"
+  RUST_BACKTRACE: "1"
+  # insta must never write snapshots in CI: a changed snapshot fails the build.
+  INSTA_UPDATE: "no"
+  CI: "true"
+
+jobs:
+  # Decides whether Rust jobs are needed. Docs-only PRs skip them, but skipped jobs still
+  # report as passing for required status checks.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      rust: ${{ steps.filter.outputs.rust }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: filter
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+            echo "rust=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          base="origin/${{ github.base_ref }}"
+          # Anything outside docs/ (and top-level *.md) counts as a code change.
+          if git diff --name-only "$base"...HEAD | grep -qvE '^docs/|^[^/]+\.md$'; then
+            echo "rust=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "rust=false" >> "$GITHUB_OUTPUT"
+            echo "Docs-only change: Rust jobs skipped."
+          fi
+
+  checks:
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache-shared-key: checks
+          cache-save-if: ${{ github.ref == 'refs/heads/main' }}
+      - run: cargo fmt --all --check
+      - uses: crate-ci/typos@v1
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-machete
+      - run: cargo machete
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check
+      - run: cargo xtask check-deps
+      - run: cargo xtask fixtures verify
+
+  test-core:
+    # GPUI-free fast path: never compiles gpui-kit and installs no GUI packages.
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: script/install-linux-deps.sh --minimal
+      - uses: rui314/setup-mold@v1
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache-shared-key: test-core
+          cache-save-if: ${{ github.ref == 'refs/heads/main' }}
+      - name: Test GPUI-free crates
+        run: >
+          cargo test --locked
+          -p bitacora-markdown -p bitacora-config -p bitacora-core -p bitacora-watch
+          -p bitacora-index -p bitacora-sync -p bitacora-mcp -p bitacora-cli
+          -p bitacora-merge -p bitacora-testkit -p xtask
+      - name: Benchmarks compile
+        run: cargo bench --no-run --locked -p bitacora-markdown
+      - name: Guard - gpui-kit must not be in the test-core graph
+        run: |
+          if cargo tree --locked -e normal,dev \
+              -p bitacora-markdown -p bitacora-config -p bitacora-core -p bitacora-watch \
+              -p bitacora-index -p bitacora-sync -p bitacora-mcp -p bitacora-cli \
+              -p bitacora-merge | grep -q 'gpui-kit'; then
+            echo "gpui-kit leaked into the GPUI-free crates" >&2
+            exit 1
+          fi
+
+  lint:
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
+    # macOS, as GPUI Kit's own CI does (fastest GPUI build).
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache-shared-key: lint
+          cache-save-if: ${{ github.ref == 'refs/heads/main' }}
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+  test-app:
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
+    name: test-app (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(github.event.inputs.intel == 'true' && '["ubuntu-24.04","macos-latest","windows-latest","macos-13"]' || '["ubuntu-24.04","macos-latest","windows-latest"]') }}
+    steps:
+      - name: Windows - check out with CRLF conversion on (proves .gitattributes keeps fixtures exact)
+        if: runner.os == 'Windows'
+        run: git config --global core.autocrlf true
+      - uses: actions/checkout@v4
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: script/install-linux-deps.sh
+      - uses: rui314/setup-mold@v1
+        if: runner.os == 'Linux'
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache-shared-key: test-app-${{ matrix.os }}
+          cache-save-if: ${{ github.ref == 'refs/heads/main' }}
+      - name: Verify fixture bytes (Windows)
+        if: runner.os == 'Windows'
+        run: cargo xtask fixtures verify
+      - name: Test bitacora-app
+        run: cargo test --locked -p bitacora-app

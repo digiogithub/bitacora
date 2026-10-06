@@ -1,0 +1,2 @@
+- a namespaced page, triple-lowbar file name
+- parent: [[Projects]]

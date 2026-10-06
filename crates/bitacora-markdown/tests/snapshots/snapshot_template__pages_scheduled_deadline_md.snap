@@ -1,0 +1,14 @@
+---
+source: crates/bitacora-markdown/tests/snapshot_template.rs
+expression: "format!(\"{rel}\\n{lines:#?}\")"
+---
+pages/scheduled-deadline.md
+[
+    "- TODO scheduled task\n",
+    "  SCHEDULED: <2024-05-01 Wed>\n",
+    "- TODO deadline task\n",
+    "  DEADLINE: <2024-05-02 Thu 10:00 +1w>\n",
+    "- both\n",
+    "  SCHEDULED: <2024-05-01 Wed .+1d>\n",
+    "  DEADLINE: <2024-05-03 Fri>\n",
+]

@@ -14,3 +14,5 @@ workspace = true
 [dependencies]
 anyhow.workspace = true
 cargo_metadata.workspace = true
+sha2.workspace = true
+walkdir.workspace = true

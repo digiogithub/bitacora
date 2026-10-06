@@ -1,0 +1,9 @@
+---
+source: crates/bitacora-markdown/tests/snapshot_template.rs
+expression: "format!(\"{rel}\\n{lines:#?}\")"
+---
+pages/assets-reference.md
+[
+    "- image ![pixel](../assets/pixel.png)\n",
+    "- link to asset [file](../assets/pixel.png)\n",
+]

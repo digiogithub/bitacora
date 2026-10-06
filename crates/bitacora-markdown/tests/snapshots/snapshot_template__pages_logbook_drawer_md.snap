@@ -1,0 +1,13 @@
+---
+source: crates/bitacora-markdown/tests/snapshot_template.rs
+expression: "format!(\"{rel}\\n{lines:#?}\")"
+---
+pages/logbook-drawer.md
+[
+    "- DOING task with logbook\n",
+    "  :LOGBOOK:\n",
+    "  CLOCK: [2024-05-01 Wed 09:00:00]--[2024-05-01 Wed 09:30:00] =>  00:30:00\n",
+    "  CLOCK: [2024-05-01 Wed 10:00:00]\n",
+    "  :END:\n",
+    "- block after logbook\n",
+]

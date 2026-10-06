@@ -1,0 +1,11 @@
+---
+source: crates/bitacora-markdown/tests/snapshot_template.rs
+expression: "format!(\"{rel}\\n{lines:#?}\")"
+---
+pages/no-bullets.md
+[
+    "Just a paragraph with no bullets at all.\n",
+    "Second line of the same paragraph.\n",
+    "\n",
+    "Another paragraph.\n",
+]

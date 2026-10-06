@@ -1,0 +1,8 @@
+---
+source: crates/bitacora-markdown/tests/snapshot_template.rs
+expression: "format!(\"{rel}\\n{lines:#?}\")"
+---
+journals/2030_12_31.md
+[
+    "- journal in the future with no trailing newline",
+]

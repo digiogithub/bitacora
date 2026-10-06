@@ -1,0 +1,10 @@
+---
+source: crates/bitacora-markdown/tests/snapshot_template.rs
+expression: "format!(\"{rel}\\n{lines:#?}\")"
+---
+pages/mixed-line-endings.md
+[
+    "- mixed line endings lf\n",
+    "- then crlf\r\n",
+    "- then lf again\n",
+]

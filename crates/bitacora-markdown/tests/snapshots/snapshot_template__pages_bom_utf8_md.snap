@@ -1,0 +1,9 @@
+---
+source: crates/bitacora-markdown/tests/snapshot_template.rs
+expression: "format!(\"{rel}\\n{lines:#?}\")"
+---
+pages/bom-utf8.md
+[
+    "\u{feff}- bom first block\n",
+    "- bom second block\n",
+]

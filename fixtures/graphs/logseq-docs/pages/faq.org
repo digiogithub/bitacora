@@ -1,0 +1,37 @@
+* *Is logseq free? Do you plan to charge for the Logseq app (desktop/web/mobile)?*
+** *TLDR: Logseq is free but Logseq Pro (coming soon) is not.*
+** *What features does Logseq Pro have?*
+*** Syncing with our own storage
+*** Real-time collaboration
+*** Some other features in the future
+** Notice that some local features in the future might be included in ~Logseq Pro~ too. A local feature doesn't have to rely on our servers.
+*** The reason is that we believe tools should be built in a [[https://www.inkandswitch.com/local-first.html][local-first]] way to protect privacy and be performant, which means we're trying to do most things locally, and only use the servers when we have to. But the truth is that almost all the features (except sync, collaboration) can be built without the servers. If all the local features in the future are free, it'll be very hard for us to keep developing the best features.
+** We don't want to lock the new features in ~Logseq Pro~. Each user has a three-month trial period with all the features in ~Logseq Pro~.
+* *Do you commit to open source the Logseq app forever?*
+** Yes. The whole app including those features in ~Logseq Pro~ will be open-sourced forever. The mobile app might start with a simple API for quick capture but eventually, it'll have local files support.
+** You're encouraged to build the latest app from the source code and use it for your own daily job, let us know if you find any issues or have feedback. Please consider sponsoring our contributors [[https://opencollective.com/logseq][here]] if Logseq does make your life easier. Our contributors are helping us with everything, including the community, documentation, design, plugins and bug fixes.
+*** For Open Collective donations, you can see all the expenses [[https://opencollective.com/logseq/expenses][here]].
+* *Are you going to open-source the server-side services behind Logseq Pro?*
+** We have no plan for that. But we're considering providing a free self-host sync option for non-profit organizations or researchers in the future. The sync service for our own storage is under development.
+* *Can I backup my files to a cloud service such as Dropbox or Google Drive?*
+** Yes, you can use the desktop app to open your local folder, and use your preferred service.
+* *Why doesn't Enter create a new block (or new bullet point)?*
+** You might be in the document mode, click outside the editor and typing `t d` should switch to the default mode.
+* *How can I help with translating Logseq documentation into my language?*
+:PROPERTIES:
+:id: 60acdebb-9142-431f-907c-3ad0e6fc0148
+:END:
+** Thanks for asking! Please go to fork logseq's repo and change 
+ the dicts [[https://github.com/logseq/logseq/blob/master/src/main/frontend/dicts.cljc][here]].
+* *Why was Logseq written in Clojure?*
+** Answered [[https://www.reddit.com/r/logseq/comments/j5gcyn/why_clojure/][here]].
+* *How to change the default date formatter?*
+** checkout [[setting/preferred journal format]]
+* *I love Logseq! How can I donate money?*
+** Thank you for the support! We have an Open Collective page [[https://opencollective.com/logseq][here]].
+* *Can I run Logseq locally, without syncing files to an online location?*
+** Yes, you can, both the desktop app and web app (chromium 86+) support local files.
+* *Is Logseq just a rip-off of Roam Research or another note-taking program?*
+** Definitely not :)
+*** {{embed ((61110543-a71f-458d-b42e-b78a4d22f0c0)) }}
+* Feel free to ask more questions over on the [[https://discuss.logseq.com/c/questions-and-help/8][Questions and Help Section of the Forum]] or \#questions channel on [[https://discord.gg/KpN4eHY][Discord]]!

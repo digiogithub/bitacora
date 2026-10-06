@@ -304,4 +304,20 @@ mod tests {
         let errs = check(&v);
         assert!(errs.iter().any(|e| e.contains("tokio")), "{errs:?}");
     }
+
+    #[test]
+    fn testkit_as_normal_dependency_fails() {
+        let mut v = with_app_pin(good(), "=0.7.1");
+        v.push(pkg("bitacora-testkit", true, &[]));
+        for p in &mut v {
+            if p.name == "bitacora-markdown" {
+                p.deps.insert("bitacora-testkit".into());
+            }
+        }
+        let errs = check(&v);
+        assert!(
+            errs.iter().any(|e| e.contains("bitacora-testkit")),
+            "{errs:?}"
+        );
+    }
 }

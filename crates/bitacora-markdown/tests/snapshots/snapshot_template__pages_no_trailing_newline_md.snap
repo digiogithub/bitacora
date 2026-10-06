@@ -1,0 +1,8 @@
+---
+source: crates/bitacora-markdown/tests/snapshot_template.rs
+expression: "format!(\"{rel}\\n{lines:#?}\")"
+---
+pages/no-trailing-newline.md
+[
+    "- no trailing newline at end of file",
+]

@@ -1,0 +1,15 @@
+---
+source: crates/bitacora-markdown/tests/snapshot_template.rs
+expression: "format!(\"{rel}\\n{lines:#?}\")"
+---
+pages/code-fence-closed.md
+[
+    "- closed fence\n",
+    "  ```\n",
+    "  - not a bullet inside fence\n",
+    "  ```\n",
+    "- ~~~ tilde fence\n",
+    "  text\n",
+    "  ~~~\n",
+    "- after fences\n",
+]

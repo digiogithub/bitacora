@@ -1,0 +1,13 @@
+---
+source: crates/bitacora-markdown/tests/snapshot_template.rs
+expression: "format!(\"{rel}\\n{lines:#?}\")"
+---
+pages/pre-block-properties.md
+[
+    "title:: Page properties pre-block\n",
+    "alias:: pre-block, props\n",
+    "tags:: fixture, edge\n",
+    "\n",
+    "- first real block\n",
+    "- second block\n",
+]

@@ -1,0 +1,151 @@
+name: GPUI Kit canary
+
+# Weekly: try the newest gpui-kit on crates.io against bitacora-app. Never pushes code
+# or opens PRs; it only creates/updates a single issue with the result (ADR-001, risks R1/R2).
+on:
+  schedule:
+    - cron: "41 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Force a gpui-kit version (default: newest stable on crates.io)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  CARGO_PROFILE_DEV_DEBUG: "0"
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      current: ${{ steps.v.outputs.current }}
+      candidate: ${{ steps.v.outputs.candidate }}
+      skip: ${{ steps.v.outputs.skip }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        shell: bash
+        env:
+          FORCED: ${{ inputs.version }}
+        run: |
+          current=$(grep -E '^gpui-kit *=' Cargo.toml | head -n1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+[^"]*' | head -n1)
+          if [[ -n "${FORCED:-}" ]]; then
+            candidate="$FORCED"
+          else
+            candidate=$(curl -fsSL -A "bitacora-canary (github actions)" \
+              https://crates.io/api/v1/crates/gpui-kit | jq -r '.crate.max_stable_version')
+          fi
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          echo "candidate=$candidate" >> "$GITHUB_OUTPUT"
+          if [[ "$candidate" == "$current" && -z "${FORCED:-}" ]]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "gpui-kit $current is already the newest version."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: resolve
+    if: needs.resolve.outputs.skip != 'true'
+    name: build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-latest]
+    outputs:
+      result: ${{ steps.res.outputs.result }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: script/install-linux-deps.sh
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache-shared-key: canary-${{ matrix.os }}
+          cache-save-if: false
+      - name: Rewrite the gpui-kit pin
+        shell: bash
+        env:
+          CANDIDATE: ${{ needs.resolve.outputs.candidate }}
+        run: |
+          sed -i.bak -E "s/^(gpui-kit *= *\{ *version *= *\")=?[^\"]+(\")/\1=${CANDIDATE}\2/" Cargo.toml
+          rm -f Cargo.toml.bak
+          grep -E '^gpui-kit' Cargo.toml
+          cargo update -p gpui-kit
+      - name: Build and test bitacora-app
+        id: build
+        shell: bash
+        run: |
+          set -o pipefail
+          {
+            cargo build -p bitacora-app 2>&1 && cargo test -p bitacora-app 2>&1
+          } | tee build.log
+      - name: Collect result
+        id: res
+        if: always()
+        shell: bash
+        env:
+          OUTCOME: ${{ steps.build.outcome }}
+        run: |
+          echo "result=${OUTCOME}" >> "$GITHUB_OUTPUT"
+          grep -E -m 20 '^(error|warning: unused)' -A 6 build.log > errors-${{ matrix.os }}.txt || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: canary-errors-${{ matrix.os }}
+          path: errors-${{ matrix.os }}.txt
+          if-no-files-found: ignore
+
+  report:
+    needs: [resolve, build]
+    if: always() && needs.resolve.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: canary-errors-*
+          path: errors
+      - name: Create or update the canary issue
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          CANDIDATE: ${{ needs.resolve.outputs.candidate }}
+          CURRENT: ${{ needs.resolve.outputs.current }}
+          BUILD_RESULT: ${{ needs.build.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="GPUI Kit canary: ${CANDIDATE}"
+          if [[ "$BUILD_RESULT" == "success" ]]; then
+            verdict="gpui-kit ${CANDIDATE} compiles and passes bitacora-app tests (current pin: ${CURRENT}). Consider an explicit upgrade step."
+          else
+            verdict="gpui-kit ${CANDIDATE} does NOT build/test cleanly (current pin: ${CURRENT}); build result: ${BUILD_RESULT}."
+          fi
+          {
+            echo "$verdict"
+            echo
+            echo "Run: ${RUN_URL}"
+            if compgen -G "errors/*/*.txt" > /dev/null; then
+              echo
+              echo "First compiler messages:"
+              for f in errors/*/*.txt; do
+                [ -s "$f" ] || continue
+                echo; echo "### $(basename "$f" .txt)"; echo '```'; head -c 6000 "$f"; echo '```'
+              done
+            fi
+          } > body.md
+          number=$(gh issue list --state open --search "\"$title\" in:title" --json number,title \
+            --jq ".[] | select(.title == \"$title\") | .number" | head -n1)
+          if [[ -n "$number" ]]; then
+            gh issue comment "$number" --body-file body.md
+          else
+            gh issue create --title "$title" --body-file body.md
+          fi

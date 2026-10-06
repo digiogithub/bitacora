@@ -1,0 +1,9 @@
+---
+source: crates/bitacora-markdown/tests/snapshot_template.rs
+expression: "format!(\"{rel}\\n{lines:#?}\")"
+---
+pages/Projects___Bitacora___Design.md
+[
+    "- a namespaced page, triple-lowbar file name\n",
+    "- parent: [[Projects]]\n",
+]

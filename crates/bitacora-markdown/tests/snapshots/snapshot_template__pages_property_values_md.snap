@@ -1,0 +1,14 @@
+---
+source: crates/bitacora-markdown/tests/snapshot_template.rs
+expression: "format!(\"{rel}\\n{lines:#?}\")"
+---
+pages/property-values.md
+[
+    "- quoted:: \"a value: with colon\"\n",
+    "- plain:: value\n",
+    "  other:: [[ref]], #tag, plain\n",
+    "- empty:: \n",
+    "- url:: https://example.com/a?b=c\n",
+    "- csv:: a, b, c\n",
+    "- spaced key:: not a property\n",
+]

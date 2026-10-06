@@ -1,0 +1,27 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      cargo-minor-patch:
+        update-types: [minor, patch]
+    ignore:
+      # GPUI Kit is pinned exactly (ADR-001) and upgraded deliberately via the
+      # weekly canary workflow, never by an automatic PR.
+      - dependency-name: gpui-kit
+      - dependency-name: gpui-pre*
+      # rmcp is pinned to the 3.5 minor (docs/design/mcp-server.md): patch updates only.
+      - dependency-name: rmcp
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor

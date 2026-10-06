@@ -1,0 +1,11 @@
+---
+source: crates/bitacora-markdown/tests/snapshot_template.rs
+expression: "format!(\"{rel}\\n{lines:#?}\")"
+---
+pages/crlf.md
+[
+    "- crlf first block\r\n",
+    "  continuation line\r\n",
+    "- crlf second block\r\n",
+    "\t- crlf child\r\n",
+]

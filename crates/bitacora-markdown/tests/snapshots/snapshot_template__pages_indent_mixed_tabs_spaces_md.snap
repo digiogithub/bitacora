@@ -1,0 +1,12 @@
+---
+source: crates/bitacora-markdown/tests/snapshot_template.rs
+expression: "format!(\"{rel}\\n{lines:#?}\")"
+---
+pages/indent-mixed-tabs-spaces.md
+[
+    "- mixed parent\n",
+    "\t- tab child\n",
+    "  - two-space child after tab\n",
+    "\t  - tab plus spaces child\n",
+    "- sibling\n",
+]

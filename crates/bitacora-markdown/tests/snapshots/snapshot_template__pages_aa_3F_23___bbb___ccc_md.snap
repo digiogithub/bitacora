@@ -1,0 +1,8 @@
+---
+source: crates/bitacora-markdown/tests/snapshot_template.rs
+expression: "format!(\"{rel}\\n{lines:#?}\")"
+---
+pages/aa%3F%23___bbb___ccc.md
+[
+    "- percent-encoded reserved characters in the title\n",
+]

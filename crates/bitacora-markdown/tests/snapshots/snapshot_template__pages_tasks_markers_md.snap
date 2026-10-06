@@ -1,0 +1,18 @@
+---
+source: crates/bitacora-markdown/tests/snapshot_template.rs
+expression: "format!(\"{rel}\\n{lines:#?}\")"
+---
+pages/tasks-markers.md
+[
+    "- TODO todo task\n",
+    "- DOING doing task\n",
+    "- NOW now task\n",
+    "- LATER later task\n",
+    "- WAIT wait task\n",
+    "- DONE done task\n",
+    "- CANCELED canceled task\n",
+    "- CANCELLED cancelled task\n",
+    "- IN-PROGRESS in-progress task\n",
+    "- TODO [#A] priority a\n",
+    "- LATER [#C] priority c\n",
+]

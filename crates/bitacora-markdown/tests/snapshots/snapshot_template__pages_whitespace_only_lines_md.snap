@@ -1,0 +1,13 @@
+---
+source: crates/bitacora-markdown/tests/snapshot_template.rs
+expression: "format!(\"{rel}\\n{lines:#?}\")"
+---
+pages/whitespace-only-lines.md
+[
+    "- block before whitespace-only lines\n",
+    "   \n",
+    "\t\n",
+    "- block after whitespace-only lines\n",
+    "  \n",
+    "- final block\n",
+]

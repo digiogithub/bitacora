@@ -103,6 +103,7 @@ parking_lot = "0.12"
 
 # Tooling (xtask)
 cargo_metadata = "0.23"
+sha2 = "0.10"
 
 # Dev / test
 insta = "1.49"

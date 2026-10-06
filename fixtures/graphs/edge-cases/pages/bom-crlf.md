@@ -1,0 +1,2 @@
+﻿- bom and crlf
+- second

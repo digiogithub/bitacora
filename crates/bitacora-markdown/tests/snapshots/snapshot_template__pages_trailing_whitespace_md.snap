@@ -1,0 +1,11 @@
+---
+source: crates/bitacora-markdown/tests/snapshot_template.rs
+expression: "format!(\"{rel}\\n{lines:#?}\")"
+---
+pages/trailing-whitespace.md
+[
+    "- trailing spaces   \n",
+    "- trailing tab\t\n",
+    "  continuation with trailing spaces  \n",
+    "- no trailing\n",
+]

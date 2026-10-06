@@ -1,0 +1,73 @@
+- ## 🌟[[New to Logseq?]]
+	- ### Basics
+		- [[Start here]]
+		- [[How to create a new graph]]
+		- [[How to create a Logseq graph using existing Markdown files]]
+		- [[Getting started with the Journals page]]
+		- [[How to create pages in Logseq]]
+		- [[What is indentation and why does it matter?]]
+	- ### Linking
+		- [[Why linking matters]]
+		- [[Aliases and external links]]
+		- [[How to filter linked references]]
+	- ### References and Embeds
+		- [[The basics of block references]]
+		- [[The difference between block embeds and block references]]
+		- [[The difference between block embeds and page embeds]]
+	- ### Extra
+		- [[How to work with the right-hand sidebar]]
+		- [[How to sync your Logseq graph across devices]]
+- ## Miscellaneous
+	- [Roadmap](https://trello.com/b/8txSM12G/logseq-roadmap)
+	- [[Changelog]]
+	- [[Videos]]
+	- [[FAQ]]
+	- [[Glossary]]
+	- [[Testimonials]]
+	- [Awesome Logseq](https://github.com/logseq/awesome-logseq) (community extensions and resources)
+- ## [Features]([[Feature]])
+	- ### Basic Features
+		- [Backlink]([[term/backlink]])
+		- [[Page and block references]]
+		- [[Page embed]] and [[Block embed]]
+		- [[Properties]]
+		- [Page alias]([[term/alias]])
+	- ### Productivity
+		- [[Tasks]]
+		- [[Commands]] and [[Advanced commands]]
+		- [[Queries]] and [[Query Builder]]
+		- [[Templates]]
+	- ### Media
+		- [[PDF highlights]]
+		- [[Whiteboard]]
+		- [[Embed Media - Audio, Photos, Videos]]
+		- [[Draw]]
+		- [[Zotero]] integration
+	- ### Tools
+		- [[Flashcards]]
+		- [[Slide]]
+		- [[Calculator]]
+		- [[Tables]]
+		- [[Publishing]]
+		- [[Knowledge Graph]]
+	- ### Customization
+		- [[User configuration]]
+		- [[Custom theme]]
+		- [[Plugins]]
+		- 👤 [[Settings]]
+		- Document formats: [[Markdown]] and [[Org Mode]]
+- ## [[Advanced Logseq]]
+	- ✨ [[Tips and Tricks]]
+	- [[Keyboard shortcuts]]
+	- [[Advanced Queries]]
+	- [[Hiccup]]
+	- [[Migrate to Logseq Beta]]
+- ## [[Contribute]]
+	- Make a [Feature Request](https://discuss.logseq.com/)
+	- [Check us out on Github](https://github.com/logseq/logseq)
+	- [Contribute to Our Docs](https://github.com/logseq/docs)
+	- Create a plugin! Start with [[Plugins 101]]
+- 💬
+	- Message us on [Discord](https://discord.gg/KpN4eHY) (We love feedback!)
+	- Ask questions in the [forum](https://discuss.logseq.com)
+	- Tweet us [@logseq](https://twitter.com/logseq)

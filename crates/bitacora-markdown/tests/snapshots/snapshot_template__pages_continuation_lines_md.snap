@@ -1,0 +1,14 @@
+---
+source: crates/bitacora-markdown/tests/snapshot_template.rs
+expression: "format!(\"{rel}\\n{lines:#?}\")"
+---
+pages/continuation-lines.md
+[
+    "- first line of block\n",
+    "  second continuation line\n",
+    "\n",
+    "  third line after blank line\n",
+    "  - nested child\n",
+    "    indented continuation of child\n",
+    "- next block\n",
+]

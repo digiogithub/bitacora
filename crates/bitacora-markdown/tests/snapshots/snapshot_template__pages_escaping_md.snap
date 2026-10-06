@@ -1,0 +1,13 @@
+---
+source: crates/bitacora-markdown/tests/snapshot_template.rs
+expression: "format!(\"{rel}\\n{lines:#?}\")"
+---
+pages/escaping.md
+[
+    "- escaping: \\- not a bullet, \\* star, \\_ underscore\n",
+    "  \\- continuation starting with escaped dash\n",
+    "- line with * star and _ underscore_ and **bold**\n",
+    "- 1. ordered-looking text\n",
+    "- > quote block\n",
+    "  > second quote line\n",
+]

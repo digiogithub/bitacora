@@ -1,0 +1,11 @@
+- TODO todo task
+- DOING doing task
+- NOW now task
+- LATER later task
+- WAIT wait task
+- DONE done task
+- CANCELED canceled task
+- CANCELLED cancelled task
+- IN-PROGRESS in-progress task
+- TODO [#A] priority a
+- LATER [#C] priority c
