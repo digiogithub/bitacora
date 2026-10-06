@@ -1,12 +1,13 @@
 //! `bitacora-cli`: headless binary (`serve`, `reindex`, `sync`, `doctor`).
 
+mod cmd;
+
 use std::path::PathBuf;
 use std::process::ExitCode;
 use std::sync::Arc;
 
 use anyhow::Context as _;
 use bitacora_core as _;
-use bitacora_index as _;
 use bitacora_mcp::{McpConfig, McpServer, StaticGraphReader, TokenStore};
 use bitacora_sync as _;
 use clap::{Args, Parser, Subcommand};
@@ -24,11 +25,11 @@ enum Command {
     /// Serve the MCP endpoint over HTTP.
     Serve(ServeArgs),
     /// Rebuild the SQLite index from the graph.
-    Reindex,
+    Reindex(cmd::reindex::ReindexArgs),
     /// Run one git sync cycle.
     Sync,
     /// Diagnose the environment and the graph.
-    Doctor,
+    Doctor(cmd::doctor::DoctorArgs),
 }
 
 /// Options for `serve`.
@@ -52,9 +53,9 @@ impl Command {
     fn name(&self) -> &'static str {
         match self {
             Command::Serve(_) => "serve",
-            Command::Reindex => "reindex",
+            Command::Reindex(_) => "reindex",
             Command::Sync => "sync",
-            Command::Doctor => "doctor",
+            Command::Doctor(_) => "doctor",
         }
     }
 }
@@ -99,6 +100,29 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         },
+        Command::Reindex(args) => {
+            match cmd::reindex::run(&args).and_then(|s| cmd::reindex::print(&s, args.graph.json)) {
+                Ok(()) => ExitCode::SUCCESS,
+                Err(e) => {
+                    eprintln!("bitacora-cli reindex: {e:#}");
+                    ExitCode::FAILURE
+                }
+            }
+        }
+        Command::Doctor(args) => match cmd::doctor::run(&args) {
+            Ok(report) => match cmd::doctor::print(&report, args.graph.json) {
+                Ok(()) if report.healthy() => ExitCode::SUCCESS,
+                Ok(()) => ExitCode::from(cmd::doctor::EXIT_UNHEALTHY),
+                Err(e) => {
+                    eprintln!("bitacora-cli doctor: {e:#}");
+                    ExitCode::FAILURE
+                }
+            },
+            Err(e) => {
+                eprintln!("bitacora-cli doctor: {e:#}");
+                ExitCode::FAILURE
+            }
+        },
         other => {
             eprintln!("bitacora-cli {}: not implemented", other.name());
             ExitCode::FAILURE
@@ -112,9 +136,13 @@ mod tests {
 
     #[test]
     fn parses_subcommands() {
-        for name in ["reindex", "sync", "doctor"] {
-            let cli = Cli::try_parse_from(["bitacora-cli", name]).expect("parse");
+        let cli = Cli::try_parse_from(["bitacora-cli", "sync"]).expect("parse");
+        assert_eq!(cli.command.name(), "sync");
+        for name in ["reindex", "doctor"] {
+            let cli = Cli::try_parse_from(["bitacora-cli", name, "--graph", "/tmp/g", "--json"])
+                .expect("parse");
             assert_eq!(cli.command.name(), name);
+            assert!(Cli::try_parse_from(["bitacora-cli", name]).is_err());
         }
         let cli =
             Cli::try_parse_from(["bitacora-cli", "serve", "--graph", "/tmp/g", "--port", "0"])
