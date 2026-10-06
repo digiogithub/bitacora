@@ -4,7 +4,9 @@
     "bindings": {
       "secondary-b": "bitacora::ToggleLeftSidebar",
       "secondary-shift-b": "bitacora::ToggleRightSidebar",
-      "secondary-shift-l": "bitacora::ToggleTheme"
+      "secondary-shift-l": "bitacora::ToggleTheme",
+      "secondary-[": "bitacora::GoBack",
+      "secondary-]": "bitacora::GoForward"
     }
   },
   {

@@ -88,6 +88,8 @@ mod tests {
             "bitacora::ToggleLeftSidebar",
             "bitacora::ToggleRightSidebar",
             "bitacora::ToggleTheme",
+            "bitacora::GoBack",
+            "bitacora::GoForward",
             "bitacora::Quit",
         ] {
             assert!(actions.contains(&expected), "{expected} unbound");

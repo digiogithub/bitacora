@@ -41,8 +41,23 @@ status:
 page:
   loading: Loading page...
   load_failed: "Cannot open the page: %{error}"
+  empty: No content yet
+  redirected_from: "Redirected from %{name}"
+  namespace_children: Pages in this namespace
   logbook: "LOGBOOK (%{count} entries)"
   logbook_total: "LOGBOOK (%{count} entries, %{total})"
+journals:
+  today_empty: Nothing written today yet
+  more: More blocks on the page...
+refs:
+  linked: "Linked references (%{count})"
+  linked_loading: Linked references
+  unlinked: Unlinked references
+  unlinked_count: "Unlinked references (%{count})"
+  filters_hint: "Click a page to include it, again to exclude it"
+  filters_none: No pages to filter by
+  filters_active: Filtered
+  filters_clear: Clear filters
 picker:
   title: Open a graph
   subtitle: Pick a Logseq graph folder to start browsing it.
