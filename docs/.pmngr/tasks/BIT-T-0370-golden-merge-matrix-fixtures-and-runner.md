@@ -2,7 +2,7 @@
 id: BIT-T-0370
 type: task
 title: Golden merge matrix fixtures and runner
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0055
 milestone: BIT-M-0004
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-merge, merge, testing]
 estimate: 3
 created: 2026-10-06T14:34:50Z
-updated: 2026-10-06T15:10:04Z
+updated: 2026-10-06T19:34:06Z
+closed: 2026-10-06T19:34:06Z
 ---
 
 ## Description

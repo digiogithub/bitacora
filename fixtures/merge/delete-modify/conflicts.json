@@ -1,0 +1,8 @@
+[
+  {
+    "field": "block",
+    "kind": "delete_vs_modify",
+    "ours": null,
+    "theirs": "the block to remove or edit today"
+  }
+]

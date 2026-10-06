@@ -173,6 +173,7 @@ pub struct SyncEngine {
     shared: Arc<Mutex<SyncStatus>>,
     history: Vec<SyncState>,
     upstream_set: bool,
+    agent_pending: Option<String>,
 }
 
 impl SyncEngine {
@@ -226,6 +227,7 @@ impl SyncEngine {
             shared: Arc::new(Mutex::new(status)),
             history: Vec::new(),
             upstream_set: false,
+            agent_pending: None,
         }
     }
 
@@ -334,6 +336,26 @@ impl SyncEngine {
         self.debouncer.note_write(now);
         if self.state == SyncState::Idle {
             self.set_state(SyncState::Dirty);
+        }
+    }
+
+    /// An MCP agent wrote to the graph: the next automatic commit is recorded as
+    /// `Bitacora-Kind: agent` with a `Bitacora-Agent` trailer naming the client, and is never
+    /// squashed into a user's auto commit. Also counts as a write for the idle debounce.
+    pub fn note_agent_write(&mut self, agent: &str) {
+        self.agent_pending = Some(agent.to_owned());
+        self.note_write();
+    }
+
+    /// The request for the next automatic commit (consumes a pending agent attribution).
+    fn auto_request(&mut self) -> CommitRequest {
+        match self.agent_pending.take() {
+            Some(agent) => CommitRequest {
+                kind: CommitKind::Agent,
+                agent: Some(agent),
+                subject: None,
+            },
+            None => CommitRequest::auto(),
         }
     }
 
@@ -550,12 +572,13 @@ impl SyncEngine {
         // 1. Commit local work (Committing -> Syncing, or back to rest when nothing changed).
         let before = self.state.clone();
         self.set_state(SyncState::Committing);
+        let request = self.auto_request();
         let committed = {
             let lock = self.writer.acquire()?;
             let out = commit_changes(
                 self.backend.as_ref(),
                 &self.config.commit,
-                &CommitRequest::auto(),
+                &request,
                 self.timing.unix_now(),
             );
             drop(lock);
@@ -1316,6 +1339,8 @@ enum MergeResult {
 pub enum Command {
     /// A write was flushed to disk.
     FileFlushed,
+    /// An MCP agent (named client) wrote to the graph.
+    AgentWrite(String),
     /// Manual "Sync now" / MCP `git_sync`.
     SyncNow,
     /// Network up / wake from sleep.
@@ -1386,6 +1411,7 @@ fn run_loop(mut engine: SyncEngine, rx: &Receiver<Command>) -> SyncEngine {
             });
         match rx.recv_timeout(wait) {
             Ok(Command::FileFlushed) => engine.note_write(),
+            Ok(Command::AgentWrite(name)) => engine.note_agent_write(&name),
             Ok(Command::SyncNow) => {
                 engine.sync_now();
             }

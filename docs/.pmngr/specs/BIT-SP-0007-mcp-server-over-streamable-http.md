@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [mcp, api]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T19:12:09Z
+updated: 2026-10-06T19:41:23Z
 requirements:
   R1:
     status: backlog
@@ -47,17 +47,55 @@ requirements:
   R6:
     status: backlog
     trace:
-      code: [crates/bitacora-mcp/src/tokens.rs]
-      tests: [crates/bitacora-mcp/src/tokens.rs]
+      code:
+        - crates/bitacora-mcp/src/tokens.rs
+        - crates/bitacora-mcp/src/policy.rs
+        - crates/bitacora-mcp/src/handler.rs#exec_write
+      tests:
+        - crates/bitacora-mcp/src/tokens.rs
+        - crates/bitacora-runtime/tests/mcp_write.rs#toggles_scopes_catalogue_rate_limit_and_protected_pages
     verified: {rev: "sha256:9419df24d87ddc2a", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
   R7:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-mcp/src/bridge.rs
+        - crates/bitacora-mcp/src/handler.rs#exec_write
+        - crates/bitacora-runtime/src/live.rs
+        - crates/bitacora-sync/src/engine.rs#note_agent_write
+      tests:
+        - crates/bitacora-runtime/tests/mcp_write.rs#update_block_reaches_disk_index_audit_and_undo_restores_exact_bytes
+        - crates/bitacora-runtime/tests/mcp_write.rs#agent_write_is_committed_by_sync_as_kind_agent_with_the_token_name
+        - crates/bitacora-sync/tests/sync_engine.rs#agent_writes_are_committed_as_kind_agent_with_the_client_trailer
   R8:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-mcp/src/audit.rs
+        - crates/bitacora-mcp/src/server.rs#undo_audit_entry
+        - crates/bitacora-mcp/src/guard.rs
+        - crates/bitacora-runtime/src/live.rs#agent_activity
+      tests:
+        - crates/bitacora-mcp/src/audit.rs
+        - crates/bitacora-runtime/tests/mcp_write.rs#audit_covers_reads_and_auth_failures_and_survives_restart
+        - crates/bitacora-runtime/tests/mcp_write.rs#insert_move_properties_status_remove_and_group_undo
+        - crates/bitacora-runtime/tests/mcp_write.rs#a_multi_block_insert_undoes_as_one_step
   R9:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-mcp/src/bridge.rs#check_version
+        - crates/bitacora-mcp/src/bridge.rs#resolve
+      tests:
+        - crates/bitacora-runtime/tests/mcp_write.rs#optimistic_concurrency_and_validation_errors
   R10:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-mcp/src/bridge.rs#guard_page
+        - crates/bitacora-mcp/src/policy.rs#WriteGate
+      tests:
+        - crates/bitacora-mcp/src/bridge.rs#busy_and_conflicted_blocks_refuse_writes_and_write_nothing
   R11:
     status: backlog
     trace:
@@ -73,18 +111,44 @@ requirements:
         - crates/bitacora-cli/src/cmd/serve_tests.rs
   R12:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-mcp/src/handler.rs
+        - crates/bitacora-mcp/src/write_tools.rs
+        - crates/bitacora-mcp/src/bridge.rs
+      tests:
+        - crates/bitacora-runtime/tests/mcp_write.rs#insert_move_properties_status_remove_and_group_undo
+        - crates/bitacora-runtime/tests/mcp_write.rs#create_page_append_today_rename_with_links_delete_and_undo
+        - crates/bitacora-runtime/tests/mcp_write.rs#toggles_scopes_catalogue_rate_limit_and_protected_pages
   R13:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-mcp/src/bridge.rs#validate_content
+        - crates/bitacora-mcp/src/write_tools.rs#collect_blocks
+      tests:
+        - crates/bitacora-mcp/src/bridge.rs
+        - crates/bitacora-mcp/src/write_tools.rs
+        - crates/bitacora-runtime/tests/mcp_write.rs#optimistic_concurrency_and_validation_errors
   R14:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-mcp/src/policy.rs
+        - crates/bitacora-mcp/src/bridge.rs#guard_page
+      tests:
+        - crates/bitacora-mcp/src/policy.rs
+        - crates/bitacora-runtime/tests/mcp_write.rs#toggles_scopes_catalogue_rate_limit_and_protected_pages
   R15:
     status: backlog
     trace:
       code:
         - crates/bitacora-mcp/src/index_reader.rs#read_asset
         - crates/bitacora-mcp/src/resources.rs
+        - crates/bitacora-mcp/src/write_tools.rs
       tests:
         - crates/bitacora-mcp/tests/read_tools.rs#resources_templates_read_and_confinement
+        - crates/bitacora-runtime/tests/mcp_write.rs#catalogue_has_no_shell_or_raw_path_tools
   R16:
     status: backlog
     trace:
@@ -97,9 +161,12 @@ requirements:
   R17:
     status: backlog
     trace:
-      code: [crates/bitacora-mcp/src/handler.rs]
+      code:
+        - crates/bitacora-mcp/src/handler.rs
+        - crates/bitacora-mcp/src/compat.rs
       tests:
         - crates/bitacora-mcp/tests/read_tools.rs#tools_list_declares_schemas_and_read_only_hints
+        - crates/bitacora-runtime/tests/mcp_write.rs#compat_api_is_off_by_default_and_audited_when_on
   R18:
     status: backlog
     trace:
@@ -315,7 +382,7 @@ A write targeting a block that the user is currently editing SHALL return `code:
 
 ### BIT-SP-0007.R11 — Expose the minimum read tool set
 
-The server SHALL expose the read tools `search`, `get_page`, `get_page_blocks_tree` (alias `get_block_tree` with a uuid), `get_block`, `list_pages`, `list_journals`, `get_today_journal`, `backlinks`, `tasks`, `query` (Logseq simple-query DSL subset), `get_graph_info`, `list_graphs` and `git_sync_status`, each accepting an optional `graph` argument (default: active graph), with page names resolved case-insensitively through aliases.
+The server SHALL expose the read tools `search`, `get_page`, `get_page_blocks_tree` (alias `get_block_tree` with a uuid), `get_block`, `list_pages`, `list_journals`, `get_today_journal`, `backlinks`, `tasks`, `query` (Logseq simple-query DSL and the supported advanced Datalog subset), `get_graph_info`, `list_graphs` and `git_sync_status`, each accepting an optional `graph` argument (default: active graph), with page names resolved case-insensitively through aliases.
 
 #### Scenario: Get page via alias
 - GIVEN page "Project X" has `alias:: PX`
@@ -331,9 +398,17 @@ The server SHALL expose the read tools `search`, `get_page`, `get_page_blocks_tr
 - WHEN the agent calls `get_page {"name":"Nope"}`
 - THEN the result is `isError: true` with `code: "NOT_FOUND"`
 
-#### Scenario: Raw Datalog not supported
-- WHEN the agent calls `query {"dsl":"[:find ?b :where [?b :block/content]]"}`
-- THEN the result is `isError: true` with `code: "INVALID_QUERY"` explaining only the simple-query DSL is supported
+#### Scenario: Advanced Datalog query
+- WHEN the agent calls `query {"dsl":"[:find (pull ?b [*]) :where [?b :block/marker \"TODO\"]]"}` using constructs in the supported subset
+- THEN the query executes and the result lists the matching blocks
+
+#### Scenario: Unsupported Datalog construct
+- WHEN the agent calls `query` with an advanced query that uses a construct outside the supported subset
+- THEN the result is `isError: true` with `code: "NOT_SUPPORTED"` and `unsupported: <construct>` naming it
+
+#### Scenario: Malformed query
+- WHEN the agent calls `query {"dsl":"[:find ?b :where"}`
+- THEN the result is `isError: true` with `code: "INVALID_QUERY"`
 
 ### BIT-SP-0007.R12 — Expose the minimum write and delete tool set
 

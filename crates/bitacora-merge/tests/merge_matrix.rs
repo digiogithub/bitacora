@@ -390,3 +390,49 @@ fn only_changed_blocks_differ_with_tabs_and_crlf() {
     );
     assert_eq!(r.output, expect);
 }
+
+#[test]
+fn touching_diff3_conflicts_on_adjacent_delete_and_insert_but_plain_diff3_does_not() {
+    use bitacora_merge::{diff3, diff3_touching};
+    let base = ["a", "b", "c"];
+    // Theirs deletes `b`; ours adds a line right after it.
+    let (o, t) = (["a", "b", "x", "c"], ["a", "c"]);
+    assert_eq!(diff3(&base, &o, &t).conflicts, 0);
+    assert_eq!(diff3_touching(&base, &o, &t).conflicts, 1);
+    // Far apart edits still merge.
+    let (o, t) = (["a", "b", "c", "d", "x"], ["a", "c", "d"]);
+    assert_eq!(diff3_touching(&["a", "b", "c", "d"], &o, &t).conflicts, 0);
+}
+
+#[test]
+fn short_titles_that_are_prefixes_of_each_other_pair_with_the_closest_one() {
+    // `level one` / `level one again`: both are prefixes of the longer line, each side edits one.
+    let r = m(
+        "- level one\n- level one again\n",
+        "- level one x\n- level one again\n",
+        "- level one\n- level one again y\n",
+    );
+    assert_eq!(r.output, "- level one x\n- level one again y\n");
+    assert!(r.conflicts.is_empty());
+}
+
+#[test]
+fn metadata_only_change_on_one_side_does_not_keep_a_block_the_other_side_deleted() {
+    // `collapsed::` is device UI state (design 4.3): the delete wins silently.
+    let r = m(
+        "- keep this one\n- the doomed block text here\n",
+        "- keep this one\n",
+        "- keep this one\n- the doomed block text here\n  collapsed:: true\n",
+    );
+    assert_eq!(r.output, "- keep this one\n");
+    assert!(r.conflicts.is_empty());
+    // New tracked time or a newly assigned `id::` is not UI state: the block is kept and reported.
+    let r = m(
+        "- keep this one\n- the referenced block text\n",
+        "- keep this one\n",
+        "- keep this one\n- the referenced block text\n  id:: 11110000-0000-4000-8000-000000000002\n",
+    );
+    assert_eq!(r.conflicts.len(), 1);
+    assert_eq!(r.conflicts[0].conflict.kind, ConflictKind::DeleteVsModify);
+    assert!(r.output.contains("the referenced block text"));
+}

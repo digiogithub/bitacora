@@ -81,6 +81,24 @@ pub(crate) fn journal_template_text(
 pub(crate) struct SlotStatus(pub(crate) Arc<Mutex<Option<EngineHandle>>>);
 
 impl SyncStatusProvider for SlotStatus {
+    fn note_agent_write(&self, agent: &str) {
+        let guard = self.0.lock().unwrap_or_else(PoisonError::into_inner);
+        if let Some(h) = guard.as_ref() {
+            h.send(bitacora_sync::engine::Command::AgentWrite(agent.to_owned()));
+        }
+    }
+
+    fn sync_now(&self) -> bool {
+        let guard = self.0.lock().unwrap_or_else(PoisonError::into_inner);
+        match guard.as_ref() {
+            Some(h) => {
+                h.send(bitacora_sync::engine::Command::SyncNow);
+                true
+            }
+            None => false,
+        }
+    }
+
     fn status(&self) -> bitacora_mcp::SyncStatus {
         use bitacora_mcp::SyncState as Out;
         let guard = self.0.lock().unwrap_or_else(PoisonError::into_inner);

@@ -119,7 +119,13 @@ fn is_org(path: &GraphPath) -> bool {
 
 impl Workspace {
     /// Loads `path` from the store as a normal (clean) page.
-    fn load_existing(&mut self, key: &PageKey, title: &str, path: &GraphPath, bytes: &[u8]) {
+    pub(crate) fn load_existing(
+        &mut self,
+        key: &PageKey,
+        title: &str,
+        path: &GraphPath,
+        bytes: &[u8],
+    ) {
         self.load_page(key.clone(), title, Some(path.clone()), bytes);
         if is_org(path)
             && let Some(p) = self.pages_mut().get_mut(key)

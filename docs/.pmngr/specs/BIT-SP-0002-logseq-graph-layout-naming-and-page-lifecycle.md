@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [core, compat]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T19:13:44Z
+updated: 2026-10-06T19:30:29Z
 requirements:
   R1:
     status: backlog
@@ -88,10 +88,12 @@ requirements:
       code:
         - crates/bitacora-core/src/journal.rs#journal_file_path
         - crates/bitacora-core/src/editor/lifecycle.rs#ensure_today
+        - crates/bitacora-core/src/editor/rename.rs#plan_rename
       tests:
         - crates/bitacora-core/src/journal.rs#file_paths
         - crates/bitacora-core/tests/page_lifecycle.rs#today_is_virtual_until_typed
         - crates/bitacora-core/tests/page_lifecycle.rs#journal_directory_and_file_format_are_configurable
+        - crates/bitacora-core/tests/page_rename.rs#journals_are_never_renamed
   R12:
     status: backlog
     trace:
@@ -104,6 +106,17 @@ requirements:
         - crates/bitacora-core/tests/page_lifecycle.rs
   R13:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-core/src/rename.rs#rewrite_refs
+        - crates/bitacora-core/src/editor/rename.rs#plan_rename
+        - crates/bitacora-core/src/editor/op.rs#RenamePage
+        - crates/bitacora-core/src/editor/op.rs#EditFile
+        - crates/bitacora-runtime/src/rename_lookup.rs
+      tests:
+        - crates/bitacora-core/tests/page_rename.rs
+        - crates/bitacora-core/src/rename.rs#tests
+        - crates/bitacora-runtime/tests/rename.rs
   R14:
     status: backlog
     trace:
@@ -112,10 +125,12 @@ requirements:
         - crates/bitacora-core/src/editor/flush.rs#recycle
         - crates/bitacora-core/src/editor/fsio.rs#recycle
         - crates/bitacora-core/src/editor/op.rs#DeleteAsset
+        - crates/bitacora-core/src/editor/rename.rs#plan_merge
       tests:
         - crates/bitacora-core/tests/page_lifecycle.rs#deleting_a_page_recycles_its_file
         - crates/bitacora-core/tests/page_lifecycle.rs#deleting_an_asset_recycles_it_and_undo_restores_it
         - crates/bitacora-core/tests/page_lifecycle.rs#fs_store_recycles_with_rename_and_overwrites
+        - crates/bitacora-core/tests/page_rename.rs#merge_appends_blocks_recycles_the_source_and_rewrites_refs
   R15:
     status: backlog
   R16:

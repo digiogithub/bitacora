@@ -2,7 +2,7 @@
 id: BIT-US-0070
 type: story
 title: "\"Page changed on disk\" conflict notice with keep mine / take disk / show diff"
-status: backlog
+status: in_progress
 priority: high
 parent: BIT-EP-0008
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [ui, io, bitacora-app, bitacora-core]
 estimate: 5
 created: 2026-10-06T14:29:01Z
-updated: 2026-10-06T15:12:33Z
+updated: 2026-10-06T19:42:38Z
+started: 2026-10-06T19:42:38Z
 ---
 
 ## Description

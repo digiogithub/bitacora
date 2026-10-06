@@ -2,14 +2,15 @@
 id: BIT-T-0128
 type: task
 title: Span-based page-ref and tag rewriter for block content
-status: backlog
+status: done
 parent: BIT-US-0082
 milestone: BIT-M-0003
 author: mcp
 labels: [bitacora-core, bitacora-markdown, rename]
 estimate: 3
 created: 2026-10-06T14:29:56Z
-updated: 2026-10-06T14:29:56Z
+updated: 2026-10-06T19:30:10Z
+closed: 2026-10-06T19:30:10Z
 ---
 
 ## Description

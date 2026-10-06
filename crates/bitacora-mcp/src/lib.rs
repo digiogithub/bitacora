@@ -10,10 +10,14 @@
 //! `rmcp` types are confined to the private `handler` and `server` modules so a future rmcp major
 //! touches one place (design `mcp-server.md` section 1).
 
+mod audit;
+mod bridge;
+mod compat;
 mod dates;
 mod guard;
 mod handler;
 mod index_reader;
+mod policy;
 mod prompts;
 mod query;
 mod reader;
@@ -23,16 +27,20 @@ mod server;
 mod status;
 mod tokens;
 mod tools;
+mod write_tools;
 
+pub use audit::{AuditEvent, AuditFilter, AuditLog, AuditRecord, UndoError};
+pub use bridge::QueueBridge;
 pub use index_reader::IndexGraphReader;
+pub use policy::{OpenGate, WriteGate, WritePolicy};
 pub use reader::{
     BlockInfo, ChangeEvent, GraphInfo, GraphReader, ListPagesQuery, PageInfo, QueryOutcome,
     QueryRequest, ReaderError, ReaderErrorKind, ReaderResult, RefGroupInfo, RefItem, SearchItem,
     SearchKind, SearchQuery, StaticGraphReader, TaskQuery,
 };
-pub use server::{DEFAULT_PORT, McpConfig, McpServer};
+pub use server::{DEFAULT_PORT, McpConfig, McpServer, ServerParts};
 pub use status::{DisabledSync, SyncState, SyncStatus, SyncStatusProvider};
-pub use tokens::{Scope, TokenInfo, TokenStore, default_token_path};
+pub use tokens::{Scope, TokenInfo, TokenStore, default_audit_dir, default_token_path};
 
 use bitacora_core as _;
 use bitacora_index as _;

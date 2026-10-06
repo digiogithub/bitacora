@@ -902,6 +902,7 @@ dependencies = [
  "bitacora-config",
  "bitacora-core",
  "bitacora-index",
+ "bitacora-markdown",
  "bitacora-sync",
  "bitacora-testkit",
  "blake3",
@@ -925,7 +926,9 @@ name = "bitacora-merge"
 version = "0.1.0"
 dependencies = [
  "bitacora-markdown",
+ "criterion",
  "proptest",
+ "serde_json",
  "thiserror 2.0.21",
  "uuid",
 ]
@@ -941,6 +944,8 @@ dependencies = [
  "bitacora-sync",
  "bitacora-testkit",
  "bitacora-watch",
+ "jiff",
+ "serde_json",
  "tempfile",
  "thiserror 2.0.21",
  "tracing",

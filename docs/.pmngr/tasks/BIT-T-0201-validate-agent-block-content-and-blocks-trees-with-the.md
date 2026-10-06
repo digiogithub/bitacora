@@ -2,7 +2,7 @@
 id: BIT-T-0201
 type: task
 title: Validate agent block content and blocks[] trees with the Markdown parser
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0020
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-mcp, bitacora-markdown, write]
 estimate: 2
 created: 2026-10-06T14:31:00Z
-updated: 2026-10-06T14:31:00Z
+updated: 2026-10-06T19:40:50Z
+closed: 2026-10-06T19:40:50Z
 ---
 
 ## Description

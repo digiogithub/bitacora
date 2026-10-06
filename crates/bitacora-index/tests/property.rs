@@ -10,6 +10,7 @@ use bitacora_index::dump::canonical_dump;
 use bitacora_index::{FsChange, Indexer, IndexerOptions};
 use common::{copy_dir, env_for, write};
 use proptest::prelude::*;
+use proptest::test_runner::FileFailurePersistence;
 
 const LINES: [&str; 14] = [
     "- plain block",
@@ -98,6 +99,15 @@ fn op_strategy() -> impl Strategy<Value = Op> {
     ]
 }
 
+/// `PROPTEST_CASES` overrides the default so the property can be stress-run (the explicit
+/// `cases` in the config would otherwise shadow the environment variable).
+fn cases_from_env(default: u32) -> u32 {
+    std::env::var("PROPTEST_CASES")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(default)
+}
+
 fn md_files(root: &std::path::Path) -> Vec<String> {
     let mut v = Vec::new();
     for dir in ["pages", "journals"] {
@@ -118,7 +128,7 @@ fn md_files(root: &std::path::Path) -> Vec<String> {
 /// Explicit ids are unique per inserted line: which of two files holding the same `id::` keeps it
 /// depends on indexing order (design §2.2), so the property is checked on graphs without clashes.
 fn line_text(i: usize) -> String {
-    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0x1_0000);
     let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     LINES[i].replace("{ID}", &format!("6500c1a4-0000-4000-8000-{n:012x}"))
 }
@@ -275,7 +285,7 @@ fn base_graph() -> tempfile::TempDir {
 }
 
 proptest! {
-    #![proptest_config(ProptestConfig { cases: 40, failure_persistence: None, ..ProptestConfig::default() })]
+    #![proptest_config(ProptestConfig { cases: cases_from_env(40), failure_persistence: Some(Box::new(FileFailurePersistence::WithSource("property"))), ..ProptestConfig::default() })]
 
     #[test]
     fn incremental_equals_rebuild_on_a_small_graph(ops in prop::collection::vec(op_strategy(), 1..12)) {
@@ -285,8 +295,56 @@ proptest! {
     }
 }
 
+/// Regression: a generated `id::` once collided with the base graph's explicit id (the counter
+/// reached `0xaa`), which makes "who keeps the id" order-dependent (design §2.2) and flaked the
+/// property. The id counter now starts far from the fixtures' ids; this test pins the underlying
+/// behaviour so a clash shows up as a deterministic result here, not as a flake.
+#[test]
+fn explicit_id_clash_between_files_is_reported_deterministically() {
+    let base = base_graph();
+    let (a, b) = dump_of(
+        base.path(),
+        &[Op::Create {
+            name: 0,
+            header: 0,
+            lines: vec![],
+        }],
+    );
+    assert!(a == b, "{}", first_diff(&a, &b));
+    let work = tempfile::tempdir().expect("tmp");
+    let g = work.path().join("g");
+    copy_dir(base.path(), &g);
+    write(
+        &g,
+        "journals/2026_10_06.md",
+        "- clash\n  id:: 6500c1a4-0000-4000-8000-0000000000aa\n",
+    );
+    let env_a = env_for(g.clone());
+    let index_a = env_a.open();
+    let ix_a = Indexer::start(
+        &index_a,
+        IndexerOptions::new(&g, EffectiveConfig::default()),
+    )
+    .expect("a");
+    ix_a.reconcile().expect("cold a");
+    // Incremental path: re-handle the clashing file after Page A already owns the id.
+    ix_a.handle(&FsChange::Modified(gp("journals/2026_10_06.md")))
+        .expect("modify");
+    let inc = canonical_dump(&index_a.reader().expect("r")).expect("dump");
+    let env_b = env_for(g.clone());
+    let index_b = env_b.open();
+    let ix_b = Indexer::start(
+        &index_b,
+        IndexerOptions::new(&g, EffectiveConfig::default()),
+    )
+    .expect("b");
+    ix_b.reconcile().expect("cold b");
+    let scratch = canonical_dump(&index_b.reader().expect("r")).expect("dump");
+    assert!(inc == scratch, "{}", first_diff(&inc, &scratch));
+}
+
 proptest! {
-    #![proptest_config(ProptestConfig { cases: 12, failure_persistence: None, ..ProptestConfig::default() })]
+    #![proptest_config(ProptestConfig { cases: cases_from_env(12), failure_persistence: Some(Box::new(FileFailurePersistence::WithSource("property"))), ..ProptestConfig::default() })]
 
     #[test]
     fn incremental_equals_rebuild_on_the_edge_cases_fixture(ops in prop::collection::vec(op_strategy(), 1..8)) {

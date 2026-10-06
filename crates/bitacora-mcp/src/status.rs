@@ -46,6 +46,15 @@ pub struct SyncStatus {
 pub trait SyncStatusProvider: Send + Sync + 'static {
     /// Current status.
     fn status(&self) -> SyncStatus;
+
+    /// An agent (MCP client / token name) wrote to the graph; the next automatic commit is
+    /// attributed to it (`Bitacora-Kind: agent`).
+    fn note_agent_write(&self, _agent: &str) {}
+
+    /// Asks the engine for a sync cycle now (`git_sync_now`); `false` when there is no engine.
+    fn sync_now(&self) -> bool {
+        false
+    }
 }
 
 /// Provider used when no sync engine is attached.

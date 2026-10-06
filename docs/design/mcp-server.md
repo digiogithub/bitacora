@@ -225,6 +225,41 @@ Naming: snake_case MCP names; each lists the Logseq plugin API it mirrors. All t
 - Subscriptions use the legacy `resources/subscribe` request (stateful sessions); index events are mapped to page, journal and block URIs and sent as `notifications/resources/updated`. The headless CLI polls `Indexer::reconcile` every 2 s until the watcher is wired in.
 - Assets are confined to `assets/` (canonicalised, symlink escapes refused) and capped at 5 MiB.
 
+## Implementation notes (write side, BIT-US-0020/0021/0022/0023)
+
+- **Bridge** (`bridge.rs`, `QueueBridge`): write tools run on core's single-writer `CommandQueue` with `Source::Mcp` (`Cmd` planners and `Request::Commit`); no file is touched outside core (rule 3). A tool call is a *group* of core transactions, all-or-nothing (committed steps are rolled back with their inverse ops when a later step fails). The audit log keeps the group's transactions in memory; undo commits their inverses in reverse order as one step. `bitacora-mcp` gained edges to `bitacora-config` and `bitacora-markdown` (content validation, property edits) in `xtask/src/deps.rs`; the app/CLI only pass a `QueueBridge` in `ServerParts`.
+- **Policy** (`policy.rs`, `WritePolicy`): `mcp.allow_writes` / `mcp.allow_deletes` (default off, live-adjustable through `McpServer::policy()`), per-token sliding window (60 write calls/min, `RATE_LIMITED` with `retry_after_ms`; every attempt counts, even refused ones), 200 blocks per call (`INVALID_CONTENT`), protected pages: `mcp.protected_namespaces` (root or child) and `bitacora-agent-readonly:: true` on the page (read from the index and from the loaded page) give `PROTECTED_PAGE`. Order of checks: global toggle (`READ_ONLY`) -> token scope (`FORBIDDEN_SCOPE`) -> rate limit -> validation -> page guards. `tools/list` hides write tools without toggle+scope and delete tools without both toggles and the `delete` scope; calling a hidden tool still enforces the checks.
+- **Optimistic concurrency**: block `version` = `blake3(uuid, content)[..16]`, identical for the index reader and the write path; `expected_version` mismatch -> `CONFLICT` with `current {uuid, content, version}`. `BLOCK_BUSY` (+ `retry_after_ms`) comes from the app-supplied `WriteGate` (`McpConfig::gate`), `BLOCK_IN_CONFLICT` from `SyncStatus.conflict_pages` (page granularity). Block lookup: loaded pages first (blocks with `id::`, including blocks agents created), then the index (uuid, document position verified against the text; a stale index is a `CONFLICT`, never a write to the wrong block). Index-generated uuids are only stable until the file is re-parsed (index design section 2.3): agents should use uuids from a fresh read, and blocks they create always get a persisted `id::`. Edited blocks lacking `id::` get their index uuid written lazily.
+- **Content rules**: `content` is one block (no leading `- `, no line that would parse as a bullet, no `id::`/`collapsed::`), validated with core's `text_is_representable` and the markdown property reader. Properties are placed after the title line (Logseq layout), before continuation lines.
+- **Rename**: core has no title-changing op, so `rename_page` is delete-old + create-new inside one group: the old file goes to `logseq/.recycle/` (recoverable), the new file gets the same blocks (ids and properties preserved) and `[[old]]`, `#[[old]]`, `#old` references in other pages (from the index's linked references) and in the page itself are rewritten; protected referrers are skipped and reported in `details.skipped_pages`. Journals cannot be renamed. Namespace children are not renamed.
+- **Undo safety**: the audit entry records a content hash of every touched page right after the call; undo is refused (`UndoError::Changed`) once any of those pages changed, so undo is effectively last-in-first-out per page. Undo data is in memory: after a restart entries are listed but `NotAvailable`.
+- **Audit** (`audit.rs`): JSONL `audit.jsonl` in `<data dir>/mcp-audit` (runtime default; `McpConfig::audit_dir`), 10 MiB x 5 files, an `undone` event line instead of rewriting. One record per tool call (reads included), per `/api` call (`api:<method>`) and per authentication failure (`auth`). No note content (non-content arguments verbatim, others as sizes) and no token values. Runtime API for the "Agent activity" view: `Session::agent_activity(&AuditFilter)`, `Session::undo_agent_entry(id)`, `Session::mcp_policy()`. The view itself is an app task (BIT-T-0211).
+- **Agent commits**: after a write that changed the graph the MCP layer calls `SyncStatusProvider::note_agent_write(token)`; the runtime forwards it as `Command::AgentWrite` and the engine records its next automatic commit as `Bitacora-Kind: agent` + `Bitacora-Agent: <token name>` (never squashed). `git_sync_now` maps to `SyncCommand::SyncNow`.
+- `clientInfo` is only available in stateful sessions; in stateless JSON mode the audit shows the transport default.
+
+### Compatibility API (`POST /api`, BIT-US-0023)
+
+Off by default (`McpConfig::api_enabled`, route absent -> `404`). Same Host/Origin/bearer guard, scopes, toggles, rate limit, protected pages and audit as `/mcp`. Request `{"method": "logseq.Editor.getBlock", "args": [...]}`; errors are `{"error": "CODE: message"}` with HTTP 200 like Logseq; results use camelCase keys and `page: {name}`.
+
+| Logseq method | Args | Maps to |
+|---|---|---|
+| `Editor.getPage` | `[name]` | `get_page` (`null` when missing) |
+| `Editor.getBlock` | `[uuid, {includeChildren}]` | `get_block` |
+| `Editor.getPageBlocksTree` | `[name]` | `get_page_blocks_tree` |
+| `Editor.getPageLinkedReferences` | `[name]` | `backlinks`: `[[{name}, [blocks]], ...]` |
+| `DB.q` | `[dsl]` | `query` |
+| `search`, `App.search` | `[text]` | `search` |
+| `Editor.insertBlock` | `[uuid or page, content, {before, sibling, properties}]` | `insert_block` (`sibling:false` = last child) or `append`/`prepend_block` for a page name |
+| `Editor.appendBlockInPage` / `prependBlockInPage` | `[page, content, {properties}]` | `append_block` / `prepend_block` |
+| `Editor.updateBlock` | `[uuid, content, {properties}]` | `update_block` |
+| `Editor.moveBlock` | `[uuid, target, {before, children}]` | `move_block` |
+| `Editor.removeBlock` | `[uuid]` | `remove_block` (delete scope) |
+| `Editor.createPage` | `[name, properties]` | `create_page` with `if_exists: return` |
+| `Editor.renamePage` / `deletePage` | `[name, new]` / `[name]` | `rename_page` / `delete_page` (delete scope) |
+| `Editor.upsertBlockProperty` / `removeBlockProperty` | `[uuid, key, value]` / `[uuid, key]` | `set_block_property` / `remove_block_property` |
+
+Everything else (`UI.*`, `Git.*`, `App.relaunch|quit`, plugin methods, `DB.datascriptQuery`, unknown names) answers `{"error":"method not supported"}`.
+
 ## Open questions
 
 1. Session mode: stateless (`StreamableHttpServerConfig` JSON-response mode) is simpler; stateful sessions are needed for resource subscriptions — enable both? (Resolved: both are implemented, `McpConfig::stateful` selects; subscriptions need stateful.)

@@ -2,14 +2,15 @@
 id: BIT-T-0102
 type: task
 title: Update :favorites and :default-home in config.edn on rename and delete
-status: backlog
+status: done
 parent: BIT-US-0061
 milestone: BIT-M-0003
 author: mcp
 labels: [bitacora-config, bitacora-core, rename]
 estimate: 2
 created: 2026-10-06T14:29:22Z
-updated: 2026-10-06T14:39:30Z
+updated: 2026-10-06T19:30:10Z
+closed: 2026-10-06T19:30:10Z
 ---
 
 ## Description

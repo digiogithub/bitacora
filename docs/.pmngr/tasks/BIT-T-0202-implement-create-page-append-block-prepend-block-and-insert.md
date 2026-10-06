@@ -2,7 +2,7 @@
 id: BIT-T-0202
 type: task
 title: Implement create_page, append_block, prepend_block and insert_block
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0020
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-mcp, tools, write]
 estimate: 3
 created: 2026-10-06T14:31:00Z
-updated: 2026-10-06T14:31:00Z
+updated: 2026-10-06T19:40:50Z
+closed: 2026-10-06T19:40:50Z
 ---
 
 ## Description

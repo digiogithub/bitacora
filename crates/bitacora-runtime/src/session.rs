@@ -21,9 +21,10 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex, PoisonError};
 
 use bitacora_config::global_config_path;
+use bitacora_core::editor::ExternalOutcome;
 use bitacora_core::graph::PageKey;
 use bitacora_core::graph_path::GraphPath;
-use bitacora_core::queue::{CommandQueue, QueueError, QueueEvent, Request, Source};
+use bitacora_core::queue::{CommandQueue, QueueError, QueueEvent, Request, Response, Source};
 use bitacora_core::write_queue::DebounceConfig;
 use bitacora_index::{FsChange, Indexer, ReconcileStats};
 use bitacora_mcp::McpConfig;
@@ -187,9 +188,16 @@ pub enum RuntimeEvent {
         /// Whether a loaded page was reloaded from the new content.
         reloaded: bool,
     },
-    /// A loaded page has unsaved edits and the file changed on disk: the conflict is reported by
-    /// the next flush (`QueueEvent::Conflict`); nothing was overwritten.
+    /// A loaded page has unsaved edits and the file changed on disk in a way that cannot be
+    /// merged: ours is kept, writes to the page are stopped and the notice data arrives as
+    /// `QueueEvent::PageConflicted` (BIT-US-0070); nothing was overwritten.
     ExternalChangeWhileDirty {
+        /// Graph-relative path.
+        path: String,
+    },
+    /// External edits were merged block by block into a loaded page with unsaved edits; the
+    /// merged page is written by the normal pipeline (BIT-US-0069).
+    ExternalMerged {
         /// Graph-relative path.
         path: String,
     },
@@ -308,21 +316,18 @@ impl Pump {
         })
     }
 
-    /// Reloads the loaded page `key` from `bytes`. Returns `Some(true)` when reloaded,
-    /// `Some(false)` when it has unsaved edits, `None` on failure.
-    fn reload(&self, key: &PageKey, path: &GraphPath, bytes: Vec<u8>) -> Option<bool> {
-        let title = self.queue.snapshot(key)?.title.clone();
-        let req = Request::LoadPage {
+    /// Applies the new `bytes` of the loaded page `key` (reload with stable block ids, or a
+    /// block-level merge when it has unsaved edits). `None` on failure.
+    fn apply(&self, key: &PageKey, path: &GraphPath, bytes: Vec<u8>) -> Option<ExternalOutcome> {
+        let req = Request::ExternalChange {
             key: key.clone(),
-            title,
-            path: Some(path.clone()),
             bytes,
         };
         match self.queue.execute(Source::External, req) {
-            Ok(_) => Some(true),
-            Err(QueueError::PageDirty(_)) => Some(false),
+            Ok(Response::External(out)) => Some(out),
+            Ok(_) => None,
             Err(e) => {
-                tracing::warn!(path = %path, error = %e, "reload of external change failed");
+                tracing::warn!(path = %path, error = %e, "external change could not be applied");
                 None
             }
         }
@@ -373,24 +378,35 @@ impl Pump {
     }
 
     fn external_upsert(&self, path: &GraphPath, f: &FileEvent) {
-        let reloaded = match (self.loaded_page(path), f.bytes.as_ref()) {
-            (Some(key), Some(bytes)) => self.reload(&key, path, bytes.to_vec()),
-            _ => Some(false),
+        let out = match (self.loaded_page(path), f.bytes.as_ref()) {
+            (Some(key), Some(bytes)) => self.apply(&key, path, bytes.to_vec()),
+            _ => None,
         };
-        match reloaded {
-            Some(true) => self.events.emit(&RuntimeEvent::ExternalChange {
-                path: path.to_string(),
-                reloaded: true,
-            }),
-            Some(false) if self.loaded_page(path).is_some() => {
-                self.events.emit(&RuntimeEvent::ExternalChangeWhileDirty {
-                    path: path.to_string(),
+        let p = path.to_string();
+        match out {
+            Some(ExternalOutcome::Reloaded(_) | ExternalOutcome::Unchanged) => {
+                self.events.emit(&RuntimeEvent::ExternalChange {
+                    path: p,
+                    reloaded: true,
                 });
             }
-            _ => self.events.emit(&RuntimeEvent::ExternalChange {
-                path: path.to_string(),
-                reloaded: false,
-            }),
+            Some(ExternalOutcome::Merged { .. }) => {
+                self.events.emit(&RuntimeEvent::ExternalChange {
+                    path: p.clone(),
+                    reloaded: true,
+                });
+                self.events.emit(&RuntimeEvent::ExternalMerged { path: p });
+            }
+            Some(ExternalOutcome::Conflict(_)) => {
+                self.events
+                    .emit(&RuntimeEvent::ExternalChangeWhileDirty { path: p });
+            }
+            Some(ExternalOutcome::Unknown) | None => {
+                self.events.emit(&RuntimeEvent::ExternalChange {
+                    path: p,
+                    reloaded: false,
+                });
+            }
         }
     }
 
@@ -403,7 +419,7 @@ impl Pump {
         }
     }
 
-    /// Events were lost: reconcile the index and refresh every loaded page without unsaved edits.
+    /// Events were lost: reconcile the index and refresh every loaded page (unsaved edits are merged).
     fn rescan(&self) {
         match self.indexer.handle(&FsChange::Overflow) {
             Ok(Some(stats)) => self.events.emit(&RuntimeEvent::Reconciled(stats)),
@@ -418,12 +434,9 @@ impl Pump {
             let Some(path) = snap.path.clone() else {
                 continue;
             };
-            if snap.dirty {
-                continue;
-            }
             match std::fs::read(path.to_fs_path(&root)) {
                 Ok(bytes) => {
-                    self.reload(&key, &path, bytes);
+                    self.apply(&key, &path, bytes);
                 }
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
                     self.check_missing(vec![path]);

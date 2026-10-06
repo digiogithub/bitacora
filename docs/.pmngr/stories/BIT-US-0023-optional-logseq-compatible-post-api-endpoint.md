@@ -2,7 +2,7 @@
 id: BIT-US-0023
 type: story
 title: Optional Logseq-compatible POST /api endpoint
-status: backlog
+status: done
 priority: low
 parent: BIT-EP-0010
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [mcp, api, compat]
 estimate: 3
 created: 2026-10-06T14:27:12Z
-updated: 2026-10-06T14:27:12Z
+updated: 2026-10-06T19:40:57Z
+closed: 2026-10-06T19:40:57Z
 ---
 
 ## Description

@@ -13,6 +13,8 @@ workspace = true
 
 [dependencies]
 bitacora-core.workspace = true
+bitacora-config.workspace = true
+bitacora-markdown.workspace = true
 bitacora-index.workspace = true
 bitacora-sync.workspace = true
 thiserror.workspace = true
@@ -32,6 +34,5 @@ blake3.workspace = true
 jiff.workspace = true
 
 [dev-dependencies]
-bitacora-config.workspace = true
 bitacora-testkit.workspace = true
 tokio = { workspace = true, features = ["io-util"] }

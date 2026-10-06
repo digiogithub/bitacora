@@ -1,0 +1,8 @@
+[
+  {
+    "field": "content",
+    "kind": "content",
+    "ours": "the shared block text here ours",
+    "theirs": "the shared block text here theirs"
+  }
+]

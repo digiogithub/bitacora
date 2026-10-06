@@ -107,6 +107,53 @@ fn overlaps(spans: &[Span], start: usize, end: usize) -> bool {
     spans.iter().any(|s| start < s.end && s.start < end)
 }
 
+/// Byte ranges `(start, end)` of the lines of `content` that carry inline syntax (page refs, tags,
+/// ...): the same lines [`analyze`] feeds to the inline scanner. Property groups, drawers,
+/// `#+` directives, fences and opaque `#+BEGIN_X` regions are excluded, and the first line starts
+/// after the bullet's marker/priority/heading prefix. Used by rewriters (page rename) that must
+/// touch exactly the references Logseq would see.
+#[must_use]
+pub fn inline_text_ranges(content: &str, opts: ParserOptions) -> Vec<(usize, usize)> {
+    let bytes = content.as_bytes();
+    let head = parse_head(content);
+    let properties = scan_properties(bytes, Span::new(0, bytes.len()), opts);
+    let drawers = find_drawers(content, opts);
+    let mut skip: Vec<Span> = properties.groups.iter().map(|g| g.span).collect();
+    skip.extend(drawers.iter().map(|d| d.span));
+    let mut out = Vec::new();
+    let mut region_opaque = false;
+    for (idx, line) in Lines::with_options(bytes, opts).enumerate() {
+        let (start, end) = (line.start, line.content_end());
+        if let Some((kind, part)) = line.region {
+            match (kind, part) {
+                (RegionKind::Begin, RegionPart::Open) => {
+                    region_opaque = opaque_begin(begin_name(line.content));
+                }
+                (RegionKind::Begin, RegionPart::Inside) if !region_opaque => {
+                    out.push((start, end));
+                }
+                _ => {}
+            }
+            continue;
+        }
+        if overlaps(&skip, line.start, line.end)
+            || is_directive_line(line.content)
+            || line.content.iter().all(|&b| is_ws(b))
+        {
+            continue;
+        }
+        let from = if idx == 0 {
+            head.title_start.min(end)
+        } else {
+            start
+        };
+        if from < end {
+            out.push((from, end));
+        }
+    }
+    out
+}
+
 /// Analyses the content of one block. `cfg` carries the property settings from `config.edn`.
 #[must_use]
 pub fn analyze(content: &str, cfg: &PropertyConfig, opts: ParserOptions) -> BlockAnalysis {

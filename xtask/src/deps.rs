@@ -53,7 +53,13 @@ fn allowed_edges() -> BTreeMap<&'static str, BTreeSet<&'static str>> {
         ),
         (
             "bitacora-mcp",
-            set(&["bitacora-core", "bitacora-index", "bitacora-sync"]),
+            set(&[
+                "bitacora-core",
+                "bitacora-index",
+                "bitacora-sync",
+                "bitacora-config",
+                "bitacora-markdown",
+            ]),
         ),
         // ADR-024: the headless session composing core+index+watch+sync+mcp; no UI.
         ("bitacora-runtime", frontends.clone()),

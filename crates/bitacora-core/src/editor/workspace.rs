@@ -40,17 +40,32 @@ impl UuidIndex {
     }
 }
 
+/// An edit of a non-page file (`logseq/config.edn`) waiting to be written (see
+/// [`Op::EditFile`](super::op::Op::EditFile)).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PendingEdit {
+    /// Content the file is expected to have on disk; the write is refused (reported as a
+    /// conflict) when it holds something else.
+    pub expected: Arc<[u8]>,
+    /// Content to write.
+    pub content: Arc<[u8]>,
+}
+
 /// The editable graph: every loaded page, with a global block-id index.
 #[derive(Debug, Default)]
 pub struct Workspace {
     pages: BTreeMap<PageKey, Page>,
-    ids: IdGen,
+    pub(crate) ids: IdGen,
     block_page: HashMap<BlockId, PageKey>,
     uuids: UuidIndex,
     pub(crate) touched: BTreeSet<PageKey>,
     pending_deletes: BTreeMap<GraphPath, Option<Arc<[u8]>>>,
     pending_restores: BTreeSet<GraphPath>,
+    pending_edits: BTreeMap<GraphPath, PendingEdit>,
     pub(crate) next_tx: u64,
+    pub(crate) conflicted: BTreeMap<PageKey, Arc<super::external::ConflictNotice>>,
+    pub(crate) editing: Option<BlockId>,
+    pub(crate) external_events: Vec<super::external::ExternalEvent>,
 }
 
 impl Workspace {
@@ -92,6 +107,7 @@ impl Workspace {
     /// Removes a page and its index entries.
     pub fn remove_page(&mut self, key: &PageKey) -> Option<Page> {
         let page = self.pages.remove(key)?;
+        self.conflicted.remove(key);
         for b in page.blocks.values() {
             self.block_page.remove(&b.id);
             self.uuids.remove(b.uuid);
@@ -182,6 +198,77 @@ impl Workspace {
     #[must_use]
     pub fn pending_restores(&self) -> &BTreeSet<GraphPath> {
         &self.pending_restores
+    }
+
+    /// Edits of non-page files that still have to be written.
+    #[must_use]
+    pub fn pending_edits(&self) -> &BTreeMap<GraphPath, PendingEdit> {
+        &self.pending_edits
+    }
+
+    /// Queues an edit of a non-page file from `before` to `after`. A second edit of the same file
+    /// must start from the first one's result; going back to the on-disk content drops the entry.
+    pub(crate) fn queue_edit(
+        &mut self,
+        path: &GraphPath,
+        before: &[u8],
+        after: &[u8],
+    ) -> Result<(), OpError> {
+        match self.pending_edits.get_mut(path) {
+            Some(e) => {
+                if *e.content != *before {
+                    return Err(OpError::Stale("file content differs from `before`"));
+                }
+                if *e.expected == *after {
+                    self.pending_edits.remove(path);
+                } else {
+                    e.content = Arc::from(after);
+                }
+            }
+            None => {
+                if before != after {
+                    self.pending_edits.insert(
+                        path.clone(),
+                        PendingEdit {
+                            expected: Arc::from(before),
+                            content: Arc::from(after),
+                        },
+                    );
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub(crate) fn finish_edit(&mut self, path: &GraphPath) {
+        self.pending_edits.remove(path);
+    }
+
+    /// Gives a page a new key and title (blocks keep their ids). With `from == to` only the title
+    /// changes (case-only rename).
+    pub(crate) fn rekey_page(
+        &mut self,
+        from: &PageKey,
+        to: &PageKey,
+        title: &str,
+    ) -> Result<(), OpError> {
+        if from != to && self.pages.contains_key(to) {
+            return Err(OpError::PageExists(to.clone()));
+        }
+        self.writable_page(from)?;
+        let mut page = self
+            .pages
+            .remove(from)
+            .ok_or_else(|| OpError::UnknownPage(from.clone()))?;
+        page.key = to.clone();
+        page.title = title.to_owned();
+        for id in page.blocks.keys() {
+            self.block_page.insert(*id, to.clone());
+        }
+        self.pages.insert(to.clone(), page);
+        self.touched.insert(from.clone());
+        self.mark_touched(to);
+        Ok(())
     }
 
     pub(crate) fn queue_restore(&mut self, path: GraphPath) {

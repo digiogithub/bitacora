@@ -1,0 +1,3 @@
+- parent block text
+	- child one text here ours
+	- new child from theirs

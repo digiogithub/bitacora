@@ -509,7 +509,8 @@ fn flush_writes_atomically_and_detects_external_change() {
     let p = ws.page(&key()).expect("p");
     assert!(p.dfs().iter().all(|b| p.is_clean(*b)));
 
-    // External edit + local edit: never overwrite.
+    // External edit + local edit: the external bytes are never overwritten blindly; the pre-write
+    // check merges them block by block (BIT-US-0069), so both survive and no markers are written.
     store.write(&path, b"- external\n").expect("ext");
     let b = id(&ws, "b");
     ws.run(
@@ -521,10 +522,12 @@ fn flush_writes_atomically_and_detects_external_change() {
     )
     .expect("edit");
     let r = ws.flush(&mut store);
-    assert_eq!(r.conflicts, vec![key()]);
-    assert_eq!(
-        std::fs::read(dir.path().join("pages/p.md")).expect("read"),
-        b"- external\n"
+    assert!(r.is_complete(), "{r:?}");
+    let merged = std::fs::read_to_string(dir.path().join("pages/p.md")).expect("read");
+    assert!(
+        merged.contains("- external\n") && merged.contains("- B\n"),
+        "{merged}"
     );
-    assert_eq!(ws.dirty_pages(), vec![key()]);
+    assert!(!merged.contains("<<<<<<<"));
+    assert!(ws.dirty_pages().is_empty());
 }

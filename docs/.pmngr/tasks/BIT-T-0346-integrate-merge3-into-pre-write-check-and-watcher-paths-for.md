@@ -2,7 +2,7 @@
 id: BIT-T-0346
 type: task
 title: Integrate merge3 into pre-write check and watcher paths for dirty pages
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0069
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-core, io]
 estimate: 2
 created: 2026-10-06T14:34:14Z
-updated: 2026-10-06T15:08:58Z
+updated: 2026-10-06T19:42:48Z
+closed: 2026-10-06T19:42:48Z
 ---
 
 ## Description

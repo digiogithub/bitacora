@@ -2,7 +2,7 @@
 id: BIT-T-0196
 type: task
 title: "Sidebar sections: journals, all pages, favorites and recent"
-status: backlog
+status: in_progress
 priority: medium
 parent: BIT-US-0079
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-app, ui]
 estimate: 2
 created: 2026-10-06T14:30:56Z
-updated: 2026-10-06T14:30:56Z
+updated: 2026-10-06T19:14:39Z
+started: 2026-10-06T19:14:39Z
 ---
 
 ## Description

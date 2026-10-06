@@ -1,0 +1,8 @@
+[
+  {
+    "field": "content",
+    "kind": "content",
+    "ours": "ours journal entry one",
+    "theirs": "theirs journal entry two"
+  }
+]

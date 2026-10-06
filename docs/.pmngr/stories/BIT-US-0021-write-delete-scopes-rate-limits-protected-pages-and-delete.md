@@ -2,7 +2,7 @@
 id: BIT-US-0021
 type: story
 title: Write/delete scopes, rate limits, protected pages and delete tools
-status: backlog
+status: done
 priority: high
 parent: BIT-EP-0010
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [mcp, security, write]
 estimate: 8
 created: 2026-10-06T14:27:12Z
-updated: 2026-10-06T14:27:12Z
+updated: 2026-10-06T19:40:57Z
+closed: 2026-10-06T19:40:57Z
 ---
 
 ## Description

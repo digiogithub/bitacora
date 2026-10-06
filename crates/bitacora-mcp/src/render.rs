@@ -21,6 +21,12 @@ pub(crate) enum Code {
     ForbiddenScope,
     ReadOnly,
     Internal,
+    Conflict,
+    BlockBusy,
+    BlockInConflict,
+    InvalidContent,
+    RateLimited,
+    ProtectedPage,
 }
 
 impl Code {
@@ -33,6 +39,12 @@ impl Code {
             Self::ForbiddenScope => "FORBIDDEN_SCOPE",
             Self::ReadOnly => "READ_ONLY",
             Self::Internal => "INTERNAL",
+            Self::Conflict => "CONFLICT",
+            Self::BlockBusy => "BLOCK_BUSY",
+            Self::BlockInConflict => "BLOCK_IN_CONFLICT",
+            Self::InvalidContent => "INVALID_CONTENT",
+            Self::RateLimited => "RATE_LIMITED",
+            Self::ProtectedPage => "PROTECTED_PAGE",
         }
     }
 }
@@ -42,6 +54,8 @@ impl Code {
 pub(crate) struct ToolError {
     pub code: Code,
     pub message: String,
+    /// Extra structured fields merged into the error result (`current`, `retry_after_ms`, ...).
+    pub extra: Option<serde_json::Value>,
 }
 
 impl ToolError {
@@ -49,7 +63,12 @@ impl ToolError {
         Self {
             code,
             message: message.into(),
+            extra: None,
         }
+    }
+    pub(crate) fn with_extra(mut self, extra: serde_json::Value) -> Self {
+        self.extra = Some(extra);
+        self
     }
     pub(crate) fn not_found(what: impl std::fmt::Display) -> Self {
         Self::new(Code::NotFound, format!("{what} not found"))

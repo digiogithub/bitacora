@@ -2,14 +2,15 @@
 id: BIT-T-0130
 type: task
 title: "Graph-wide cascade: find referring blocks and emit block edits"
-status: backlog
+status: done
 parent: BIT-US-0082
 milestone: BIT-M-0003
 author: mcp
 labels: [bitacora-core, bitacora-index, rename]
 estimate: 3
 created: 2026-10-06T14:29:56Z
-updated: 2026-10-06T14:30:09Z
+updated: 2026-10-06T19:30:10Z
+closed: 2026-10-06T19:30:10Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-US-0069
 type: story
 title: Block-level 3-way merge of external edits into dirty pages
-status: backlog
+status: done
 priority: high
 parent: BIT-EP-0008
 milestone: BIT-M-0003
@@ -10,7 +10,9 @@ author: mcp
 labels: [core, merge, bitacora-core]
 estimate: 8
 created: 2026-10-06T14:29:01Z
-updated: 2026-10-06T15:08:58Z
+updated: 2026-10-06T19:48:20Z
+started: 2026-10-06T19:42:38Z
+closed: 2026-10-06T19:48:20Z
 ---
 
 ## Description

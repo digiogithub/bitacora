@@ -2,7 +2,7 @@
 id: BIT-US-0080
 type: story
 title: "Right sidebar: open pages and blocks with Shift+click"
-status: backlog
+status: in_progress
 priority: medium
 parent: BIT-EP-0006
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [ui, bitacora-app]
 estimate: 3
 created: 2026-10-06T14:29:26Z
-updated: 2026-10-06T14:29:26Z
+updated: 2026-10-06T19:14:39Z
+started: 2026-10-06T19:14:39Z
 ---
 
 ## Description
