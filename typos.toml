@@ -7,6 +7,18 @@ extend-exclude = [
 ]
 
 [default.extend-words]
+# Short identifiers used in merge/index code (ours/theirs, base/ancestor, ...)
+ot = "ot"
+ba = "ba"
+pn = "pn"
+anc = "anc"
+rela = "rela"
+# "Café" test vectors split by the tokenizer
+caf = "caf"
+Caf = "Caf"
+CAF = "CAF"
+ANDed = "ANDed"
+Ded = "Ded"
 bitacora = "bitacora"
 Bitacora = "Bitacora"
 logseq = "logseq"
