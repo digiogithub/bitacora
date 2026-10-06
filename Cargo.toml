@@ -115,7 +115,7 @@ parking_lot = "0.12"
 
 # Tooling (xtask)
 cargo_metadata = "0.23"
-sha2 = "0.10"
+sha2 = "0.11"
 
 # Self-update of bitacora-cli (BIT-US-0110)
 ureq = { version = "3.4", default-features = false, features = ["rustls", "gzip"] }
