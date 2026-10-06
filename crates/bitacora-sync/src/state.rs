@@ -1,10 +1,10 @@
 //! Sync states, the transition table of design `git-sync-merge` 2.5, status snapshots, back-off
-//! and the pending-merge seam used until the persisted conflict store lands (BIT-US-0053).
+//! and the pending-merge state (persisted by [`crate::store::JsonMergeStore`], BIT-US-0053).
 
 use std::time::{Duration, SystemTime};
 
 use crate::backend::{ActiveBackend, Oid};
-use crate::merge::ConflictRecord;
+use crate::merge::{ConflictRecord, MemoEntry};
 
 /// Why the engine stopped in [`SyncState::Error`].
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -159,7 +159,7 @@ impl Backoff {
     }
 }
 
-/// A merge waiting for the user (persisted by BIT-US-0053; the engine only needs this seam).
+/// A merge waiting for the user (design 4.5).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PendingMerge {
     /// Common ancestor (`None`: unrelated histories).
@@ -171,12 +171,24 @@ pub struct PendingMerge {
     /// Commit holding the merged tree with parents `[ours, theirs]`, stored in
     /// `refs/bitacora/pending-merge` so their commits stay reachable.
     pub pending_commit: Oid,
-    /// Unresolved conflicts.
+    /// Conflict records; the ones with a resolution are done, the others wait for the user.
     pub conflicts: Vec<ConflictRecord>,
+    /// Resolutions remembered by block identity for recomputed merges (BIT-SP-0006.R21).
+    pub memo: Vec<MemoEntry>,
+    /// The conflicts come from files with markers written by another tool, not from merging a
+    /// remote commit: `theirs` and `pending_commit` are then just the local tip, and finishing
+    /// makes an ordinary commit instead of a two-parent merge.
+    pub external: bool,
 }
 
-/// Storage for the pending merge. The in-memory implementation is enough for the engine; the
-/// persisted store (`.git/bitacora/merge-state.json`, resolution memo) implements this trait.
+impl PendingMerge {
+    /// Number of conflicts the user has not decided yet.
+    pub fn unresolved(&self) -> usize {
+        self.conflicts.iter().filter(|c| c.is_unresolved()).count()
+    }
+}
+
+/// Storage for the pending merge: in memory for tests, `.git/bitacora/merge-state.json` for real.
 pub trait MergeStateStore: Send {
     /// The pending merge, if any (recovered on start).
     fn load(&self) -> Option<PendingMerge>;

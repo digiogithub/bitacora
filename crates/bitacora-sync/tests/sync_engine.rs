@@ -292,15 +292,19 @@ fn binary_and_whiteboard_collisions_keep_both_files() {
         assert_eq!(b.read("assets/pic.bin"), "bob");
         assert_eq!(b.read("whiteboards/w.edn"), "{:a 3}\n");
         let tree = b.git(&["ls-files"]);
-        let copies: Vec<&str> = tree.lines().filter(|l| l.contains("(conflict-")).collect();
-        assert_eq!(copies.len(), 2, "{kind:?}: {tree}");
-        for c in copies {
-            let content = b.read(c);
-            assert!(
-                ["alice", "{:a 2}\n"].contains(&content.as_str()),
-                "{c}: {content}"
-            );
-        }
+        // Assets use the short sha of their commit; whiteboards name device and date.
+        let asset: Vec<&str> = tree
+            .lines()
+            .filter(|l| l.starts_with("assets/pic (conflict-"))
+            .collect();
+        assert_eq!(asset.len(), 1, "{kind:?}: {tree}");
+        assert_eq!(b.read(asset[0]), "alice");
+        let board: Vec<&str> = tree
+            .lines()
+            .filter(|l| l.starts_with("whiteboards/w (conflict alice 20"))
+            .collect();
+        assert_eq!(board.len(), 1, "{kind:?}: {tree}");
+        assert_eq!(b.read(board[0]), "{:a 2}\n");
     }
 }
 

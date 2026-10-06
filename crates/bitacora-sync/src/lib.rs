@@ -10,7 +10,9 @@ pub mod engine;
 pub mod merge;
 pub mod onboarding;
 pub mod repo_setup;
+pub mod resolve;
 pub mod state;
+pub mod store;
 pub mod writer;
 
 use bitacora_core as _;

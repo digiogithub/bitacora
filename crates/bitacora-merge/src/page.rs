@@ -55,7 +55,30 @@ pub fn merge_page(base: &str, ours: &str, theirs: &str, env: &MergeEnv<'_>) -> M
     if base == theirs {
         return MergeResult::clean(ours);
     }
+    // add/add (empty or trivial base): a trivial side counts as unchanged, the other wins.
+    if is_trivial_page(base, env.template) {
+        if is_trivial_page(ours, env.template) {
+            return MergeResult::clean(theirs);
+        }
+        if is_trivial_page(theirs, env.template) {
+            return MergeResult::clean(ours);
+        }
+    }
     structural(base, ours, theirs, env).unwrap_or_else(|| merge_lines(base, ours, theirs))
+}
+
+/// True when a page holds no user content: empty, whitespace, a lone `-` or `*` bullet, or only
+/// the default journal template (BIT-SP-0006.R18, Logseq precedent `watcher_handler.cljs:95-101`).
+#[must_use]
+pub fn is_trivial_page(text: &str, template: Option<&str>) -> bool {
+    let t = text.strip_prefix('\u{feff}').unwrap_or(text).trim();
+    if t.is_empty() || t == "-" || t == "*" {
+        return true;
+    }
+    template.is_some_and(|tpl| {
+        let tpl = tpl.trim();
+        !tpl.is_empty() && tpl == t
+    })
 }
 
 /// Line-level three-way merge of plain text (the fallback when the block merge cannot be trusted).
@@ -235,7 +258,7 @@ fn patch_props(m: &MergedBlock, ours: &MergeBlock, ours_text: &str) -> Option<St
     parses_to(&text, m).then_some(text)
 }
 
-fn render(m: &MergedBlock, ours: Option<(&MergeBlock, &str)>) -> String {
+pub(crate) fn render(m: &MergedBlock, ours: Option<(&MergeBlock, &str)>) -> String {
     ours.and_then(|(blk, text)| patch_props(m, blk, text))
         .unwrap_or_else(|| rebuild(m))
 }
@@ -482,6 +505,40 @@ mod tests {
         assert_eq!(m("- a\n", "- b\n", "- b\n").output, "- b\n");
         assert_eq!(m("- a\n", "- a\n", "- c\n").output, "- c\n");
         assert_eq!(m("- a\n", "- b\n", "- a\n").output, "- b\n");
+    }
+
+    #[test]
+    fn trivial_pages() {
+        assert!(is_trivial_page("", None) && is_trivial_page("-\n", None));
+        assert!(is_trivial_page(" \n*\n", None) && is_trivial_page("\u{feff}-", None));
+        assert!(!is_trivial_page("- x\n", None));
+        assert!(is_trivial_page("- [ ] plan\n", Some("- [ ] plan")));
+        assert!(!is_trivial_page("- [ ] plan\n", None));
+    }
+
+    #[test]
+    fn add_add_template_side_is_unchanged() {
+        let env = MergeEnv::new();
+        let r = merge_page("", "-\n", "- buy milk\n", &env);
+        assert_eq!(r.output, "- buy milk\n");
+        let r = merge_page("", "- call Ana\n", "- \n", &env);
+        assert_eq!(r.output, "- call Ana\n");
+        let env = MergeEnv {
+            template: Some("- [ ] plan\n- [ ] review"),
+            ..MergeEnv::new()
+        };
+        let r = merge_page("", "- [ ] plan\n- [ ] review\n", "- note\n", &env);
+        assert_eq!(r.output, "- note\n");
+    }
+
+    #[test]
+    fn add_add_unions_with_ours_first_and_dedupes() {
+        let env = MergeEnv::new();
+        let r = merge_page("", "- call Ana\n", "- buy milk\n", &env);
+        assert_eq!(r.output, "- call Ana\n- buy milk\n");
+        assert!(r.conflicts.is_empty());
+        let r = merge_page("", "- call Ana\n- same\n", "- same\n- buy milk\n", &env);
+        assert_eq!(r.output.matches("- same").count(), 1, "{}", r.output);
     }
 
     #[test]

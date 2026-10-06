@@ -14,6 +14,9 @@ workspace = true
 [dependencies]
 bitacora-core.workspace = true
 bitacora-merge.workspace = true
+bitacora-config.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 thiserror.workspace = true
 tempfile.workspace = true
 gix.workspace = true
@@ -34,3 +37,4 @@ path = "src/bin/askpass.rs"
 
 [dev-dependencies]
 bitacora-testkit.workspace = true
+proptest.workspace = true
