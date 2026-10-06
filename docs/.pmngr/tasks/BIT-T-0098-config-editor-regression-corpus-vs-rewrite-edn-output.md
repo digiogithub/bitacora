@@ -2,7 +2,7 @@
 id: BIT-T-0098
 type: task
 title: Config editor regression corpus vs rewrite-edn output
-status: backlog
+status: done
 priority: medium
 parent: BIT-US-0071
 milestone: BIT-M-0002
@@ -10,7 +10,9 @@ author: mcp
 labels: [bitacora-config, test, compat]
 estimate: 2
 created: 2026-10-06T14:29:19Z
-updated: 2026-10-06T14:39:30Z
+updated: 2026-10-06T16:52:52Z
+started: 2026-10-06T16:46:26Z
+closed: 2026-10-06T16:52:52Z
 ---
 
 ## Description

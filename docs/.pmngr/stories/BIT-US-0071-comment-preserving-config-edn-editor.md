@@ -2,7 +2,7 @@
 id: BIT-US-0071
 type: story
 title: Comment-preserving config.edn editor
-status: backlog
+status: done
 priority: high
 parent: BIT-EP-0004
 milestone: BIT-M-0002
@@ -10,7 +10,9 @@ author: mcp
 labels: [config, compat]
 estimate: 5
 created: 2026-10-06T14:29:02Z
-updated: 2026-10-06T14:38:56Z
+updated: 2026-10-06T16:52:52Z
+started: 2026-10-06T16:46:26Z
+closed: 2026-10-06T16:52:52Z
 ---
 
 ## Description

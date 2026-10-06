@@ -2,14 +2,15 @@
 id: BIT-T-0092
 type: task
 title: Property value interpretation (refs, comma split, typed scalars)
-status: backlog
+status: in_progress
 parent: BIT-US-0058
 milestone: BIT-M-0002
 author: mcp
 labels: [bitacora-markdown, parser, properties]
 estimate: 3
 created: 2026-10-06T14:29:17Z
-updated: 2026-10-06T14:40:05Z
+updated: 2026-10-06T16:46:41Z
+started: 2026-10-06T16:46:41Z
 ---
 
 ## Description

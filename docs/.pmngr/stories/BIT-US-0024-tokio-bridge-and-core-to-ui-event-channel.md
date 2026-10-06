@@ -2,7 +2,7 @@
 id: BIT-US-0024
 type: story
 title: Tokio bridge and core-to-UI event channel
-status: backlog
+status: in_progress
 priority: critical
 parent: BIT-EP-0002
 milestone: BIT-M-0001
@@ -10,7 +10,8 @@ author: mcp
 labels: [ui, async, bitacora-app]
 estimate: 3
 created: 2026-10-06T14:27:20Z
-updated: 2026-10-06T14:27:20Z
+updated: 2026-10-06T16:46:40Z
+started: 2026-10-06T16:46:40Z
 ---
 
 ## Description

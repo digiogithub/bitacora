@@ -2,7 +2,7 @@
 id: BIT-T-0097
 type: task
 title: "Surgical edit API: assoc, update-in and dissoc on the CST"
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0071
 milestone: BIT-M-0002
@@ -10,7 +10,9 @@ author: mcp
 labels: [bitacora-config, compat]
 estimate: 3
 created: 2026-10-06T14:29:19Z
-updated: 2026-10-06T14:39:30Z
+updated: 2026-10-06T16:52:52Z
+started: 2026-10-06T16:46:26Z
+closed: 2026-10-06T16:52:52Z
 ---
 
 ## Description

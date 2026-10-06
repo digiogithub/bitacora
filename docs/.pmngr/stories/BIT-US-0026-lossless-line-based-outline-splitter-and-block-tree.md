@@ -2,7 +2,7 @@
 id: BIT-US-0026
 type: story
 title: Lossless line-based outline splitter and block tree
-status: backlog
+status: in_progress
 priority: critical
 parent: BIT-EP-0003
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [markdown, compat, parser]
 estimate: 8
 created: 2026-10-06T14:28:00Z
-updated: 2026-10-06T14:28:00Z
+updated: 2026-10-06T16:46:41Z
+started: 2026-10-06T16:46:41Z
 ---
 
 ## Description

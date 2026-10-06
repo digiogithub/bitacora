@@ -2,7 +2,7 @@
 id: BIT-US-0014
 type: story
 title: bitacora-app opens a GPUI Kit window on Linux, macOS and Windows
-status: backlog
+status: in_progress
 priority: critical
 parent: BIT-EP-0002
 milestone: BIT-M-0001
@@ -10,7 +10,8 @@ author: mcp
 labels: [ui, bitacora-app]
 estimate: 5
 created: 2026-10-06T14:26:47Z
-updated: 2026-10-06T14:26:47Z
+updated: 2026-10-06T16:46:30Z
+started: 2026-10-06T16:46:30Z
 ---
 
 ## Description

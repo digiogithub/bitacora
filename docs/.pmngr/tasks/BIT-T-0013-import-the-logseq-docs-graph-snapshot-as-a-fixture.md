@@ -2,7 +2,7 @@
 id: BIT-T-0013
 type: task
 title: Import the Logseq docs graph snapshot as a fixture
-status: backlog
+status: in_progress
 priority: critical
 parent: BIT-US-0011
 milestone: BIT-M-0001
@@ -10,7 +10,8 @@ author: mcp
 labels: [infra, fixtures]
 estimate: 2
 created: 2026-10-06T14:26:00Z
-updated: 2026-10-06T15:16:54Z
+updated: 2026-10-06T16:46:30Z
+started: 2026-10-06T16:46:30Z
 ---
 
 ## Description

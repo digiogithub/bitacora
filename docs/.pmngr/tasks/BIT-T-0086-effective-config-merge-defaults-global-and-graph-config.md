@@ -2,7 +2,7 @@
 id: BIT-T-0086
 type: task
 title: "Effective config merge: defaults, global and graph config"
-status: backlog
+status: done
 priority: critical
 parent: BIT-US-0056
 milestone: BIT-M-0002
@@ -10,7 +10,9 @@ author: mcp
 labels: [bitacora-config, compat]
 estimate: 2
 created: 2026-10-06T14:28:54Z
-updated: 2026-10-06T14:28:54Z
+updated: 2026-10-06T16:52:52Z
+started: 2026-10-06T16:46:26Z
+closed: 2026-10-06T16:52:52Z
 ---
 
 ## Description

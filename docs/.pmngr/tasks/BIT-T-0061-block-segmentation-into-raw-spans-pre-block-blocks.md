@@ -2,14 +2,15 @@
 id: BIT-T-0061
 type: task
 title: Block segmentation into raw spans (pre-block + blocks)
-status: backlog
+status: in_progress
 parent: BIT-US-0026
 milestone: BIT-M-0002
 author: mcp
 labels: [bitacora-markdown, parser]
 estimate: 3
 created: 2026-10-06T14:28:29Z
-updated: 2026-10-06T14:40:05Z
+updated: 2026-10-06T16:46:41Z
+started: 2026-10-06T16:46:41Z
 ---
 
 ## Description

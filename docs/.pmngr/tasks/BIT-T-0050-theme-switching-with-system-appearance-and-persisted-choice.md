@@ -2,7 +2,7 @@
 id: BIT-T-0050
 type: task
 title: Theme switching with system appearance and persisted choice
-status: backlog
+status: in_progress
 priority: medium
 parent: BIT-US-0025
 milestone: BIT-M-0001
@@ -10,7 +10,8 @@ author: mcp
 labels: [ui, theming, bitacora-app]
 estimate: 2
 created: 2026-10-06T14:28:06Z
-updated: 2026-10-06T14:28:06Z
+updated: 2026-10-06T16:46:40Z
+started: 2026-10-06T16:46:40Z
 ---
 
 ## Description

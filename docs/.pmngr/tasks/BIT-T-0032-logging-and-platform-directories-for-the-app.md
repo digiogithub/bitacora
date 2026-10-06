@@ -2,7 +2,7 @@
 id: BIT-T-0032
 type: task
 title: Logging and platform directories for the app
-status: backlog
+status: in_progress
 priority: high
 parent: BIT-US-0014
 milestone: BIT-M-0001
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-app, observability]
 estimate: 2
 created: 2026-10-06T14:27:12Z
-updated: 2026-10-06T14:27:12Z
+updated: 2026-10-06T16:46:40Z
+started: 2026-10-06T16:46:40Z
 ---
 
 ## Description

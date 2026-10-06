@@ -2,7 +2,7 @@
 id: BIT-T-0087
 type: task
 title: Typed accessors for layout- and parsing-relevant config keys
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0056
 milestone: BIT-M-0002
@@ -10,7 +10,9 @@ author: mcp
 labels: [bitacora-config, compat]
 estimate: 2
 created: 2026-10-06T14:28:54Z
-updated: 2026-10-06T14:28:54Z
+updated: 2026-10-06T16:52:52Z
+started: 2026-10-06T16:46:26Z
+closed: 2026-10-06T16:52:52Z
 ---
 
 ## Description
