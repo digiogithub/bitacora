@@ -90,7 +90,6 @@ blake3 = "1.8"
 keyring = "4.2"
 rust-i18n = "4.2"
 velopack = "=1.2.161"
-ureq = "3"
 semver = "1"
 
 # Logging / serialization / errors / CLI
