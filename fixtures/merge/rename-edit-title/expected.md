@@ -1,0 +1,2 @@
+- Intro line for the page renamed
+- body block of the page edited

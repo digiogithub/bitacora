@@ -35,13 +35,15 @@ fn hunks(base: &[&str], side: &[&str]) -> Vec<Hunk> {
     out
 }
 
-/// Whether a hunk collides with the base region `[s, e)` (insertions are empty ranges).
-fn collides(h: &Hunk, s: usize, e: usize) -> bool {
+/// Whether a hunk collides with the base region `[s, e)` (insertions are empty ranges). With
+/// `touching`, an insertion right next to a replaced or deleted range also collides (git's rule).
+fn collides(h: &Hunk, s: usize, e: usize, touching: bool) -> bool {
+    let t = usize::from(touching);
     match (h.start == h.end, s == e) {
         (false, false) => h.start < e && s < h.end,
         (true, true) => h.start == s,
-        (true, false) => s <= h.start && h.start < e,
-        (false, true) => h.start <= s && s < h.end,
+        (true, false) => s <= h.start && h.start < e + t,
+        (false, true) => h.start <= s && s < h.end + t,
     }
 }
 
@@ -70,6 +72,18 @@ pub struct Diff3 {
 /// same base lines are conflicts (ours kept).
 #[must_use]
 pub fn diff3(base: &[&str], ours: &[&str], theirs: &[&str]) -> Diff3 {
+    diff3_with(base, ours, theirs, false)
+}
+
+/// [`diff3`] with git's stricter rule: an insertion on one side directly after lines the other
+/// side replaced or deleted is a conflict. Used for whole files, where such a pair of edits (a
+/// deleted bullet next to a property line added under it) would otherwise corrupt the structure.
+#[must_use]
+pub fn diff3_touching(base: &[&str], ours: &[&str], theirs: &[&str]) -> Diff3 {
+    diff3_with(base, ours, theirs, true)
+}
+
+fn diff3_with(base: &[&str], ours: &[&str], theirs: &[&str], touching: bool) -> Diff3 {
     let mut remaining: Vec<(bool, Hunk)> = hunks(base, ours)
         .into_iter()
         .map(|h| (true, h))
@@ -84,7 +98,10 @@ pub fn diff3(base: &[&str], ours: &[&str], theirs: &[&str]) -> Diff3 {
         let seed = remaining.remove(0);
         let (mut s, mut e) = (seed.1.start, seed.1.end);
         let mut group = vec![seed];
-        while let Some(idx) = remaining.iter().position(|(_, h)| collides(h, s, e)) {
+        while let Some(idx) = remaining
+            .iter()
+            .position(|(_, h)| collides(h, s, e, touching))
+        {
             let h = remaining.remove(idx);
             s = s.min(h.1.start);
             e = e.max(h.1.end);

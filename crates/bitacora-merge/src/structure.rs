@@ -91,10 +91,15 @@ impl Ctx<'_> {
     }
 }
 
-/// True when the text of the block (content, content properties, planning) differs. Metadata is
-/// not a modification: it never keeps a deleted block alive.
-fn modified(a: &MergeBlock, b: &MergeBlock) -> bool {
-    a.content != b.content || a.normalized_hash() != b.normalized_hash()
+/// True when the survivor differs from the base in a way that must not be silently discarded by
+/// the other side's delete: text (content, content properties, planning), new `:LOGBOOK:` data
+/// (tracked time) or a newly assigned `id::` (somebody may reference the block). UI state
+/// (`collapsed::`), `card-*` and other volatile metadata never keep a deleted block alive.
+fn modified(base: &MergeBlock, survivor: &MergeBlock) -> bool {
+    base.content != survivor.content
+        || base.normalized_hash() != survivor.normalized_hash()
+        || base.meta.logbook != survivor.meta.logbook
+        || (base.meta.id.is_none() && survivor.meta.id.is_some())
 }
 
 /// Computes the merged outline.

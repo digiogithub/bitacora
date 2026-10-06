@@ -304,6 +304,64 @@ impl<'a> Pairing<'a> {
         let ra: Vec<usize> = ca.iter().copied().filter(|&i| self.free_a(i)).collect();
         let rb: Vec<usize> = cb.iter().copied().filter(|&j| self.free_b(j)).collect();
         self.fuzzy(&ra, &rb);
+        self.salvage_short(&ra, &rb);
+    }
+
+    /// Pass 5: a short block edited in place (`- A` -> `- A x`, or only its properties changed) is
+    /// too short for the fuzzy pass. Under the same parent pair, pair leftovers whose first lines
+    /// are prefix-related when the pairing is unambiguous. Linking queues the children, so they
+    /// stay matched even though the parent's text changed.
+    fn salvage_short(&mut self, ra: &[usize], rb: &[usize]) {
+        // Score: how much of the longer line the shorter one covers (0 when not prefix-related).
+        let score = |a: &str, b: &str| -> usize {
+            let (a, b) = (a.trim(), b.trim());
+            let (short, long) = if a.len() <= b.len() { (a, b) } else { (b, a) };
+            if short.is_empty() || !long.starts_with(short) {
+                0
+            } else {
+                short.len() * 10_000 / long.len()
+            }
+        };
+        let ra: Vec<usize> = ra.iter().copied().filter(|&i| self.free_a(i)).collect();
+        let rb: Vec<usize> = rb.iter().copied().filter(|&j| self.free_b(j)).collect();
+        // The unique strictly-best partner of `x` in `others`, if related at all.
+        let best = |x: &str, others: Vec<(usize, &str)>| -> Option<usize> {
+            let mut scored: Vec<(usize, usize)> = others
+                .into_iter()
+                .map(|(k, y)| (score(x, y), k))
+                .filter(|(s, _)| *s > 0)
+                .collect();
+            scored.sort_unstable_by_key(|p| std::cmp::Reverse(p.0));
+            match scored[..] {
+                [(_, k)] => Some(k),
+                [(s1, k), (s2, _), ..] if s1 > s2 => Some(k),
+                _ => None,
+            }
+        };
+        let mut pairs = Vec::new();
+        for &i in &ra {
+            let fi = self.a.blocks[i].first_line();
+            let Some(j) = best(
+                fi,
+                rb.iter()
+                    .map(|&j| (j, self.b.blocks[j].first_line()))
+                    .collect(),
+            ) else {
+                continue;
+            };
+            let back = best(
+                self.b.blocks[j].first_line(),
+                ra.iter()
+                    .map(|&i2| (i2, self.a.blocks[i2].first_line()))
+                    .collect(),
+            );
+            if back == Some(i) {
+                pairs.push((i, j));
+            }
+        }
+        for (i, j) in pairs {
+            self.link(i, j);
+        }
     }
 
     /// Greedy best-first one-to-one fuzzy matching between two candidate lists.
@@ -311,12 +369,18 @@ impl<'a> Pairing<'a> {
         if ra.is_empty() || rb.is_empty() {
             return;
         }
+        let prep_a: Vec<Prepared> = ra
+            .iter()
+            .map(|&i| Prepared::new(self.a.blocks[i].first_line()))
+            .collect();
+        let prep_b: Vec<Prepared> = rb
+            .iter()
+            .map(|&j| Prepared::new(self.b.blocks[j].first_line()))
+            .collect();
         let mut cands: Vec<(u32, usize, usize, usize)> = Vec::new();
         for (x, &i) in ra.iter().enumerate() {
             for (y, &j) in rb.iter().enumerate() {
-                if let Some(s) =
-                    similarity(self.a.blocks[i].first_line(), self.b.blocks[j].first_line())
-                {
+                if let Some(s) = similarity_prepared(&prep_a[x], &prep_b[y]) {
                     // Sort key: higher score first, then closer position, then document order.
                     cands.push((s, x.abs_diff(y), i, j));
                 }
@@ -353,20 +417,60 @@ impl<'a> Pairing<'a> {
 /// is too short for a fuzzy match, or when it is not a match at all.
 #[must_use]
 pub fn similarity(a: &str, b: &str) -> Option<u32> {
-    let ta: Vec<String> = a.split_whitespace().map(str::to_lowercase).collect();
-    let tb: Vec<String> = b.split_whitespace().map(str::to_lowercase).collect();
-    if ta.len() < MIN_FUZZY_TOKENS || tb.len() < MIN_FUZZY_TOKENS {
+    similarity_prepared(&Prepared::new(a), &Prepared::new(b))
+}
+
+/// A first line tokenised once for many comparisons.
+struct Prepared {
+    /// Lower-cased distinct tokens, sorted.
+    tokens: Vec<String>,
+    /// Number of tokens (with repeats).
+    count: usize,
+    /// The first 256 lower-cased chars.
+    chars: Vec<char>,
+}
+
+impl Prepared {
+    fn new(line: &str) -> Self {
+        let mut tokens: Vec<String> = line.split_whitespace().map(str::to_lowercase).collect();
+        let count = tokens.len();
+        tokens.sort_unstable();
+        tokens.dedup();
+        Self {
+            tokens,
+            count,
+            chars: line.to_lowercase().chars().take(256).collect(),
+        }
+    }
+}
+
+fn similarity_prepared(a: &Prepared, b: &Prepared) -> Option<u32> {
+    if a.count < MIN_FUZZY_TOKENS || b.count < MIN_FUZZY_TOKENS {
         return None;
     }
-    let s = jaccard(&ta, &tb).max(levenshtein_similarity(a, b));
+    let j = jaccard(&a.tokens, &b.tokens);
+    let s = match levenshtein_similarity(&a.chars, &b.chars, j.max(FUZZY_THRESHOLD)) {
+        Some(l) => j.max(l),
+        None => j,
+    };
     (s >= FUZZY_THRESHOLD).then(|| (s * 1000.0).round() as u32)
 }
 
+/// Jaccard index of two sorted, deduplicated token lists.
 fn jaccard(a: &[String], b: &[String]) -> f64 {
-    let sa: std::collections::BTreeSet<&String> = a.iter().collect();
-    let sb: std::collections::BTreeSet<&String> = b.iter().collect();
-    let inter = sa.intersection(&sb).count();
-    let union = sa.union(&sb).count();
+    let (mut i, mut j, mut inter) = (0, 0, 0usize);
+    while i < a.len() && j < b.len() {
+        match a[i].cmp(&b[j]) {
+            std::cmp::Ordering::Less => i += 1,
+            std::cmp::Ordering::Greater => j += 1,
+            std::cmp::Ordering::Equal => {
+                inter += 1;
+                i += 1;
+                j += 1;
+            }
+        }
+    }
+    let union = a.len() + b.len() - inter;
     if union == 0 {
         0.0
     } else {
@@ -374,28 +478,46 @@ fn jaccard(a: &[String], b: &[String]) -> f64 {
     }
 }
 
-/// `1 - levenshtein / max_len` on the first 256 chars.
-fn levenshtein_similarity(a: &str, b: &str) -> f64 {
-    let a: Vec<char> = a.to_lowercase().chars().take(256).collect();
-    let b: Vec<char> = b.to_lowercase().chars().take(256).collect();
+/// `1 - levenshtein / max_len` on the first 256 chars. Returns `None` when the similarity is
+/// certainly below `floor` (the caller does not need the exact value then), computed with an early
+/// exit once every cell of a row exceeds the allowed distance.
+fn levenshtein_similarity(a: &[char], b: &[char], floor: f64) -> Option<f64> {
     let max = a.len().max(b.len());
     if max == 0 {
-        return 1.0;
+        return Some(1.0);
     }
     // Length difference alone bounds the distance: skip hopeless pairs.
     if (a.len().min(b.len()) as f64) / (max as f64) < FUZZY_THRESHOLD {
-        return 0.0;
+        return Some(0.0);
     }
+    // Distances above this give a similarity below `floor`.
+    let limit = ((1.0 - floor) * max as f64).floor() as usize + 1;
+    // A shared prefix and suffix never change the distance: only the middles are compared.
+    let pre = a.iter().zip(b).take_while(|(x, y)| x == y).count();
+    let (a, b) = (&a[pre..], &b[pre..]);
+    let suf = a
+        .iter()
+        .rev()
+        .zip(b.iter().rev())
+        .take_while(|(x, y)| x == y)
+        .count();
+    let (a, b) = (&a[..a.len() - suf], &b[..b.len() - suf]);
     let mut prev: Vec<usize> = (0..=b.len()).collect();
+    let mut cur: Vec<usize> = vec![0; b.len() + 1];
     for (i, ca) in a.iter().enumerate() {
-        let mut cur = vec![i + 1];
+        cur[0] = i + 1;
+        let mut row_min = cur[0];
         for (j, cb) in b.iter().enumerate() {
             let cost = usize::from(ca != cb);
-            cur.push((prev[j] + cost).min(prev[j + 1] + 1).min(cur[j] + 1));
+            cur[j + 1] = (prev[j] + cost).min(prev[j + 1] + 1).min(cur[j] + 1);
+            row_min = row_min.min(cur[j + 1]);
         }
-        prev = cur;
+        if row_min > limit {
+            return None;
+        }
+        std::mem::swap(&mut prev, &mut cur);
     }
-    1.0 - prev[b.len()] as f64 / max as f64
+    Some(1.0 - prev[b.len()] as f64 / max as f64)
 }
 
 #[cfg(test)]
