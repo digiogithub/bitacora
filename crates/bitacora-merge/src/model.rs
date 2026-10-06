@@ -189,6 +189,24 @@ pub struct MergePage {
     pub style: FileStyle,
 }
 
+/// A reproducible uuid for a duplicate-id block, derived (FNV-1a, 128 bit) from the repeated id,
+/// the block position and its content, so the same merge always yields the same output.
+fn deterministic_uuid(id: &str, index: usize, content: &str) -> String {
+    let mut h: u128 = 0x6c62_272e_07bb_0142_62b8_2175_6295_c58d;
+    let mut feed = |bytes: &[u8]| {
+        for &b in bytes {
+            h ^= u128::from(b);
+            h = h.wrapping_mul(0x0000_0000_0100_0000_0000_0000_0000_013B);
+        }
+    };
+    feed(id.as_bytes());
+    feed(&index.to_le_bytes());
+    feed(content.as_bytes());
+    uuid::Builder::from_random_bytes(h.to_be_bytes())
+        .into_uuid()
+        .to_string()
+}
+
 const BOM: &str = "\u{feff}";
 
 fn detect_indent(source: &str) -> Indent {
@@ -296,11 +314,8 @@ impl MergePage {
             let (key, duplicate_of, fresh_id) = match meta.id.clone() {
                 Some(id) if !seen.insert(id.clone()) => {
                     meta.id = None;
-                    (
-                        BlockKey::Synthetic(i),
-                        Some(id),
-                        Some(uuid::Uuid::new_v4().to_string()),
-                    )
+                    let fresh = deterministic_uuid(&id, i, &content_lines.join("\n"));
+                    (BlockKey::Synthetic(i), Some(id), Some(fresh))
                 }
                 Some(id) => (BlockKey::Id(id), None, None),
                 None => (BlockKey::Synthetic(i), None, None),
