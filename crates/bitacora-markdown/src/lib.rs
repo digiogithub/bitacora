@@ -1,4 +1,22 @@
 //! `bitacora-markdown`: Lossless Logseq outline parser and serializer: `serialize(parse(bytes)) == bytes` for every fixture, plus the inline tokenizer. Depends on no other Bitacora crate.
+//!
+//! Layers (ADR-003, `docs/analysis/logseq/02-markdown-block-syntax.md` §9):
+//!
+//! 1. [`lines`] / [`outline`] / [`tree`]: a lossless line-based outline splitter. Every block keeps
+//!    its raw byte span, so untouched blocks are written back verbatim.
+//! 2. [`properties`]: `key:: value` property groups with mldoc's key rules, value interpretation
+//!    and the Markdown `:PROPERTIES:` drawer reader.
+
+pub mod lines;
+pub mod outline;
+pub mod properties;
+pub mod span;
+pub mod tree;
+
+pub use lines::{Line, LineKind, Lines, ParserOptions, UnclosedRegion};
+pub use outline::{BlockKind, Outline, RawBlock, content_of, pre_block_content, split, split_with};
+pub use span::Span;
+pub use tree::{NodeLinks, build_tree, build_tree_from_levels};
 
 /// Errors produced by this crate.
 #[derive(Debug, thiserror::Error)]
