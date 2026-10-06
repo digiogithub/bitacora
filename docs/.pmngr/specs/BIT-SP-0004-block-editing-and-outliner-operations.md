@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [editor, core]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T18:39:25Z
+updated: 2026-10-06T19:56:33Z
 requirements:
   R1:
     status: backlog
@@ -25,6 +25,7 @@ requirements:
         - crates/bitacora-core/tests/editor_ops.rs#untouched_page_serializes_identically_and_blocks_are_clean
         - crates/bitacora-core/tests/editor_ops.rs#same_depth_move_keeps_blocks_clean_and_moves_bytes
         - crates/bitacora-core/tests/editor_props.rs#every_fixture_page_roundtrips_through_the_model
+    verified: {rev: "sha256:00fbaa7708439184", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R5:
     status: backlog
     trace:
@@ -36,6 +37,7 @@ requirements:
         - crates/bitacora-core/tests/editor_ops.rs
         - crates/bitacora-core/tests/editor_props.rs#random_commands_invert_to_the_exact_original_bytes
         - crates/bitacora-core/tests/editor_props.rs#raw_text_ops_roundtrip
+    verified: {rev: "sha256:54aaace5592a3f58", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R6:
     status: backlog
   R7:

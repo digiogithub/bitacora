@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [index, search]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T19:53:25Z
+updated: 2026-10-06T19:56:33Z
 requirements:
   R1:
     status: backlog
@@ -26,7 +26,7 @@ requirements:
     trace:
       code: [crates/bitacora-index/src/index.rs]
       tests: [crates/bitacora-index/tests/lifecycle.rs]
-    verified: {rev: "sha256:7d22769253fa01d0", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
+    verified: {rev: "sha256:7d22769253fa01d0", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R3:
     status: backlog
     trace:
@@ -34,7 +34,7 @@ requirements:
         - crates/bitacora-index/src/schema.rs
         - crates/bitacora-index/src/schema_v1.sql
       tests: [crates/bitacora-index/tests/lifecycle.rs]
-    verified: {rev: "sha256:3774303bd6302bc5", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
+    verified: {rev: "sha256:3774303bd6302bc5", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R4:
     status: backlog
     trace:
@@ -46,7 +46,7 @@ requirements:
         - crates/bitacora-index/tests/parse_unit.rs#intervals_are_pre_order
         - crates/bitacora-index/tests/parse_golden.rs
         - crates/bitacora-index/tests/read_outline.rs
-    verified: {rev: "sha256:0366541edbd4f1ba", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
+    verified: {rev: "sha256:0366541edbd4f1ba", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R5:
     status: backlog
     trace:
@@ -54,7 +54,7 @@ requirements:
         - crates/bitacora-index/src/replace.rs
         - crates/bitacora-index/src/writer.rs
       tests: [crates/bitacora-index/tests/writer.rs]
-    verified: {rev: "sha256:8888f3866f9fc1ad", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
+    verified: {rev: "sha256:8888f3866f9fc1ad", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R6:
     status: backlog
     trace:
@@ -75,7 +75,7 @@ requirements:
       tests:
         - crates/bitacora-index/tests/reconcile.rs
         - crates/bitacora-index/tests/writer.rs
-    verified: {rev: "sha256:1620c5622d5b6951", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
+    verified: {rev: "sha256:1620c5622d5b6951", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R8:
     status: backlog
     trace:
@@ -86,12 +86,13 @@ requirements:
         - crates/bitacora-index/tests/parse_unit.rs#ref_kinds_follow_logseq
         - crates/bitacora-index/tests/parse_unit.rs#block_ref_kinds
         - crates/bitacora-index/tests/parse_golden.rs
-    verified: {rev: "sha256:535b1afd8f3b95d0", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
+    verified: {rev: "sha256:535b1afd8f3b95d0", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R9:
     status: backlog
     trace:
       code: [crates/bitacora-index/src/read/refs.rs]
       tests: [crates/bitacora-index/tests/read_refs.rs]
+    verified: {rev: "sha256:de18bae1f0c72d39", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R10:
     status: backlog
     trace:
@@ -99,7 +100,7 @@ requirements:
       tests:
         - crates/bitacora-index/tests/parse_unit.rs#typed_properties
         - crates/bitacora-index/tests/parse_unit.rs#comma_separated_keys_from_config
-    verified: {rev: "sha256:ef578b62b097ae90", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
+    verified: {rev: "sha256:ef578b62b097ae90", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R11:
     status: backlog
     trace:
@@ -112,7 +113,7 @@ requirements:
         - crates/bitacora-index/tests/writer.rs
         - crates/bitacora-index/tests/read_diagnostics.rs
         - crates/bitacora-cli/tests/index_commands.rs
-    verified: {rev: "sha256:cdad3517c3101897", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
+    verified: {rev: "sha256:cdad3517c3101897", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R12:
     status: backlog
     trace:
@@ -122,7 +123,7 @@ requirements:
       tests:
         - crates/bitacora-index/tests/writer.rs
         - crates/bitacora-index/tests/reconcile.rs
-    verified: {rev: "sha256:364ad8aee79fb26c", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
+    verified: {rev: "sha256:364ad8aee79fb26c", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R13:
     status: backlog
     trace:
@@ -132,6 +133,7 @@ requirements:
       tests:
         - crates/bitacora-index/src/search/query.rs
         - crates/bitacora-index/tests/search.rs
+    verified: {rev: "sha256:137d1005d6dbf80b", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R14:
     status: backlog
     trace:
@@ -155,6 +157,7 @@ requirements:
         - crates/bitacora-index/src/search/mod.rs#set_substring
         - crates/bitacora-index/src/writer.rs#set_substring
       tests: [crates/bitacora-index/tests/search.rs]
+    verified: {rev: "sha256:4e7222feba77143b", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R16:
     status: backlog
     trace:
@@ -168,12 +171,13 @@ requirements:
         - crates/bitacora-index/tests/reconcile.rs
         - crates/bitacora-index/tests/bench_cold_build.rs
         - crates/bitacora-cli/tests/index_commands.rs
-    verified: {rev: "sha256:dcf89c2b25059c3d", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
+    verified: {rev: "sha256:dcf89c2b25059c3d", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R17:
     status: backlog
     trace:
       code: [crates/bitacora-index/src/read/unlinked.rs]
       tests: [crates/bitacora-index/tests/read_refs.rs]
+    verified: {rev: "sha256:06b872e03ff0f63d", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R18:
     status: backlog
     trace:
@@ -183,6 +187,7 @@ requirements:
         - crates/bitacora-index/src/query/dates.rs
         - crates/bitacora-index/src/query/mod.rs
       tests: [crates/bitacora-index/tests/query_simple.rs]
+    verified: {rev: "sha256:e662d812be0472fc", commit: 5580d94bce79b0a9fb12e95d667c3d435af37b17, at: 2026-10-06T19:56:30Z, by: claude}
   R19:
     status: backlog
     trace:
