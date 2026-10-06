@@ -2,7 +2,7 @@
 id: BIT-US-0001
 type: story
 title: Cargo workspace skeleton with all crates and pinned dependencies
-status: backlog
+status: done
 priority: critical
 parent: BIT-EP-0001
 milestone: BIT-M-0001
@@ -10,7 +10,9 @@ author: mcp
 labels: [infra, workspace]
 estimate: 5
 created: 2026-10-06T14:23:49Z
-updated: 2026-10-06T15:16:22Z
+updated: 2026-10-06T16:44:55Z
+started: 2026-10-06T16:38:36Z
+closed: 2026-10-06T16:44:55Z
 ---
 
 ## Description

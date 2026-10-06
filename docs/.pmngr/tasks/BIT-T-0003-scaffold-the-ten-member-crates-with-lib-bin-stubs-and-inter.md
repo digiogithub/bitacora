@@ -2,7 +2,7 @@
 id: BIT-T-0003
 type: task
 title: Scaffold the ten member crates with lib/bin stubs and inter-crate edges
-status: backlog
+status: done
 priority: critical
 parent: BIT-US-0001
 milestone: BIT-M-0001
@@ -22,7 +22,9 @@ labels:
   - bitacora-cli
 estimate: 3
 created: 2026-10-06T14:24:22Z
-updated: 2026-10-06T15:11:33Z
+updated: 2026-10-06T16:44:55Z
+started: 2026-10-06T16:38:36Z
+closed: 2026-10-06T16:44:55Z
 ---
 
 ## Description

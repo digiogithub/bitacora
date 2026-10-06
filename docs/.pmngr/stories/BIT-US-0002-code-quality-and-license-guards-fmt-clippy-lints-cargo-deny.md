@@ -2,7 +2,7 @@
 id: BIT-US-0002
 type: story
 title: "Code-quality and license guards: fmt, clippy lints, cargo-deny, typos, machete"
-status: backlog
+status: done
 priority: critical
 parent: BIT-EP-0001
 milestone: BIT-M-0001
@@ -10,7 +10,9 @@ author: mcp
 labels: [infra, quality, licensing]
 estimate: 3
 created: 2026-10-06T14:24:30Z
-updated: 2026-10-06T14:24:30Z
+updated: 2026-10-06T16:45:00Z
+started: 2026-10-06T16:44:55Z
+closed: 2026-10-06T16:45:00Z
 ---
 
 ## Description

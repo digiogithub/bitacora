@@ -2,7 +2,7 @@
 id: BIT-T-0005
 type: task
 title: Configure rustfmt and workspace clippy/rustc lints
-status: backlog
+status: done
 priority: critical
 parent: BIT-US-0002
 milestone: BIT-M-0001
@@ -10,7 +10,9 @@ author: mcp
 labels: [infra, quality]
 estimate: 1
 created: 2026-10-06T14:24:49Z
-updated: 2026-10-06T14:24:49Z
+updated: 2026-10-06T16:45:00Z
+started: 2026-10-06T16:44:55Z
+closed: 2026-10-06T16:45:00Z
 ---
 
 ## Description
