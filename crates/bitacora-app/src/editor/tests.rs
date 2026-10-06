@@ -1,0 +1,872 @@
+//! Keystroke-level `#[gpui::test]` suite of the block editor (BIT-US-0030..0037, 0039).
+//!
+//! Every test opens a real graph in a temp folder with a live runtime session, shows a page in
+//! a `PageView` (which makes it editable through core) and drives the editor with simulated
+//! keystrokes, then checks the core snapshot and the bytes on disk.
+
+use std::sync::Arc;
+use std::time::Duration;
+
+use bitacora_core::editor::BlockId;
+use bitacora_core::graph::PageKey;
+use bitacora_core::queue::{CommandQueue, Source};
+use bitacora_runtime::{RuntimeConfig, Session};
+
+use super::{Caret, OutlineEditor};
+use crate::data::{GraphHandle, ViewSettings};
+use crate::nav::Route;
+use crate::session::SessionLink;
+use crate::settings::AppSettings;
+use crate::theme;
+use crate::ui::testing::{TestAppContext, VisualTestContext, gpui_test};
+use crate::ui::text_edit::EntityInputHandler as _;
+use crate::ui::{Entity, px, size};
+use crate::views::page_view::PageView;
+
+struct Env {
+    graph: tempfile::TempDir,
+    _data: tempfile::TempDir,
+    session: Option<Session>,
+    handle: GraphHandle,
+    link: SessionLink,
+}
+
+impl Drop for Env {
+    fn drop(&mut self) {
+        if let Some(s) = self.session.take() {
+            let _ = s.shutdown(Duration::from_secs(10));
+        }
+    }
+}
+
+impl Env {
+    fn new(files: &[(&str, &str)]) -> Self {
+        let graph = tempfile::tempdir().expect("graph");
+        let data = tempfile::tempdir().expect("data");
+        let root = graph.path();
+        std::fs::create_dir_all(root.join("logseq")).expect("logseq");
+        std::fs::write(root.join("logseq/config.edn"), "{}").expect("config");
+        for (path, content) in files {
+            let file = root.join(path);
+            std::fs::create_dir_all(file.parent().expect("parent")).expect("dirs");
+            std::fs::write(file, content).expect("write");
+        }
+        let mut cfg = RuntimeConfig::new(root);
+        cfg.data_dir = Some(data.path().to_path_buf());
+        cfg.global_config = Some(data.path().join("no-global.edn"));
+        cfg.watch = None;
+        cfg.debounce = None;
+        let session = Session::open(cfg).expect("session");
+        let handle = GraphHandle {
+            reader: session.read_api(),
+            root: session.root().to_path_buf(),
+            settings: Arc::new(ViewSettings::from_config(session.config())),
+        };
+        let link = SessionLink {
+            queue: session.queue().clone(),
+            config: Arc::new(session.config().clone()),
+            mcp_endpoint: None,
+        };
+        Self {
+            graph,
+            _data: data,
+            session: Some(session),
+            handle,
+            link,
+        }
+    }
+
+    fn queue(&self) -> &CommandQueue {
+        &self.link.queue
+    }
+
+    /// Writes dirty pages and reads `rel` from disk.
+    fn disk(&self, rel: &str) -> String {
+        let _ = self.queue().flush(Source::Ui).expect("flush");
+        std::fs::read_to_string(self.graph.path().join(rel)).expect("read page")
+    }
+
+    fn snapshot_texts(&self, title: &str) -> Vec<(usize, String)> {
+        self.queue()
+            .snapshot(&PageKey::from_title(title))
+            .map(|s| s.blocks.iter().map(|b| (b.depth, b.text.clone())).collect())
+            .unwrap_or_default()
+    }
+}
+
+fn setup(cx: &mut TestAppContext) {
+    cx.update(|cx| {
+        crate::ui::init(cx);
+        theme::install(cx, AppSettings::default(), None);
+        crate::keymap::load_with_user(cx, None).expect("keymap");
+    });
+}
+
+fn open_page<'a>(
+    cx: &'a mut TestAppContext,
+    env: &Env,
+    page: &str,
+) -> (
+    Entity<PageView>,
+    Entity<OutlineEditor>,
+    &'a mut VisualTestContext,
+) {
+    setup(cx);
+    let (view, cx) = cx.add_window_view(|_, cx| PageView::new(cx));
+    cx.simulate_resize(size(px(900.), px(700.)));
+    let link = env.link.clone();
+    view.update_in(cx, |v, window, cx| {
+        v.set_session_link(Some(link), window, cx);
+    });
+    let (handle, route) = (env.handle.clone(), Route::Page(page.into()));
+    view.update(cx, |v, cx| v.show(handle, route, None, cx));
+    cx.executor().allow_parking();
+    for _ in 0..400 {
+        cx.run_until_parked();
+        if view.read_with(cx, |v, _| v.is_live()) {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    assert!(view.read_with(cx, |v, _| v.is_live()), "page is editable");
+    let ed = view.read_with(cx, |v, _| v.editor().cloned().expect("editor"));
+    (view, ed, cx)
+}
+
+fn ids(ed: &Entity<OutlineEditor>, cx: &mut VisualTestContext) -> Vec<BlockId> {
+    ed.read_with(cx, |e, _| e.block_ids().to_vec())
+}
+
+fn edit(ed: &Entity<OutlineEditor>, row: usize, caret: Caret, cx: &mut VisualTestContext) {
+    let id = ids(ed, cx)[row];
+    ed.update_in(cx, |e, window, cx| e.enter(id, caret, window, cx));
+    cx.run_until_parked();
+}
+
+fn flush(ed: &Entity<OutlineEditor>, cx: &mut VisualTestContext) {
+    ed.update(cx, |e, cx| {
+        e.flush(cx);
+    });
+}
+
+fn buffer(ed: &Entity<OutlineEditor>, cx: &mut VisualTestContext) -> Option<String> {
+    ed.read_with(cx, |e, _| e.buffer_text().map(str::to_owned))
+}
+
+fn editing_row(ed: &Entity<OutlineEditor>, cx: &mut VisualTestContext) -> Option<usize> {
+    ed.read_with(cx, |e, _| {
+        let id = e.editing()?;
+        e.block_ids().iter().position(|i| *i == id)
+    })
+}
+
+fn pair(depth: usize, text: &str) -> (usize, String) {
+    (depth, text.to_owned())
+}
+
+const HOME: &str = "pages/Home.md";
+
+#[gpui_test]
+fn pages_open_editable_and_the_rows_come_from_core(cx: &mut TestAppContext) {
+    let env = Env::new(&[(HOME, "- one\n- two\n\t- child\n")]);
+    let (view, ed, cx) = open_page(cx, &env, "Home");
+    assert_eq!(ed.read_with(cx, |e, _| e.rows().len()), 3);
+    assert_eq!(view.read_with(cx, |v, _| v.rows().len()), 3);
+    assert_eq!(
+        env.snapshot_texts("Home"),
+        [pair(1, "one"), pair(1, "two"), pair(2, "child")]
+    );
+    // Viewing writes nothing.
+    assert_eq!(env.disk(HOME), "- one\n- two\n\t- child\n");
+}
+
+#[gpui_test]
+fn typing_commits_after_the_debounce_and_an_untouched_buffer_makes_no_op(cx: &mut TestAppContext) {
+    let env = Env::new(&[(HOME, "- one\n- two\n")]);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    edit(&ed, 0, Caret::End, cx);
+    // Entering and leaving without a change writes nothing and adds no history entry.
+    flush(&ed, cx);
+    assert_eq!(env.disk(HOME), "- one\n- two\n");
+    cx.simulate_input("X");
+    assert_eq!(buffer(&ed, cx).as_deref(), Some("oneX"));
+    // Not committed yet.
+    assert_eq!(env.snapshot_texts("Home")[0].1, "one");
+    cx.executor().advance_clock(super::view::FLUSH_DELAY);
+    cx.run_until_parked();
+    assert_eq!(env.snapshot_texts("Home")[0].1, "oneX");
+    assert_eq!(env.disk(HOME), "- oneX\n- two\n");
+}
+
+#[gpui_test]
+fn escape_flushes_and_selects_the_block(cx: &mut TestAppContext) {
+    let env = Env::new(&[(HOME, "- one\n- two\n")]);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    edit(&ed, 0, Caret::End, cx);
+    cx.simulate_input("!");
+    cx.simulate_keystrokes("escape");
+    assert_eq!(env.snapshot_texts("Home")[0].1, "one!");
+    assert_eq!(ed.read_with(cx, |e, _| e.editing()), None);
+    let first = ids(&ed, cx)[0];
+    assert_eq!(ed.read_with(cx, |e, _| e.selected_blocks()), [first]);
+    assert_eq!(
+        ed.read_with(cx, |e, _| e.key_context_name()),
+        "Outliner BlockSelection"
+    );
+}
+
+#[gpui_test]
+fn hidden_properties_are_not_shown_and_return_byte_exact(cx: &mut TestAppContext) {
+    let page = "- title\n  id:: 6f2c1b7a-0000-4000-8000-000000000001\n  collapsed:: true\n\t- child\n- other\n";
+    let env = Env::new(&[(HOME, page)]);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    edit(&ed, 0, Caret::End, cx);
+    assert_eq!(buffer(&ed, cx).as_deref(), Some("title"));
+    cx.simulate_input("s");
+    flush(&ed, cx);
+    assert_eq!(
+        env.disk(HOME),
+        "- titles\n  id:: 6f2c1b7a-0000-4000-8000-000000000001\n  collapsed:: true\n\t- child\n- other\n"
+    );
+    // A second line is added under the title, before the hidden lines.
+    cx.simulate_keystrokes("shift-enter");
+    cx.simulate_input("more");
+    flush(&ed, cx);
+    assert!(
+        env.disk(HOME).starts_with(
+            "- titles\n  id:: 6f2c1b7a-0000-4000-8000-000000000001\n  collapsed:: true\n  more\n"
+        ),
+        "{}",
+        env.disk(HOME)
+    );
+}
+
+#[gpui_test]
+fn clicking_text_enters_edit_mode_at_the_mapped_source_offset(cx: &mut TestAppContext) {
+    let env = Env::new(&[(HOME, "- a **bold** z\n- other\n")]);
+    let (view, ed, cx) = open_page(cx, &env, "Home");
+    // "a bo|ld z": display offset 4 maps to source offset 6.
+    let src = view.read_with(cx, |v, _| v.rows()[0].block.title.source_offset(4));
+    assert_eq!(src, Some(6));
+    ed.update_in(cx, |e, window, cx| {
+        e.click_row(0, src.unwrap_or(0), false, window, cx);
+    });
+    assert_eq!(editing_row(&ed, cx), Some(0));
+    assert_eq!(ed.read_with(cx, |e, _| e.cursor_offset()), 6);
+    // A click on the blank area of another row puts the caret at its end.
+    ed.update_in(cx, |e, window, cx| {
+        e.click_row(1, usize::MAX, false, window, cx);
+    });
+    assert_eq!(editing_row(&ed, cx), Some(1));
+    assert_eq!(ed.read_with(cx, |e, _| e.cursor_offset()), 5);
+}
+
+#[gpui_test]
+fn a_real_mouse_click_on_a_row_starts_editing(cx: &mut TestAppContext) {
+    let env = Env::new(&[(HOME, "- first block\n- second block\n")]);
+    let (view, ed, cx) = open_page(cx, &env, "Home");
+    let pos = view
+        .read_with(cx, |v, _| {
+            v.items()
+                .iter()
+                .position(|i| matches!(i, crate::views::page_view::Item::Block(1)))
+        })
+        .expect("row 1 item");
+    let bounds = view
+        .read_with(cx, |v, _| v.list_bounds_for_item(pos))
+        .expect("row laid out");
+    cx.simulate_click(
+        crate::ui::point(bounds.right() - px(40.), bounds.top() + px(10.)),
+        crate::ui::text_edit::Modifiers::default(),
+    );
+    assert_eq!(editing_row(&ed, cx), Some(1));
+}
+
+#[gpui_test]
+fn enter_splits_at_the_caret_and_backspace_at_start_merges(cx: &mut TestAppContext) {
+    let env = Env::new(&[(HOME, "- abcd\n- tail\n")]);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    edit(&ed, 0, Caret::End, cx);
+    cx.simulate_keystrokes("left left enter");
+    assert_eq!(
+        env.snapshot_texts("Home"),
+        [pair(1, "ab"), pair(1, "cd"), pair(1, "tail")]
+    );
+    assert_eq!(editing_row(&ed, cx), Some(1));
+    assert_eq!(ed.read_with(cx, |e, _| e.cursor_offset()), 0);
+    cx.simulate_keystrokes("backspace");
+    assert_eq!(env.snapshot_texts("Home")[0], pair(1, "abcd"));
+    assert_eq!(editing_row(&ed, cx), Some(0));
+    assert_eq!(
+        ed.read_with(cx, |e, _| e.cursor_offset()),
+        2,
+        "caret at the junction"
+    );
+    assert_eq!(env.disk(HOME), "- abcd\n- tail\n");
+}
+
+#[gpui_test]
+fn enter_on_an_empty_last_child_outdents_and_shift_enter_adds_a_line(cx: &mut TestAppContext) {
+    let env = Env::new(&[(HOME, "- parent\n\t- \n")]);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    edit(&ed, 1, Caret::End, cx);
+    cx.simulate_keystrokes("enter");
+    assert_eq!(env.snapshot_texts("Home"), [pair(1, "parent"), pair(1, "")]);
+    edit(&ed, 0, Caret::End, cx);
+    cx.simulate_keystrokes("shift-enter");
+    cx.simulate_input("next");
+    flush(&ed, cx);
+    assert_eq!(env.snapshot_texts("Home")[0], pair(1, "parent\nnext"));
+    assert!(
+        env.disk(HOME).starts_with("- parent\n  next\n"),
+        "{}",
+        env.disk(HOME)
+    );
+}
+
+#[gpui_test]
+fn enter_inside_a_page_ref_jumps_past_the_brackets_instead_of_splitting(cx: &mut TestAppContext) {
+    let env = Env::new(&[(HOME, "- see [[Alpha]] now\n")]);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    edit(&ed, 0, Caret::Visible(8), cx);
+    cx.simulate_keystrokes("enter");
+    assert_eq!(env.snapshot_texts("Home").len(), 1, "no split inside [[ ]]");
+    assert_eq!(ed.read_with(cx, |e, _| e.cursor_offset()), 13);
+}
+
+#[gpui_test]
+fn delete_at_the_end_pulls_the_next_block_and_refusals_change_nothing(cx: &mut TestAppContext) {
+    let env = Env::new(&[(HOME, "- ab\n- cd\n- ef\n")]);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    edit(&ed, 0, Caret::End, cx);
+    cx.simulate_keystrokes("delete");
+    assert_eq!(env.snapshot_texts("Home"), [pair(1, "abcd"), pair(1, "ef")]);
+    assert_eq!(
+        ed.read_with(cx, |e, _| e.cursor_offset()),
+        2,
+        "caret at the junction"
+    );
+    // Backspace at the start of the first block of the page is refused: nothing changes.
+    edit(&ed, 0, Caret::Start, cx);
+    cx.simulate_keystrokes("backspace");
+    assert_eq!(editing_row(&ed, cx), Some(0));
+    assert_eq!(env.disk(HOME), "- abcd\n- ef\n");
+    // Delete in the last block has no next block to pull in.
+    edit(&ed, 1, Caret::End, cx);
+    cx.simulate_keystrokes("delete");
+    assert_eq!(env.snapshot_texts("Home").len(), 2);
+}
+
+#[gpui_test]
+fn tab_shift_tab_and_alt_shift_arrows_restructure_and_keep_the_caret(cx: &mut TestAppContext) {
+    let env = Env::new(&[(HOME, "- a\n- b\n- c\n")]);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    edit(&ed, 1, Caret::End, cx);
+    cx.simulate_keystrokes("tab");
+    assert_eq!(
+        env.snapshot_texts("Home"),
+        [pair(1, "a"), pair(2, "b"), pair(1, "c")]
+    );
+    assert_eq!(editing_row(&ed, cx), Some(1));
+    cx.simulate_keystrokes("shift-tab");
+    assert_eq!(env.snapshot_texts("Home")[1], pair(1, "b"));
+    cx.simulate_keystrokes("alt-shift-up");
+    assert_eq!(
+        env.snapshot_texts("Home"),
+        [pair(1, "b"), pair(1, "a"), pair(1, "c")]
+    );
+    assert_eq!(
+        editing_row(&ed, cx),
+        Some(0),
+        "the caret follows the moved block"
+    );
+    cx.simulate_keystrokes("alt-shift-down alt-shift-down");
+    assert_eq!(
+        env.snapshot_texts("Home"),
+        [pair(1, "a"), pair(1, "c"), pair(1, "b")]
+    );
+    // The first block cannot be indented: nothing changes.
+    edit(&ed, 0, Caret::End, cx);
+    cx.simulate_keystrokes("tab");
+    assert_eq!(env.snapshot_texts("Home")[0], pair(1, "a"));
+    assert_eq!(env.disk(HOME), "- a\n- c\n- b\n");
+}
+
+#[gpui_test]
+fn collapse_and_expand_persist_collapsed_true_and_restore_the_bytes(cx: &mut TestAppContext) {
+    let env = Env::new(&[(HOME, "- a\n\t- a1\n\t- a2\n- b\n")]);
+    let (view, ed, cx) = open_page(cx, &env, "Home");
+    edit(&ed, 0, Caret::End, cx);
+    cx.simulate_keystrokes("ctrl-up");
+    assert_eq!(
+        env.disk(HOME),
+        "- a\n  collapsed:: true\n\t- a1\n\t- a2\n- b\n"
+    );
+    assert_eq!(view.read_with(cx, |v, _| v.visible_count()), 2);
+    assert_eq!(editing_row(&ed, cx), Some(0));
+    cx.simulate_keystrokes("ctrl-down");
+    assert_eq!(env.disk(HOME), "- a\n\t- a1\n\t- a2\n- b\n");
+    assert_eq!(view.read_with(cx, |v, _| v.visible_count()), 4);
+    // Leaves are ignored.
+    edit(&ed, 1, Caret::End, cx);
+    cx.simulate_keystrokes("ctrl-up");
+    assert_eq!(env.disk(HOME), "- a\n\t- a1\n\t- a2\n- b\n");
+}
+
+#[gpui_test]
+fn page_level_collapse_acts_when_nothing_is_edited_and_t_o_toggles_all(cx: &mut TestAppContext) {
+    let env = Env::new(&[(HOME, "- a\n\t- a1\n- b\n\t- b1\n")]);
+    let (view, ed, cx) = open_page(cx, &env, "Home");
+    edit(&ed, 0, Caret::End, cx);
+    cx.simulate_keystrokes("escape escape");
+    assert_eq!(ed.read_with(cx, |e, _| e.key_context_name()), "Outliner");
+    cx.simulate_keystrokes("t o");
+    assert_eq!(view.read_with(cx, |v, _| v.visible_count()), 2);
+    cx.simulate_keystrokes("t o");
+    assert_eq!(view.read_with(cx, |v, _| v.visible_count()), 4);
+    assert_eq!(env.disk(HOME), "- a\n\t- a1\n- b\n\t- b1\n");
+}
+
+#[gpui_test]
+fn ctrl_enter_cycles_the_task_marker_and_the_checkbox_toggles_done(cx: &mut TestAppContext) {
+    let env = Env::new(&[(HOME, "- write\n- other\n")]);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    edit(&ed, 0, Caret::End, cx);
+    cx.simulate_keystrokes("ctrl-enter");
+    assert_eq!(env.snapshot_texts("Home")[0].1, "LATER write");
+    assert_eq!(buffer(&ed, cx).as_deref(), Some("LATER write"));
+    cx.simulate_keystrokes("ctrl-enter ctrl-enter ctrl-enter");
+    assert_eq!(
+        env.snapshot_texts("Home")[0].1,
+        "write",
+        "cycle ends without a marker"
+    );
+    ed.update_in(cx, |e, window, cx| e.toggle_done(0, window, cx));
+    assert_eq!(env.snapshot_texts("Home")[0].1, "DONE write");
+}
+
+#[gpui_test]
+fn escape_selects_shift_arrows_extend_and_bulk_operations_use_one_transaction(
+    cx: &mut TestAppContext,
+) {
+    let env = Env::new(&[(HOME, "- a\n- b\n- c\n- d\n")]);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    edit(&ed, 1, Caret::End, cx);
+    cx.simulate_keystrokes("escape shift-down");
+    let all = ids(&ed, cx);
+    assert_eq!(
+        ed.read_with(cx, |e, _| e.selected_blocks()),
+        [all[1], all[2]]
+    );
+    cx.simulate_keystrokes("shift-up shift-up");
+    assert_eq!(
+        ed.read_with(cx, |e, _| e.selected_blocks()),
+        [all[0], all[1]]
+    );
+    // Indent both under nothing: the first block has no previous sibling -> refused.
+    cx.simulate_keystrokes("tab");
+    assert_eq!(
+        env.snapshot_texts("Home")
+            .iter()
+            .map(|t| t.0)
+            .collect::<Vec<_>>(),
+        [1, 1, 1, 1]
+    );
+    // Select b and c and indent them under a.
+    cx.simulate_keystrokes("down");
+    assert_eq!(ed.read_with(cx, |e, _| e.selected_blocks()), [all[1]]);
+    cx.simulate_keystrokes("shift-down tab");
+    assert_eq!(
+        env.snapshot_texts("Home"),
+        [pair(1, "a"), pair(2, "b"), pair(2, "c"), pair(1, "d")]
+    );
+    // Undo reverts both blocks in one step.
+    cx.simulate_keystrokes("ctrl-z");
+    assert_eq!(
+        env.snapshot_texts("Home")
+            .iter()
+            .map(|t| t.0)
+            .collect::<Vec<_>>(),
+        [1, 1, 1, 1]
+    );
+    cx.simulate_keystrokes("ctrl-shift-z");
+    assert_eq!(
+        env.snapshot_texts("Home")
+            .iter()
+            .map(|t| t.0)
+            .collect::<Vec<_>>(),
+        [1, 2, 2, 1]
+    );
+}
+
+#[gpui_test]
+fn selection_delete_enter_and_select_all(cx: &mut TestAppContext) {
+    let env = Env::new(&[(HOME, "- a\n- b\n- c\n")]);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    edit(&ed, 0, Caret::End, cx);
+    cx.simulate_keystrokes("escape ctrl-shift-a");
+    assert_eq!(ed.read_with(cx, |e, _| e.selected_blocks().len()), 3);
+    cx.simulate_keystrokes("escape");
+    assert!(!ed.read_with(cx, |e, _| e.has_selection()));
+    edit(&ed, 1, Caret::End, cx);
+    cx.simulate_keystrokes("escape backspace");
+    assert_eq!(env.snapshot_texts("Home"), [pair(1, "a"), pair(1, "c")]);
+    // Enter edits a single selected block.
+    let first = ids(&ed, cx)[0];
+    ed.update_in(cx, |e, window, cx| e.select_only(first, window, cx));
+    cx.simulate_keystrokes("enter");
+    assert_eq!(editing_row(&ed, cx), Some(0));
+    assert_eq!(env.disk(HOME), "- a\n- c\n");
+}
+
+#[gpui_test]
+fn ctrl_a_in_selection_mode_selects_the_parent(cx: &mut TestAppContext) {
+    let env = Env::new(&[(HOME, "- p\n\t- child\n")]);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    let child = ids(&ed, cx)[1];
+    ed.update_in(cx, |e, window, cx| e.select_only(child, window, cx));
+    cx.simulate_keystrokes("ctrl-a");
+    let parent = ids(&ed, cx)[0];
+    assert_eq!(ed.read_with(cx, |e, _| e.selected_blocks()), [parent]);
+}
+
+#[gpui_test]
+fn copy_cut_and_paste_of_block_subtrees(cx: &mut TestAppContext) {
+    let env = Env::new(&[(
+        HOME,
+        "- a\n  id:: 6f2c1b7a-0000-4000-8000-000000000001\n\t- a1\n- b\n",
+    )]);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    edit(&ed, 0, Caret::End, cx);
+    cx.simulate_keystrokes("escape ctrl-c");
+    // Plain text: tab-indented Markdown without id::.
+    assert_eq!(
+        cx.read_from_clipboard().and_then(|c| c.text()),
+        Some("- a\n\t- a1\n".to_owned())
+    );
+    // Paste after block b: a copy gets fresh identities (no id:: line).
+    let b = ids(&ed, cx)[2];
+    ed.update_in(cx, |e, window, cx| e.select_only(b, window, cx));
+    cx.simulate_keystrokes("ctrl-v");
+    let texts = env.snapshot_texts("Home");
+    assert_eq!(texts.len(), 5, "{texts:?}");
+    assert_eq!(texts[3], pair(1, "a"));
+    assert_eq!(texts[4], pair(2, "a1"));
+    // Cut removes the subtree and the paste restores it with its id::.
+    let a = ids(&ed, cx)[0];
+    ed.update_in(cx, |e, window, cx| e.select_only(a, window, cx));
+    cx.simulate_keystrokes("ctrl-x");
+    assert_eq!(env.snapshot_texts("Home").len(), 3);
+    let last = *ids(&ed, cx).last().expect("last");
+    ed.update_in(cx, |e, window, cx| e.select_only(last, window, cx));
+    cx.simulate_keystrokes("ctrl-v");
+    assert!(
+        env.disk(HOME)
+            .contains("id:: 6f2c1b7a-0000-4000-8000-000000000001"),
+        "{}",
+        env.disk(HOME)
+    );
+}
+
+#[gpui_test]
+fn pasting_a_markdown_list_while_editing_creates_blocks_and_plain_text_goes_inline(
+    cx: &mut TestAppContext,
+) {
+    let env = Env::new(&[(HOME, "- \n- tail\n")]);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    edit(&ed, 0, Caret::End, cx);
+    cx.write_to_clipboard(crate::ui::text_edit::ClipboardItem::new_string(
+        "- one\n  - two\n- three".to_owned(),
+    ));
+    cx.simulate_keystrokes("ctrl-v");
+    assert_eq!(
+        env.snapshot_texts("Home"),
+        [
+            pair(1, "one"),
+            pair(2, "two"),
+            pair(1, "three"),
+            pair(1, "tail")
+        ],
+        "pasting onto an empty block replaces it"
+    );
+    // Inline paste stays in the buffer.
+    edit(&ed, 3, Caret::End, cx);
+    cx.write_to_clipboard(crate::ui::text_edit::ClipboardItem::new_string(
+        "+x".to_owned(),
+    ));
+    cx.simulate_keystrokes("ctrl-v");
+    assert_eq!(buffer(&ed, cx).as_deref(), Some("tail+x"));
+    // HTML is converted to Markdown, a list becomes blocks.
+    cx.write_to_clipboard(crate::ui::text_edit::ClipboardItem::new_string(
+        "<ul><li>h1</li><li>h2</li></ul>".to_owned(),
+    ));
+    edit(&ed, 3, Caret::End, cx);
+    cx.simulate_keystrokes("ctrl-v");
+    let texts = env.snapshot_texts("Home");
+    assert!(
+        texts.iter().any(|t| t.1 == "h1") && texts.iter().any(|t| t.1 == "h2"),
+        "{texts:?}"
+    );
+}
+
+#[gpui_test]
+fn undo_and_redo_restore_the_text_the_caret_and_the_bytes(cx: &mut TestAppContext) {
+    let env = Env::new(&[(HOME, "- hello\n- other\n")]);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    edit(&ed, 0, Caret::Visible(2), cx);
+    cx.simulate_keystrokes("enter");
+    assert_eq!(env.snapshot_texts("Home").len(), 3);
+    cx.simulate_keystrokes("ctrl-z");
+    assert_eq!(env.snapshot_texts("Home").len(), 2);
+    assert_eq!(
+        env.disk(HOME),
+        "- hello\n- other\n",
+        "bytes are exact after undo"
+    );
+    assert_eq!(editing_row(&ed, cx), Some(0));
+    assert_eq!(
+        ed.read_with(cx, |e, _| e.cursor_offset()),
+        2,
+        "caret restored"
+    );
+    cx.simulate_keystrokes("ctrl-shift-z");
+    assert_eq!(env.snapshot_texts("Home").len(), 3);
+    assert_eq!(
+        editing_row(&ed, cx),
+        Some(1),
+        "redo puts the caret in the new block"
+    );
+    // Typing is undone in word-sized steps and the buffer follows.
+    cx.simulate_input("abc");
+    cx.simulate_keystrokes("ctrl-z");
+    assert_eq!(
+        buffer(&ed, cx).as_deref(),
+        Some("llo"),
+        "typing undone, caret restored"
+    );
+    cx.simulate_keystrokes("ctrl-y");
+    assert_eq!(buffer(&ed, cx).as_deref(), Some("abcllo"));
+}
+
+#[gpui_test]
+fn zoom_in_re_roots_the_view_with_a_breadcrumb_and_changes_no_file(cx: &mut TestAppContext) {
+    let env = Env::new(&[(HOME, "- p\n\t- c1\n\t\t- g\n- q\n")]);
+    let (view, ed, cx) = open_page(cx, &env, "Home");
+    edit(&ed, 1, Caret::End, cx);
+    cx.simulate_keystrokes("ctrl-.");
+    assert_eq!(
+        view.read_with(cx, |v, _| v.rows().len()),
+        2,
+        "c1 and its child"
+    );
+    assert_eq!(view.read_with(cx, |v, _| v.rows()[0].depth), 0);
+    let crumbs: Vec<String> =
+        ed.read_with(cx, |e, _| e.crumbs().into_iter().map(|c| c.0).collect());
+    assert_eq!(crumbs, ["Home", "p", "c1"]);
+    cx.simulate_keystrokes("ctrl-,");
+    let parent = ids(&ed, cx)[0];
+    assert_eq!(ed.read_with(cx, |e, _| e.zoom_root()), Some(parent));
+    assert_eq!(
+        view.read_with(cx, |v, _| v.rows().len()),
+        3,
+        "zoomed out to the parent"
+    );
+    cx.simulate_keystrokes("ctrl-,");
+    assert_eq!(ed.read_with(cx, |e, _| e.zoom_root()), None);
+    assert_eq!(view.read_with(cx, |v, _| v.rows().len()), 4);
+    assert_eq!(env.disk(HOME), "- p\n\t- c1\n\t\t- g\n- q\n");
+}
+
+#[gpui_test]
+fn arrow_keys_cross_block_boundaries_keeping_the_goal_x(cx: &mut TestAppContext) {
+    let env = Env::new(&[(HOME, "- abcdef\n- xy\n- 0123456789\n")]);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    edit(&ed, 0, Caret::Start, cx);
+    cx.simulate_keystrokes("right right right right down");
+    assert_eq!(editing_row(&ed, cx), Some(1));
+    assert_eq!(
+        ed.read_with(cx, |e, _| e.cursor_offset()),
+        2,
+        "clamped to the short block"
+    );
+    cx.simulate_keystrokes("down");
+    assert_eq!(editing_row(&ed, cx), Some(2));
+    assert_eq!(
+        ed.read_with(cx, |e, _| e.cursor_offset()),
+        4,
+        "goal x remembered"
+    );
+    cx.simulate_keystrokes("up up");
+    assert_eq!(editing_row(&ed, cx), Some(0));
+    // Left at 0 and right at the end move to the neighbours.
+    cx.simulate_keystrokes("home left");
+    assert_eq!(editing_row(&ed, cx), Some(0), "no block above");
+    cx.simulate_keystrokes("end right");
+    assert_eq!(editing_row(&ed, cx), Some(1));
+    assert_eq!(ed.read_with(cx, |e, _| e.cursor_offset()), 0);
+    cx.simulate_keystrokes("left");
+    assert_eq!(editing_row(&ed, cx), Some(0));
+    assert_eq!(ed.read_with(cx, |e, _| e.cursor_offset()), 6);
+}
+
+#[gpui_test]
+fn autopair_inserts_skips_and_deletes_pairs(cx: &mut TestAppContext) {
+    let env = Env::new(&[(HOME, "- x\n")]);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    edit(&ed, 0, Caret::End, cx);
+    cx.simulate_input("[");
+    assert_eq!(buffer(&ed, cx).as_deref(), Some("x[]"));
+    assert_eq!(ed.read_with(cx, |e, _| e.cursor_offset()), 2);
+    cx.simulate_input("a]");
+    assert_eq!(
+        buffer(&ed, cx).as_deref(),
+        Some("x[a]"),
+        "closer skipped over"
+    );
+    cx.simulate_keystrokes("left backspace");
+    assert_eq!(
+        buffer(&ed, cx).as_deref(),
+        Some("x[]"),
+        "only the letter went"
+    );
+    cx.simulate_keystrokes("backspace");
+    assert_eq!(buffer(&ed, cx).as_deref(), Some("x"), "pair deleted");
+}
+
+#[gpui_test]
+fn ime_composition_keeps_enter_and_tab_away_from_the_outliner(cx: &mut TestAppContext) {
+    let env = Env::new(&[(HOME, "- a\n- b\n")]);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    edit(&ed, 1, Caret::End, cx);
+    ed.update_in(cx, |e, window, cx| {
+        e.replace_and_mark_text_in_range(None, "kan", Some(3..3), window, cx);
+    });
+    assert_eq!(buffer(&ed, cx).as_deref(), Some("bkan"));
+    assert_eq!(ed.read_with(cx, |e, _| e.marked_range()), Some(1..4));
+    cx.simulate_keystrokes("tab");
+    assert_eq!(
+        env.snapshot_texts("Home")[1].0,
+        1,
+        "Tab did not indent during composition"
+    );
+    cx.simulate_keystrokes("enter");
+    assert_eq!(
+        ed.read_with(cx, |e, _| e.marked_range()),
+        None,
+        "Enter committed the text"
+    );
+    assert_eq!(env.snapshot_texts("Home").len(), 2, "and did not split");
+    // The composed text commits through the input handler.
+    ed.update_in(cx, |e, window, cx| {
+        e.replace_and_mark_text_in_range(None, "\u{6f22}", None, window, cx);
+        e.replace_text_in_range(None, "\u{6f22}", window, cx);
+    });
+    assert_eq!(buffer(&ed, cx).as_deref(), Some("bkan\u{6f22}"));
+    flush(&ed, cx);
+    assert_eq!(env.disk(HOME), "- a\n- bkan\u{6f22}\n");
+}
+
+#[gpui_test]
+fn autocomplete_context_wins_over_the_block_editor_context(cx: &mut TestAppContext) {
+    let env = Env::new(&[(HOME, "- one\n")]);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    edit(&ed, 0, Caret::End, cx);
+    assert_eq!(
+        ed.read_with(cx, |e, _| e.key_context_name()),
+        "Outliner BlockEditor"
+    );
+    ed.update(cx, |e, cx| e.set_completion_open(true, cx));
+    cx.run_until_parked();
+    assert_eq!(
+        ed.read_with(cx, |e, _| e.key_context_name()),
+        "Outliner BlockEditor Autocomplete"
+    );
+    cx.simulate_keystrokes("enter");
+    assert_eq!(
+        env.snapshot_texts("Home").len(),
+        1,
+        "Enter went to the popup, not the block"
+    );
+    assert!(!ed.read_with(cx, |e, _| e.completion_open()));
+    // Escape closes only the popup while it is open.
+    ed.update(cx, |e, cx| e.set_completion_open(true, cx));
+    cx.run_until_parked();
+    cx.simulate_keystrokes("escape");
+    assert_eq!(editing_row(&ed, cx), Some(0), "still editing");
+    // Without the popup the BlockEditor binding applies again.
+    cx.simulate_keystrokes("enter");
+    assert_eq!(env.snapshot_texts("Home").len(), 2);
+    // And the outliner-level binding applies when no block is edited or selected.
+    cx.simulate_keystrokes("escape escape");
+    assert_eq!(ed.read_with(cx, |e, _| e.key_context_name()), "Outliner");
+}
+
+#[gpui_test]
+fn very_long_blocks_are_selected_instead_of_edited(cx: &mut TestAppContext) {
+    let long = "x".repeat(super::view::MAX_EDIT_LEN + 1);
+    let env = Env::new(&[(HOME, &format!("- {long}\n- short\n"))]);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    edit(&ed, 0, Caret::End, cx);
+    assert_eq!(editing_row(&ed, cx), None);
+    assert_eq!(ed.read_with(cx, |e, _| e.selected_blocks().len()), 1);
+}
+
+#[gpui_test]
+fn the_edited_block_changing_on_disk_offers_keep_mine_or_take_disk(cx: &mut TestAppContext) {
+    use bitacora_core::queue::Request;
+    let env = Env::new(&[(HOME, "- one\n- two\n")]);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    edit(&ed, 0, Caret::End, cx);
+    cx.simulate_input("!");
+    let id = ids(&ed, cx)[0];
+    let external = |text: &str| {
+        std::fs::write(env.graph.path().join(HOME), format!("- {text}\n- two\n")).expect("write");
+        env.queue()
+            .execute(
+                Source::External,
+                Request::ExternalChange {
+                    key: PageKey::from_title("Home"),
+                    bytes: format!("- {text}\n- two\n").into_bytes(),
+                },
+            )
+            .expect("external change");
+    };
+    // Another program changed this block: core now holds the disk text.
+    external("one (disk)");
+    ed.update(cx, |e, cx| {
+        e.on_editing_conflict(id, "one".into(), "one (disk)".into(), cx);
+    });
+    assert_eq!(
+        buffer(&ed, cx).as_deref(),
+        Some("one!"),
+        "the buffer is untouched"
+    );
+    // Take disk replaces the buffer.
+    ed.update_in(cx, |e, window, cx| e.resolve_conflict(false, window, cx));
+    assert_eq!(buffer(&ed, cx).as_deref(), Some("one (disk)"));
+    // Keep mine: the buffer is written over the disk text on the next flush.
+    cx.simulate_input("?");
+    external("one (disk)x");
+    ed.update(cx, |e, cx| {
+        e.on_editing_conflict(id, "x".into(), "one (disk)x".into(), cx);
+    });
+    ed.update_in(cx, |e, window, cx| e.resolve_conflict(true, window, cx));
+    flush(&ed, cx);
+    assert_eq!(env.snapshot_texts("Home")[0].1, "one (disk)?");
+    assert_eq!(env.disk(HOME), "- one (disk)?\n- two\n");
+}
+
+#[gpui_test]
+fn page_load_never_rewrites_untouched_blocks(cx: &mut TestAppContext) {
+    // Odd indentation, CRLF-free trailing spaces and properties survive an edit of one block.
+    let page = "- keep   \n  Keep:: Me\n\t- sub  \n- edit me\n- last\n";
+    let env = Env::new(&[(HOME, page)]);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    edit(&ed, 2, Caret::End, cx);
+    cx.simulate_input("!");
+    flush(&ed, cx);
+    assert_eq!(
+        env.disk(HOME),
+        "- keep   \n  Keep:: Me\n\t- sub  \n- edit me!\n- last\n"
+    );
+}

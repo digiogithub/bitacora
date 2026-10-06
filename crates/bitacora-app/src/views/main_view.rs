@@ -212,6 +212,27 @@ impl MainView {
         }
     }
 
+    /// Connects the page view to the live session so pages become editable.
+    pub fn set_session_link(
+        &mut self,
+        link: crate::session::SessionLink,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.page
+            .update(cx, |p, cx| p.set_session_link(Some(link), window, cx));
+    }
+
+    /// The block being edited changed on disk.
+    pub fn on_editing_conflict(
+        &mut self,
+        conflict: &bitacora_core::editor::EditingConflict,
+        cx: &mut Context<Self>,
+    ) {
+        self.page
+            .update(cx, |p, cx| p.on_editing_conflict(conflict, cx));
+    }
+
     /// Reloads what is shown (the startup index reconcile finished).
     pub fn reload(&mut self, cx: &mut Context<Self>) {
         match self.route() {

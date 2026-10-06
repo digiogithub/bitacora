@@ -448,6 +448,7 @@ impl JournalsView {
                 })),
                 referrers: None,
                 focus: None,
+                edit: None,
             };
             col = col.child(render_block_row(
                 ((ix + 1) << 20) | (r & 0xF_FFFF),

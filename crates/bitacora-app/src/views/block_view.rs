@@ -5,6 +5,7 @@ use std::path::{Component, Path, PathBuf};
 
 use rust_i18n::t;
 
+use crate::editor::row::{RowEdit, TextHook};
 use crate::nav::OpenIn;
 use crate::render::highlight::TokenClass;
 use crate::render::inline::{Emphasis, ImageRef, NavTarget, Role, TextLayout};
@@ -144,12 +145,15 @@ pub(crate) fn text_element_owned(
     theme: &crate::ui::theme::Theme,
     strike_all: bool,
     on_nav: Option<Nav>,
+    on_text: Option<TextHook>,
 ) -> AnyElement {
     let styled = StyledText::new(SharedString::from(layout.text.clone()))
         .with_highlights(highlights(&layout, theme, strike_all));
+    let glyphs = styled.layout().clone();
+    let source = layout.clone();
     let ranges: Vec<Range<usize>> = layout.links.iter().map(|(r, _)| r.clone()).collect();
     let targets: Vec<NavTarget> = layout.links.iter().map(|(_, t)| t.clone()).collect();
-    match on_nav {
+    let element = match on_nav {
         Some(nav) if !ranges.is_empty() => InteractiveText::new(id, styled)
             .on_click(ranges, move |ix, window, cx| {
                 if let Some(target) = targets.get(ix) {
@@ -162,6 +166,30 @@ pub(crate) fn text_element_owned(
             })
             .into_any_element(),
         _ => styled.into_any_element(),
+    };
+    // Click-to-caret: a press on the text enters edit mode at the matching source offset;
+    // presses on links are left to the link.
+    match on_text {
+        Some(hook) => div()
+            .w_full()
+            .on_mouse_down(
+                crate::ui::text_edit::MouseButton::Left,
+                move |event, window, cx| {
+                    let shown = glyphs
+                        .index_for_position(event.position)
+                        .unwrap_or_else(|nearest| nearest);
+                    cx.stop_propagation();
+                    if source.target_at(shown).is_some() && !event.modifiers.shift {
+                        return;
+                    }
+                    if let Some(offset) = source.source_offset(shown) {
+                        hook(offset, event.modifiers.shift, window, cx);
+                    }
+                },
+            )
+            .child(element)
+            .into_any_element(),
+        None => element,
     }
 }
 
@@ -301,6 +329,8 @@ pub struct RowActions {
     /// The block got the focus (a click on it): the editing-block protection hook of core
     /// (BIT-T-0344) learns which block the user is on.
     pub focus: Option<Action>,
+    /// Edit-mode state and click callbacks (the page outline editor, BIT-US-0030).
+    pub edit: Option<RowEdit>,
 }
 
 impl std::fmt::Debug for RowActions {
@@ -317,6 +347,7 @@ impl RowActions {
             toggle: None,
             referrers: None,
             focus: None,
+            edit: None,
         }
     }
 }
@@ -335,11 +366,23 @@ pub fn render_block_row(
     let strike = block.is_cancelled();
     let title_size = block.heading.map(heading_size);
     let dispatch = &actions.nav;
+    let edit = actions.edit.as_ref();
+    let on_text: Option<TextHook> = edit.map(|e| e.on_text.clone());
 
     let mut title_line = h_flex().items_start().gap_2().flex_wrap();
     if let Some(marker) = &block.marker {
         if let Some(checked) = marker.checkbox {
-            title_line = title_line.child(checkbox(checked, theme));
+            let mut cb = checkbox(checked, theme);
+            if let Some(e) = edit {
+                let hook = e.on_checkbox.clone();
+                cb = div()
+                    .id(("checkbox", id))
+                    .cursor_pointer()
+                    .on_click(move |_, window, cx| hook(window, cx))
+                    .child(cb)
+                    .into_any_element();
+            }
+            title_line = title_line.child(cb);
         }
         if marker.show_label {
             title_line = title_line.child(badge(
@@ -375,6 +418,7 @@ pub fn render_block_row(
                 theme,
                 strike,
                 Some(dispatch.clone()),
+                on_text.clone(),
             )),
     );
     let mut content = v_flex().flex_1().min_w_0().gap_1().child(title_line);
@@ -409,6 +453,7 @@ pub fn render_block_row(
                     theme,
                     false,
                     Some(dispatch.clone()),
+                    on_text.clone(),
                 ));
                 for image in &layout.images {
                     content = content.child(image_element(image, graph_root, theme));
@@ -428,6 +473,7 @@ pub fn render_block_row(
                             theme,
                             false,
                             Some(dispatch.clone()),
+                            on_text.clone(),
                         )),
                 );
             }
@@ -491,6 +537,27 @@ pub fn render_block_row(
         content = content.child(list);
     }
 
+    if let Some(e) = edit {
+        if let Some(build) = &e.editing {
+            let mut editing = v_flex().flex_1().min_w_0().gap_1();
+            if let Some(conflict) = &e.conflict {
+                editing = editing.child(conflict());
+            }
+            content = editing.child(build());
+        } else {
+            let hook = e.on_text.clone();
+            content = content.on_mouse_down(
+                crate::ui::text_edit::MouseButton::Left,
+                move |event, window, cx| {
+                    cx.stop_propagation();
+                    hook(usize::MAX, event.modifiers.shift, window, cx);
+                },
+            );
+        }
+    }
+    let toggle_hook: Option<Action> = edit
+        .map(|e| e.on_toggle.clone())
+        .or_else(|| actions.toggle.clone());
     let collapsed = row.is_collapsed();
     let bullet = div()
         .mt(px(7.))
@@ -520,7 +587,7 @@ pub fn render_block_row(
             )
         })
         .when_some(
-            actions.toggle.clone().filter(|_| row.has_children),
+            toggle_hook.clone().filter(|_| row.has_children),
             |d, toggle| {
                 d.cursor_pointer()
                     .on_click(move |_, window, cx| toggle(window, cx))
@@ -535,17 +602,21 @@ pub fn render_block_row(
         .justify_center()
         .when(row.block_index.is_some(), |d| d.child(bullet))
         .when(
-            bullet_uuid.is_some() || (actions.toggle.is_some() && row.has_children),
+            bullet_uuid.is_some() || (toggle_hook.is_some() && row.has_children) || edit.is_some(),
             |d| {
-                let toggle = actions.toggle.clone().filter(|_| row.has_children);
+                let toggle = toggle_hook.clone().filter(|_| row.has_children);
+                let zoom = edit.map(|e| e.on_bullet.clone());
                 let nav = actions.nav.clone();
                 let uuid = bullet_uuid.clone();
-                // Shift+click opens the block in the right sidebar; a plain click folds.
+                // Shift+click opens the block in the right sidebar; a plain click zooms into
+                // the block when the page is editable, otherwise it folds.
                 d.cursor_pointer().on_click(move |_, window, cx| {
                     if window.modifiers().shift
                         && let Some(uuid) = &uuid
                     {
                         nav(NavTarget::Block(uuid.clone()), OpenIn::Sidebar, cx);
+                    } else if let Some(zoom) = &zoom {
+                        zoom(window, cx);
                     } else if let Some(toggle) = &toggle {
                         toggle(window, cx);
                     }
@@ -586,6 +657,7 @@ pub fn render_block_row(
         .py(px(2.))
         .pl(px(8. + row.depth as f32 * 24.))
         .pr(px(12.))
+        .when(edit.is_some_and(|e| e.selected), |d| d.bg(theme.selection))
         .when_some(actions.focus.clone(), |d, focus| {
             d.on_mouse_down(
                 crate::ui::text_edit::MouseButton::Left,
@@ -631,6 +703,7 @@ pub fn properties_table(
                     theme,
                     false,
                     nav.clone(),
+                    None,
                 )),
         );
     }

@@ -64,6 +64,7 @@ pub fn load(cx: &mut App, json: &str) -> Result<usize, KeymapError> {
 /// Loads the default keymap, then an optional user keymap on top of it.
 pub fn load_with_user(cx: &mut App, user_json: Option<&str>) -> Result<usize, KeymapError> {
     let mut count = load(cx, DEFAULT_KEYMAP)?;
+    crate::editor::bind_platform_keys(cx);
     if let Some(user) = user_json {
         match load(cx, user) {
             Ok(n) => count += n,

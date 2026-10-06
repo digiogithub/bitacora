@@ -6,9 +6,7 @@ use std::ops::Range;
 
 use bitacora_markdown::inline::{InlineToken, scan_line};
 
-use crate::ui::text_edit::{
-    Font, FontWeight, StrikethroughStyle, TextRun, UnderlineStyle,
-};
+use crate::ui::text_edit::{Font, FontWeight, StrikethroughStyle, TextRun, UnderlineStyle};
 use crate::ui::{ActiveTheme as _, App, Hsla, Pixels, Window, px};
 
 /// Visual role of a source range.
@@ -75,12 +73,7 @@ pub fn tokenize(text: &str) -> Vec<Token> {
     tokens
 }
 
-fn tokenize_line(
-    line: &str,
-    base: usize,
-    first: bool,
-    push: &mut impl FnMut(Range<usize>, Kind),
-) {
+fn tokenize_line(line: &str, base: usize, first: bool, push: &mut impl FnMut(Range<usize>, Kind)) {
     let mut pos = 0;
     if first {
         for (words, kind) in [(&OPEN_TASKS[..], Kind::Todo), (&DONE_TASKS[..], Kind::Done)] {

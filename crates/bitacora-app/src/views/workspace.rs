@@ -711,7 +711,11 @@ impl Workspace {
     ) {
         match event {
             SessionEvent::Live(link) => {
-                self.link = Some(link);
+                self.link = Some(link.clone());
+                for pane in self.panes(cx) {
+                    let link = link.clone();
+                    pane.update(cx, |main, cx| main.set_session_link(link, window, cx));
+                }
                 self.start_day_clock(cx);
             }
             SessionEvent::Notice(notice) => Self::show_notice(&notice, window, cx),
@@ -734,6 +738,11 @@ impl Workspace {
             SessionEvent::DiskConflict(notice) => {
                 self.disk_banner
                     .update(cx, |b, cx| b.set_notice(notice, cx));
+            }
+            SessionEvent::EditingConflict(conflict) => {
+                for pane in self.panes(cx) {
+                    pane.update(cx, |main, cx| main.on_editing_conflict(&conflict, cx));
+                }
             }
             SessionEvent::DiskConflictCleared(key) => {
                 self.disk_banner.update(cx, |b, cx| b.clear(&key, cx));
@@ -974,6 +983,9 @@ impl Workspace {
         cx: &mut Context<Self>,
     ) {
         let HubEvent::PaneAdded(pane) = event;
+        if let Some(link) = self.link.clone() {
+            pane.update(cx, |main, cx| main.set_session_link(link, window, cx));
+        }
         self._subscriptions
             .push(cx.subscribe_in(pane, window, Self::on_main_event));
         self._subscriptions

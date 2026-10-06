@@ -100,7 +100,7 @@ const WORD: &str = "ctrl";
 /// platform.
 pub fn platform_bindings() -> Vec<(String, &'static str, &'static str)> {
     let w = WORD;
-    vec![
+    let mut out = vec![
         (format!("{w}-left"), "outliner::WordLeft", "BlockEditor"),
         (format!("{w}-right"), "outliner::WordRight", "BlockEditor"),
         (
@@ -123,5 +123,12 @@ pub fn platform_bindings() -> Vec<(String, &'static str, &'static str)> {
             "outliner::DeleteWordForward",
             "BlockEditor",
         ),
-    ]
+    ];
+    // Alt+Left/Right zoom out/in; on macOS Alt is the word-motion modifier.
+    #[cfg(not(target_os = "macos"))]
+    for context in ["BlockEditor", "BlockSelection"] {
+        out.push(("alt-right".to_owned(), "outliner::ZoomIn", context));
+        out.push(("alt-left".to_owned(), "outliner::ZoomOut", context));
+    }
+    out
 }

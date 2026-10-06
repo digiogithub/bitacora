@@ -13,7 +13,7 @@
     }
   },
   {
-    "context": "Workspace && !Input && !Textarea",
+    "context": "Workspace && !Input && !Textarea && !BlockEditor",
     "bindings": {
       "t l": "bitacora::ToggleLeftSidebar",
       "t r": "bitacora::ToggleRightSidebar",
@@ -46,6 +46,112 @@
       "backspace": "bitacora::SidebarCloseItem",
       "delete": "bitacora::SidebarCloseItem",
       "o": "bitacora::SidebarOpenItem"
+    }
+  },
+  {
+    "context": "Outliner",
+    "bindings": {
+      "secondary-up": "outliner::CollapseBlock",
+      "secondary-down": "outliner::ExpandBlock",
+      "secondary-.": "outliner::ZoomIn",
+      "secondary-,": "outliner::ZoomOut",
+      "secondary-z": "outliner::Undo",
+      "secondary-shift-z": "outliner::Redo",
+      "secondary-y": "outliner::Redo",
+      "secondary-;": "outliner::ToggleCollapseAll",
+      "secondary-shift-a": "outliner::SelectAllBlocks"
+    }
+  },
+  {
+    "context": "Outliner && !BlockEditor",
+    "bindings": {
+      "t o": "outliner::ToggleCollapseAll"
+    }
+  },
+  {
+    "context": "BlockSelection",
+    "bindings": {
+      "tab": "outliner::Indent",
+      "shift-tab": "outliner::Outdent",
+      "alt-shift-up": "outliner::MoveBlockUp",
+      "alt-shift-down": "outliner::MoveBlockDown",
+      "secondary-up": "outliner::CollapseBlock",
+      "secondary-down": "outliner::ExpandBlock",
+      "secondary-enter": "outliner::CycleMarker",
+      "secondary-.": "outliner::ZoomIn",
+      "secondary-,": "outliner::ZoomOut",
+      "secondary-z": "outliner::Undo",
+      "secondary-shift-z": "outliner::Redo",
+      "secondary-y": "outliner::Redo",
+      "secondary-;": "outliner::ToggleCollapseAll",
+      "secondary-shift-a": "outliner::SelectAllBlocks",
+      "secondary-c": "outliner::Copy",
+      "secondary-x": "outliner::Cut",
+      "secondary-v": "outliner::Paste",
+      "up": "outliner::SelectionUp",
+      "down": "outliner::SelectionDown",
+      "shift-up": "outliner::ExtendSelectionUp",
+      "shift-down": "outliner::ExtendSelectionDown",
+      "secondary-a": "outliner::SelectParent",
+      "enter": "outliner::EditSelected",
+      "escape": "outliner::ClearSelection",
+      "backspace": "outliner::DeleteSelected",
+      "delete": "outliner::DeleteSelected",
+      "secondary-shift-v": "outliner::PasteRaw"
+    }
+  },
+  {
+    "context": "BlockEditor",
+    "bindings": {
+      "tab": "outliner::Indent",
+      "shift-tab": "outliner::Outdent",
+      "alt-shift-up": "outliner::MoveBlockUp",
+      "alt-shift-down": "outliner::MoveBlockDown",
+      "secondary-up": "outliner::CollapseBlock",
+      "secondary-down": "outliner::ExpandBlock",
+      "secondary-enter": "outliner::CycleMarker",
+      "secondary-.": "outliner::ZoomIn",
+      "secondary-,": "outliner::ZoomOut",
+      "secondary-z": "outliner::Undo",
+      "secondary-shift-z": "outliner::Redo",
+      "secondary-y": "outliner::Redo",
+      "secondary-;": "outliner::ToggleCollapseAll",
+      "secondary-shift-a": "outliner::SelectAllBlocks",
+      "secondary-c": "outliner::Copy",
+      "secondary-x": "outliner::Cut",
+      "secondary-v": "outliner::Paste",
+      "enter": "outliner::NewBlock",
+      "shift-enter": "outliner::InsertNewline",
+      "backspace": "outliner::DeleteBackward",
+      "delete": "outliner::DeleteForward",
+      "left": "outliner::Left",
+      "right": "outliner::Right",
+      "up": "outliner::Up",
+      "down": "outliner::Down",
+      "shift-left": "outliner::SelectLeft",
+      "shift-right": "outliner::SelectRight",
+      "shift-up": "outliner::SelectUp",
+      "shift-down": "outliner::SelectDown",
+      "home": "outliner::Home",
+      "end": "outliner::End",
+      "shift-home": "outliner::SelectHome",
+      "shift-end": "outliner::SelectEnd",
+      "secondary-a": "outliner::SelectAllText",
+      "secondary-shift-v": "outliner::PasteRaw",
+      "escape": "outliner::ExitEdit",
+      "ctrl-cmd-space": "outliner::ShowCharacterPalette"
+    }
+  },
+  {
+    "context": "Autocomplete",
+    "bindings": {
+      "enter": "outliner::AcceptCompletion",
+      "tab": "outliner::AcceptCompletion",
+      "up": "outliner::CompletionPrevious",
+      "down": "outliner::CompletionNext",
+      "ctrl-p": "outliner::CompletionPrevious",
+      "ctrl-n": "outliner::CompletionNext",
+      "escape": "outliner::DismissCompletion"
     }
   },
   {

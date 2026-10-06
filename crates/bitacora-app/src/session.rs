@@ -57,6 +57,9 @@ pub enum SessionEvent {
     DiskConflict(Arc<ConflictNotice>),
     /// A page left the conflicted state (reloaded from disk or resolved elsewhere).
     DiskConflictCleared(PageKey),
+    /// The block being edited changed on disk: the editor offers keep mine / take disk
+    /// (BIT-T-0344).
+    EditingConflict(Box<bitacora_core::editor::EditingConflict>),
 }
 
 /// Handles to the running session, usable from the UI thread.
@@ -472,6 +475,9 @@ fn events_for(event: &RuntimeEvent) -> Vec<SessionEvent> {
         }
         RuntimeEvent::Queue(QueueEvent::PageReloaded(key)) => {
             vec![SessionEvent::DiskConflictCleared(key.clone())]
+        }
+        RuntimeEvent::Queue(QueueEvent::EditingBlockChanged(conflict)) => {
+            vec![SessionEvent::EditingConflict(Box::new(conflict.clone()))]
         }
         other => notice_for(other)
             .map(SessionEvent::Notice)

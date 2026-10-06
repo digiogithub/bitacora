@@ -12,9 +12,27 @@ pub fn looks_like_html(text: &str) -> bool {
         return false;
     }
     let lower = t.get(..t.len().min(200)).unwrap_or(t).to_ascii_lowercase();
-    ["<!doctype", "<html", "<body", "<ul", "<ol", "<li", "<p", "<div", "<h1", "<h2", "<h3", "<table", "<span", "<meta", "<b>", "<strong", "<a "]
-        .iter()
-        .any(|tag| lower.starts_with(tag))
+    [
+        "<!doctype",
+        "<html",
+        "<body",
+        "<ul",
+        "<ol",
+        "<li",
+        "<p",
+        "<div",
+        "<h1",
+        "<h2",
+        "<h3",
+        "<table",
+        "<span",
+        "<meta",
+        "<b>",
+        "<strong",
+        "<a ",
+    ]
+    .iter()
+    .any(|tag| lower.starts_with(tag))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -167,7 +185,8 @@ pub fn html_to_markdown(html: &str) -> String {
                     out.push_str(&text);
                 } else {
                     // Collapse white space like a browser.
-                    let mut last_space = out.ends_with(' ') || out.ends_with('\n') || out.is_empty();
+                    let mut last_space =
+                        out.ends_with(' ') || out.ends_with('\n') || out.is_empty();
                     for c in text.chars() {
                         if c.is_whitespace() {
                             if !last_space {
@@ -293,7 +312,9 @@ mod tests {
 
     #[test]
     fn nested_lists_become_tab_indented_bullets() {
-        let md = html_to_markdown("<ul><li>one<ul><li>two</li><li>three</li></ul></li><li>four</li></ul>");
+        let md = html_to_markdown(
+            "<ul><li>one<ul><li>two</li><li>three</li></ul></li><li>four</li></ul>",
+        );
         assert_eq!(md, "- one\n\t- two\n\t- three\n- four");
     }
 
@@ -318,13 +339,27 @@ mod tests {
 
     #[test]
     fn numeric_entities_and_whitespace_collapse() {
-        assert_eq!(html_to_markdown("<div>a&#233;  \n  b&#x1F600;&nbsp;c</div>"), "a\u{e9} b\u{1f600} c");
+        assert_eq!(
+            html_to_markdown("<div>a&#233;  \n  b&#x1F600;&nbsp;c</div>"),
+            "a\u{e9} b\u{1f600} c"
+        );
         assert_eq!(html_to_markdown("fish &chips & more"), "fish &chips & more");
     }
 
     #[test]
     fn garbage_never_panics() {
-        for s in ["<", "<a", "<a href=", "</>", "<!--", "<li><li>", "&", "&#;", "&#xZZ;", "<p>\u{e9}</p"] {
+        for s in [
+            "<",
+            "<a",
+            "<a href=",
+            "</>",
+            "<!--",
+            "<li><li>",
+            "&",
+            "&#;",
+            "&#xZZ;",
+            "<p>\u{e9}</p",
+        ] {
             let _ = html_to_markdown(s);
         }
     }

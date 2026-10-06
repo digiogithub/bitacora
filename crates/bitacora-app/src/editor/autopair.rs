@@ -43,7 +43,10 @@ fn wraps_only_selection(ch: char) -> bool {
 /// Closing characters that are skipped when they are already next to the caret (the backtick
 /// is handled separately).
 fn is_skippable_closer(ch: char) -> bool {
-    matches!(ch, ']' | '}' | ')' | '~' | '*' | '_' | '^' | '=' | '+' | '/')
+    matches!(
+        ch,
+        ']' | '}' | ')' | '~' | '*' | '_' | '^' | '=' | '+' | '/'
+    )
 }
 
 /// Whether a `(` typed at `at` may autopair: after the start, a line break, a space, `]` or `(`.
@@ -83,9 +86,10 @@ pub fn on_char(text: &str, sel: Range<usize>, ch: char) -> Option<Edit> {
     }
     // `$$` and `^^` open a pair when the first character was typed just before.
     if !selected && (ch == '^' || ch == '$') && prev == Some(ch) && next != Some(ch) {
-        let to = at + 2 * ch.len_utf8();
+        // `a^|` becomes `a^^|^^`: the pair opens around the caret.
+        let to = at + 2 * ch.len_utf8() - ch.len_utf8();
         let mut insert = String::new();
-        for _ in 0..4 {
+        for _ in 0..3 {
             insert.push(ch);
         }
         return Some(Edit {
@@ -197,7 +201,11 @@ mod tests {
     fn doubled_caret_and_dollar_open_a_pair() {
         assert_eq!(typed("a^", 2, '^'), Some(("a^^^^".into(), 3..3)));
         assert_eq!(typed("$", 1, '$'), Some(("$$$$".into(), 2..2)));
-        assert_eq!(typed("^^", 1, '^'), None, "no doubling inside ^^");
+        assert_eq!(
+            typed("^^", 1, '^'),
+            Some(("^^".into(), 2..2)),
+            "skips over instead"
+        );
     }
 
     #[test]
@@ -215,7 +223,10 @@ mod tests {
 
     #[test]
     fn multibyte_text_around_the_caret_is_safe() {
-        assert_eq!(typed("\u{e9}\u{e9}", 2, '['), Some(("\u{e9}[]\u{e9}".into(), 3..3)));
+        assert_eq!(
+            typed("\u{e9}\u{e9}", 2, '['),
+            Some(("\u{e9}[]\u{e9}".into(), 3..3))
+        );
         let e = on_backspace("\u{6f22}[]", 4).expect("pair");
         assert_eq!(apply("\u{6f22}[]", &e).0, "\u{6f22}");
     }

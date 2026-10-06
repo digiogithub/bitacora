@@ -118,11 +118,7 @@ impl TextLayout {
         self.text.is_empty() && self.images.is_empty()
     }
 
-    fn push(&mut self, text: &str, role: Role, emphasis: Emphasis, target: Option<NavTarget>) {
-        self.push_src(text, role, emphasis, target, None);
-    }
-
-    /// Like `push`, recording where the text comes from in the source.
+    /// Appends styled text, recording where it comes from in the source.
     fn push_src(
         &mut self,
         text: &str,

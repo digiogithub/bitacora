@@ -11,6 +11,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::time::Duration;
 
+use bitacora_core::graph::PageKey;
 use bitacora_index::{IndexEvent, RefFilters};
 use bitacora_markdown::properties::PropertyConfig;
 use rust_i18n::t;
@@ -18,18 +19,21 @@ use rust_i18n::t;
 use crate::data::{
     self, CHUNK, FIRST_CHUNK, GraphHandle, Link, PageHeader, PageLoad, RefGroupModel, RefsLoad,
 };
+use crate::editor::{self, EditorEvent, OutlineEditor};
 use crate::nav::{OpenIn, Route, Scroll};
 use crate::render::inline::{NavTarget, NoBlocks};
 use crate::render::model::{
     PageModel, Row, apply_overrides, collapse_overrides, toggle_row, visible_rows,
 };
+use crate::session::SessionLink;
 use crate::ui::button::{Button, ButtonVariants as _};
 use crate::ui::popover::Popover;
 use crate::ui::text_edit::{FontWeight, ListAlignment, ListOffset, ListState, list};
 use crate::ui::{
-    ActiveTheme as _, Anchor, AnyElement, App, Context, EventEmitter, FluentBuilder as _, IconName,
-    InteractiveElement as _, IntoElement, ParentElement as _, Render, Sizable as _,
-    StatefulInteractiveElement as _, Styled as _, Task, Window, div, h_flex, icon, px, v_flex,
+    ActiveTheme as _, Anchor, AnyElement, App, AppContext as _, Context, EventEmitter,
+    FluentBuilder as _, IconName, InteractiveElement as _, IntoElement, ParentElement as _, Render,
+    Sizable as _, StatefulInteractiveElement as _, Styled as _, Task, Window, div, h_flex, icon,
+    px, v_flex,
 };
 use crate::views::block_view::{Nav, RowActions, properties_table, render_block_row};
 
@@ -162,6 +166,13 @@ pub struct PageView {
     rendered_rows: usize,
     focused_row: Option<usize>,
     conflict_blocks: BTreeSet<String>,
+    /// Handles to the live session: with it the page is edited through core.
+    link: Option<SessionLink>,
+    /// The editor of the page shown; the rows come from it while `live`.
+    editor: Option<crate::ui::Entity<OutlineEditor>>,
+    /// The rows are core's page (editable), not the index's.
+    live: bool,
+    _editor_subs: Vec<crate::ui::Subscription>,
 }
 
 impl std::fmt::Debug for PageView {
@@ -213,7 +224,117 @@ impl PageView {
             rendered_rows: 0,
             focused_row: None,
             conflict_blocks: BTreeSet::new(),
+            link: None,
+            editor: None,
+            live: false,
+            _editor_subs: Vec::new(),
         }
+    }
+
+    /// Connects the view to the live session: pages become editable (BIT-US-0030). The
+    /// page on screen is shown again from core.
+    pub fn set_session_link(
+        &mut self,
+        link: Option<SessionLink>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.live = false;
+        self._editor_subs.clear();
+        self.editor = None;
+        self.link = link.clone();
+        if let Some(link) = link {
+            let hidden = bitacora_core::editor::HiddenKeys::with_extra(
+                link.config.block_hidden_properties(),
+            );
+            let queue = link.queue.clone();
+            let settings = bitacora_core::editor::EditorSettings::from_config(&link.config);
+            let ed = cx.new(|cx| OutlineEditor::new(queue, hidden, true, window, cx));
+            ed.read(cx).apply_settings(settings);
+            self._editor_subs = vec![
+                cx.subscribe(&ed, Self::on_editor_event),
+                cx.observe(&ed, |_, _, cx| cx.notify()),
+            ];
+            self.editor = Some(ed);
+        }
+        if self.state == LoadState::Loaded {
+            self.reload(cx);
+        }
+    }
+
+    /// The block being edited changed on disk (BIT-T-0344): hands the choice to the editor.
+    pub fn on_editing_conflict(
+        &mut self,
+        conflict: &bitacora_core::editor::EditingConflict,
+        cx: &mut Context<Self>,
+    ) {
+        if let Some(ed) = self.editor.clone() {
+            let (block, mine, disk) =
+                (conflict.block, conflict.mine.clone(), conflict.disk.clone());
+            ed.update(cx, |e, cx| e.on_editing_conflict(block, mine, disk, cx));
+        }
+    }
+
+    /// Bounds of list item `ix` once laid out (tests).
+    pub fn list_bounds_for_item(&self, ix: usize) -> Option<crate::ui::Bounds<crate::ui::Pixels>> {
+        self.list_state.bounds_for_item(ix)
+    }
+
+    /// The editor entity, once the session is connected.
+    pub fn editor(&self) -> Option<&crate::ui::Entity<OutlineEditor>> {
+        self.editor.as_ref()
+    }
+
+    /// Whether the rows shown are core's editable page.
+    pub fn is_live(&self) -> bool {
+        self.live
+    }
+
+    fn on_editor_event(
+        &mut self,
+        ed: crate::ui::Entity<OutlineEditor>,
+        event: &EditorEvent,
+        cx: &mut Context<Self>,
+    ) {
+        if !self.live {
+            return;
+        }
+        match event {
+            EditorEvent::Structure => {
+                self.rows = ed.read(cx).rows().to_vec();
+                self.resync_items();
+                cx.notify();
+            }
+            EditorEvent::Row(r) => {
+                if let Some(row) = ed.read(cx).rows().get(*r).cloned()
+                    && let Some(slot) = self.rows.get_mut(*r)
+                {
+                    *slot = row;
+                }
+                self.remeasure_block(*r);
+                cx.notify();
+            }
+            EditorEvent::Entered(r) => {
+                if let Some(pos) = self.item_position(Item::Block(*r)) {
+                    self.list_state.scroll_to_reveal_item(pos);
+                }
+            }
+        }
+    }
+
+    /// Switches the rows to core's copy of the page `key`.
+    fn enter_live(&mut self, key: PageKey, handle: &GraphHandle, cx: &mut Context<Self>) {
+        let Some(ed) = self.editor.clone() else {
+            return;
+        };
+        self.live = true;
+        ed.update(cx, |e, cx| {
+            e.set_handle(handle.clone());
+            e.set_page(key, cx);
+        });
+        self.rows = ed.read(cx).rows().to_vec();
+        self.fetched = self.rows.len();
+        self.has_more = false;
     }
 
     /// The `id::` values of blocks with unresolved sync conflicts: they get a marker that
@@ -392,14 +513,22 @@ impl PageView {
         self.handle = Some(handle.clone());
         self.generation += 1;
         let generation = self.generation;
+        let link = self.link.clone();
         cx.notify();
         self.load_task = Some(cx.spawn(async move |this, cx| {
             let result = cx
                 .background_executor()
                 .spawn(async move {
                     match &route {
-                        Route::Page(name) => data::open_page(&handle, name, limit),
-                        Route::Block(uuid) => data::zoom_block(&handle, uuid),
+                        Route::Page(name) => data::open_page(&handle, name, limit).map(|load| {
+                            let live = link.as_ref().and_then(|l| {
+                                editor::ensure_loaded(&l.queue, &handle, &load.header.title)
+                            });
+                            (load, live)
+                        }),
+                        Route::Block(uuid) => {
+                            data::zoom_block(&handle, uuid).map(|load| (load, None))
+                        }
                         Route::Journals | Route::AllPages => Err("not a page".to_owned()),
                     }
                 })
@@ -414,7 +543,7 @@ impl PageView {
     fn finish_load(
         &mut self,
         generation: u64,
-        result: Result<PageLoad, String>,
+        result: Result<(PageLoad, Option<PageKey>), String>,
         overrides: &HashMap<String, bool>,
         anchor: Option<Scroll>,
         cx: &mut Context<Self>,
@@ -427,7 +556,7 @@ impl PageView {
                 self.state = LoadState::Failed(message);
                 cx.notify();
             }
-            Ok(load) => {
+            Ok((load, live)) => {
                 let new_page = self.page_id != load.header.page_id || self.page_id.is_none();
                 self.page_id = load.header.page_id;
                 self.header = load.header;
@@ -436,6 +565,10 @@ impl PageView {
                 self.fetched = load.fetched;
                 self.has_more = load.has_more;
                 self.state = LoadState::Loaded;
+                self.live = false;
+                if let (Some(key), Some(handle)) = (live, self.handle.clone()) {
+                    self.enter_live(key, &handle, cx);
+                }
                 if new_page {
                     self.linked = RefsSection {
                         expanded: true,
@@ -909,6 +1042,12 @@ impl PageView {
                     let this = cx.entity();
                     let toggle_this = this.clone();
                     let focus_this = this.clone();
+                    let edit = self
+                        .editor
+                        .as_ref()
+                        .filter(|_| self.live)
+                        .and_then(|ed| OutlineEditor::row_edit(ed, r, cx));
+                    let live_edit = edit.is_some();
                     let actions = RowActions {
                         nav: nav.clone(),
                         toggle: Some(Rc::new(move |_, cx| {
@@ -917,9 +1056,12 @@ impl PageView {
                         referrers: Some(Rc::new(move |_, cx| {
                             this.update(cx, |v, cx| v.toggle_referrers(r, cx));
                         })),
-                        focus: Some(Rc::new(move |_, cx| {
-                            focus_this.update(cx, |v, cx| v.focus_row(r, cx));
-                        })),
+                        focus: (!live_edit).then(|| -> crate::views::block_view::Action {
+                            Rc::new(move |_, cx| {
+                                focus_this.update(cx, |v, cx| v.focus_row(r, cx));
+                            })
+                        }),
+                        edit,
                     };
                     let block = render_block_row(r, row, root.as_deref(), &theme, &actions);
                     let conflicted = row
@@ -1005,6 +1147,7 @@ impl PageView {
                             })),
                             referrers: None,
                             focus: None,
+                            edit: None,
                         };
                         let id = (kind.tag() << 40)
                             | ((g & 0xFFF) << 28)
@@ -1318,12 +1461,18 @@ impl Render for PageView {
             LoadState::Failed(message) => {
                 centered(t!("page.load_failed", error = message).to_string())
             }
-            LoadState::Loaded => list(
-                self.list_state.clone(),
-                cx.processor(|this, ix: usize, window, cx| this.render_item(ix, window, cx)),
-            )
-            .size_full()
-            .into_any_element(),
+            LoadState::Loaded => {
+                let items = list(
+                    self.list_state.clone(),
+                    cx.processor(|this, ix: usize, window, cx| this.render_item(ix, window, cx)),
+                )
+                .size_full()
+                .into_any_element();
+                match &self.editor {
+                    Some(ed) if self.live => editor::element::wrap(items, ed, cx),
+                    _ => items,
+                }
+            }
         };
         v_flex()
             .size_full()

@@ -46,11 +46,11 @@ pub use model::{
     text_hash, text_is_representable,
 };
 pub use op::{Op, OpError};
+pub use projection::{EditProjection, HiddenKeys};
 pub use rename::{
     CONFIG_PATH, MergeMode, PageFile, RefLookup, RenameError, RenamePlan, RenameReport,
     RenameRequest,
 };
-pub use projection::{EditProjection, HiddenKeys};
 pub use settings::{EditorSettings, Workflow};
 pub use split::{EnterAction, enter_action, splits_before};
 pub use tx::{CoalesceKey, CommitError, CursorState, InvariantError, Transaction, TxId};
