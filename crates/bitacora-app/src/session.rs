@@ -465,32 +465,27 @@ fn run(
 
 /// What the user should hear about startup recovery; `None` when it found nothing.
 fn recovery_message(report: &bitacora_sync::recovery::RecoveryReport) -> Option<String> {
+    use rust_i18n::t;
     if let Some(error) = &report.error {
-        return Some(format!("Sync recovery failed: {error}"));
+        return Some(t!("sync.recovery.failed", error = error.to_string()).to_string());
     }
     let mut parts = Vec::new();
     if report.stale_lock_removed {
-        parts.push("removed a stale git lock".to_owned());
+        parts.push(t!("sync.recovery.stale_lock").to_string());
     }
     if report.restored_conflicts > 0 {
-        parts.push(format!(
-            "{} unresolved conflict(s) restored",
-            report.restored_conflicts
-        ));
+        parts.push(t!("sync.recovery.restored", count = report.restored_conflicts).to_string());
     }
     if report.marker_conflicts > 0 {
-        parts.push(format!(
-            "{} conflict(s) found in files edited by another tool",
-            report.marker_conflicts
-        ));
+        parts.push(t!("sync.recovery.marker", count = report.marker_conflicts).to_string());
     }
     if report.external_operation.is_some() {
-        parts.push("a merge or rebase from another tool is in progress".to_owned());
+        parts.push(t!("sync.recovery.external").to_string());
     }
     if parts.is_empty() {
         None
     } else {
-        Some(format!("Sync recovery: {}.", parts.join("; ")))
+        Some(t!("sync.recovery.summary", parts = parts.join("; ")).to_string())
     }
 }
 

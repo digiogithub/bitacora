@@ -40,6 +40,8 @@ pub struct AppSettings {
     pub search: SearchSettings,
     /// MCP server options (BIT-US-0016, BIT-US-0107).
     pub mcp: McpSettings,
+    /// UI language tag (`en`, `es`); `None` follows the operating system (BIT-T-0335).
+    pub language: Option<String>,
 }
 
 /// Smallest and largest UI font size the settings accept.
@@ -196,6 +198,7 @@ mod tests {
                 allowed_origins: vec!["http://localhost:3000".into()],
                 ..McpSettings::default()
             },
+            language: Some("es".into()),
         };
         settings.save(&path).expect("save");
         assert_eq!(AppSettings::load(&path), settings);

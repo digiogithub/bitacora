@@ -1,0 +1,361 @@
+app:
+  name: Bitacora
+sidebar:
+  journals: Diarios
+  all_pages: Todas las páginas
+  favorites: Favoritos
+  recent: Recientes
+  graph_switcher: Cambiar de grafo
+  group_navigate: Navegar
+  group_favorites: Favoritos
+  group_recent: Recientes
+  group_graph: Grafo
+  empty: Todavía no hay nada aquí
+  no_graph: Ningún grafo abierto
+all_pages:
+  title: Todas las páginas
+  name: Nombre
+  backlinks: Enlaces entrantes
+  created: Creada
+  updated: Actualizada
+  journal: Diario
+  filter: Filtrar páginas...
+  show_journals: Diarios
+  count: "%{count} páginas"
+palette:
+  scope_all: Todo
+  scope_page: Esta página
+  scope_journals: Diarios
+  scope_pages: Páginas
+  search_placeholder: Buscar páginas y bloques...
+  commands_placeholder: Escribe un comando...
+  commands: Comandos
+  recent: Recientes
+  pages: Páginas
+  blocks: Bloques
+  create: Crear
+  create_page: "Crear la página \"%{name}\""
+  searching: Buscando...
+  no_results: Sin resultados
+  type_to_search: Escribe para buscar páginas y bloques
+  reindexing: Reconstruyendo el índice...
+  cmd_journals: "Ir a: Diarios"
+  cmd_all_pages: "Ir a: Todas las páginas"
+  cmd_back: "Volver atrás"
+  cmd_forward: "Ir adelante"
+  cmd_left_sidebar: Mostrar u ocultar la barra lateral izquierda
+  cmd_right_sidebar: Mostrar u ocultar la barra lateral derecha
+  cmd_theme: Alternar entre tema claro y oscuro
+  cmd_reindex: Reindexar el grafo
+  cmd_switch_graph: Cambiar de grafo
+  cmd_delete_page: Eliminar la página actual...
+  cmd_sync_now: Sincronizar ahora
+  cmd_sync_settings: Ajustes de sincronización...
+  cmd_page_history: Historial de la página...
+  cmd_agent_activity: Actividad de agentes...
+  cmd_conflicts: Resolver conflictos de sincronización...
+  cmd_clone: Abrir un grafo desde un remoto...
+panel:
+  page_host:
+    title: Página
+    empty: Ninguna página abierta
+  right:
+    title: Barra lateral derecha
+    empty: Barra lateral derecha
+status:
+  sync:
+    off: "Sync: desactivada"
+    idle: "Sync: al día"
+    busy: "Sync: sincronizando"
+    error: "Sync: error"
+    now: Sincronizar ahora
+    retry: Reintentar
+  mcp:
+    off: "MCP: desactivado"
+    idle: "MCP: escuchando"
+    busy: "MCP: ocupado"
+    error: "MCP: error"
+  index:
+    off: "Índice: desactivado"
+    idle: "Índice: listo"
+    busy: "Índice: indexando"
+    progress: "Índice: %{done}/%{total}"
+    error: "Índice: error"
+  heartbeat: "Latido %{count}"
+  theme_button: Tema
+page:
+  loading: Cargando la página...
+  load_failed: "No se puede abrir la página: %{error}"
+  empty: Todavía no hay contenido
+  redirected_from: "Redirigido desde %{name}"
+  namespace_children: Páginas de este espacio de nombres
+  logbook: "LOGBOOK (%{count} entradas)"
+  logbook_total: "LOGBOOK (%{count} entradas, %{total})"
+journals:
+  today_empty: Todavía no has escrito nada hoy
+  more: Más bloques en la página...
+refs:
+  linked: "Referencias enlazadas (%{count})"
+  linked_loading: Referencias enlazadas
+  unlinked: Referencias sin enlazar
+  unlinked_count: "Referencias sin enlazar (%{count})"
+  filters_hint: "Haz clic en una página para incluirla, otra vez para excluirla"
+  filters_none: No hay páginas por las que filtrar
+  filters_active: Filtrado
+  filters_clear: Quitar filtros
+picker:
+  title: Abrir un grafo
+  subtitle: Elige la carpeta de un grafo de Logseq para empezar a explorarlo.
+  open_folder: Abrir carpeta de grafo...
+  recent: Grafos recientes
+  no_recent: Todavía no hay grafos recientes
+  missing: Carpeta no encontrada
+  remove: Quitar de la lista
+  dialog_prompt: Abrir grafo
+  not_logseq: "%{name} no tiene logseq/config.edn; se abre de todos modos."
+  open_failed: "No se puede abrir el grafo: %{error}"
+  index_rebuilt: Índice reconstruido
+  indexing_failed: "Falló la indexación: %{error}"
+  index_summary: "Se indexaron %{count} archivos"
+  clone_from_remote: Abrir un grafo desde un remoto...
+theme:
+  system: Seguir el sistema
+  light: Claro
+  dark: Oscuro
+  light_themes: Temas claros
+  dark_themes: Temas oscuros
+notice:
+  write_failed: "No se pudieron guardar %{count} página(s); Bitacora sigue reintentando"
+  conflict: "%{count} página(s) cambiaron en disco y no se sobrescribieron"
+  watcher_degraded: La vigilancia de archivos está degradada; los cambios externos pueden aparecer con retraso
+  config_changed: logseq/config.edn ha cambiado; vuelve a abrir el grafo para aplicarlo
+  index_error: "No se puede indexar %{path}: %{error}"
+  mcp_unavailable: "El endpoint MCP no se ha iniciado: %{error}"
+  unwritten_on_quit: "No se pudieron guardar %{count} archivo(s) antes de salir"
+  sync_unavailable: "No se pudo iniciar la sincronización: %{error}"
+  sync_recovery: "%{text}"
+  editing_block_changed: El bloque que estás editando ha cambiado en disco
+  shutdown_slow: "El cierre no terminó a tiempo: %{steps}"
+right:
+  block: Bloque
+  empty_hint: Mayús+clic en una página, referencia o viñeta para abrirla aquí.
+delete:
+  page_title: "¿Eliminar la página \"%{name}\"?"
+  page_description: El archivo se mueve a logseq/.recycle/ y la página sale de los favoritos. Los enlaces a ella apuntarán a una página vacía.
+  asset_title: "¿Eliminar el recurso \"%{name}\"?"
+  asset_description: El archivo se mueve a logseq/.recycle/. El texto que lo enlaza no se modifica.
+  ok: Eliminar
+  cancel: Cancelar
+  page_done: "Página \"%{name}\" movida a la carpeta de reciclaje"
+  asset_done: "Recurso \"%{name}\" movido a la carpeta de reciclaje"
+  asset_kept: "\"%{name}\" todavía lo usan %{count} bloque(s); el archivo se conservó"
+  failed: "No se puede eliminar: %{error}"
+  not_a_page: Abre primero una página
+activity:
+  title: Actividad de agentes
+  loading: Cargando...
+  empty: Ninguna llamada de agente coincide.
+  pick: Elige una entrada para ver qué hizo el agente.
+  no_session: Abre primero un grafo
+  writes_only: Escrituras
+  errors_only: Errores
+  undo: Deshacer esta llamada
+  undone: Se deshizo el cambio del agente
+  undone_badge: deshecho
+  already_undone: Ya está deshecho
+  not_a_write: Esta llamada no modificó el grafo
+  no_undo_data: Se perdieron los datos para deshacer (la aplicación se reinició desde la llamada) o la llamada falló
+  tool: Herramienta
+  result: Resultado
+  client: Cliente y token
+  args: Argumentos
+  pages: Páginas
+  affected: Bloques (clic para mostrar)
+rename:
+  failed: "No se puede renombrar: %{error}"
+  merge_title: "La página \"%{to}\" ya existe. ¿Fusionar \"%{from}\" en ella?"
+  merge_ok: Fusionar
+  merge_blocks: "%{source} bloque(s) de \"%{from}\" pasan al final de \"%{to}\", que ya tiene %{target}. Las referencias a \"%{from}\" se reescriben y su archivo va a logseq/.recycle/."
+  merge_aliases: "Alias de \"%{from}\" que se descartan: %{aliases}."
+  done: "Página \"%{from}\" renombrada a \"%{to}\""
+  merged: "Página \"%{from}\" fusionada en \"%{to}\""
+sync:
+  error:
+    required: Este campo es obligatorio
+    whitespace: Quita los espacios y caracteres de control
+    leading_dash: No debe empezar por un guion
+    unsupported_url: Usa una dirección https://, ssh:// o usuario@host:ruta, o una ruta local
+    bad_branch: No es un nombre de rama válido
+    bad_email: Introduce un correo electrónico válido
+    identity_incomplete: Rellena nombre y correo, o deja ambos vacíos
+    destination_not_empty: La carpeta no está vacía
+    not_number: Introduce un número entero de segundos
+  dialog:
+    no_graph: No hay ningún grafo abierto
+    url_placeholder: https://github.com/tu-usuario/notas.git
+    name_placeholder: Tu nombre
+    email_placeholder: tu@ejemplo.org
+    device_placeholder: portátil
+    dest_placeholder: Carpeta para el nuevo grafo
+    dest_prompt: Elige la carpeta del grafo
+    enable_title: Activar la sincronización
+    clone_title: Abrir un grafo desde un remoto
+    enable_intro: Conecta este grafo con un repositorio remoto. Bitacora crea el repositorio si hace falta, confirma tus páginas y las sube.
+    clone_intro: Descarga un grafo de un repositorio remoto a una carpeta nueva y ábrelo.
+    url: URL del remoto
+    dest: Carpeta de destino
+    browse: Examinar...
+    branch: Rama
+    name: Nombre del autor
+    email: Correo del autor
+    device: Nombre del dispositivo
+    commit_idle: Confirmar tras inactividad (s, 5-600)
+    commit_max: Confirmar como máximo cada (s)
+    fetch: Obtener cada (s)
+    squash: Combinar las confirmaciones automáticas recientes
+    identity_note: El autor se guarda solo en este repositorio; tus ajustes globales no cambian. Deja ambos vacíos para usar "Bitacora".
+    running_enable: Conectando con el remoto y subiendo...
+    running_clone: Descargando el grafo...
+    migrate: Copiar los datos del repositorio a la carpeta del grafo
+    cancel: Cancelar
+    enable: Activar sincronización
+    clone: Clonar y abrir
+    needs_merge: El remoto ya tiene historial; la primera sincronización lo fusiona con este grafo.
+    enabled: La sincronización está activada
+    cloned: "Se clonó %{name}"
+  panel:
+    title: Sincronización
+    ago_now: ahora mismo
+    ago_minutes: "hace %{count} min"
+    ago_hours: "hace %{count} h"
+    ago_days: "hace %{count} d"
+    last_sync: "Última sincronización: %{when}"
+    never_synced: Todavía no sincronizado
+    ahead_behind: "%{ahead} por subir, %{behind} por fusionar"
+    resolve_conflicts: "Resolver conflictos (%{count})"
+    retry: Reintentar
+    sync_now: Sincronizar ahora
+    starting: La sincronización está arrancando...
+    off: La sincronización está desactivada para este grafo.
+    backend: Motor de git
+    none: sin definir
+    identity_default: Bitacora (predeterminado)
+    remote: Remoto
+    branch: Rama
+    device: Dispositivo
+    identity: Autor de las confirmaciones
+    timing: Temporización
+    timing_value: "confirmar tras %{idle} s de inactividad, como máximo cada %{max} s; obtener cada %{fetch} s; combinar %{squash}"
+    on: sí
+    off_word: no
+    change: Cambiar...
+    enable: Activar sincronización...
+    disable: Desactivar la sincronización
+    askpass_on: Las peticiones de contraseña y frase de paso aparecen en Bitacora.
+    askpass_off: No se encontró el ayudante askpass; el cliente del sistema no puede pedir credenciales (usa un agente SSH o un gestor de credenciales).
+    cli_intro: "Lo mismo desde una terminal:"
+    history: Historial de la página actual...
+credentials:
+  kind_password: Credenciales del remoto
+  kind_passphrase: Frase de paso de la clave SSH
+  username: Nombre de usuario
+  secret: Contraseña o token
+  password: Contraseña o token
+  passphrase: Frase de paso
+  remember: Recordar en el llavero del sistema
+  more: "%{count} petición(es) más en espera"
+  cancel: Cancelar
+  ok: Aceptar
+  intro: "El remoto %{target} pide credenciales."
+history:
+  title: "Historial de %{page}"
+  session_gone: La sesión del grafo está cerrada
+  loading: Cargando el historial...
+  loading_diff: Comparando...
+  empty: Ninguna confirmación ha tocado todavía esta página.
+  pick_version: Elige una versión para compararla con la página actual.
+  same: Esta versión es idéntica a la página actual.
+  only_meta: Solo difieren los metadatos (ids, estado plegado). Activa los cambios de metadatos para verlos.
+  restored: "Se restauraron %{count} bloque(s)"
+  restored_skipped: "Se restauraron %{count} bloque(s); %{skipped} no se pudieron aplicar"
+  undone: Restauración deshecha
+  by_agent: "agente %{agent}"
+  change_added: creada
+  change_modified: editada
+  change_renamed: "renombrada desde %{from}"
+  change_deleted: eliminada
+  kind_added: Añadido desde entonces
+  kind_removed: Eliminado desde entonces
+  kind_changed: Cambiado
+  kind_meta: Solo metadatos
+  that_version: Esa versión
+  now: Ahora
+  restore_selected: "Restaurar la selección (%{count})"
+  restore_page: Restaurar la página entera
+  undo: Deshacer la restauración
+  show_meta: Cambios de metadatos
+conflicts:
+  title: Resolver conflictos
+  none: No hay conflictos que resolver.
+  progress: "%{done} de %{total} resueltos"
+  finished: Todos los conflictos están resueltos. La fusión está confirmada y subida.
+  remaining: "Quedan %{count} conflicto(s)"
+  shortcuts: "Teclas: j/k mover, m mía, t suya, b ambas, e editar, Esc cerrar"
+  mine: Mía (este dispositivo)
+  theirs: Suya
+  theirs_by: "Suya (%{author}, %{when})"
+  deleted: (eliminado)
+  keep_mine: Quedarme con la mía
+  keep_theirs: Quedarme con la suya
+  keep_both: Quedarme con ambas
+  keep_both_alias: Quedarme con ambas (alias)
+  keep_modified: Conservar (modificado)
+  delete: Eliminar
+  edit: Editar
+  all_mine: Todas las mías
+  all_theirs: Todas las suyas
+  chose_mine: Se conservó la mía
+  chose_theirs: Se conservó la suya
+  chose_both: Se conservaron ambas
+  chose_edit: Editado
+  suggestion: "Sugerencia: %{text}"
+  edit_hint: Escribe el texto final. Ambas versiones se muestran arriba; nunca se escriben marcas de conflicto.
+  save_edit: Guardar
+  cancel_edit: Cancelar
+disk:
+  title: Esta página ha cambiado en disco
+  body: Otro programa editó el archivo mientras tenías cambios sin guardar. Tu versión se conserva y no se guarda hasta que elijas.
+  body_no_base: El archivo cambió en disco mientras tenías cambios sin guardar. Tu versión se conserva y no se guarda hasta que elijas.
+  keep_mine: Quedarme con la mía (sobrescribir)
+  take_disk: Tomar la versión del disco
+  show_diff: Mostrar diferencias
+  diff_title: "Cambios en disco: %{page}"
+  no_diff: Ningún bloque difiere.
+  kind_changed: Cambiado
+  kind_only_mine: Solo en la mía
+  kind_only_disk: Solo en disco
+  mine: Mía (sin guardar)
+  disk: En disco
+  absent: (no existe)
+  sync_conflicts: "Esta página tiene %{count} conflicto(s) de sincronización por resolver"
+  resolve: Resolver
+  kept_mine: Se conservó tu versión; la versión del disco se guardó como copia
+  took_disk: Se cargó la versión del disco; tu versión se guardó como copia
+  resolve_failed: "No se puede resolver: %{error}"
+crash:
+  notice: Bitacora se cerró inesperadamente la última vez
+  review: Revisar el informe
+  title: Informe de fallo
+  explain: "No se envió nada a ningún sitio. Revisa el informe de abajo; al abrir una incidencia se muestra en tu navegador un formulario rellenado que puedes editar antes de enviarlo. Esc lo descarta."
+  open_issue: Abrir incidencia en GitHub
+  copy: Copiar el informe
+update:
+  check_updates: Buscar actualizaciones...
+  up_to_date: Bitacora está al día
+  check_failed: "No se pudo buscar actualizaciones: %{error}"
+  available: "Bitacora %{version} está disponible"
+  download: Descargar
+  downloading: "Descargando Bitacora %{version} en segundo plano"
+  ready: "Bitacora %{version} está lista para instalar"
+  restart: Reiniciar ahora
+  apply_failed: "No se pudo aplicar la actualización: %{error}"

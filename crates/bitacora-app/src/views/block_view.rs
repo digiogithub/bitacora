@@ -605,15 +605,14 @@ pub fn render_block_row(
         .map(|e| e.on_toggle.clone())
         .or_else(|| actions.toggle.clone());
     let collapsed = row.is_collapsed();
+    let bullet_color = crate::theme::bullet_color().unwrap_or(theme.muted_foreground);
     let bullet = div()
         .mt(px(7.))
         .size(px(6.))
         .flex_none()
         .rounded_full()
-        .when(collapsed, |d| {
-            d.border_2().border_color(theme.muted_foreground)
-        })
-        .when(!collapsed, |d| d.bg(theme.muted_foreground));
+        .when(collapsed, |d| d.border_2().border_color(bullet_color))
+        .when(!collapsed, |d| d.bg(bullet_color));
     let toggle_slot = div()
         .id(("toggle", id))
         .w(px(14.))

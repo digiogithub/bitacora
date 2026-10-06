@@ -4,6 +4,9 @@ extend-exclude = [
     "Cargo.lock",
     "docs/.pmngr/**",
     "LICENSE",
+    # Spanish translations are not English words
+    "crates/bitacora-app/assets/locales/es.yml",
+    "crates/bitacora-app/assets/locales/*.es.yml",
 ]
 
 [default.extend-words]

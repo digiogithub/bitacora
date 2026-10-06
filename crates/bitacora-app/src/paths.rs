@@ -86,6 +86,11 @@ impl AppDirs {
         self.config_dir.join("settings.json")
     }
 
+    /// `<config_dir>/themes`: user theme JSON files (BIT-T-0333).
+    pub fn themes_dir(&self) -> PathBuf {
+        self.config_dir.join("themes")
+    }
+
     /// `<config_dir>/keymap.json`: key bindings layered over the defaults (BIT-T-0163).
     pub fn keymap_file(&self) -> PathBuf {
         self.config_dir.join("keymap.json")

@@ -1,0 +1,169 @@
+settings:
+  title: Ajustes
+  cmd_open: Ajustes...
+  apply: Aplicar
+  saved: Guardado
+  no_graph: Abre un grafo para cambiar sus ajustes.
+  nothing_changed: No ha cambiado nada.
+  section:
+    general: General
+    editor: Editor
+    search: Búsqueda e índice
+    sync: Sincronización
+    agents: Agentes
+    appearance: Apariencia
+    keymap: Atajos
+  mode:
+    reindex: Reconstruye el índice
+    restart: Requiere reiniciar
+  confirm:
+    ok: Aplicar
+    cancel: Cancelar
+    reindex_title: "¿Reconstruir el índice?"
+    reindex_body: Este ajuste cambia cómo se leen o se nombran los archivos, así que el índice se reconstruye a partir de los archivos del grafo. Tus archivos no se modifican, salvo logseq/config.edn.
+    substring_on_title: "¿Activar la búsqueda por subcadenas?"
+    substring_on_body: El índice de trigramas se construye con cada bloque. Puede tardar en un grafo grande y hace el índice más grande.
+    substring_off_title: "¿Desactivar la búsqueda por subcadenas?"
+    substring_off_body: El índice de trigramas se elimina, lo que reduce el índice a la mitad aproximadamente. Las búsquedas de fragmentos dentro de palabras serán más lentas y menos completas.
+    revoke_title: "¿Revocar el token %{name}?"
+    revoke_body: Los clientes que lo usan serán rechazados en su próxima petición. No se puede deshacer.
+    rotate_title: "¿Reemplazar el secreto de %{name}?"
+    rotate_body: El secreto anterior deja de funcionar al instante. Verás el nuevo una sola vez.
+    reset_keys_title: "¿Restaurar los atajos predeterminados?"
+    reset_keys_body: Todos los atajos que cambiaste vuelven a su valor predeterminado.
+    conflict_title: "%{keys} ya está en uso"
+    conflict_body: "En el mismo contexto activa: %{actions}. Asignarlo aquí lo quita de allí."
+  general:
+    graph_path: Carpeta del grafo
+    name_format: Nombres de archivo de las páginas
+    name_legacy: heredado
+    name_triple: triple barra baja
+    name_format_help: "Cómo los títulos de página se convierten en nombres de archivo (:file/name-format). Usa triple barra baja en los grafos nuevos."
+    title_format: Título de las páginas de diario
+    title_format_help: "Formato del título de las páginas de diario (:journal/page-title-format)."
+    file_format: Nombre de archivo del diario
+    file_format_help: "Formato del nombre de archivo del diario (:journal/file-name-format)."
+    preview: "Hoy: %{value}"
+    preview_invalid: No es un formato válido
+    hidden: Rutas ocultas
+    hidden_help: Carpetas o archivos que se dejan fuera del grafo (:hidden), separados por comas.
+    hidden_placeholder: /archivo, /borradores
+    favorites: Favoritos
+    favorites_help: Páginas fijadas en la barra lateral (:favorites). Haz clic en una de abajo para quitarla.
+    favorite_placeholder: Nombre de la página
+    background: Seguir ejecutándose en segundo plano
+    background_help: Al cerrar la última ventana, la aplicación y el servidor MCP siguen funcionando.
+    updates: Buscar actualizaciones
+    updates_help: Busca una versión nueva una vez al día.
+  editor:
+    workflow: Flujo de tareas
+    workflow_help: Palabras clave por las que pasa el atajo de tareas (:preferred-workflow).
+    workflow_now: NOW / LATER
+    workflow_todo: TODO / DOING
+    template: Plantilla de diario predeterminada
+    template_help: Nombre de la plantilla que se aplica a los diarios nuevos (:default-templates).
+    template_placeholder: Nombre de la plantilla
+  search:
+    substring: Búsqueda por subcadenas
+    substring_help: Mantiene un índice de trigramas para encontrar fragmentos dentro de palabras y texto CJK. Desactivarlo reduce el índice a la mitad aproximadamente.
+    reindex: Reconstruir el índice
+    reindex_help: Elimina el índice y lo reconstruye a partir de los archivos. Es solo una caché.
+    reindex_button: Reindexar
+    applying: Aplicando...
+    applied: Índice de búsqueda actualizado
+  sync:
+    status: Estado
+    details: Detalles...
+    remote: Remoto
+    enabled: Sincronizar este grafo
+    enabled_help: Confirma, obtiene, fusiona y sube en segundo plano.
+    timing: "Temporización (segundos): inactividad, máximo, obtención"
+    timing_help: Segundos sin ediciones antes de una confirmación automática, la espera máxima y el intervalo de obtención.
+    timing_invalid: Introduce números enteros de segundos. Los valores fuera del rango permitido (inactividad 5-600, máximo 30-3600, obtención 30-3600) se ajustan.
+    squash: Combinar confirmaciones automáticas
+    squash_help: Une una serie de confirmaciones automáticas en una sola.
+  agents:
+    enabled: Ejecutar el servidor MCP
+    enabled_help: Sirve MCP mientras hay un grafo abierto. Desactivado, los agentes no pueden conectarse.
+    port: Puerto
+    port_help: "Puerto de loopback (por defecto 12316). Usa 1024 o superior. Un puerto ocupado se indica aquí, no se prueba otro."
+    port_invalid: Introduce un puerto entre 1024 y 65535.
+    status: Servidor MCP
+    status_help: Siempre activo mientras Bitacora se ejecuta, solo loopback, se exige token de portador.
+    running: "En marcha en %{endpoint}"
+    unavailable: "No está en marcha: %{reason}"
+    not_running: No está en marcha para este grafo.
+    allow_writes: Permitir que los agentes escriban
+    allow_writes_help: "Desactivado por defecto. Las escrituras se auditan y se pueden deshacer desde la lista de actividad de agentes."
+    allow_deletes: Permitir que los agentes eliminen
+    allow_deletes_help: "Desactivado por defecto. Permite a los agentes quitar bloques y eliminar o renombrar páginas (van a la carpeta de reciclaje)."
+    api: API HTTP compatible con Logseq
+    api_help: Sirve POST /api para herramientas escritas para Logseq. Desactivado por defecto.
+    protected: Espacios de nombres protegidos
+    protected_help: Las páginas de estos espacios de nombres rechazan las escrituras de agentes, separados por comas.
+    protected_placeholder: privado, diario-secreto
+    origins: Orígenes de navegador permitidos
+    origins_help: Orígenes adicionales que pueden llamar al servidor desde una página web. Vacío por defecto.
+    rate: Escrituras por minuto
+    rate_help: Límite de llamadas de escritura por token y minuto.
+    restart_button: Reiniciar el servidor ahora
+    restart_note: Guardado. Se aplica cuando el servidor se reinicie.
+    tokens: Tokens
+    tokens_empty: No hay tokens. Crea uno para conectar un cliente.
+    token_name_placeholder: Nombre del cliente (por ejemplo Claude Desktop)
+    new_token: Nuevo token
+    token_created: Token creado. Cópialo ahora, solo se muestra una vez.
+    token_revoked: "Token %{name} revocado"
+    token_rotated: "Token %{name} reemplazado. Copia ahora el nuevo secreto."
+    token_missing: Ese token ya no existe.
+    secret_once: "Secreto de %{name}. Solo se muestra una vez."
+    secret_lost: Falta el secreto en el llavero. Reemplázalo.
+    copy_token: Copiar token
+    copy_json: Copiar configuración
+    copy_command: Copiar comando
+    copied: Copiado al portapapeles
+    done: Hecho
+    rotate: Reemplazar
+    revoke: Revocar
+    in_keychain: Llavero
+    in_file: Archivo privado
+    scope_write: escritura
+    scope_delete: eliminación
+  appearance:
+    mode: Modo del tema
+    theme: Tema
+    theme_help: Elige el tema incluido para claro y oscuro.
+    font_size: Tamaño de letra
+    font_size_help: "Se aplica al instante. Actual:"
+    font_size_invalid: "Introduce un tamaño entre %{min} y %{max}."
+    font_default: predeterminado del tema
+    font_reset: Tamaño de letra predeterminado
+    font_reset_button: Restablecer
+    language: Idioma
+    language_help: Se aplica al instante.
+    language_system: Seguir el sistema
+    user_themes: Tus temas
+    user_themes_help: Pon archivos JSON de tema en la carpeta themes del directorio de configuración de la aplicación.
+    user_themes_reload: Recargar temas
+    user_themes_reloaded: Temas recargados.
+    css: custom.css del grafo
+    css_help: Se aplican los colores y las fuentes de logseq/custom.css; el archivo nunca se modifica.
+    css_none: Este grafo no tiene logseq/custom.css.
+    css_status: "%{applied} valores aplicados, %{ignored} ignorados."
+    css_line: "Línea %{line}"
+    css_ignored: ignorado
+    css_reason_at_rule: las at-rules no están soportadas
+    css_reason_selector: el selector no está soportado
+    css_reason_property: la propiedad no está soportada
+    css_reason_value: valor no entendido
+  keymap:
+    filter_placeholder: Filtrar por acción o atajo...
+    help: "%{count} acciones. Haz clic en Grabar y pulsa el nuevo atajo. Escape cancela."
+    press_keys: Pulsa el atajo...
+    unbound: Sin asignar
+    record: Grabar
+    clear: Borrar
+    reset: Restablecer
+    reset_all: "Restablecer todo (%{count})"
+    applied: Atajos actualizados
+    save_failed: "No se pueden guardar los atajos: %{error}"

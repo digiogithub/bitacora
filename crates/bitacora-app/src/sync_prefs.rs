@@ -5,6 +5,7 @@
 //! in the graph folder: the remote and the device name are properties of this installation.
 //! Losing the file only turns background sync off; the repository keeps its own remote.
 
+use rust_i18n::t;
 use std::path::{Path, PathBuf};
 
 use bitacora_sync::GitDetection;
@@ -412,50 +413,58 @@ pub struct ActionableError {
 /// Turns an onboarding failure into text a non-technical user can act on (BIT-T-0282).
 pub fn actionable(error: &OnboardingError, detection: &GitDetection) -> ActionableError {
     let git_hint = match detection {
-        GitDetection::Found { .. } => "",
-        _ => " Installing git gives access to your SSH agent and credential helpers.",
+        GitDetection::Found { .. } => String::new(),
+        _ => format!(" {}", t!("sync.onboarding.git_hint")),
     };
     let (message, advice) = match error {
         OnboardingError::Git(GitError::Auth { .. }) => (
-            "The remote refused the credentials.".to_owned(),
-            format!(
-                "Check the user name and password or access token, or the SSH key that is loaded.{git_hint}"
-            ),
+            t!("sync.onboarding.auth").to_string(),
+            t!("sync.onboarding.auth_advice", hint = git_hint).to_string(),
         ),
         OnboardingError::Git(GitError::Network(m)) => (
-            format!("The remote could not be reached: {m}"),
-            "Check the URL and your network connection, then try again.".to_owned(),
+            t!("sync.onboarding.network", message = m).to_string(),
+            t!("sync.onboarding.network_advice").to_string(),
         ),
         OnboardingError::Git(GitError::NotARepo) => (
-            "The folder is not a git repository.".to_owned(),
-            "Pick the graph folder itself.".to_owned(),
+            t!("sync.onboarding.not_repo").to_string(),
+            t!("sync.onboarding.not_repo_advice").to_string(),
         ),
         OnboardingError::SeparateGitdir(path) => (
-            format!(
-                "This graph keeps its git data outside the folder ({}).",
-                path.display()
-            ),
-            "Bitacora can copy it into the graph folder. Your original is not touched.".to_owned(),
+            t!(
+                "sync.onboarding.separate_gitdir",
+                path = path.display().to_string()
+            )
+            .to_string(),
+            t!("sync.onboarding.separate_gitdir_advice").to_string(),
         ),
         OnboardingError::RemoteMismatch {
             existing,
             requested,
             ..
         } => (
-            format!("The graph already syncs to {existing}, not {requested}."),
-            "Use the existing remote, or change it with git outside Bitacora.".to_owned(),
+            t!(
+                "sync.onboarding.remote_mismatch",
+                existing = existing,
+                requested = requested
+            )
+            .to_string(),
+            t!("sync.onboarding.remote_mismatch_advice").to_string(),
         ),
         OnboardingError::DestinationNotEmpty(path) => (
-            format!("{} is not empty.", path.display()),
-            "Choose an empty or new folder.".to_owned(),
+            t!(
+                "sync.onboarding.dest_not_empty",
+                path = path.display().to_string()
+            )
+            .to_string(),
+            t!("sync.onboarding.dest_not_empty_advice").to_string(),
         ),
         OnboardingError::InvalidArgument(what) => (
-            format!("The value is not acceptable: {what}"),
-            "Check the form fields.".to_owned(),
+            t!("sync.onboarding.invalid_argument", what = what).to_string(),
+            t!("sync.onboarding.invalid_argument_advice").to_string(),
         ),
         other => (
             other.to_string(),
-            "Check the details and try again.".to_owned(),
+            t!("sync.onboarding.other_advice").to_string(),
         ),
     };
     ActionableError { message, advice }

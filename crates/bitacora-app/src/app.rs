@@ -105,7 +105,6 @@ fn start(cx: &mut App, args: &Args, dirs: &AppDirs, services: Services) -> anyho
     let started = Instant::now();
     ui::init(cx);
     tokio_bridge::init(cx).context("starting the tokio runtime")?;
-    rust_i18n::set_locale("en");
     theme::install(
         cx,
         AppSettings::load(&dirs.settings_file()),
@@ -122,7 +121,7 @@ fn start(cx: &mut App, args: &Args, dirs: &AppDirs, services: Services) -> anyho
             &rust_i18n::t!("settings.cmd_open"),
             crate::actions::OpenSettings,
         ),
-        ("Quit Bitacora", Quit),
+        (&rust_i18n::t!("app.quit"), Quit),
     );
     register_panels(cx);
     // Closing the last window ends the app unless "keep running in background" is on; Quit

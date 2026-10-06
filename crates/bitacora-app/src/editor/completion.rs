@@ -181,7 +181,7 @@ impl Item {
                 title,
                 exists: true,
             } => title.clone(),
-            Self::Page { title, .. } => format!("New page: {title}"),
+            Self::Page { title, .. } => rust_i18n::t!("editor.new_page", title = title).to_string(),
             Self::Block { page, text, .. } => format!("{text}  ({page})"),
         }
     }

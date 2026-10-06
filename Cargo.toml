@@ -105,6 +105,7 @@ clap = { version = "4", features = ["derive"] }
 # Filesystem helpers
 fs-err = "3"
 tempfile = "3"
+sys-locale = "0.3"
 ignore = "0.4"
 walkdir = "2.5"
 globset = "0.4"

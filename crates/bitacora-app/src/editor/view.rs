@@ -712,11 +712,7 @@ impl OutlineEditor {
         };
         if text.len() > MAX_EDIT_LEN {
             self.select_only(id, window, cx);
-            self.notice(
-                window,
-                cx,
-                "This block is too long to edit; it is selected instead.",
-            );
+            self.notice(window, cx, rust_i18n::t!("editor.too_long"));
             return;
         }
         let proj = EditProjection::from_text(&text, &self.hidden);
@@ -914,12 +910,16 @@ impl OutlineEditor {
             Err(QueueError::Commit(CommitError::Refused(Refusal::NoChange))) => None,
             Err(QueueError::Commit(CommitError::Refused(r))) => {
                 window.play_system_bell();
-                self.notice(window, cx, r.to_string());
+                self.notice(window, cx, crate::i18n::refusal(&r));
                 None
             }
             Err(err) => {
                 tracing::warn!("command failed: {err}");
-                self.notice(window, cx, format!("Cannot do that: {err}"));
+                self.notice(
+                    window,
+                    cx,
+                    rust_i18n::t!("editor.cannot_do", error = err.to_string()),
+                );
                 None
             }
         }
@@ -1340,6 +1340,15 @@ impl OutlineEditor {
     }
 }
 
+/// User-facing text of a history failure (core's `Display` is English-only).
+fn history_error(err: &HistoryError) -> String {
+    match err {
+        HistoryError::NothingToUndo => rust_i18n::t!("editor.nothing_undo").to_string(),
+        HistoryError::NothingToRedo => rust_i18n::t!("editor.nothing_redo").to_string(),
+        HistoryError::Truncated(_) => rust_i18n::t!("editor.history_truncated").to_string(),
+    }
+}
+
 /// The index uuid of the block of page `title` whose text equals `text` (and, with `needle`,
 /// mentions it).
 fn resolve_index_uuid(
@@ -1747,7 +1756,7 @@ impl OutlineEditor {
             }
             Err(QueueError::Commit(CommitError::Refused(r))) => {
                 window.play_system_bell();
-                self.notice(window, cx, r.to_string());
+                self.notice(window, cx, crate::i18n::refusal(&r));
             }
             Err(err) => tracing::warn!("Enter failed: {err}"),
         }
@@ -1933,13 +1942,13 @@ impl OutlineEditor {
                     window,
                     cx,
                     if undo {
-                        "Nothing to undo"
+                        rust_i18n::t!("editor.nothing_undo")
                     } else {
-                        "Nothing to redo"
+                        rust_i18n::t!("editor.nothing_redo")
                     },
                 );
             }
-            Ok(Err(err)) => self.notice(window, cx, err.to_string()),
+            Ok(Err(err)) => self.notice(window, cx, history_error(&err)),
             Err(err) => tracing::warn!("history failed: {err}"),
         }
     }
@@ -2336,7 +2345,7 @@ impl OutlineEditor {
             Item::Block { uuid, .. } => {
                 let (Some(id), Some(referenced)) = (self.editing(), self.resolve_block(&uuid))
                 else {
-                    self.notice(window, cx, "That block is not available for linking.");
+                    self.notice(window, cx, rust_i18n::t!("editor.not_linkable"));
                     return;
                 };
                 let Some(e) = &self.edit else { return };
@@ -2453,7 +2462,7 @@ impl OutlineEditor {
             .or_else(|| self.editing())
             .or_else(|| self.selected_blocks().last().copied());
         let Some(target) = target else {
-            self.notice(window, cx, "Select a block to attach the files to.");
+            self.notice(window, cx, rust_i18n::t!("editor.select_to_attach"));
             return;
         };
         if incoming.is_empty() {
@@ -2483,7 +2492,7 @@ impl OutlineEditor {
             self.notice(
                 window,
                 cx,
-                format!("Could not attach: {}", skipped.join(", ")),
+                rust_i18n::t!("editor.attach_failed", files = skipped.join(", ")),
             );
         }
         if files.is_empty() {
@@ -2614,7 +2623,7 @@ impl OutlineEditor {
             .into_iter()
             .next()
         else {
-            self.notice(window, cx, "This block has no attachment.");
+            self.notice(window, cx, rust_i18n::t!("editor.no_attachment"));
             return;
         };
         let block = self.index_uuid(id, &text, path.as_str());

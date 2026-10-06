@@ -139,6 +139,23 @@ settings:
     font_default: theme default
     font_reset: Default font size
     font_reset_button: Reset
+    language: Language
+    language_help: Applies at once.
+    language_system: Follow the system
+    user_themes: Your themes
+    user_themes_help: Put theme JSON files in the themes folder of the app config directory.
+    user_themes_reload: Reload themes
+    user_themes_reloaded: Themes reloaded.
+    css: Graph custom.css
+    css_help: Colours and fonts from logseq/custom.css are applied; the file is never modified.
+    css_none: This graph has no logseq/custom.css.
+    css_status: "%{applied} values applied, %{ignored} ignored."
+    css_line: "Line %{line}"
+    css_ignored: ignored
+    css_reason_at_rule: at-rules are not supported
+    css_reason_selector: selector is not supported
+    css_reason_property: property is not supported
+    css_reason_value: value not understood
   keymap:
     filter_placeholder: Filter by action or shortcut...
     help: "%{count} actions. Click Record, then press the new shortcut. Escape cancels."

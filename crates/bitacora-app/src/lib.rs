@@ -18,12 +18,14 @@ pub mod app;
 pub mod cli;
 pub mod crash;
 pub mod credentials;
+pub mod custom_css;
 pub mod data;
 pub mod editing;
 pub mod editor;
 pub mod events;
 pub mod graph_ops;
 pub mod graph_state;
+pub mod i18n;
 pub mod instance;
 pub mod keymap;
 pub mod layout;
@@ -121,5 +123,89 @@ mod i18n_tests {
                 );
             }
         }
+    }
+
+    /// Flattens one of our simple locale files (nested maps, one scalar per line) into
+    /// `dotted.key -> value`.
+    fn flatten(text: &str) -> std::collections::BTreeMap<String, String> {
+        let mut out = std::collections::BTreeMap::new();
+        let mut path: Vec<String> = Vec::new();
+        for line in text.lines() {
+            if line.trim().is_empty() || line.trim_start().starts_with('#') {
+                continue;
+            }
+            let indent = (line.len() - line.trim_start().len()) / 2;
+            let Some((key, value)) = line.trim_start().split_once(':') else {
+                continue;
+            };
+            path.truncate(indent);
+            path.push(key.trim().to_owned());
+            let value = value.trim();
+            if !value.is_empty() {
+                out.insert(path.join("."), value.to_owned());
+            }
+        }
+        out
+    }
+
+    fn placeholders(value: &str) -> Vec<String> {
+        let mut found: Vec<String> = value
+            .match_indices("%{")
+            .filter_map(|(at, _)| value[at + 2..].split('}').next().map(str::to_owned))
+            .collect();
+        found.sort();
+        found
+    }
+
+    /// Every locale file of the first language has a counterpart for each other language with
+    /// exactly the same keys and placeholders (BIT-T-0335).
+    #[test]
+    fn every_key_exists_in_all_locales_with_the_same_placeholders() {
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/locales");
+        let languages: Vec<&str> = crate::i18n::LANGUAGES.iter().map(|(t, _)| *t).collect();
+        let load = |lang: &str| {
+            let mut all = std::collections::BTreeMap::new();
+            for entry in std::fs::read_dir(&dir).into_iter().flatten().flatten() {
+                let name = entry.file_name().to_string_lossy().into_owned();
+                let own = name == format!("{lang}.yml") || name.ends_with(&format!(".{lang}.yml"));
+                if own {
+                    let text = std::fs::read_to_string(entry.path()).unwrap_or_default();
+                    all.extend(flatten(&text));
+                }
+            }
+            all
+        };
+        let base = load("en");
+        assert!(
+            base.len() > 300,
+            "english locale not found ({})",
+            base.len()
+        );
+        for lang in languages.iter().filter(|l| **l != "en") {
+            let other = load(lang);
+            let missing: Vec<_> = base.keys().filter(|k| !other.contains_key(*k)).collect();
+            let extra: Vec<_> = other.keys().filter(|k| !base.contains_key(*k)).collect();
+            assert!(missing.is_empty(), "{lang}: missing keys {missing:?}");
+            assert!(extra.is_empty(), "{lang}: keys not in en {extra:?}");
+            for (key, value) in &base {
+                assert_eq!(
+                    placeholders(value),
+                    placeholders(&other[key]),
+                    "{lang}: placeholders of `{key}` differ"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn spanish_translations_resolve_through_rust_i18n() {
+        assert_eq!(
+            rust_i18n::t!("settings.section.appearance", locale = "es"),
+            "Apariencia"
+        );
+        assert_eq!(
+            rust_i18n::t!("editor.refusal.read_only", locale = "es"),
+            "Esta página es de solo lectura."
+        );
     }
 }

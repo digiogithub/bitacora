@@ -299,11 +299,11 @@ pub fn conflict_bar(editor: Entity<OutlineEditor>) -> AnyElement {
         .px_2()
         .py_1()
         .text_xs()
-        .child("This block changed on disk while you were editing it.")
+        .child(rust_i18n::t!("editor.conflict_text").to_string())
         .child(
             Button::new("keep-mine")
                 .small()
-                .label("Keep mine")
+                .label(rust_i18n::t!("editor.keep_mine").to_string())
                 .on_click(move |_, window, cx| {
                     keep.update(cx, |this, cx| this.resolve_conflict(true, window, cx));
                 }),
@@ -312,7 +312,7 @@ pub fn conflict_bar(editor: Entity<OutlineEditor>) -> AnyElement {
             Button::new("take-disk")
                 .small()
                 .ghost()
-                .label("Take disk")
+                .label(rust_i18n::t!("editor.take_disk").to_string())
                 .on_click(move |_, window, cx| {
                     take.update(cx, |this, cx| this.resolve_conflict(false, window, cx));
                 }),

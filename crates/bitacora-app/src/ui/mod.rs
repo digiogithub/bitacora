@@ -18,9 +18,9 @@ pub use gpui_kit::{
     Action, Anchor, AnyElement, AnyView, AnyWindowHandle, App, AppContext, Application, AsyncApp,
     Bounds, ClickEvent, Context, Entity, EntityId, EventEmitter, FocusHandle, Focusable, Global,
     Hsla, KeyBinding, KeyBindingContextPredicate, KeyDownEvent, NoAction, PathPromptOptions,
-    Pixels, Point, Render, SharedString, Size, StyledImage, Subscription, Task, TitlebarOptions,
-    WeakEntity, Window, WindowAppearance, WindowBounds, WindowOptions, deferred, div, point, px,
-    size,
+    Pixels, Point, Render, Rgba, SharedString, Size, StyledImage, Subscription, Task,
+    TitlebarOptions, WeakEntity, Window, WindowAppearance, WindowBounds, WindowOptions, deferred,
+    div, point, px, size,
 };
 
 /// The kit's "cancel" action (Escape in menus and command palettes).

@@ -1,0 +1,62 @@
+app:
+  quit: Quit Bitacora
+editor:
+  too_long: This block is too long to edit; it is selected instead.
+  cannot_do: "Cannot do that: %{error}"
+  nothing_undo: Nothing to undo
+  nothing_redo: Nothing to redo
+  history_truncated: The history was cleared because the files changed outside Bitacora.
+  not_linkable: That block is not available for linking.
+  select_to_attach: Select a block to attach the files to.
+  attach_failed: "Could not attach: %{files}"
+  no_attachment: This block has no attachment.
+  conflict_text: This block changed on disk while you were editing it.
+  keep_mine: Keep mine
+  take_disk: Take disk
+  new_page: "New page: %{title}"
+  refusal:
+    unknown_block: That block no longer exists.
+    no_change: Nothing to do.
+    empty_selection: No block is selected.
+    not_siblings: The selection must be contiguous blocks at the same level.
+    no_previous_sibling: There is no previous block to indent under.
+    already_top_level: The block is already at the top level.
+    target_inside_selection: A block cannot be moved into itself.
+    read_only: This page is read-only.
+    not_an_asset: That path is a page file, not an asset.
+    unrepresentable: The text has a line that starts like a list item and cannot be stored in one block.
+    bad_cursor: The caret is not inside the block text.
+    not_empty_last_child: The block is not an empty last child.
+    first_block: The first block of the page cannot be merged into anything.
+    last_block_of_page: A page keeps at least one block.
+    both_have_children: Both blocks have children, so they cannot be merged.
+    no_next_block: There is no next block.
+    both_referenced: "Both blocks have an id:: property, so they cannot be merged."
+    at_edge: The block cannot move any further.
+    move_caret: "Move the caret to offset %{offset}."
+    nothing_applicable: No selected block has what the command needs.
+sync:
+  onboarding:
+    git_hint: Installing git gives access to your SSH agent and credential helpers.
+    auth: The remote refused the credentials.
+    auth_advice: "Check the user name and password or access token, or the SSH key that is loaded.%{hint}"
+    network: "The remote could not be reached: %{message}"
+    network_advice: Check the URL and your network connection, then try again.
+    not_repo: The folder is not a git repository.
+    not_repo_advice: Pick the graph folder itself.
+    separate_gitdir: "This graph keeps its git data outside the folder (%{path})."
+    separate_gitdir_advice: Bitacora can copy it into the graph folder. Your original is not touched.
+    remote_mismatch: "The graph already syncs to %{existing}, not %{requested}."
+    remote_mismatch_advice: Use the existing remote, or change it with git outside Bitacora.
+    dest_not_empty: "%{path} is not empty."
+    dest_not_empty_advice: Choose an empty or new folder.
+    invalid_argument: "The value is not acceptable: %{what}"
+    invalid_argument_advice: Check the form fields.
+    other_advice: Check the details and try again.
+  recovery:
+    failed: "Sync recovery failed: %{error}"
+    stale_lock: removed a stale git lock
+    restored: "%{count} unresolved conflict(s) restored"
+    marker: "%{count} conflict(s) found in files edited by another tool"
+    external: a merge or rebase from another tool is in progress
+    summary: "Sync recovery: %{parts}."

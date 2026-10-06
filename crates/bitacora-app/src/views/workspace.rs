@@ -449,6 +449,7 @@ impl Workspace {
             s.set_mcp_unavailable(None, cx);
         });
         self.graph_root = Some(path.clone());
+        crate::theme::set_graph_css(cx, Some(&path));
         self.picker_visible = false;
         self.sync_conflicted = false;
         self.disk_banner.update(cx, |b, cx| b.clear_all(cx));
@@ -506,6 +507,7 @@ impl Workspace {
         self.handle = None;
         self.hub.update(cx, |hub, _| hub.set_handle(None));
         self.graph_root = None;
+        crate::theme::set_graph_css(cx, None);
     }
 
     /// Replaces the clock (tests).

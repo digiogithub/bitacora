@@ -1,0 +1,62 @@
+app:
+  quit: Salir de Bitacora
+editor:
+  too_long: Este bloque es demasiado largo para editarlo; se selecciona en su lugar.
+  cannot_do: "No se puede hacer eso: %{error}"
+  nothing_undo: Nada que deshacer
+  nothing_redo: Nada que rehacer
+  history_truncated: El historial se borró porque los archivos cambiaron fuera de Bitacora.
+  not_linkable: Ese bloque no está disponible para enlazarlo.
+  select_to_attach: Selecciona un bloque al que adjuntar los archivos.
+  attach_failed: "No se pudo adjuntar: %{files}"
+  no_attachment: Este bloque no tiene ningún adjunto.
+  conflict_text: Este bloque cambió en disco mientras lo editabas.
+  keep_mine: Quedarme con el mío
+  take_disk: Tomar el del disco
+  new_page: "Página nueva: %{title}"
+  refusal:
+    unknown_block: Ese bloque ya no existe.
+    no_change: Nada que hacer.
+    empty_selection: No hay ningún bloque seleccionado.
+    not_siblings: La selección debe ser de bloques contiguos del mismo nivel.
+    no_previous_sibling: No hay un bloque anterior bajo el que sangrar.
+    already_top_level: El bloque ya está en el nivel superior.
+    target_inside_selection: Un bloque no se puede mover dentro de sí mismo.
+    read_only: Esta página es de solo lectura.
+    not_an_asset: Esa ruta es un archivo de página, no un recurso.
+    unrepresentable: El texto tiene una línea que empieza como un elemento de lista y no se puede guardar en un solo bloque.
+    bad_cursor: El cursor no está dentro del texto del bloque.
+    not_empty_last_child: El bloque no es un último hijo vacío.
+    first_block: El primer bloque de la página no se puede fusionar con nada.
+    last_block_of_page: Una página conserva al menos un bloque.
+    both_have_children: Ambos bloques tienen hijos, así que no se pueden fusionar.
+    no_next_block: No hay un bloque siguiente.
+    both_referenced: "Ambos bloques tienen una propiedad id::, así que no se pueden fusionar."
+    at_edge: El bloque no se puede mover más.
+    move_caret: "Mueve el cursor a la posición %{offset}."
+    nothing_applicable: Ningún bloque seleccionado tiene lo que el comando necesita.
+sync:
+  onboarding:
+    git_hint: Instalar git da acceso a tu agente SSH y a los gestores de credenciales.
+    auth: El remoto rechazó las credenciales.
+    auth_advice: "Revisa el usuario y la contraseña o el token de acceso, o la clave SSH cargada.%{hint}"
+    network: "No se pudo contactar con el remoto: %{message}"
+    network_advice: Revisa la URL y tu conexión de red, y vuelve a intentarlo.
+    not_repo: La carpeta no es un repositorio git.
+    not_repo_advice: Elige la propia carpeta del grafo.
+    separate_gitdir: "Este grafo guarda sus datos de git fuera de la carpeta (%{path})."
+    separate_gitdir_advice: Bitacora puede copiarlos a la carpeta del grafo. Tu original no se toca.
+    remote_mismatch: "El grafo ya se sincroniza con %{existing}, no con %{requested}."
+    remote_mismatch_advice: Usa el remoto existente, o cámbialo con git fuera de Bitacora.
+    dest_not_empty: "%{path} no está vacía."
+    dest_not_empty_advice: Elige una carpeta vacía o nueva.
+    invalid_argument: "El valor no es aceptable: %{what}"
+    invalid_argument_advice: Revisa los campos del formulario.
+    other_advice: Revisa los detalles y vuelve a intentarlo.
+  recovery:
+    failed: "Falló la recuperación de la sincronización: %{error}"
+    stale_lock: se eliminó un bloqueo de git obsoleto
+    restored: "%{count} conflicto(s) sin resolver restaurado(s)"
+    marker: "%{count} conflicto(s) encontrado(s) en archivos editados por otra herramienta"
+    external: hay una fusión o un rebase de otra herramienta en curso
+    summary: "Recuperación de la sincronización: %{parts}."

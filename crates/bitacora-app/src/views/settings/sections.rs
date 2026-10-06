@@ -8,13 +8,13 @@ use super::{
     row,
 };
 use crate::ui::button::{Button, ButtonVariants as _};
-use crate::ui::menu::DropdownMenu as _;
+use crate::ui::menu::{DropdownMenu as _, PopupMenuItem};
 use crate::ui::switch::Switch;
 use crate::ui::theme::Theme;
 use crate::ui::{
     AnyElement, ClickEvent, Context, Disableable as _, FluentBuilder as _, IconName,
-    InteractiveElement as _, IntoElement, Level, ParentElement as _, Sizable as _, Styled as _,
-    div, h_flex, v_flex,
+    InteractiveElement as _, IntoElement, Level, ParentElement as _, Sizable as _,
+    StatefulInteractiveElement as _, Styled as _, div, h_flex, px, v_flex,
 };
 
 impl SettingsView {
@@ -504,7 +504,126 @@ impl SettingsView {
                         this.say(Level::Success, t!("settings.saved").to_string(), cx);
                     })),
             ))
+            .child(self.language_row(theme, &app, cx))
+            .child(self.user_themes_row(theme, cx))
+            .child(self.custom_css_block(theme, cx))
             .into_any_element()
+    }
+
+    fn language_row(
+        &self,
+        theme: &Theme,
+        app: &crate::settings::AppSettings,
+        _cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let current = app.language.clone();
+        let label = match current.as_deref() {
+            None => t!("settings.appearance.language_system").to_string(),
+            Some(tag) => crate::i18n::LANGUAGES
+                .iter()
+                .find(|(t, _)| *t == tag)
+                .map_or_else(|| tag.to_owned(), |(_, name)| (*name).to_owned()),
+        };
+        row(
+            theme,
+            t!("settings.appearance.language").to_string(),
+            Some(t!("settings.appearance.language_help").to_string()),
+            Button::new("settings-language-menu")
+                .small()
+                .label(label)
+                .dropdown_menu(move |menu, _, _| {
+                    let mut menu = menu.item(
+                        PopupMenuItem::new(t!("settings.appearance.language_system").to_string())
+                            .checked(current.is_none())
+                            .on_click(|_, window, cx| {
+                                crate::theme::set_language(cx, Some(window), None)
+                            }),
+                    );
+                    for (tag, name) in crate::i18n::LANGUAGES {
+                        menu = menu.item(
+                            PopupMenuItem::new((*name).to_string())
+                                .checked(current.as_deref() == Some(*tag))
+                                .on_click(move |_, window, cx| {
+                                    crate::theme::set_language(cx, Some(window), Some(tag))
+                                }),
+                        );
+                    }
+                    menu
+                }),
+        )
+    }
+
+    fn user_themes_row(&self, theme: &Theme, cx: &mut Context<Self>) -> AnyElement {
+        let errors = crate::theme::user_theme_errors(cx);
+        let mut help = t!("settings.appearance.user_themes_help").to_string();
+        for err in &errors {
+            help.push_str(&format!("\n{err}"));
+        }
+        row(
+            theme,
+            t!("settings.appearance.user_themes").to_string(),
+            Some(help),
+            Button::new("settings-themes-reload")
+                .small()
+                .label(t!("settings.appearance.user_themes_reload").to_string())
+                .on_click(cx.listener(|this, _: &ClickEvent, window, cx| {
+                    let errors = crate::theme::reload_user_themes(cx);
+                    crate::theme::apply(cx, Some(window));
+                    this.say(
+                        if errors.is_empty() {
+                            Level::Success
+                        } else {
+                            Level::Warning
+                        },
+                        t!("settings.appearance.user_themes_reloaded").to_string(),
+                        cx,
+                    );
+                })),
+        )
+    }
+
+    /// The `custom.css` status and the list of ignored constructs.
+    fn custom_css_block(&self, theme: &Theme, cx: &mut Context<Self>) -> AnyElement {
+        let (diagnostics, applied, path) = crate::theme::css_report(cx);
+        let status = match path {
+            None => t!("settings.appearance.css_none").to_string(),
+            Some(_) => t!(
+                "settings.appearance.css_status",
+                applied = applied,
+                ignored = diagnostics.len()
+            )
+            .to_string(),
+        };
+        let mut list = v_flex()
+            .id("settings-css-diagnostics")
+            .gap_0p5()
+            .max_h(px(160.));
+        for d in &diagnostics {
+            list = list.child(
+                div()
+                    .text_xs()
+                    .text_color(theme.muted_foreground)
+                    .child(format!(
+                        "{}  {}: {} ({})",
+                        t!("settings.appearance.css_line", line = d.line),
+                        t!(d.reason.key()),
+                        d.subject,
+                        t!("settings.appearance.css_ignored"),
+                    )),
+            );
+        }
+        row(
+            theme,
+            t!("settings.appearance.css").to_string(),
+            Some(t!("settings.appearance.css_help").to_string()),
+            v_flex()
+                .gap_1()
+                .items_end()
+                .child(div().id("settings-css-status").text_sm().child(status))
+                .when(!diagnostics.is_empty(), |d| {
+                    d.child(list.overflow_y_scroll())
+                }),
+        )
     }
 
     pub(crate) fn no_graph(&self, theme: &Theme) -> AnyElement {

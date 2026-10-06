@@ -1,0 +1,19 @@
+widgets:
+  edit_source: Editar
+  query:
+    title: Resultados de la consulta
+    count: "%{count} resultados"
+    running: Ejecutando...
+    view_list: Lista
+    view_table: Tabla
+    columns: Columnas
+    refresh: Actualizar
+    empty: Sin resultados
+    error: "Error en la consulta: %{message}"
+    unsupported: "Consulta no soportada: %{message}"
+    truncated: "Solo se muestran los primeros %{count} resultados."
+  embed:
+    loading: Cargando la inserción...
+    missing: No se encontró la página o el bloque insertado.
+    circular: Inserción circular
+    too_deep: "Las inserciones están anidadas a demasiada profundidad (límite %{max})."
