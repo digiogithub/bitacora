@@ -23,7 +23,11 @@
 //!   for big graphs (error `MaxFilesWatch`) -> polling fallback. Queue overflow is reported by
 //!   `notify` as a rescan request -> [`WatchEvent::Rescan`].
 //! * **macOS (FSEvents)**: events are coalesced by the OS with its own latency; the root is
-//!   canonicalised because `/var` and `/tmp` are symlinks.
+//!   canonicalised because `/var` and `/tmp` are symlinks (FSEvents reports canonical paths).
+//!   `notify` uses FSEvents by default (kqueue is opt-in via the `macos_kqueue` feature). FSEvents
+//!   may collapse a new directory and its files into a `MustScanSubDirs` hint for the directory;
+//!   that hint is reported as [`WatchEvent::Rescan`] **and** the directory is walked, so the
+//!   files inside it are still emitted.
 //! * **Windows (ReadDirectoryChangesW)**: buffer overflow is reported as a rescan request.
 //!   Editors that save by delete+create are handled because every event is resolved by
 //!   inspecting the file system after the debounce window.
