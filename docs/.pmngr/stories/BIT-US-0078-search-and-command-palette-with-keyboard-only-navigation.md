@@ -2,7 +2,7 @@
 id: BIT-US-0078
 type: story
 title: Search and command palette with keyboard-only navigation
-status: in_progress
+status: done
 priority: high
 parent: BIT-EP-0006
 milestone: BIT-M-0002
@@ -10,8 +10,9 @@ author: mcp
 labels: [ui, search, bitacora-app]
 estimate: 5
 created: 2026-10-06T14:29:26Z
-updated: 2026-10-06T19:14:39Z
+updated: 2026-10-06T19:52:58Z
 started: 2026-10-06T19:14:39Z
+closed: 2026-10-06T19:52:58Z
 ---
 
 ## Description

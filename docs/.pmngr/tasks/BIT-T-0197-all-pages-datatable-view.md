@@ -2,7 +2,7 @@
 id: BIT-T-0197
 type: task
 title: All pages DataTable view
-status: in_progress
+status: done
 priority: medium
 parent: BIT-US-0079
 milestone: BIT-M-0002
@@ -10,8 +10,9 @@ author: mcp
 labels: [bitacora-app, ui, bitacora-index]
 estimate: 3
 created: 2026-10-06T14:30:56Z
-updated: 2026-10-06T19:14:39Z
+updated: 2026-10-06T19:52:50Z
 started: 2026-10-06T19:14:39Z
+closed: 2026-10-06T19:52:50Z
 ---
 
 ## Description

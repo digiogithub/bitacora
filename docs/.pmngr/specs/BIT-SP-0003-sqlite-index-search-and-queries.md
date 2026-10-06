@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [index, search]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T19:05:56Z
+updated: 2026-10-06T19:53:25Z
 requirements:
   R1:
     status: backlog
@@ -139,10 +139,15 @@ requirements:
         - crates/bitacora-index/src/search/mod.rs
         - crates/bitacora-index/src/search/fuzzy.rs
         - crates/bitacora-index/src/search/snippet.rs
+        - crates/bitacora-index/src/read/misc.rs#search
+        - crates/bitacora-app/src/views/palette.rs
       tests:
         - crates/bitacora-index/tests/search.rs
         - crates/bitacora-index/tests/bench_search.rs
         - crates/bitacora-index/src/search/snippet.rs
+        - crates/bitacora-index/tests/read_misc.rs#backlink_counts_search_and_mentions_back_the_app_views
+        - crates/bitacora-app/src/views/palette.rs#run_search_ranks_the_exact_page_first_and_honours_scopes
+        - crates/bitacora-app/src/views/palette.rs#typing_searches_and_enter_opens_the_selected_result
   R15:
     status: backlog
     trace:

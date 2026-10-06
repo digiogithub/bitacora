@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [core, compat]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T19:30:29Z
+updated: 2026-10-06T19:53:25Z
 requirements:
   R1:
     status: backlog
@@ -89,11 +89,16 @@ requirements:
         - crates/bitacora-core/src/journal.rs#journal_file_path
         - crates/bitacora-core/src/editor/lifecycle.rs#ensure_today
         - crates/bitacora-core/src/editor/rename.rs#plan_rename
+        - crates/bitacora-core/src/queue.rs#Request
+        - crates/bitacora-app/src/graph_ops.rs#ensure_today
+        - crates/bitacora-app/src/views/workspace.rs#start_day_clock
       tests:
         - crates/bitacora-core/src/journal.rs#file_paths
         - crates/bitacora-core/tests/page_lifecycle.rs#today_is_virtual_until_typed
         - crates/bitacora-core/tests/page_lifecycle.rs#journal_directory_and_file_format_are_configurable
         - crates/bitacora-core/tests/page_rename.rs#journals_are_never_renamed
+        - crates/bitacora-app/src/views/workspace.rs#todays_journal_is_ensured_on_open_and_at_the_midnight_rollover
+        - crates/bitacora-app/src/graph_ops.rs#todays_journal_is_virtual_until_it_has_content
   R12:
     status: backlog
     trace:
@@ -126,11 +131,16 @@ requirements:
         - crates/bitacora-core/src/editor/fsio.rs#recycle
         - crates/bitacora-core/src/editor/op.rs#DeleteAsset
         - crates/bitacora-core/src/editor/rename.rs#plan_merge
+        - crates/bitacora-app/src/graph_ops.rs#delete_page
+        - crates/bitacora-app/src/graph_ops.rs#delete_asset
+        - crates/bitacora-app/src/graph_ops.rs#favorites_remove
       tests:
         - crates/bitacora-core/tests/page_lifecycle.rs#deleting_a_page_recycles_its_file
         - crates/bitacora-core/tests/page_lifecycle.rs#deleting_an_asset_recycles_it_and_undo_restores_it
         - crates/bitacora-core/tests/page_lifecycle.rs#fs_store_recycles_with_rename_and_overwrites
         - crates/bitacora-core/tests/page_rename.rs#merge_appends_blocks_recycles_the_source_and_rewrites_refs
+        - crates/bitacora-app/src/graph_ops.rs#deleting_a_page_recycles_the_file_and_drops_the_favorite
+        - crates/bitacora-app/src/graph_ops.rs#an_unreferenced_asset_is_recycled_and_a_referenced_one_is_kept
   R15:
     status: backlog
   R16:

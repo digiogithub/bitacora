@@ -2,7 +2,7 @@
 id: BIT-T-0293
 type: task
 title: "Startup recovery: merge-state restore, stale lock, external operations, markers"
-status: backlog
+status: done
 priority: medium
 parent: BIT-US-0047
 milestone: BIT-M-0004
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-sync, recovery]
 estimate: 3
 created: 2026-10-06T14:32:57Z
-updated: 2026-10-06T14:32:57Z
+updated: 2026-10-06T19:51:49Z
+closed: 2026-10-06T19:51:49Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-US-0048
 type: story
 title: Per-page history with block-level diff and selective restore
-status: backlog
+status: in_progress
 priority: low
 parent: BIT-EP-0011
 milestone: BIT-M-0004
@@ -10,7 +10,8 @@ author: mcp
 labels: [git, history, ui]
 estimate: 8
 created: 2026-10-06T14:28:30Z
-updated: 2026-10-06T14:28:30Z
+updated: 2026-10-06T19:51:49Z
+started: 2026-10-06T19:51:49Z
 ---
 
 ## Description

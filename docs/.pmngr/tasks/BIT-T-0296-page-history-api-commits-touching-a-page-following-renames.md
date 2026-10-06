@@ -2,7 +2,7 @@
 id: BIT-T-0296
 type: task
 title: "Page history API: commits touching a page following renames"
-status: backlog
+status: done
 priority: low
 parent: BIT-US-0048
 milestone: BIT-M-0004
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-sync, history]
 estimate: 2
 created: 2026-10-06T14:32:57Z
-updated: 2026-10-06T14:32:57Z
+updated: 2026-10-06T19:51:49Z
+closed: 2026-10-06T19:51:49Z
 ---
 
 ## Description
