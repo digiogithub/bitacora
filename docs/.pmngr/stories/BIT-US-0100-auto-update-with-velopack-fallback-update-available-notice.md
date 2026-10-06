@@ -2,7 +2,7 @@
 id: BIT-US-0100
 type: story
 title: "Auto-update with Velopack (fallback: update-available notice)"
-status: backlog
+status: in_review
 priority: medium
 parent: BIT-EP-0014
 milestone: BIT-M-0005
@@ -10,7 +10,8 @@ author: mcp
 labels: [release, auto-update, bitacora-app]
 estimate: 8
 created: 2026-10-06T14:31:22Z
-updated: 2026-10-06T15:13:04Z
+updated: 2026-10-06T20:18:19Z
+started: 2026-10-06T20:18:19Z
 ---
 
 ## Description

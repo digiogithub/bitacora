@@ -2,7 +2,7 @@
 id: BIT-US-0086
 type: story
 title: Single-instance app that owns the MCP port
-status: backlog
+status: done
 priority: high
 parent: BIT-EP-0014
 milestone: BIT-M-0005
@@ -10,7 +10,8 @@ author: mcp
 labels: [release, bitacora-app, bitacora-cli, mcp]
 estimate: 5
 created: 2026-10-06T14:29:55Z
-updated: 2026-10-06T14:29:55Z
+updated: 2026-10-06T20:18:19Z
+closed: 2026-10-06T20:18:19Z
 ---
 
 ## Description

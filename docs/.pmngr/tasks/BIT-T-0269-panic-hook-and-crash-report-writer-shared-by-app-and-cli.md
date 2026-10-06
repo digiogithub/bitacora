@@ -2,7 +2,7 @@
 id: BIT-T-0269
 type: task
 title: Panic hook and crash report writer shared by app and CLI
-status: backlog
+status: done
 priority: medium
 parent: BIT-US-0111
 milestone: BIT-M-0005
@@ -10,7 +10,8 @@ author: mcp
 labels: [observability, bitacora-core, bitacora-app, bitacora-cli]
 estimate: 2
 created: 2026-10-06T14:32:30Z
-updated: 2026-10-06T14:32:30Z
+updated: 2026-10-06T20:18:19Z
+closed: 2026-10-06T20:18:19Z
 ---
 
 ## Description

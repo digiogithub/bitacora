@@ -2,7 +2,7 @@
 id: BIT-T-0234
 type: task
 title: "Paste classifier: Markdown list to tree, paragraphs to siblings, inline otherwise"
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0037
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-core, clipboard]
 estimate: 3
 created: 2026-10-06T14:31:34Z
-updated: 2026-10-06T14:31:34Z
+updated: 2026-10-06T20:21:40Z
+closed: 2026-10-06T20:21:40Z
 ---
 
 ## Description

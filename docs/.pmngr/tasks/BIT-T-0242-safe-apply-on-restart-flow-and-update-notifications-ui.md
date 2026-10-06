@@ -2,7 +2,7 @@
 id: BIT-T-0242
 type: task
 title: Safe apply-on-restart flow and update notifications UI
-status: backlog
+status: in_review
 priority: medium
 parent: BIT-US-0100
 milestone: BIT-M-0005
@@ -10,7 +10,8 @@ author: mcp
 labels: [auto-update, ui, bitacora-app]
 estimate: 3
 created: 2026-10-06T14:31:45Z
-updated: 2026-10-06T14:31:45Z
+updated: 2026-10-06T20:18:19Z
+started: 2026-10-06T20:18:19Z
 ---
 
 ## Description

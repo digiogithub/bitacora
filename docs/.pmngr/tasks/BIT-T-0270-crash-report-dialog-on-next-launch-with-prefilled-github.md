@@ -2,7 +2,7 @@
 id: BIT-T-0270
 type: task
 title: Crash report dialog on next launch with prefilled GitHub issue
-status: backlog
+status: done
 priority: medium
 parent: BIT-US-0111
 milestone: BIT-M-0005
@@ -10,7 +10,8 @@ author: mcp
 labels: [observability, ui, bitacora-app]
 estimate: 2
 created: 2026-10-06T14:32:30Z
-updated: 2026-10-06T14:32:30Z
+updated: 2026-10-06T20:18:19Z
+closed: 2026-10-06T20:18:19Z
 ---
 
 ## Description

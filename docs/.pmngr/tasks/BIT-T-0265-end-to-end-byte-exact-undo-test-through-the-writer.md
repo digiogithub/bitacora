@@ -2,7 +2,7 @@
 id: BIT-T-0265
 type: task
 title: End-to-end byte-exact undo test through the writer
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0039
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-core, test]
 estimate: 3
 created: 2026-10-06T14:32:23Z
-updated: 2026-10-06T14:32:23Z
+updated: 2026-10-06T20:21:40Z
+closed: 2026-10-06T20:21:40Z
 ---
 
 ## Description

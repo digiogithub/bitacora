@@ -2,7 +2,7 @@
 id: BIT-US-0111
 type: story
 title: Local crash reporting with opt-in sharing
-status: backlog
+status: done
 priority: medium
 parent: BIT-EP-0014
 milestone: BIT-M-0005
@@ -10,7 +10,8 @@ author: mcp
 labels: [release, observability, bitacora-app, bitacora-cli]
 estimate: 3
 created: 2026-10-06T14:32:14Z
-updated: 2026-10-06T14:32:14Z
+updated: 2026-10-06T20:18:19Z
+closed: 2026-10-06T20:18:19Z
 ---
 
 ## Description
