@@ -59,10 +59,14 @@ pub(crate) fn spawn(
     mut poller: Poller,
     processor: Arc<Mutex<Processor>>,
     interval: Duration,
+    trace: bool,
 ) -> Sender<()> {
     let (tx, rx) = mpsc::channel::<()>();
     // Baseline now so that changes made after the fallback started are detected.
     poller.tick();
+    if trace {
+        eprintln!("[watch poll] started, interval {interval:?}");
+    }
     // A failed spawn only loses the fallback; the notice has already been emitted.
     let _ = thread::Builder::new()
         .name("bitacora-watch-poll".into())
@@ -70,8 +74,17 @@ pub(crate) fn spawn(
             while let Err(RecvTimeoutError::Timeout) = rx.recv_timeout(interval) {
                 let ops = poller.tick();
                 let mut p = processor.lock().unwrap_or_else(PoisonError::into_inner);
+                if trace {
+                    eprintln!("[watch poll] tick: {} changed path(s) {ops:?}", ops.len());
+                }
                 p.apply(ops);
-                p.sweep_missing();
+                let swept = p.sweep_missing();
+                if trace {
+                    eprintln!(
+                        "[watch poll] sweep: {swept} missing of {} known",
+                        p.known_len()
+                    );
+                }
             }
         });
     tx

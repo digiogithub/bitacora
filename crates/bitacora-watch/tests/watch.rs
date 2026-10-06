@@ -33,7 +33,12 @@ fn start_with(cfg: WatchConfig, ignore: IgnoreRules, setup: impl FnOnce(&Path)) 
         trace_events: true,
         // Short safety rescan so a genuinely lost OS event cannot hang a test (the raw-event
         // trace still shows what the OS delivered).
-        safety_scan_interval: cfg.safety_scan_interval.or(Some(Duration::from_secs(2))),
+        // `WatchConfig::default()` is already `Some(30 s)` on macOS, so a plain `.or(..)` would keep
+        // 30 s there and outlast WAIT: cap whatever the test asked for at 2 s.
+        safety_scan_interval: Some(
+            cfg.safety_scan_interval
+                .map_or(Duration::from_secs(2), |i| i.min(Duration::from_secs(2))),
+        ),
         ..cfg
     };
     let w = GraphWatcher::start(dir.path(), ignore, echo.clone(), cfg, move |e| {
@@ -306,6 +311,23 @@ fn safety_scan_reports_new_directory_files() {
     assert_eq!(ev.kind, FileEventKind::Upserted);
     fs::remove_dir_all(fx.path("pages/deep")).expect("rm");
     let ev = fx.wait_file(|f| f.rel_path == "pages/deep/er/s.md");
+    assert_eq!(ev.kind, FileEventKind::Removed);
+}
+
+#[test]
+fn safety_scan_alone_reports_create_and_remove_when_os_is_silent() {
+    let cfg = WatchConfig {
+        drop_os_events: true,
+        safety_scan_interval: Some(Duration::from_millis(200)),
+        ..WatchConfig::default()
+    };
+    let fx = start_with(cfg, IgnoreRules::new(), |_| {});
+    fs::create_dir_all(fx.path("pages/sub")).expect("mkdir");
+    fs::write(fx.path("pages/sub/g.md"), "- g\n").expect("write");
+    let ev = fx.wait_file(|f| f.rel_path == "pages/sub/g.md");
+    assert_eq!(ev.kind, FileEventKind::Upserted);
+    fs::remove_dir_all(fx.path("pages/sub")).expect("rm");
+    let ev = fx.wait_file(|f| f.rel_path == "pages/sub/g.md");
     assert_eq!(ev.kind, FileEventKind::Removed);
 }
 

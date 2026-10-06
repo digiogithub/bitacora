@@ -36,6 +36,10 @@ pub struct WatchConfig {
     /// Print every raw debounced event to stderr (diagnostics; captured by the test harness and
     /// shown only when a test fails).
     pub trace_events: bool,
+    /// Test switch: discard every event the OS watcher delivers, simulating an OS that never
+    /// reports (or loses) events, so only the safety rescan can notice changes.
+    #[doc(hidden)]
+    pub drop_os_events: bool,
 }
 
 impl Default for WatchConfig {
@@ -51,6 +55,7 @@ impl Default for WatchConfig {
                 None
             },
             trace_events: false,
+            drop_os_events: false,
         }
     }
 }
@@ -62,6 +67,7 @@ struct Shared {
     sink: Sink,
     poll_interval: Duration,
     trace_events: bool,
+    drop_os_events: bool,
     /// Dropping the sender stops the polling thread.
     poll_stop: Mutex<Option<Sender<()>>>,
 }
@@ -87,7 +93,12 @@ impl Shared {
 
     fn spawn_poller(&self, interval: Duration) -> Sender<()> {
         let poller = Poller::new(self.root.clone(), self.ignore.clone());
-        poll::spawn(poller, Arc::clone(&self.processor), interval)
+        poll::spawn(
+            poller,
+            Arc::clone(&self.processor),
+            interval,
+            self.trace_events,
+        )
     }
 }
 
@@ -143,6 +154,7 @@ impl GraphWatcher {
             sink,
             poll_interval: cfg.poll_interval,
             trace_events: cfg.trace_events,
+            drop_os_events: cfg.drop_os_events,
             poll_stop: Mutex::new(None),
         });
 
@@ -217,6 +229,9 @@ fn handle(shared: &Shared, allow_poll: bool, res: DebounceEventResult) {
                 for ev in &events {
                     eprintln!("[watch raw] {ev:?}");
                 }
+            }
+            if shared.drop_os_events {
+                return;
             }
             let (rescan, ops) = plan(events);
             if rescan {
