@@ -78,21 +78,25 @@ pub struct Redactor {
 impl Redactor {
     /// A redactor for the given graph folders and (when known) the home directory.
     pub fn new(graph_roots: &[PathBuf], home: Option<&Path>) -> Self {
-        let mut roots: Vec<(String, String)> = graph_roots
-            .iter()
-            .map(|root| {
-                let name = root
-                    .file_name()
-                    .map_or_else(|| "graph".to_owned(), |n| n.to_string_lossy().into_owned());
-                (
-                    root.to_string_lossy().into_owned(),
-                    format!("<graph:{name}>"),
-                )
-            })
-            .collect();
+        let mut roots: Vec<(String, String)> = Vec::new();
+        for root in graph_roots {
+            let name = root
+                .file_name()
+                .map_or_else(|| "graph".to_owned(), |n| n.to_string_lossy().into_owned());
+            let label = format!("<graph:{name}>");
+            roots.push((root.to_string_lossy().into_owned(), label.clone()));
+            // Log lines may carry the canonical spelling (macOS `/private/var`, Windows long
+            // names) of a root that was configured through a symlink or short name.
+            if let Ok(canon) = root.canonicalize() {
+                roots.push((canon.to_string_lossy().into_owned(), label));
+            }
+        }
         // Longest first so a graph inside the home folder is matched before the home folder.
         if let Some(home) = home {
             roots.push((home.to_string_lossy().into_owned(), "~".to_owned()));
+            if let Ok(canon) = home.canonicalize() {
+                roots.push((canon.to_string_lossy().into_owned(), "~".to_owned()));
+            }
         }
         roots.retain(|(from, _)| from.len() > 1);
         roots.sort_by_key(|(from, _)| std::cmp::Reverse(from.len()));
@@ -419,6 +423,20 @@ mod tests {
             r.apply("open /home/ann/notes/work/pages/x.md from /home/ann/.cache"),
             "open <graph:work>/pages/x.md from ~/.cache"
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn redactor_also_hides_the_canonical_spelling_of_a_symlinked_root() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let real = tmp.path().join("real").join("diary");
+        std::fs::create_dir_all(&real).expect("real");
+        let link = tmp.path().join("link");
+        std::os::unix::fs::symlink(tmp.path().join("real"), &link).expect("symlink");
+        let canon = real.canonicalize().expect("canon");
+        let r = Redactor::new(&[link.join("diary")], None);
+        let out = r.apply(&format!("open {}/pages/x.md", canon.display()));
+        assert_eq!(out, "open <graph:diary>/pages/x.md");
     }
 
     #[test]

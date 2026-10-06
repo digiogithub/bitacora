@@ -93,7 +93,7 @@ jobs:
           cache-save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Test GPUI-free crates
         run: >
-          cargo test --locked
+          cargo test --locked --no-fail-fast
           -p bitacora-markdown -p bitacora-config -p bitacora-core -p bitacora-watch
           -p bitacora-index -p bitacora-sync -p bitacora-mcp -p bitacora-cli
           -p bitacora-merge -p bitacora-testkit -p xtask
@@ -130,7 +130,7 @@ jobs:
           cache-shared-key: test-core-${{ matrix.os }}
           cache-save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Test headless crates
-        run: cargo test --workspace --exclude bitacora-app --locked
+        run: cargo test --workspace --exclude bitacora-app --locked --no-fail-fast
 
   lint:
     needs: changes
