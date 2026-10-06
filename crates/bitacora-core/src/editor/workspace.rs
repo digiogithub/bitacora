@@ -326,6 +326,13 @@ impl Workspace {
             .ok_or(OpError::UnknownBlock(id))?;
         let p = self.writable_page(&key)?;
         let b = p.blocks.get_mut(&id).ok_or(OpError::UnknownBlock(id))?;
+        let loaded = b
+            .origin
+            .as_ref()
+            .is_some_and(|o| o.text_hash == super::model::text_hash(&text));
+        if !loaded && !super::model::text_is_representable(&text) {
+            return Err(OpError::Unrepresentable);
+        }
         let old = b.uuid;
         b.text = text;
         b.refresh_uuid();

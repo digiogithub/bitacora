@@ -4,17 +4,20 @@
 //! Naming: `graph::Graph` is the read-only loaded-graph model; [`Workspace`] is the mutable
 //! editing state the design calls `Graph` (pages with block trees, global block index).
 
+pub mod backup;
 pub mod cmd;
 pub mod flush;
+pub mod fsio;
 pub mod model;
 pub mod op;
 pub mod tx;
 pub mod workspace;
 
 pub use cmd::{Cmd, Refusal, Target, plan};
-pub use flush::{FileStore, FlushReport, FsStore, MemStore, WrittenFile};
+pub use flush::{FileStat, FileStore, FlushReport, FsStore, MemStore, TakeDisk, WrittenFile};
 pub use model::{
-    Block, BlockId, DiskSnapshot, IdGen, ModelError, Origin, Page, Position, Subtree, text_hash,
+    Block, BlockId, DiskSnapshot, IdGen, ModelError, Origin, Page, Position, Serialized, Subtree,
+    text_hash, text_is_representable,
 };
 pub use op::{Op, OpError};
 pub use tx::{CoalesceKey, CommitError, CursorState, InvariantError, Transaction, TxId};

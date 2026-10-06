@@ -8,6 +8,7 @@ pub mod journal;
 pub mod naming;
 pub mod queue;
 pub mod scan;
+pub mod write_queue;
 
 use bitacora_markdown as _;
 use bitacora_merge as _;

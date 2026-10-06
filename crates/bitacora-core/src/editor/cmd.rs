@@ -117,6 +117,10 @@ pub enum Refusal {
     /// The page is read-only.
     #[error("page is read-only")]
     ReadOnly,
+    /// A line of the text would re-parse as a new block (e.g. `x\n- y`), so it cannot live in one
+    /// block. Logseq reads an indented `- ` line as a nested bullet too.
+    #[error("text has a line that starts like a list item and cannot be stored in one block")]
+    Unrepresentable,
 }
 
 /// Plans `cmd` against `ws` without changing it.
@@ -131,6 +135,7 @@ pub fn plan(ws: &Workspace, cmd: &Cmd) -> Result<Vec<Op>, Refusal> {
                 .position_of(*after)
                 .ok_or(Refusal::UnknownBlock(*after))?;
             check_writable(ws, &pos.page)?;
+            check_text(text)?;
             Ok(vec![Op::InsertSubtree {
                 page: pos.page,
                 parent: pos.parent,
@@ -141,6 +146,7 @@ pub fn plan(ws: &Workspace, cmd: &Cmd) -> Result<Vec<Op>, Refusal> {
         Cmd::InsertChild { page, parent, text } => {
             let p = ws.page(page).ok_or(Refusal::ReadOnly)?;
             check_writable(ws, page)?;
+            check_text(text)?;
             let index = p
                 .children_of(*parent)
                 .ok_or(Refusal::UnknownBlock(
@@ -193,6 +199,14 @@ pub fn plan(ws: &Workspace, cmd: &Cmd) -> Result<Vec<Op>, Refusal> {
     }
 }
 
+fn check_text(text: &str) -> Result<(), Refusal> {
+    if super::model::text_is_representable(text) {
+        Ok(())
+    } else {
+        Err(Refusal::Unrepresentable)
+    }
+}
+
 fn check_writable(ws: &Workspace, page: &PageKey) -> Result<(), Refusal> {
     match ws.page(page) {
         Some(p) if !p.read_only => Ok(()),
@@ -207,6 +221,13 @@ fn set_text(ws: &Workspace, id: BlockId, after: String) -> Result<Op, Refusal> {
     }
     if b.text == after {
         return Err(Refusal::NoChange);
+    }
+    let loaded = b
+        .origin
+        .as_ref()
+        .is_some_and(|o| o.text_hash == super::model::text_hash(&after));
+    if !loaded {
+        check_text(&after)?;
     }
     Ok(Op::SetText {
         id,
