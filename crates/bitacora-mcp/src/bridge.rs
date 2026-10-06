@@ -14,19 +14,19 @@
 //! `id::` gets its index uuid written as `id::` when the call edits it, so the uuid the agent
 //! holds stays valid. Blocks created by agents always get an `id::`.
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::BTreeSet;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use bitacora_config::EffectiveConfig;
 use bitacora_core::date::Date;
 use bitacora_core::editor::{
-    BlockId as CoreId, Cmd, CommitError, Op, OpError, Refusal, Target, Transaction, new_page_path,
-    text_is_representable,
+    BlockId as CoreId, Cmd, CommitError, MergeMode, Op, OpError, RefLookup, Refusal, RenameError,
+    RenameReport, RenameRequest, Target, Transaction, new_page_path, text_is_representable,
 };
 use bitacora_core::graph::PageKey;
 use bitacora_core::graph_path::GraphPath;
-use bitacora_core::journal::{detect_journal, journal_page};
+use bitacora_core::journal::journal_page;
 use bitacora_core::queue::{CommandQueue, PageSnapshot, QueueError, Request, Response, Source};
 use bitacora_markdown::edit::properties::{get_property, remove_property, set_property};
 use bitacora_markdown::edit::state::set_marker;
@@ -55,6 +55,15 @@ pub(crate) struct Env<'a> {
     pub policy: &'a WritePolicy,
     pub gate: &'a dyn WriteGate,
     pub sync: &'a dyn SyncStatusProvider,
+}
+
+/// Arguments of a page rename.
+pub(crate) struct RenameArgs<'a> {
+    pub name: &'a str,
+    pub new_name: &'a str,
+    pub update_links: bool,
+    pub merge: bool,
+    pub keep_aliases: bool,
 }
 
 /// A block an agent asks to create.
@@ -128,6 +137,7 @@ pub struct QueueBridge {
     queue: CommandQueue,
     root: PathBuf,
     config: EffectiveConfig,
+    lookup: Option<Arc<dyn RefLookup>>,
 }
 
 impl std::fmt::Debug for QueueBridge {
@@ -172,9 +182,40 @@ fn map_commit(c: CommitError) -> ToolError {
     }
 }
 
+fn map_rename(e: RenameError) -> ToolError {
+    match e {
+        RenameError::Blank => ToolError::invalid("a page title must not be blank"),
+        RenameError::Unchanged => ToolError::invalid("the new title is the same as the old one"),
+        RenameError::Journal(p) => {
+            ToolError::invalid(format!("journal page `{p}` cannot be renamed"))
+        }
+        RenameError::ReadOnly(p) => ToolError::new(
+            Code::ReadOnly,
+            format!("page `{p}` is read-only (for example an .org page)"),
+        ),
+        RenameError::TargetExists(p) => ToolError::new(
+            Code::Conflict,
+            format!("page `{p}` already exists; retry with `merge: true` to merge into it"),
+        )
+        .with_extra(serde_json::json!({ "target_exists": p, "merge_supported": true })),
+        RenameError::PathTaken(p) => {
+            ToolError::new(Code::Conflict, format!("file `{p}` already exists"))
+        }
+        RenameError::ChildCollision(p) => ToolError::new(
+            Code::Conflict,
+            format!("namespace page `{p}` already exists"),
+        ),
+        RenameError::BadPath(m) => ToolError::invalid(format!("title does not map to a file: {m}")),
+        RenameError::Lookup(m) => internal(format!("index lookup failed: {m}")),
+        RenameError::Read { path, message } => internal(format!("cannot read `{path}`: {message}")),
+        RenameError::Commit(c) => map_commit(c),
+    }
+}
+
 fn map_queue(e: QueueError) -> ToolError {
     match e {
         QueueError::Commit(c) => map_commit(c),
+        QueueError::Rename(r) => map_rename(r),
         QueueError::Stale(p) => ToolError::new(
             Code::Conflict,
             format!("`{p}` changed on disk; re-read and retry"),
@@ -184,8 +225,9 @@ fn map_queue(e: QueueError) -> ToolError {
             "the page has unsaved edits and was not reloaded",
         ),
         QueueError::Invalid(m) => ToolError::invalid(m),
-        QueueError::Rename(r) => ToolError::invalid(r.to_string()),
-        QueueError::Busy | QueueError::Closed | QueueError::Store(_) => internal(e.to_string()),
+        QueueError::Busy => internal("the graph writer is busy; retry"),
+        QueueError::Closed => internal("the command queue is closed"),
+        QueueError::Store(m) => internal(format!("store error: {m}")),
     }
 }
 
@@ -277,54 +319,6 @@ fn new_block_text(nb: &NewBlock, uuid: &str) -> String {
     set_property(&t, "id", uuid)
 }
 
-/// Case-insensitive replacement of page references to `old` by `new`:
-/// `[[old]]`, `#[[old]]` and `#old` (the latter only when `old` is a single word).
-pub(crate) fn rewrite_links(text: &str, old: &str, new: &str) -> String {
-    fn replace_ci(text: &str, needle: &str, with: &str, word_end: bool) -> String {
-        let lower = text.to_lowercase();
-        let needle_l = needle.to_lowercase();
-        if lower.len() != text.len() {
-            // Case folding changed byte lengths: only exact matches are rewritten.
-            return text.replace(needle, with);
-        }
-        let mut out = String::with_capacity(text.len());
-        let mut i = 0;
-        while let Some(rel) = lower[i..].find(&needle_l) {
-            let at = i + rel;
-            let end = at + needle_l.len();
-            let boundary_ok = !word_end
-                || lower[end..]
-                    .chars()
-                    .next()
-                    .is_none_or(|c| !(c.is_alphanumeric() || c == '_' || c == '-' || c == '/'));
-            let start_ok = !word_end
-                || lower[..at]
-                    .chars()
-                    .next_back()
-                    .is_none_or(|c| !(c.is_alphanumeric() || c == '_'));
-            out.push_str(&text[i..at]);
-            if boundary_ok && start_ok && text.is_char_boundary(at) && text.is_char_boundary(end) {
-                out.push_str(with);
-            } else {
-                out.push_str(&text[at..end]);
-            }
-            i = end;
-        }
-        out.push_str(&text[i..]);
-        out
-    }
-    let mut t = replace_ci(text, &format!("[[{old}]]"), &format!("[[{new}]]"), false);
-    if !old.contains(char::is_whitespace) {
-        let with = if new.contains(char::is_whitespace) {
-            format!("#[[{new}]]")
-        } else {
-            format!("#{new}")
-        };
-        t = replace_ci(&t, &format!("#{old}"), &with, true);
-    }
-    t
-}
-
 // ------------------------------------------------------------------ groups
 
 struct Group<'a> {
@@ -339,6 +333,13 @@ impl Group<'_> {
         let tx = self.q.run(Source::Mcp, label, cmd).map_err(map_queue)?;
         self.txs.push(tx.clone());
         Ok(tx)
+    }
+
+    /// Core's page rename as one transaction of the group.
+    fn rename(&mut self, req: RenameRequest) -> Result<RenameReport, ToolError> {
+        let report = self.q.rename_page(Source::Mcp, req).map_err(map_queue)?;
+        self.txs.push(report.tx.clone());
+        Ok(report)
     }
 
     /// Like [`Group::cmd`] but a command that changes nothing is `Ok(None)`.
@@ -439,7 +440,16 @@ impl QueueBridge {
             queue,
             root: root.into(),
             config,
+            lookup: None,
         }
+    }
+
+    /// Index lookups for page renames (the runtime passes `Session::ref_lookup()`); without
+    /// them a rename only rewrites the pages already loaded in core.
+    #[must_use]
+    pub fn with_ref_lookup(mut self, lookup: Arc<dyn RefLookup>) -> Self {
+        self.lookup = Some(lookup);
+        self
     }
 
     fn group<F>(&self, f: F) -> Result<Applied, ToolError>
@@ -1184,141 +1194,71 @@ impl QueueBridge {
         })
     }
 
-    /// `rename_page`: the page moves to the new title's file (the old file goes to
-    /// `logseq/.recycle/`), references are rewritten, all in one undoable group.
+    /// `rename_page`: core's page rename (file move, namespace children, references graph-wide,
+    /// `config.edn`) as one undoable transaction. When the target exists the call is refused
+    /// with `CONFLICT` unless `merge` is set.
     pub(crate) fn rename_page(
         &self,
         env: &Env<'_>,
-        name: &str,
-        new_name: &str,
-        update_links: bool,
+        args: &RenameArgs<'_>,
     ) -> Result<Applied, ToolError> {
-        let new_name = new_name.trim();
+        let new_name = args.new_name.trim();
         if new_name.is_empty() {
             return Err(ToolError::invalid("`new_name` must not be empty"));
         }
-        let info = env
-            .r
-            .page(name.trim())?
-            .filter(|p| p.file.is_some())
-            .ok_or_else(|| ToolError::not_found(format!("page `{name}`")))?;
-        if detect_journal(&info.original_name, &self.config).is_some()
-            || detect_journal(new_name, &self.config).is_some()
-        {
-            return Err(ToolError::invalid("journal pages cannot be renamed"));
-        }
-        let old = info.original_name.clone();
-        if let Some(other) = env.r.page(new_name)?
-            && other.file.is_some()
-            && !other.original_name.eq_ignore_ascii_case(&old)
-        {
+        if !args.update_links {
             return Err(ToolError::new(
-                Code::Conflict,
-                format!("page `{}` already exists", other.original_name),
+                Code::NotSupported,
+                "`update_links: false` is not supported: a rename always rewrites references",
             ));
         }
+        let info = env
+            .r
+            .page(args.name.trim())?
+            .filter(|p| p.file.is_some())
+            .ok_or_else(|| ToolError::not_found(format!("page `{}`", args.name)))?;
+        let old = info.original_name.clone();
         self.guard_page(env, &old, None, true)?;
         self.guard_page(env, new_name, None, false)?;
-        let new_path =
-            new_page_path(new_name, &self.config).map_err(|e| ToolError::invalid(e.to_string()))?;
-        let (old_key, snap) = self.load_page(&info)?;
-        let new_key = PageKey::from_title(new_name);
-        // Pages that reference the old title.
-        let mut referrers: Vec<String> = Vec::new();
-        if update_links {
-            for grp in env.r.linked_references(&info)? {
-                if !grp.page.eq_ignore_ascii_case(&old) && !referrers.contains(&grp.page) {
-                    referrers.push(grp.page);
+        let req = RenameRequest {
+            from: old.clone(),
+            to: new_name.to_owned(),
+            config: Arc::new(self.config.clone()),
+            lookup: self.lookup.clone(),
+            merge: if args.merge {
+                MergeMode::Merge {
+                    keep_aliases: args.keep_aliases,
                 }
-            }
-        }
+            } else {
+                MergeMode::Refuse
+            },
+        };
         self.group(|g| {
-            g.cmd("Agent: rename page", Cmd::DeletePage { page: old_key })?;
-            g.ops(
-                "Agent: rename page",
-                vec![Op::CreatePage {
-                    page: new_key.clone(),
-                    title: new_name.to_owned(),
-                    path: Some(new_path),
-                    restored: None,
-                }],
-            )?;
-            if snap.preamble.is_some() {
-                let after = snap.preamble.as_deref().map(|p| {
-                    if update_links {
-                        rewrite_links(p, &old, new_name)
-                    } else {
-                        p.to_owned()
-                    }
-                });
-                g.ops(
-                    "Agent: rename page",
-                    vec![Op::SetPreamble {
-                        page: new_key.clone(),
-                        before: None,
-                        after,
-                    }],
-                )?;
-            }
-            let mut ids: HashMap<CoreId, CoreId> = HashMap::new();
-            for b in &snap.blocks {
-                let parent = match b.parent {
-                    Some(p) => Some(
-                        *ids.get(&p)
-                            .ok_or_else(|| internal("inconsistent page tree"))?,
-                    ),
-                    None => None,
-                };
-                let text = if update_links {
-                    rewrite_links(&b.text, &old, new_name)
-                } else {
-                    b.text.clone()
-                };
-                let tx = g.cmd(
-                    "Agent: rename page",
-                    Cmd::InsertChild {
-                        page: new_key.clone(),
-                        parent,
-                        text,
-                    },
-                )?;
-                let id = inserted_id(&tx).ok_or_else(|| internal("insert produced no block"))?;
-                ids.insert(b.id, id);
-            }
+            let report = g.rename(req)?;
             g.touch(&old);
             g.touch(new_name);
             let mut rewritten = Vec::new();
-            let mut skipped = Vec::new();
-            for page in &referrers {
-                if self.guard_page(env, page, None, true).is_err() {
-                    skipped.push(page.clone());
-                    continue;
-                }
-                let Some(pinfo) = env.r.page(page)?.filter(|p| p.file.is_some()) else {
-                    continue;
-                };
-                let (pkey, psnap) = self.load_page(&pinfo)?;
-                let mut changed = false;
-                for b in &psnap.blocks {
-                    let text = rewrite_links(&b.text, &old, new_name);
-                    if text != b.text {
-                        g.cmd("Agent: rewrite links", Cmd::SetText { id: b.id, text })?;
-                        changed = true;
-                    }
-                }
-                let _ = pkey;
-                if changed {
-                    g.touch(&pinfo.original_name);
-                    rewritten.push(pinfo.original_name);
-                }
+            for key in &report.rewritten_pages {
+                let name = env
+                    .r
+                    .page(key.as_str())?
+                    .map_or_else(|| key.as_str().to_owned(), |p| p.original_name);
+                g.touch(&name);
+                rewritten.push(name);
             }
             Ok(Applied {
                 page: Some(new_name.to_owned()),
                 file: Some(new_path_str(&self.config, new_name)),
                 extra: serde_json::json!({
                     "renamed_from": old,
+                    "renamed": report.renamed,
+                    "merged": report.merged,
                     "rewritten_pages": rewritten,
-                    "skipped_pages": skipped,
+                    "rewritten_blocks": report.rewritten_blocks,
+                    "skipped_pages": report.skipped_read_only,
+                    "dropped_aliases": report.dropped_aliases,
+                    "config_updated": report.config_updated,
+                    "warnings": report.warnings,
                 }),
                 ..Applied::default()
             })
@@ -1408,20 +1348,28 @@ mod tests {
     }
 
     #[test]
-    fn link_rewriting() {
+    fn rename_errors_map_to_distinct_codes() {
+        let code = |e: RenameError| map_queue(QueueError::Rename(e)).code;
+        assert_eq!(code(RenameError::Blank), Code::InvalidArgument);
+        assert_eq!(code(RenameError::Unchanged), Code::InvalidArgument);
         assert_eq!(
-            rewrite_links("see [[Old Page]] and [[old page]]", "Old Page", "New"),
-            "see [[New]] and [[New]]"
+            code(RenameError::Journal("j".into())),
+            Code::InvalidArgument
+        );
+        assert_eq!(code(RenameError::ReadOnly("p".into())), Code::ReadOnly);
+        assert_eq!(code(RenameError::TargetExists("p".into())), Code::Conflict);
+        assert_eq!(code(RenameError::PathTaken("p".into())), Code::Conflict);
+        assert_eq!(
+            code(RenameError::ChildCollision("p".into())),
+            Code::Conflict
         );
         assert_eq!(
-            rewrite_links("tag #old and #older", "old", "new"),
-            "tag #new and #older"
+            code(RenameError::BadPath("p".into())),
+            Code::InvalidArgument
         );
-        assert_eq!(rewrite_links("#old", "old", "new name"), "#[[new name]]");
-        assert_eq!(
-            rewrite_links("plain old text", "old", "new"),
-            "plain old text"
-        );
+        assert_eq!(code(RenameError::Lookup("p".into())), Code::Internal);
+        let e = map_queue(QueueError::Rename(RenameError::TargetExists("T".into())));
+        assert!(e.message.contains("merge"), "{}", e.message);
     }
 
     #[test]

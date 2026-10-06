@@ -31,6 +31,17 @@ pub struct ServeArgs {
     /// Extra browser origin to allow (repeatable).
     #[arg(long = "allow-origin")]
     pub allowed_origins: Vec<String>,
+    /// Let MCP agents create and edit pages and blocks (default off: read-only). Every write
+    /// is audited and undoable.
+    #[arg(long)]
+    pub allow_writes: bool,
+    /// Let MCP agents also remove blocks and delete or rename pages (default off; needs
+    /// `--allow-writes` to have any effect).
+    #[arg(long)]
+    pub allow_deletes: bool,
+    /// Serve the Logseq-compatible `POST /api` endpoint next to `/mcp` (default off).
+    #[arg(long)]
+    pub api: bool,
     /// Run the background git sync engine (auto-commit, periodic fetch/push).
     #[arg(long)]
     pub sync: bool,
@@ -84,6 +95,9 @@ pub fn start(args: ServeArgs) -> anyhow::Result<Running> {
         config: McpConfig {
             port: args.port,
             allowed_origins: args.allowed_origins,
+            allow_writes: args.allow_writes,
+            allow_deletes: args.allow_deletes,
+            api_enabled: args.api,
             ..McpConfig::default()
         },
         token_path: token_path.clone(),

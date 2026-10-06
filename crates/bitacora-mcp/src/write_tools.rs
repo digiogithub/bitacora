@@ -7,7 +7,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::bridge::{
-    Affected, Applied, Env, NewBlock, Position, QueueBridge, validate_content, validate_property,
+    Affected, Applied, Env, NewBlock, Position, QueueBridge, RenameArgs, validate_content,
+    validate_property,
 };
 use crate::policy::MAX_BLOCKS_PER_CALL;
 use crate::render::{Code, ToolError, ToolResult, output};
@@ -208,8 +209,13 @@ pub(crate) struct RenamePageArgs {
     pub name: String,
     /// New title.
     pub new_name: String,
-    /// Rewrite `[[links]]` and `#tags` in other pages (default true).
+    /// Rewrite `[[links]]` and `#tags` in other pages (default true; `false` is not supported).
     pub update_links: Option<bool>,
+    /// Merge into the target page when it already exists (default false: `CONFLICT`).
+    pub merge: Option<bool>,
+    /// With `merge`: carry the source page's `alias::` values over (default false; dropped
+    /// aliases are reported in `details.dropped_aliases`).
+    pub keep_aliases: Option<bool>,
     /// Graph name or path; default is the active graph.
     pub graph: Option<String>,
 }
@@ -477,7 +483,16 @@ pub(crate) fn rename_page(
     a: RenamePageArgs,
 ) -> Result<Applied, ToolError> {
     check_graph(env.r, a.graph.as_deref())?;
-    b.rename_page(env, &a.name, &a.new_name, a.update_links.unwrap_or(true))
+    b.rename_page(
+        env,
+        &RenameArgs {
+            name: &a.name,
+            new_name: &a.new_name,
+            update_links: a.update_links.unwrap_or(true),
+            merge: a.merge.unwrap_or(false),
+            keep_aliases: a.keep_aliases.unwrap_or(false),
+        },
+    )
 }
 
 pub(crate) fn delete_page(
