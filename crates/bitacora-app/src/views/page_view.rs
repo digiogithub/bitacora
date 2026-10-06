@@ -71,6 +71,10 @@ pub struct BlockFocusEvent {
     pub block_index: Option<usize>,
 }
 
+/// The user clicked a block marked as a sync conflict: open the resolver (BIT-US-0054).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConflictJumpEvent;
+
 /// What the view currently shows.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum LoadState {
@@ -157,6 +161,7 @@ pub struct PageView {
     refresh_task: Option<Task<()>>,
     rendered_rows: usize,
     focused_row: Option<usize>,
+    conflict_blocks: BTreeSet<String>,
 }
 
 impl std::fmt::Debug for PageView {
@@ -171,6 +176,7 @@ impl std::fmt::Debug for PageView {
 
 impl EventEmitter<PageEvent> for PageView {}
 impl EventEmitter<BlockFocusEvent> for PageView {}
+impl EventEmitter<ConflictJumpEvent> for PageView {}
 
 pub use crate::views::block_view::resolve_asset;
 
@@ -206,7 +212,22 @@ impl PageView {
             refresh_task: None,
             rendered_rows: 0,
             focused_row: None,
+            conflict_blocks: BTreeSet::new(),
         }
+    }
+
+    /// The `id::` values of blocks with unresolved sync conflicts: they get a marker that
+    /// opens the resolver.
+    pub fn set_conflict_blocks(&mut self, blocks: BTreeSet<String>, cx: &mut Context<Self>) {
+        if self.conflict_blocks != blocks {
+            self.conflict_blocks = blocks;
+            cx.notify();
+        }
+    }
+
+    /// Blocks marked as conflicted.
+    pub fn conflict_blocks(&self) -> &BTreeSet<String> {
+        &self.conflict_blocks
     }
 
     /// The row holding the focus, if any.
@@ -901,7 +922,24 @@ impl PageView {
                         })),
                     };
                     let block = render_block_row(r, row, root.as_deref(), &theme, &actions);
-                    if self.focused_row == Some(r) {
+                    let conflicted = row
+                        .uuid
+                        .as_deref()
+                        .is_some_and(|u| self.conflict_blocks.contains(u));
+                    if conflicted {
+                        let jump = cx.entity();
+                        div()
+                            .id(("conflict-mark", r))
+                            .w_full()
+                            .border_l_2()
+                            .border_color(theme.warning)
+                            .cursor_pointer()
+                            .on_click(move |_, _, cx| {
+                                jump.update(cx, |_, cx| cx.emit(ConflictJumpEvent));
+                            })
+                            .child(block)
+                            .into_any_element()
+                    } else if self.focused_row == Some(r) {
                         div()
                             .w_full()
                             .bg(theme.secondary)

@@ -299,6 +299,8 @@ disk:
   mine: Mine (unsaved)
   disk: On disk
   absent: (not present)
+  sync_conflicts: "This page has %{count} sync conflict(s) to resolve"
+  resolve: Resolve
   kept_mine: Kept your version; the disk version was backed up
   took_disk: Loaded the disk version; your version was backed up
   resolve_failed: "Cannot resolve: %{error}"

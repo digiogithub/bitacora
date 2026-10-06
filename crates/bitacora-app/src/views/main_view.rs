@@ -17,7 +17,7 @@ use crate::ui::{
 };
 use crate::views::all_pages::AllPagesView;
 use crate::views::journals::JournalsView;
-use crate::views::page_view::{BlockFocusEvent, PageEvent, PageView};
+use crate::views::page_view::{BlockFocusEvent, ConflictJumpEvent, PageEvent, PageView};
 
 /// What a pane tells its host.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -28,6 +28,8 @@ pub enum MainEvent {
     OpenInSidebar(Route),
     /// A block of the page got (or lost) the focus (BIT-T-0344).
     BlockFocus(BlockFocusEvent),
+    /// A conflict-marked block was clicked: open the resolver.
+    ConflictJump,
 }
 
 /// Journals feed, all-pages table and page view with history: one pane of the main area. Every
@@ -62,6 +64,9 @@ impl MainView {
             cx.subscribe(&page, Self::on_page_event),
             cx.subscribe(&page, |_, _, event: &BlockFocusEvent, cx| {
                 cx.emit(MainEvent::BlockFocus(event.clone()));
+            }),
+            cx.subscribe(&page, |_, _, _: &ConflictJumpEvent, cx| {
+                cx.emit(MainEvent::ConflictJump);
             }),
             cx.subscribe(&journals, Self::on_page_event),
             cx.subscribe(&all_pages, Self::on_page_event),

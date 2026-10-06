@@ -30,6 +30,8 @@ pub enum DiskConflictEvent {
     TakeDisk(PageKey),
     /// Open the block-level diff.
     ShowDiff(PageKey),
+    /// Open the sync conflict resolver.
+    OpenResolver,
 }
 
 /// The banner. Holds every conflicted page and shows the one on screen.
@@ -37,6 +39,7 @@ pub enum DiskConflictEvent {
 pub struct DiskConflictBanner {
     notices: HashMap<PageKey, Arc<ConflictNotice>>,
     current: Option<PageKey>,
+    sync_conflicts: usize,
 }
 
 impl EventEmitter<DiskConflictEvent> for DiskConflictBanner {}
@@ -75,6 +78,19 @@ impl DiskConflictBanner {
         }
     }
 
+    /// How many unresolved sync conflicts the page on screen has (BIT-US-0054).
+    pub fn set_sync_conflicts(&mut self, count: usize, cx: &mut Context<Self>) {
+        if self.sync_conflicts != count {
+            self.sync_conflicts = count;
+            cx.notify();
+        }
+    }
+
+    /// Sync conflicts of the page on screen.
+    pub fn sync_conflicts(&self) -> usize {
+        self.sync_conflicts
+    }
+
     /// The notice of the page on screen.
     pub fn active(&self) -> Option<&Arc<ConflictNotice>> {
         self.current.as_ref().and_then(|k| self.notices.get(k))
@@ -93,11 +109,42 @@ impl DiskConflictBanner {
 
 impl Render for DiskConflictBanner {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let Some(notice) = self.active().cloned() else {
-            return div().into_any_element();
-        };
         let theme = cx.theme().clone();
         let this = cx.entity();
+        let sync_strip =
+            (self.sync_conflicts > 0).then(|| {
+                let open = this.clone();
+                h_flex()
+                    .id("sync-conflict-banner")
+                    .w_full()
+                    .gap_2()
+                    .items_center()
+                    .px_4()
+                    .py_2()
+                    .bg(theme.danger.opacity(0.12))
+                    .border_b_1()
+                    .border_color(theme.danger)
+                    .child(icon(IconName::TriangleAlert).text_color(theme.danger))
+                    .child(
+                        div().flex_1().min_w_0().text_sm().child(
+                            t!("disk.sync_conflicts", count = self.sync_conflicts).to_string(),
+                        ),
+                    )
+                    .child(
+                        Button::new("sync-conflict-resolve")
+                            .small()
+                            .label(t!("disk.resolve").to_string())
+                            .on_click(move |_, _, cx| {
+                                open.update(cx, |_, cx| cx.emit(DiskConflictEvent::OpenResolver));
+                            }),
+                    )
+            });
+        let Some(notice) = self.active().cloned() else {
+            return match sync_strip {
+                Some(strip) => strip.into_any_element(),
+                None => div().into_any_element(),
+            };
+        };
         let key = notice.key.clone();
         let button = |id: &'static str, label: String, event: DiskConflictEvent| {
             let this = this.clone();
@@ -109,7 +156,7 @@ impl Render for DiskConflictBanner {
                     this.update(cx, |_, cx| cx.emit(event));
                 })
         };
-        h_flex()
+        let banner = h_flex()
             .id("disk-conflict-banner")
             .w_full()
             .gap_2()
@@ -147,7 +194,11 @@ impl Render for DiskConflictBanner {
                 "disk-show-diff",
                 t!("disk.show_diff").to_string(),
                 DiskConflictEvent::ShowDiff(key),
-            ))
+            ));
+        v_flex()
+            .w_full()
+            .children(sync_strip)
+            .child(banner)
             .into_any_element()
     }
 }

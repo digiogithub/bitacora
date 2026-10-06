@@ -728,6 +728,7 @@ impl Workspace {
                 if self.conflicts.read(cx).is_open() {
                     self.conflicts.update(cx, |c, cx| c.reload(cx));
                 }
+                self.refresh_page_conflicts(cx);
             }
             SessionEvent::DiskConflict(notice) => {
                 self.disk_banner
@@ -950,10 +951,12 @@ impl Workspace {
                 self.disk_banner.update(cx, |b, cx| b.set_current(key, cx));
                 self.sync_panel
                     .update(cx, |p, cx| p.set_history_available(on_page, cx));
+                self.refresh_page_conflicts(cx);
             }
             MainEvent::OpenInSidebar(route) => {
                 self.open_in_right_sidebar(route.clone(), window, cx);
             }
+            MainEvent::ConflictJump => self.open_conflicts(window, cx),
             MainEvent::BlockFocus(focus) => {
                 if let Some(queue) = self.queue() {
                     editing::sync_editing_block(queue, &focus.title, focus.block_index);
@@ -1238,6 +1241,35 @@ impl Workspace {
         }
     }
 
+    /// Recomputes the sync conflicts of the page on screen: the banner count and the
+    /// conflict markers on its blocks.
+    fn refresh_page_conflicts(&mut self, cx: &mut Context<Self>) {
+        let title = match self.main.read(cx).route() {
+            Some(Route::Page(name)) => Some(name.clone()),
+            _ => None,
+        };
+        let rel = title
+            .zip(self.handle.as_ref())
+            .and_then(|(title, graph)| graph.reader.page_by_name(&title).ok().flatten())
+            .and_then(|page| page.file_path);
+        let cards = match (&rel, &self.graph_root) {
+            (Some(_), Some(root)) if self.sync_conflicted => {
+                crate::views::conflicts::load_cards(root)
+            }
+            _ => Vec::new(),
+        };
+        let mine: Vec<_> = cards
+            .iter()
+            .filter(|c| Some(&c.path) == rel.as_ref() && c.resolution.is_none())
+            .collect();
+        let blocks = mine.iter().filter_map(|c| c.block_key.clone()).collect();
+        let count = mine.len();
+        self.disk_banner
+            .update(cx, |b, cx| b.set_sync_conflicts(count, cx));
+        let page = self.main.read(cx).page().clone();
+        page.update(cx, |p, cx| p.set_conflict_blocks(blocks, cx));
+    }
+
     /// Opens the conflict resolver.
     pub fn open_conflicts(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let (Some(root), Some(handle)) = (self.graph_root.clone(), self.session_handle.clone())
@@ -1376,6 +1408,7 @@ impl Workspace {
                 for pane in self.panes(cx) {
                     pane.update(cx, |main, cx| main.reload(cx));
                 }
+                self.refresh_page_conflicts(cx);
             }
         }
     }
@@ -1388,6 +1421,7 @@ impl Workspace {
         cx: &mut Context<Self>,
     ) {
         match event {
+            DiskConflictEvent::OpenResolver => self.open_conflicts(window, cx),
             DiskConflictEvent::KeepMine(key) => {
                 self.resolve_disk(key.clone(), Keep::Mine, window, cx)
             }

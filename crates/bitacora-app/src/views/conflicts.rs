@@ -67,6 +67,8 @@ pub struct ConflictCard {
     pub kind: ConflictType,
     /// Conflicting field.
     pub field: Option<String>,
+    /// `id::` of the conflicting block, when it has one.
+    pub block_key: Option<String>,
     /// Ancestor titles and the block's first line.
     pub breadcrumb: Vec<String>,
     /// Base text.
@@ -94,6 +96,7 @@ impl From<&ConflictRecord> for ConflictCard {
             path: r.path.clone(),
             kind: r.kind,
             field: r.field.clone(),
+            block_key: r.block_key.clone(),
             breadcrumb: r.breadcrumb.clone(),
             base: r.base.clone(),
             ours: r.ours.clone(),
@@ -826,6 +829,7 @@ mod tests {
             path: "pages/p.md".into(),
             kind,
             field: None,
+            block_key: None,
             breadcrumb: vec!["p".into(), "second block".into()],
             base: Some("second block".into()),
             ours: Some("second block (alice)".into()),

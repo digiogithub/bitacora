@@ -280,6 +280,11 @@ fn conflicts_are_resolved_block_by_block_in_the_visual_resolver_and_the_merge_is
     wait_until(cx, "sync idle", |cx| {
         matches!(sync_state(&ws, cx), Some((SyncState::Idle, 0)))
     });
+    ws.update_in(cx, |w, _, cx| w.navigate(Route::Page("p".into()), cx));
+    let page = ws.read_with(cx, |w, cx| w.page_view(cx));
+    wait_until(cx, "the page", |cx| {
+        page.read_with(cx, |p, _| p.title() == Some("p"))
+    });
 
     // Both devices edit the same block; B pushes first.
     write(
@@ -303,6 +308,9 @@ fn conflicts_are_resolved_block_by_block_in_the_visual_resolver_and_the_merge_is
         .read_with(cx, |w, _| w.status_bar().clone())
         .read_with(cx, |bar, _| bar.sync_view().map(|v| v.message.clone()));
     assert_eq!(message.as_deref(), Some("Conflicts (1)"));
+    // The page on screen carries the "sync conflicts" banner.
+    let banner = ws.read_with(cx, |w, _| w.disk_banner().clone());
+    assert_eq!(banner.read_with(cx, |b, _| b.sync_conflicts()), 1);
 
     // The resolver lists the block with both versions and the progress.
     let view = ws.read_with(cx, |w, _| w.conflicts().clone());
@@ -337,6 +345,7 @@ fn conflicts_are_resolved_block_by_block_in_the_visual_resolver_and_the_merge_is
     wait_until(cx, "the resolver to see the finished merge", |cx| {
         view.read_with(cx, |v, _| v.cards().is_empty())
     });
+    assert_eq!(banner.read_with(cx, |b, _| b.sync_conflicts()), 0);
 }
 
 #[gpui_test]
