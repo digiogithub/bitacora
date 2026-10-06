@@ -2,7 +2,7 @@
 id: BIT-T-0357
 type: task
 title: Byte-preserving merged page serializer reusing ours' raw spans
-status: backlog
+status: done
 priority: critical
 parent: BIT-US-0051
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-merge, bitacora-markdown, merge, serializer]
 estimate: 3
 created: 2026-10-06T14:34:49Z
-updated: 2026-10-06T15:17:52Z
+updated: 2026-10-06T17:27:59Z
+closed: 2026-10-06T17:27:59Z
 ---
 
 ## Description

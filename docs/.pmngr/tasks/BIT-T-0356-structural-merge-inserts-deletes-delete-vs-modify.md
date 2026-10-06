@@ -2,7 +2,7 @@
 id: BIT-T-0356
 type: task
 title: "Structural merge: inserts, deletes, delete-vs-modify, reparenting and sibling order"
-status: backlog
+status: done
 priority: critical
 parent: BIT-US-0051
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-merge, merge]
 estimate: 3
 created: 2026-10-06T14:34:49Z
-updated: 2026-10-06T15:17:52Z
+updated: 2026-10-06T17:27:59Z
+closed: 2026-10-06T17:27:59Z
 ---
 
 ## Description

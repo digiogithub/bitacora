@@ -2,7 +2,7 @@
 id: BIT-T-0358
 type: task
 title: merge_page entry point with short-circuits, pre-block merge and parse-failure fallback
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0051
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-merge, merge]
 estimate: 2
 created: 2026-10-06T14:34:49Z
-updated: 2026-10-06T15:17:52Z
+updated: 2026-10-06T17:27:59Z
+closed: 2026-10-06T17:27:59Z
 ---
 
 ## Description

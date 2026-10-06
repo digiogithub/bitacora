@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [git, sync, merge]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T17:18:01Z
+updated: 2026-10-06T17:27:54Z
 requirements:
   R1:
     status: backlog
@@ -49,12 +49,22 @@ requirements:
       code:
         - crates/bitacora-merge/src/meta.rs
         - crates/bitacora-markdown/src/classify.rs
+        - crates/bitacora-merge/src/page.rs
       tests:
         - crates/bitacora-merge/src/meta.rs
         - crates/bitacora-merge/src/block.rs
         - crates/bitacora-markdown/src/classify.rs
+        - crates/bitacora-merge/tests/merge_matrix.rs
   R12:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-merge/src/structure.rs
+        - crates/bitacora-merge/src/page.rs
+        - crates/bitacora-merge/src/matcher.rs
+      tests:
+        - crates/bitacora-merge/tests/merge_matrix.rs
+        - crates/bitacora-merge/src/structure.rs
   R13:
     status: backlog
     trace:
@@ -64,6 +74,9 @@ requirements:
         - crates/bitacora-merge/src/block.rs
   R14:
     status: backlog
+    trace:
+      code: [crates/bitacora-merge/src/page.rs]
+      tests: [crates/bitacora-merge/tests/merge_matrix.rs]
   R15:
     status: backlog
   R16:

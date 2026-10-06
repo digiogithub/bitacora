@@ -2,7 +2,7 @@
 id: BIT-US-0051
 type: story
 title: Structural merge and byte-preserving page serialization
-status: backlog
+status: done
 priority: critical
 parent: BIT-EP-0012
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [merge, sync, serializer]
 estimate: 8
 created: 2026-10-06T14:28:30Z
-updated: 2026-10-06T15:17:28Z
+updated: 2026-10-06T17:27:59Z
+closed: 2026-10-06T17:27:59Z
 ---
 
 ## Description
