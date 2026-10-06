@@ -196,7 +196,7 @@ fn alt_drop_adds_a_reference_block_and_the_id_in_one_step() {
         .run(
             "Drop reference",
             &Cmd::DropBlockRef {
-                source: src,
+                sources: vec![src],
                 target: Target::After(b1),
             },
         )
@@ -207,4 +207,53 @@ fn alt_drop_adds_a_reference_block_and_the_id_in_one_step() {
     assert_eq!(ser(&ws, &b), format!("- b1\n- (({}))\n", uuid.hyphenated()));
     ws.undo(&tx).expect("undo");
     assert_eq!((ser(&ws, &a), ser(&ws, &b)), (sa, sb));
+}
+
+#[test]
+fn alt_drop_of_several_blocks_adds_references_in_order() {
+    let mut ws = Workspace::new();
+    let a = load(&mut ws, "A", "- one\n- two\n- three\n");
+    let (one, two, three) = (id(&ws, &a, "one"), id(&ws, &a, "two"), id(&ws, &a, "three"));
+    let before = ser(&ws, &a);
+    let tx = ws
+        .run(
+            "Drop references",
+            &Cmd::DropBlockRef {
+                sources: vec![one, two],
+                target: Target::Before(three),
+            },
+        )
+        .expect("refs");
+    let (u1, u2) = (
+        ws.block(one).and_then(|b| b.uuid).expect("id one"),
+        ws.block(two).and_then(|b| b.uuid).expect("id two"),
+    );
+    let out = ser(&ws, &a);
+    let r1 = out
+        .find(&format!("- (({}))", u1.hyphenated()))
+        .expect("ref one");
+    let r2 = out
+        .find(&format!("- (({}))", u2.hyphenated()))
+        .expect("ref two");
+    let t3 = out.find("- three").expect("three");
+    assert!(r1 < r2 && r2 < t3, "{out}");
+    ws.undo(&tx).expect("undo");
+    assert_eq!(ser(&ws, &a), before);
+}
+
+#[test]
+fn an_empty_alt_drop_is_refused() {
+    let mut ws = Workspace::new();
+    let a = load(&mut ws, "A", "- one\n");
+    let one = id(&ws, &a, "one");
+    let err = ws
+        .run(
+            "Drop references",
+            &Cmd::DropBlockRef {
+                sources: Vec::new(),
+                target: Target::After(one),
+            },
+        )
+        .unwrap_err();
+    assert!(matches!(err, CommitError::Refused(Refusal::EmptySelection)));
 }

@@ -216,6 +216,7 @@ fn pair(depth: usize, text: &str) -> (usize, String) {
     (depth, text.to_owned())
 }
 
+mod dnd_tests;
 mod slash_tests;
 
 const HOME: &str = "pages/Home.md";

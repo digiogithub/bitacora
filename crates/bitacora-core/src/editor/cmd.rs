@@ -267,12 +267,12 @@ pub enum Cmd {
         /// Values of the variables (`<% today %>` ...).
         ctx: super::lifecycle::TemplateContext,
     },
-    /// Alt-drop (BIT-US-0106): a new block holding `((uuid))` of `source` at `target`, adding the
-    /// `id::` to `source` in the same transaction. The source is not moved.
+    /// Alt-drop (BIT-US-0106): one new block holding `((uuid))` per dragged block, in order, at
+    /// `target`, adding the missing `id::` lines in the same transaction. Nothing is moved.
     DropBlockRef {
-        /// The dragged block.
-        source: BlockId,
-        /// Where the reference block goes.
+        /// The dragged blocks.
+        sources: Vec<BlockId>,
+        /// Where the reference blocks go.
         target: Target,
     },
     /// Give a block an `id::` (no-op when it has one); the id is generated unless given.
@@ -439,8 +439,8 @@ pub fn plan_full(ws: &Workspace, cmd: &Cmd) -> Result<Planned, Refusal> {
             cursor,
             assets,
         } => super::clipboard::import_assets(ws, *target, cursor, assets),
-        Cmd::DropBlockRef { source, target } => {
-            super::complete::drop_block_ref(ws, *source, *target)
+        Cmd::DropBlockRef { sources, target } => {
+            super::complete::drop_block_ref(ws, sources, *target)
         }
         Cmd::InsertTemplate {
             target,

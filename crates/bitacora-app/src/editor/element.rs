@@ -430,6 +430,8 @@ pub fn wrap(content: AnyElement, editor: &Entity<OutlineEditor>, cx: &App) -> An
     let up = editor.clone();
     let up_out = editor.clone();
     let dropped = editor.clone();
+    let scrolled = editor.clone();
+    let ended = editor.clone();
     let container = div()
         .size_full()
         .key_context(ed.key_context_name())
@@ -441,6 +443,15 @@ pub fn wrap(content: AnyElement, editor: &Entity<OutlineEditor>, cx: &App) -> An
                 });
             },
         )
+        .on_drag_move::<super::dnd::BlockDrag>(move |e, _, cx| {
+            // Near the top or bottom edge of the page area the page scrolls (BIT-US-0106).
+            scrolled.update(cx, |this, cx| {
+                this.autoscroll(e.event.position, e.bounds, cx)
+            });
+        })
+        .on_drop::<super::dnd::BlockDrag>(move |_, _, cx| {
+            ended.update(cx, |this, cx| this.drag_cancel(cx));
+        })
         .on_mouse_up(crate::ui::text_edit::MouseButton::Left, move |_, _, cx| {
             up.update(cx, |this, _| this.drag_end());
         })

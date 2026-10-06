@@ -343,6 +343,11 @@ pub mod text_edit {
     };
 }
 
+/// Drag and drop of blocks (BIT-US-0106).
+pub mod drag {
+    pub use gpui_kit::DragMoveEvent;
+}
+
 /// Command palette (search and actions palettes).
 pub mod command {
     pub use gpui_kit::component::IndexPath;

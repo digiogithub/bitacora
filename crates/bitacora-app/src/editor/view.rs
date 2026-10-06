@@ -38,6 +38,7 @@ use crate::ui::{
     Subscription, Window, div, notify, px,
 };
 
+mod dnd;
 mod slash;
 
 pub use slash::Clock;
@@ -83,6 +84,9 @@ pub enum EditorEvent {
     Row(usize),
     /// The row got the caret: scroll it into view.
     Entered(usize),
+    /// A block drag is near the top (negative) or bottom edge: scroll the page by this many
+    /// pixels.
+    Scroll(f32),
     /// The user asked to delete the file behind an asset link of a block (the host confirms).
     DeleteAsset {
         /// The link target as written in the block (`../assets/x.png`).
@@ -155,6 +159,11 @@ pub struct OutlineEditor {
     blink_enabled: bool,
     flush_epoch: usize,
     completion: Option<CompletionState>,
+    /// Where a dragged block would land (row block and zone), while dragging over this page.
+    drop_hint: Option<(BlockId, super::dnd::DropZone)>,
+    /// Auto-scroll step while dragging near an edge of the viewport (0 = none).
+    scroll_dir: f32,
+    scroll_task: Option<crate::ui::Task<()>>,
     /// The open calendar (`/date picker`, `/scheduled`, `/deadline`; BIT-US-0105).
     picker: Option<slash::DatePick>,
     /// Local date and time (replaced in tests).
@@ -199,6 +208,8 @@ impl OutlineEditor {
         cx: &mut Context<Self>,
     ) -> Self {
         let focus_handle = cx.focus_handle();
+        let weak = cx.weak_entity();
+        dnd::EditorRegistry::register(cx, weak);
         let subscriptions = vec![
             cx.on_blur(&focus_handle, window, |this, _, cx| this.on_blur(cx)),
             cx.observe_window_activation(window, |this, window, cx| {
@@ -235,6 +246,9 @@ impl OutlineEditor {
             flush_epoch: 0,
             completion: None,
             picker: None,
+            drop_hint: None,
+            scroll_dir: 0.,
+            scroll_task: None,
             clock: slash::system_clock(),
             dismissed: None,
             _subscriptions: subscriptions,
@@ -1235,6 +1249,7 @@ impl OutlineEditor {
             on_checkbox,
             on_bullet,
             on_toggle,
+            drag: Self::row_drag(editor, r, id, cx),
         })
     }
 

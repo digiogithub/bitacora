@@ -279,13 +279,15 @@ pub(super) fn ensure_uuid(
     Ok(vec![set_text(ws, id, text)?])
 }
 
-/// Alt-drop: ensures `source` has an `id::` and adds a block `((uuid))` at `target`.
+/// Alt-drop: ensures every source has an `id::` and adds one `((uuid))` block each at `target`.
 pub(super) fn drop_block_ref(
     ws: &Workspace,
-    source: BlockId,
+    sources: &[BlockId],
     target: Target,
 ) -> Result<Planned, Refusal> {
-    let src = ws.block(source).ok_or(Refusal::UnknownBlock(source))?;
+    if sources.is_empty() {
+        return Err(Refusal::EmptySelection);
+    }
     let anchor = match target {
         Target::Before(t) | Target::After(t) | Target::FirstChild(t) | Target::LastChild(t) => t,
     };
@@ -293,14 +295,6 @@ pub(super) fn drop_block_ref(
         .position_of(anchor)
         .ok_or(Refusal::UnknownBlock(anchor))?;
     check_writable(ws, &apos.page)?;
-    let mut ops = Vec::new();
-    let uuid = if let Some(u) = src.uuid {
-        u
-    } else {
-        let u = fresh_uuid(ws);
-        ops.extend(ensure_uuid(ws, source, Some(u))?);
-        u
-    };
     let (parent, index) = match target {
         Target::Before(_) => (apos.parent, apos.index),
         Target::After(_) => (apos.parent, apos.index + 1),
@@ -310,12 +304,27 @@ pub(super) fn drop_block_ref(
             ws.block(anchor).map_or(0, |b| b.children.len()),
         ),
     };
-    ops.push(Op::InsertSubtree {
-        page: apos.page,
-        parent,
-        index,
-        subtree: Subtree::new(ws.alloc_id(), block_ref_text(uuid)),
-    });
+    let mut ops = Vec::new();
+    let mut refs = Vec::new();
+    for source in sources {
+        let src = ws.block(*source).ok_or(Refusal::UnknownBlock(*source))?;
+        let uuid = if let Some(u) = src.uuid {
+            u
+        } else {
+            let u = fresh_uuid(ws);
+            ops.extend(ensure_uuid(ws, *source, Some(u))?);
+            u
+        };
+        refs.push(block_ref_text(uuid));
+    }
+    for (k, text) in refs.into_iter().enumerate() {
+        ops.push(Op::InsertSubtree {
+            page: apos.page.clone(),
+            parent,
+            index: index + k,
+            subtree: Subtree::new(ws.alloc_id(), text),
+        });
+    }
     Ok(Planned {
         ops,
         cursor_after: None,

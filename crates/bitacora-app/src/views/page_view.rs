@@ -427,6 +427,7 @@ impl PageView {
                     self.list_state.scroll_to_reveal_item(pos);
                 }
             }
+            EditorEvent::Scroll(dy) => self.list_state.scroll_by(px(*dy)),
         }
     }
 

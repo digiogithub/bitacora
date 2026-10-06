@@ -12,6 +12,7 @@ pub mod autopair;
 pub mod buffer;
 pub mod commands;
 pub mod completion;
+pub mod dnd;
 pub mod element;
 pub mod html;
 pub mod layout;
