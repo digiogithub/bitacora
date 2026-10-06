@@ -169,7 +169,8 @@ mod tests {
         };
         assert_eq!(q.kind, QueryKind::Simple);
         assert_eq!(q.source, "(and [[a]] (task TODO))");
-        let Some(Widget::Query(q)) = detect_line("  {{query {:title \"x\" :query [:find ?b]}}} ")
+        let Some(Widget::Query(q)) =
+            detect_line("  {{query [:find ?b :where [?b :block/marker \"TODO\"]]}} ")
         else {
             panic!("advanced");
         };

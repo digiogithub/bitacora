@@ -298,11 +298,11 @@ impl Env {
     }
 }
 
-fn embed_view<'a>(
-    cx: &'a mut TestAppContext,
+fn embed_view(
+    cx: &mut TestAppContext,
     host: Host,
     target: EmbedTarget,
-) -> (Entity<EmbedBlock>, &'a mut VisualTestContext) {
+) -> (Entity<EmbedBlock>, &mut VisualTestContext) {
     setup(cx);
     let (view, cx) =
         cx.add_window_view(move |_, cx| EmbedBlock::new(host, target, nav(), None, "k", cx));

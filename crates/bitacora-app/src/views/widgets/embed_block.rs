@@ -38,6 +38,9 @@ pub const REFRESH_DEBOUNCE: Duration = Duration::from_millis(300);
 /// Rows read from the index for a read-only page embed.
 const STATIC_PAGE_ROWS: usize = 1000;
 
+/// Between the segments of the source breadcrumb.
+const CRUMB_SEP: &str = "\u{203a}";
+
 /// What resolving the target found.
 #[derive(Debug, Clone, PartialEq)]
 struct Resolved {
@@ -412,7 +415,7 @@ impl EmbedBlock {
                     div()
                         .text_xs()
                         .text_color(theme.muted_foreground)
-                        .child("\u{203a}"),
+                        .child(CRUMB_SEP),
                 );
             }
             let nav = self.nav.clone();
