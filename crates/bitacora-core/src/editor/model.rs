@@ -10,7 +10,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use bitacora_markdown::edit::identity::block_id;
-use bitacora_markdown::{Document, Node, RawBlock, WriteOptions, serialize};
+use bitacora_markdown::{Document, Node, RawBlock, Span, WriteOptions, serialize};
 use uuid::Uuid;
 
 use crate::graph::PageKey;
@@ -55,8 +55,43 @@ pub fn text_hash(text: &str) -> u64 {
     u64::from_le_bytes([b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]])
 }
 
-/// Where a block's own bytes came from. Only valid for the page and byte generation it was
-/// loaded from.
+/// The bytes of one version of a page file, shared by every [`Origin`] that points into it. Old
+/// versions stay alive while an origin of a block (or of a captured subtree in the undo history)
+/// still refers to them, so that undo can bring back the exact bytes after a flush.
+#[derive(Clone)]
+pub struct BaseBytes(Arc<[u8]>);
+
+impl BaseBytes {
+    fn new(bytes: &[u8]) -> Self {
+        Self(Arc::from(bytes))
+    }
+
+    /// The bytes.
+    #[must_use]
+    pub fn bytes(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+impl PartialEq for BaseBytes {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl Eq for BaseBytes {}
+
+impl std::fmt::Debug for BaseBytes {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "BaseBytes({} bytes)", self.0.len())
+    }
+}
+
+/// How many earlier versions of a block's bytes are remembered (see [`Origin::older`]).
+const MAX_OLDER: usize = 6;
+
+/// Where a block's own bytes came from. The span refers to [`Origin::base`]; the block is
+/// *clean* while it is still the current byte generation of its page.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Origin {
     /// Page whose bytes the span refers to.
@@ -69,6 +104,12 @@ pub struct Origin {
     pub depth: usize,
     /// [`text_hash`] of the block text when loaded.
     pub text_hash: u64,
+    /// The file version the span points into.
+    pub base: BaseBytes,
+    /// Earlier origins of this block (oldest first), kept when the page was rewritten after the
+    /// block changed. Undo restores a block's old text; if an older origin matches it, the old
+    /// bytes are written back verbatim instead of the canonical rendering.
+    pub older: Vec<Origin>,
 }
 
 /// One block of a page.
@@ -201,6 +242,56 @@ pub fn text_is_representable(text: &str) -> bool {
             .is_some_and(|c| c.trim() == text.trim())
 }
 
+/// True when every code fence and `#+BEGIN_` region of `text` is closed (an unclosed one is only
+/// harmless until some later block happens to close it).
+fn regions_balanced(text: &str) -> bool {
+    let mut fence = false;
+    let mut depth = 0i32;
+    for line in text.split('\n') {
+        let t = line.trim_start();
+        if t.starts_with("```") || t.starts_with("~~~") {
+            fence = !fence;
+        } else if !fence {
+            let up = t.to_ascii_uppercase();
+            if up.starts_with("#+BEGIN_") {
+                depth += 1;
+            } else if up.starts_with("#+END_") {
+                depth -= 1;
+            }
+        }
+    }
+    !fence && depth == 0
+}
+
+/// True when `text` is also one block when another block follows it: an unclosed code fence or
+/// `#+BEGIN_` block would swallow the next block's lines. Splitting and merging use this stricter
+/// check, because they place a block right next to another one.
+#[must_use]
+pub fn text_is_isolated(text: &str) -> bool {
+    if text.trim().is_empty() {
+        return true;
+    }
+    if !regions_balanced(text) {
+        return false;
+    }
+    let mut doc = Document::parse(Vec::new());
+    doc.blocks = vec![
+        Node::Edited {
+            depth: 1,
+            content: text.to_owned(),
+        },
+        Node::Edited {
+            depth: 1,
+            content: "next".to_owned(),
+        },
+    ];
+    let parsed = Document::parse(serialize(&doc, &WriteOptions::default()));
+    parsed.blocks.len() == 2
+        && parsed
+            .block_content(0)
+            .is_some_and(|c| c.trim() == text.trim())
+}
+
 /// Errors of page-level operations.
 #[derive(Debug, thiserror::Error)]
 pub enum ModelError {
@@ -249,9 +340,72 @@ pub struct Page {
     pub read_only: bool,
     /// Lazy-creation state (BIT-US-0028): why a never-written page may stay without a file.
     pub lazy: LazyCreation,
-    pre_origin: Option<(Node, u64, u64)>,
+    pre_origin: Option<PreOrigin>,
     base: Document,
     generation: u64,
+    /// The file ended with a line break when it was loaded (kept as its convention).
+    final_newline: bool,
+}
+
+/// Where the pre-block bytes came from (with earlier versions, like [`Origin::older`]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PreOrigin {
+    span: Span,
+    hash: u64,
+    generation: u64,
+    base: BaseBytes,
+    older: Vec<PreOrigin>,
+}
+
+fn strip_one_final_eol(out: &mut Vec<u8>) {
+    let n = if out.ends_with(b"\r\n") {
+        2
+    } else if out.ends_with(b"\n") {
+        1
+    } else {
+        return;
+    };
+    let keep = out.len() - n;
+    if keep > 0 && out[keep - 1] == b'\n' {
+        return; // a blank line: part of the last block's own bytes
+    }
+    out.truncate(keep);
+}
+
+/// Foreign bytes appended to the base document so that blocks from older file versions can be
+/// emitted verbatim as [`Node::Original`].
+struct Extension {
+    base_len: usize,
+    bytes: Vec<u8>,
+}
+
+impl Extension {
+    /// Copies `span` of `base` and returns the offset it now has in the extended source.
+    fn add(&mut self, base: &BaseBytes, span: Span) -> usize {
+        let at = self.base_len + self.bytes.len();
+        self.bytes.extend_from_slice(
+            &base.bytes()[span.start.min(base.bytes().len())..span.end.min(base.bytes().len())],
+        );
+        at
+    }
+
+    fn raw(&mut self, o: &Origin) -> RawBlock {
+        let start = self.add(&o.base, o.raw.span);
+        let mv = |s: Span| {
+            Span::new(
+                s.start - o.raw.span.start + start,
+                s.end - o.raw.span.start + start,
+            )
+        };
+        RawBlock {
+            span: mv(o.raw.span),
+            raw_level: o.raw.raw_level,
+            indent: mv(o.raw.indent),
+            head_line: mv(o.raw.head_line),
+            body: mv(o.raw.body),
+            kind: o.raw.kind,
+        }
+    }
 }
 
 /// What a page that was never written may hold without getting a file. Both parts only matter
@@ -285,6 +439,7 @@ impl Page {
             pre_origin: None,
             base: Document::parse(Vec::new()),
             generation: 0,
+            final_newline: true,
         }
     }
 
@@ -314,6 +469,7 @@ impl Page {
         let mut page = Self::empty(key, title, path.clone());
         page.disk_path = path;
         page.disk = Some(DiskSnapshot::new(bytes));
+        page.final_newline = bytes.is_empty() || bytes.ends_with(b"\n");
         let mut doc = Document::parse(bytes.to_vec());
         page.attach_from_document(&mut doc, Some((ids, reuse)));
         page
@@ -329,9 +485,30 @@ impl Page {
         self.generation += 1;
         let generation = self.generation;
         self.preamble = doc.pre_block_text().map(std::borrow::Cow::into_owned);
-        self.pre_origin = match (&doc.pre_block, &self.preamble) {
-            (Some(node), Some(t)) => Some((node.clone(), text_hash(t), generation)),
+        let base = BaseBytes::new(doc.source());
+        let new_pre = match (&doc.pre_block, &self.preamble) {
+            (Some(Node::Pre { span }), Some(t)) => Some(PreOrigin {
+                span: *span,
+                hash: text_hash(t),
+                generation,
+                base: base.clone(),
+                older: Vec::new(),
+            }),
             _ => None,
+        };
+        self.pre_origin = match (new_pre, self.pre_origin.take()) {
+            (Some(mut new), Some(mut old)) if ids.is_none() => {
+                let mut chain = std::mem::take(&mut old.older);
+                if old.hash != new.hash {
+                    chain.push(old);
+                }
+                if chain.len() > MAX_OLDER {
+                    chain.drain(..chain.len() - MAX_OLDER);
+                }
+                new.older = chain;
+                Some(new)
+            }
+            (new, _) => new,
         };
         let order = self.dfs();
         let mut stack: Vec<BlockId> = Vec::new();
@@ -344,12 +521,14 @@ impl Page {
                 .block_content(i)
                 .map(std::borrow::Cow::into_owned)
                 .unwrap_or_default();
-            let origin = Origin {
+            let mut origin = Origin {
                 page: self.key.clone(),
                 generation,
                 raw: block.clone(),
                 depth: *depth,
                 text_hash: text_hash(&text),
+                base: base.clone(),
+                older: Vec::new(),
             };
             if let Some((ids, reuse)) = ids {
                 stack.truncate(depth.saturating_sub(1));
@@ -381,6 +560,17 @@ impl Page {
                 }
                 stack.push(id);
             } else if let Some(b) = order.get(i).and_then(|id| self.blocks.get_mut(id)) {
+                // The page was rewritten: remember the bytes the block had before if it changed.
+                if let Some(mut old) = b.origin.take() {
+                    let mut chain = std::mem::take(&mut old.older);
+                    if old.text_hash != origin.text_hash || old.depth != origin.depth {
+                        chain.push(old);
+                    }
+                    if chain.len() > MAX_OLDER {
+                        chain.drain(..chain.len() - MAX_OLDER);
+                    }
+                    origin.older = chain;
+                }
                 b.origin = Some(origin);
             }
         }
@@ -453,33 +643,61 @@ impl Page {
             && o.depth == self.depth_of(id)
     }
 
-    fn pre_node(&self) -> Option<Node> {
+    fn pre_node(&self, ext: &mut Extension) -> Option<Node> {
         let text = self.preamble.as_ref()?;
-        match &self.pre_origin {
-            Some((node, h, g)) if *g == self.generation && *h == text_hash(text) => {
-                Some(node.clone())
+        let hash = text_hash(text);
+        if let Some(o) = &self.pre_origin {
+            if o.generation == self.generation && o.hash == hash {
+                return Some(Node::Pre { span: o.span });
             }
-            _ => Some(Node::Edited {
-                depth: 0,
-                content: text.clone(),
-            }),
+            // Earlier version of the pre-block (undo after the page was rewritten).
+            if let Some(old) = o.older.iter().rev().find(|x| x.hash == hash) {
+                let start = ext.add(&old.base, old.span);
+                let len = old.span.end - old.span.start;
+                return Some(Node::Pre {
+                    span: Span::new(start, start + len),
+                });
+            }
         }
+        Some(Node::Edited {
+            depth: 0,
+            content: text.clone(),
+        })
     }
 
-    fn nodes(&self, order: &[BlockId], canonical: bool) -> Vec<Node> {
+    /// An origin of the block, other than the current-generation one, whose bytes can be written
+    /// back verbatim: same page (same line endings), same text, same depth.
+    fn retained_origin<'a>(&self, b: &'a Block, depth: usize) -> Option<&'a Origin> {
+        let o = b.origin.as_ref()?;
+        let hash = text_hash(&b.text);
+        let fits = |x: &Origin| x.page == self.key && x.text_hash == hash && x.depth == depth;
+        if fits(o) {
+            return Some(o);
+        }
+        o.older.iter().rev().find(|x| fits(x))
+    }
+
+    fn nodes(&self, order: &[BlockId], canonical: bool, ext: &mut Extension) -> Vec<Node> {
         order
             .iter()
             .filter_map(|id| {
                 let b = self.blocks.get(id)?;
                 let depth = self.depth_of(*id);
-                if !canonical
-                    && self.is_clean(*id)
-                    && let Some(o) = &b.origin
-                {
-                    return Some(Node::Original {
-                        block: o.raw.clone(),
-                        depth,
-                    });
+                if !canonical {
+                    if self.is_clean(*id)
+                        && let Some(o) = &b.origin
+                    {
+                        return Some(Node::Original {
+                            block: o.raw.clone(),
+                            depth,
+                        });
+                    }
+                    if let Some(o) = self.retained_origin(b, depth) {
+                        return Some(Node::Original {
+                            block: ext.raw(o),
+                            depth,
+                        });
+                    }
                 }
                 Some(Node::Edited {
                     depth,
@@ -505,8 +723,13 @@ impl Page {
     pub fn serialize_checked(&self) -> Serialized {
         let order = self.dfs();
         let mut doc = self.base.clone();
-        doc.pre_block = self.pre_node();
-        doc.blocks = self.nodes(&order, false);
+        let mut ext = Extension {
+            base_len: doc.source().len(),
+            bytes: Vec::new(),
+        };
+        doc.pre_block = self.pre_node(&mut ext);
+        doc.blocks = self.nodes(&order, false, &mut ext);
+        doc.extend_source(&ext.bytes);
         let mut out = serialize(&doc, &WriteOptions::default());
         let mut fell_back = false;
         let mut ok = true;
@@ -516,9 +739,15 @@ impl Page {
                 depth: 0,
                 content: t.clone(),
             });
-            doc.blocks = self.nodes(&order, true);
+            doc.blocks = self.nodes(&order, true, &mut ext);
             out = serialize(&doc, &WriteOptions::default());
             ok = self.matches_model(&out, &order);
+        }
+        // A file loaded without a final line break keeps that convention even when verbatim
+        // blocks of an earlier version end the page (BIT-US-0039): a single trailing line break
+        // goes, trailing blank lines are the block's own bytes and stay.
+        if !self.final_newline && self.disk.is_some() {
+            strip_one_final_eol(&mut out);
         }
         // A page that never existed on disk ends with a line break, like Logseq's files.
         if self.disk.is_none() && !out.is_empty() && !out.ends_with(b"\n") {
