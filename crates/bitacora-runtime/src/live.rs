@@ -19,14 +19,22 @@ use bitacora_mcp::{IndexGraphReader, McpServer, TokenStore};
 use bitacora_sync::engine::{
     Command as SyncCommand, EngineConfig, EngineHandle, SyncEngine, SystemTiming, Timing,
 };
+use bitacora_sync::history::{
+    BlockDiff, HistoryEntry, PageDiff, diff_version, page_history, version_text,
+};
+use bitacora_sync::merge::Resolution;
+use bitacora_sync::recovery::RecoveryReport;
+use bitacora_sync::resolve::{ResolveError, ResolveOutcome};
 use bitacora_sync::state::{MemoryMergeStore, MergeStateStore, SyncState, SyncStatus};
 use bitacora_sync::store::JsonMergeStore;
 use bitacora_sync::{CliConfig, detect_git, select_backend};
 use bitacora_watch::{EchoFilter, GraphWatcher, IgnoreRules};
 
 use crate::glue::{SlotStatus, block_locator, journal_template_text};
+use crate::restore::{RestoreReport, Selection, restore};
 use crate::session::{Events, Job, Pump, RuntimeConfig, RuntimeError, RuntimeEvent, SyncOptions};
 use crate::store::EchoStore;
+use crate::sync_ctl::{BackendInfo, SyncStatusView, SyncWatch};
 use crate::writer::QueueGraphWriter;
 
 /// Time budget of [`Session::shutdown`] when the caller has no opinion.
@@ -51,7 +59,7 @@ impl ShutdownReport {
     }
 }
 
-type SyncSlot = Arc<Mutex<Option<EngineHandle>>>;
+type SyncSlot = Arc<Mutex<Option<Arc<EngineHandle>>>>;
 
 fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
     m.lock().unwrap_or_else(PoisonError::into_inner)
@@ -72,6 +80,8 @@ pub struct Session {
     mcp: Option<McpServer>,
     sync: SyncSlot,
     sync_options: Option<SyncOptions>,
+    sync_watch: Option<SyncWatch>,
+    recovery: Option<RecoveryReport>,
     events: Events,
     stopped: bool,
 }
@@ -95,8 +105,9 @@ fn build_engine(
     opts: &SyncOptions,
     config: &EffectiveConfig,
     index: &Index,
-) -> Result<SyncEngine, RuntimeError> {
+) -> Result<(SyncEngine, SyncWatch), RuntimeError> {
     let detection = opts.detection.clone().unwrap_or_else(|| detect_git(None));
+    let backend_info = BackendInfo::from_detection(&detection);
     let backend = select_backend(&detection, root, CliConfig::default())
         .map_err(|e| RuntimeError::Sync(e.to_string()))?;
     let mut ec = EngineConfig::new(root, &opts.device, &opts.branch);
@@ -117,7 +128,12 @@ fn build_engine(
     let readers = index.readers().clone();
     engine.set_block_locator(block_locator(readers.clone()));
     engine.set_journal_template(journal_template_text(config, &readers));
-    Ok(engine)
+    let watch = SyncWatch::new(engine.status(), backend_info);
+    let publisher = watch.clone();
+    engine.set_observer(Arc::new(move |status: &SyncStatus| {
+        publisher.publish(status);
+    }));
+    Ok((engine, watch))
 }
 
 impl Session {
@@ -205,6 +221,8 @@ impl Session {
             mcp: None,
             sync,
             sync_options: cfg.sync.clone(),
+            sync_watch: None,
+            recovery: None,
             events,
             stopped: false,
         };
@@ -220,9 +238,15 @@ impl Session {
             session.watcher = Some(watcher);
         }
         if let Some(opts) = cfg.sync.as_ref().filter(|o| o.background) {
-            let engine = build_engine(&root, &queue, opts, &config, &session.index)?;
+            let (mut engine, watch) = build_engine(&root, &queue, opts, &config, &session.index)?;
+            // Startup recovery (BIT-US-0047): stale lock, interrupted merge, markers, pending
+            // conflicts; runs before the engine thread starts so the first status is accurate.
+            let report = engine.recover();
+            watch.publish(&engine.status());
+            session.recovery = Some(report);
+            session.sync_watch = Some(watch);
             let handle = bitacora_sync::engine::spawn(engine);
-            *lock(&session.sync) = Some(handle);
+            *lock(&session.sync) = Some(Arc::new(handle));
         }
         if let Some(m) = cfg.mcp {
             let tokens = Arc::new(TokenStore::load_or_init(&m.token_path)?);
@@ -300,7 +324,174 @@ impl Session {
     /// Status of the background sync engine.
     #[must_use]
     pub fn sync_status(&self) -> Option<SyncStatus> {
-        lock(&self.sync).as_ref().map(EngineHandle::status)
+        lock(&self.sync).as_ref().map(|h| h.status())
+    }
+
+    /// The sync status stream: latest [`SyncStatusView`] (message, retry flag, backend, ahead and
+    /// behind, conflict pages), updated on every engine state change. `None` without a
+    /// background engine.
+    #[must_use]
+    pub fn sync_watch(&self) -> Option<SyncWatch> {
+        self.sync_watch.clone()
+    }
+
+    /// Latest status view of the background engine.
+    #[must_use]
+    pub fn sync_view(&self) -> Option<SyncStatusView> {
+        self.sync_watch.as_ref().map(|w| w.current().1)
+    }
+
+    /// What startup recovery found when the session opened (`None` without a background
+    /// engine).
+    #[must_use]
+    pub fn recovery_report(&self) -> Option<&RecoveryReport> {
+        self.recovery.as_ref()
+    }
+
+    fn engine(&self) -> Option<Arc<EngineHandle>> {
+        lock(&self.sync).clone()
+    }
+
+    /// Resolves one conflict of the pending merge (blocks until applied through the command
+    /// queue; the last resolution commits and pushes the merge).
+    ///
+    /// # Errors
+    /// [`ResolveError`], including `Failed` when no engine runs.
+    pub fn resolve_conflict(
+        &self,
+        id: &str,
+        resolution: Resolution,
+    ) -> Result<ResolveOutcome, ResolveError> {
+        match self.engine() {
+            Some(h) => h.resolve_conflict(id, resolution),
+            None => Err(ResolveError::Failed("sync is not running".into())),
+        }
+    }
+
+    /// Resolves every open conflict of the page at `path` (graph-relative) with one choice.
+    ///
+    /// # Errors
+    /// As [`Session::resolve_conflict`].
+    pub fn resolve_conflict_page(
+        &self,
+        path: &str,
+        resolution: Resolution,
+    ) -> Result<ResolveOutcome, ResolveError> {
+        match self.engine() {
+            Some(h) => h.resolve_page(path, resolution),
+            None => Err(ResolveError::Failed("sync is not running".into())),
+        }
+    }
+
+    /// Abandons a merge or rebase another tool left in progress (the "abort" choice).
+    ///
+    /// # Errors
+    /// A message when no engine runs or the operation cannot be aborted.
+    pub fn abort_external_operation(&self) -> Result<(), String> {
+        match self.engine() {
+            Some(h) => h.abort_external_operation(),
+            None => Err("sync is not running".into()),
+        }
+    }
+
+    fn read_backend(&self) -> Result<bitacora_sync::GixBackend, RuntimeError> {
+        bitacora_sync::GixBackend::open(&self.root)
+            .map_err(|e| RuntimeError::History(e.to_string()))
+    }
+
+    /// The commits that touched the page at `rel` (graph-relative), newest first, following
+    /// renames; at most `limit`.
+    ///
+    /// # Errors
+    /// [`RuntimeError::History`] when the graph is not a repository or reading it fails.
+    pub fn page_history(&self, rel: &str, limit: usize) -> Result<Vec<HistoryEntry>, RuntimeError> {
+        use bitacora_sync::GitBackend;
+        let backend = self.read_backend()?;
+        let Some(tip) = backend
+            .resolve_ref("HEAD")
+            .map_err(|e| RuntimeError::History(e.to_string()))?
+        else {
+            return Ok(Vec::new());
+        };
+        page_history(&backend, &tip, rel, limit).map_err(|e| RuntimeError::History(e.to_string()))
+    }
+
+    /// The text of the page at a history entry.
+    ///
+    /// # Errors
+    /// [`RuntimeError::History`].
+    pub fn history_version(&self, entry: &HistoryEntry) -> Result<String, RuntimeError> {
+        let backend = self.read_backend()?;
+        version_text(&backend, entry)
+            .map_err(|e| RuntimeError::History(e.to_string()))?
+            .ok_or_else(|| RuntimeError::History("that version is not readable text".into()))
+    }
+
+    /// Block-level diff between a historical version (`old`) and the page as it is on disk now
+    /// (`new`). Flushes pending edits first so the comparison is against what the user sees.
+    ///
+    /// # Errors
+    /// [`RuntimeError`] when the history or the page cannot be read.
+    pub fn history_diff(&self, rel: &str, entry: &HistoryEntry) -> Result<PageDiff, RuntimeError> {
+        let version = self.history_version(entry)?;
+        self.queue.flush(Source::Ui)?;
+        let path = GraphPath::new(rel).map_err(|_| RuntimeError::BadPath(rel.to_owned()))?;
+        let current = std::fs::read_to_string(path.to_fs_path(&self.root)).map_err(|source| {
+            RuntimeError::Read {
+                path: rel.to_owned(),
+                source,
+            }
+        })?;
+        Ok(diff_version(&version, &current))
+    }
+
+    /// Restores the selected block differences of `selected` (taken from
+    /// [`Session::history_diff`]) as ordinary core transactions on the page at `rel`. Undo with
+    /// [`Session::undo_restore`].
+    ///
+    /// # Errors
+    /// [`RuntimeError::Restore`] and queue errors.
+    pub fn restore_blocks(
+        &self,
+        rel: &str,
+        entry: &HistoryEntry,
+        selected: &[BlockDiff],
+    ) -> Result<RestoreReport, RuntimeError> {
+        self.restore_with(rel, entry, &Selection::Blocks(selected))
+    }
+
+    /// Restores the whole page at `rel` to the version of `entry`, block by block, so untouched
+    /// blocks are never rewritten. Undo with [`Session::undo_restore`].
+    ///
+    /// # Errors
+    /// [`RuntimeError::Restore`] and queue errors.
+    pub fn restore_page(
+        &self,
+        rel: &str,
+        entry: &HistoryEntry,
+    ) -> Result<RestoreReport, RuntimeError> {
+        self.restore_with(rel, entry, &Selection::Whole)
+    }
+
+    /// Reverts a restore.
+    ///
+    /// # Errors
+    /// [`RuntimeError::Restore`].
+    pub fn undo_restore(&self, report: &RestoreReport) -> Result<(), RuntimeError> {
+        report.undo(&self.queue)
+    }
+
+    fn restore_with(
+        &self,
+        rel: &str,
+        entry: &HistoryEntry,
+        selection: &Selection<'_>,
+    ) -> Result<RestoreReport, RuntimeError> {
+        let version = self.history_version(entry)?;
+        // Make the file match the in-memory page, then (re)load it so core and disk agree.
+        self.queue.flush(Source::Ui)?;
+        let key = self.open_page(rel)?;
+        restore(&self.queue, &self.root, &key, rel, &version, selection)
     }
 
     /// Asks the background engine for a sync cycle ("Sync now"); returns immediately.
@@ -325,7 +516,8 @@ impl Session {
             .sync_options
             .as_ref()
             .ok_or_else(|| RuntimeError::Sync("sync is not configured".into()))?;
-        let mut engine = build_engine(&self.root, &self.queue, opts, &self.config, &self.index)?;
+        let (mut engine, _watch) =
+            build_engine(&self.root, &self.queue, opts, &self.config, &self.index)?;
         let state = engine.sync_now();
         Ok((state, engine.status()))
     }

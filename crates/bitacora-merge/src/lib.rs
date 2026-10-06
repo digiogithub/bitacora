@@ -6,6 +6,7 @@
 
 pub mod block;
 pub mod conflict;
+pub mod diff;
 pub mod fields;
 pub mod lcs;
 pub mod marker;
@@ -19,6 +20,7 @@ pub mod structure;
 pub use bitacora_markdown::Side;
 pub use block::{MergedBlock, merge_block};
 pub use conflict::{Conflict, ConflictKind, IdRewrite, Note, NoteKind, PageConflict};
+pub use diff::{BlockDiff, DiffKind, PageDiff, diff_pages};
 pub use fields::{Diff3, FieldResult, diff3, diff3_touching, merge_content, merge_user_props};
 pub use marker::{TitleParts, marker_rank, merge_planning, merge_title, split_title};
 pub use matcher::{Matching, Triple, match_blocks, match_pages};

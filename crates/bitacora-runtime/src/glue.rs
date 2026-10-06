@@ -78,7 +78,7 @@ pub(crate) fn journal_template_text(
 
 /// [`SyncStatusProvider`] reading the background engine's published status.
 #[derive(Clone)]
-pub(crate) struct SlotStatus(pub(crate) Arc<Mutex<Option<EngineHandle>>>);
+pub(crate) struct SlotStatus(pub(crate) Arc<Mutex<Option<Arc<EngineHandle>>>>);
 
 impl SyncStatusProvider for SlotStatus {
     fn status(&self) -> bitacora_mcp::SyncStatus {
@@ -98,14 +98,14 @@ impl SyncStatusProvider for SlotStatus {
         bitacora_mcp::SyncStatus {
             state,
             ahead: u32::try_from(s.ahead).unwrap_or(u32::MAX),
-            behind: 0,
+            behind: u32::try_from(s.behind).unwrap_or(u32::MAX),
             last_sync: s.last_sync.and_then(|t| {
                 t.duration_since(UNIX_EPOCH)
                     .ok()
                     .and_then(|d| i64::try_from(d.as_millis()).ok())
             }),
             conflict_count: u32::try_from(s.conflicts).unwrap_or(u32::MAX),
-            conflict_pages: Vec::new(),
+            conflict_pages: s.conflict_pages,
             last_error: s.last_error,
         }
     }
