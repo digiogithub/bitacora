@@ -8,6 +8,7 @@
 
 mod carry;
 mod config_hash;
+mod diagnostics;
 pub mod dump;
 mod error;
 mod index;
@@ -16,6 +17,7 @@ pub mod normalize;
 pub mod parse;
 pub mod parsed;
 mod pool;
+pub mod read;
 mod reconcile;
 mod replace;
 pub mod schema;
@@ -23,6 +25,7 @@ mod writer;
 
 pub use carry::{OldBlock, assign_uuids};
 pub use config_hash::config_hash;
+pub use diagnostics::{CheckResult, DoctorReport, IndexStats, inspect_index};
 pub use error::Error;
 pub use index::{
     Index, OpenOptions, OpenOutcome, RebuildKind, RecreateReason, StoredVersions, WriteConnection,
@@ -31,6 +34,11 @@ pub use location::{IndexLocation, graph_id};
 pub use parse::{PARSER_VERSION, ParseConfig, parse};
 pub use parsed::*;
 pub use pool::{PooledReader, ReaderPool};
+pub use read::{
+    AgendaItem, AgendaKind, BlockRow, Crumb, DiagnosticCount, DiagnosticFilter, DiagnosticRow,
+    GraphEdge, GraphEdgeKind, GraphNode, GraphOptions, GraphView, IndexReader, NamespaceNode,
+    PageFilter, PageRow, PageSort, RefFilters, RefGroup, RefHit, TaskFilter, TaskItem,
+};
 pub use reconcile::{FsChange, Indexer, IndexerOptions, ReconcileStats};
 pub use replace::{
     BUILTIN_PAGES, DeleteOutcome, FileInput, FileKind, ReplaceOutcome, WriteOptions, delete_file,
