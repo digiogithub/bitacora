@@ -203,9 +203,20 @@ fn shift(s: Span, by: usize) -> Span {
     Span::new(s.start + by, s.end + by)
 }
 
+const BOM: &[u8] = b"\xef\xbb\xbf";
+
+/// Offset of the text that may hold a property: after the bullet, or after the indentation. A BOM
+/// at the very start of the input is skipped so it never leaks into a key (BIT-SP-0001.R19).
 fn text_start(line: &Line<'_>) -> usize {
     match line.kind {
         LineKind::BulletStart { after_dash, .. } => after_dash,
+        _ if line.start == 0 && line.content.starts_with(BOM) => {
+            let ws = line.content[BOM.len()..]
+                .iter()
+                .take_while(|&&b| is_ws(b))
+                .count();
+            BOM.len() + ws
+        }
         _ => line.indent.len(),
     }
 }
@@ -475,6 +486,21 @@ mod tests {
                 ("tags", "project")
             ]]
         );
+    }
+
+    #[test]
+    fn bom_is_kept_in_spans_but_excluded_from_keys() {
+        let input = "\u{feff}title:: X\r\n\r\n- a\r\n  k:: v\r\n";
+        let s = scan(input);
+        let l = &s.groups[0].lines[0];
+        assert_eq!(l.key_raw, "title");
+        assert_eq!(l.value_raw, "X");
+        assert_eq!(l.key_span.start, 3);
+        // The group span still starts at the first byte, BOM included.
+        assert_eq!(s.groups[0].span.start, 0);
+        let o = split(input.as_bytes());
+        let blk = scan_properties(input.as_bytes(), o.blocks[0].span, ParserOptions::default());
+        assert_eq!(keys(&blk), [vec![("k", "v")]]);
     }
 
     #[test]
