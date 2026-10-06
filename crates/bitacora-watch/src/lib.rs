@@ -28,6 +28,8 @@
 //!   may collapse a new directory and its files into a `MustScanSubDirs` hint for the directory;
 //!   that hint is reported as [`WatchEvent::Rescan`] **and** the directory is walked, so the
 //!   files inside it are still emitted.
+//!   As a safety net, [`WatchConfig::safety_scan_interval`] (default 30 s on macOS) runs a slow
+//!   mtime rescan next to the OS watcher for events FSEvents never delivered.
 //! * **Windows (ReadDirectoryChangesW)**: buffer overflow is reported as a rescan request.
 //!   Editors that save by delete+create are handled because every event is resolved by
 //!   inspecting the file system after the debounce window.
