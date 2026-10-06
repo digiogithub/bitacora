@@ -110,6 +110,7 @@ See [[crate-stack]] §5. Summary:
 | `bitacora-sync` | `GitBackend` (CLI + gix), sync loop, uses `bitacora-merge`, persisted conflict state |
 | `bitacora-mcp` | rmcp tools/resources/prompts, axum Streamable HTTP, auth |
 | `bitacora-app` | GPUI binary: views, BlockEditor, keymaps, themes, i18n, tokio bridge |
+| `bitacora-runtime` | Headless graph session (ADR-024): composes core, index, watch, sync and mcp; used by app and cli |
 | `bitacora-cli` | Headless binary: `serve` (MCP without UI), `reindex`, `sync`, `doctor` |
 | `bitacora-testkit` | Dev-only test helpers (fixture graphs, temp repos, golden files) |
 
@@ -139,6 +140,7 @@ See [[crate-stack]] §5. Summary:
 | ADR-021 | The **`logseq/docs`** graph (MIT-licensed, github.com/logseq/docs) may be used as a test fixture: copy only `pages/`, `journals/`, `logseq/config.edn` from a pinned file-graph-era commit, plus its `LICENSE.md` and a provenance note; no large media (`assets/`, `gifs/`, `screenshots/`) | Real-world corpus with compatible license. |
 | ADR-022 | Minimum system git accepted by `CliBackend` is **2.38**; older or missing git falls back to the pure-`gix` backend (ADR-020) | Decided by the project owner on 2026-10-06. 2.38 adds `merge-tree --write-tree`; Ubuntu 24.04 ships 2.43. |
 | ADR-023 | **Push without system git uses `git2` (libgit2)** behind the `GitBackend` trait. gix 0.88 has no push client, so when no git ≥ 2.38 is found the fallback backend is gix for reads/fetch/clone plus a `git2`-based push (HTTPS via credential callbacks/keyring, SSH via libssh2/agent). libgit2 is GPL-2.0 with linking exception — allowed in `deny.toml` as an explicit exception. Amends ADR-020 | Decided by the project owner on 2026-10-06 after the sync spike found gix cannot push. |
+| ADR-024 | **`bitacora-runtime`** is a headless crate that owns a running graph session and composes `core` + `index` + `watch` + `sync` + `mcp`: index open/reconcile, the core command queue over an echo-registering `FileStore`, the watcher glue (external change -> index + core reload, `Rescan` -> reconcile), the sync `GraphWriter` over `QueueLock`, index-backed MCP reader/status and ordered shutdown with a time budget. `bitacora-app` and `bitacora-cli` depend on it; it depends on no UI crate (never `gpui-kit`). Edge `runtime -> {markdown, config, merge, core, watch, index, sync, mcp}` | Decided 2026-10-06. The wiring lived nowhere; app and cli would otherwise duplicate it and drift. Keeps `core` synchronous and `app` the only UI crate (ADR-001, ADR-012). |
 | ADR-019 | Pando local config (`.pando.toml`) and data (`.pando/`) are not versioned (gitignored) | Machine-local paths and state. |
 
 ## 6. Milestones
@@ -157,4 +159,4 @@ The backlog lives in gintrack project **BIT** (`docs/.pmngr`).
 
 - None at the moment.
 
-Resolved on 2026-10-06: merge location (ADR-016), external-edit merge base (ADR-017), auto-update channel (ADR-018), pando config not versioned (ADR-019), git without bundling + gix fallback (ADR-020), `logseq/docs` fixture (ADR-021), minimum system git 2.38 (ADR-022).
+Resolved on 2026-10-06: merge location (ADR-016), external-edit merge base (ADR-017), auto-update channel (ADR-018), pando config not versioned (ADR-019), git without bundling + gix fallback (ADR-020), `logseq/docs` fixture (ADR-021), minimum system git 2.38 (ADR-022), runtime crate (ADR-024).

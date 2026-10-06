@@ -5,7 +5,6 @@ mod cmd;
 use std::process::ExitCode;
 
 use bitacora_core as _;
-use bitacora_sync as _;
 use clap::{Parser, Subcommand};
 
 /// Headless Bitacora commands.
@@ -23,17 +22,18 @@ enum Command {
     /// Rebuild the SQLite index from the graph.
     Reindex(cmd::reindex::ReindexArgs),
     /// Run one git sync cycle.
-    Sync,
+    Sync(cmd::sync::SyncArgs),
     /// Diagnose the environment and the graph.
     Doctor(cmd::doctor::DoctorArgs),
 }
 
 impl Command {
+    #[cfg(test)]
     fn name(&self) -> &'static str {
         match self {
             Command::Serve(_) => "serve",
             Command::Reindex(_) => "reindex",
-            Command::Sync => "sync",
+            Command::Sync(_) => "sync",
             Command::Doctor(_) => "doctor",
         }
     }
@@ -46,6 +46,20 @@ fn main() -> ExitCode {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("bitacora-cli serve: {e:#}");
+                ExitCode::FAILURE
+            }
+        },
+        Command::Sync(args) => match cmd::sync::run(&args) {
+            Ok(o) => {
+                cmd::sync::print(&o);
+                if o.ok() {
+                    ExitCode::SUCCESS
+                } else {
+                    ExitCode::FAILURE
+                }
+            }
+            Err(e) => {
+                eprintln!("bitacora-cli sync: {e:#}");
                 ExitCode::FAILURE
             }
         },
@@ -72,10 +86,6 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         },
-        other => {
-            eprintln!("bitacora-cli {}: not implemented", other.name());
-            ExitCode::FAILURE
-        }
     }
 }
 
@@ -85,8 +95,10 @@ mod tests {
 
     #[test]
     fn parses_subcommands() {
-        let cli = Cli::try_parse_from(["bitacora-cli", "sync"]).expect("parse");
+        let cli =
+            Cli::try_parse_from(["bitacora-cli", "sync", "--graph", "/tmp/g"]).expect("parse");
         assert_eq!(cli.command.name(), "sync");
+        assert!(Cli::try_parse_from(["bitacora-cli", "sync"]).is_err());
         for name in ["reindex", "doctor"] {
             let cli = Cli::try_parse_from(["bitacora-cli", name, "--graph", "/tmp/g", "--json"])
                 .expect("parse");

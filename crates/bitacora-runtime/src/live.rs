@@ -15,15 +15,16 @@ use bitacora_core::queue::{CommandQueue, QueueConfig, QueueEvent, QueueJoin, Req
 use bitacora_index::{
     Index, IndexLocation, Indexer, IndexerOptions, OpenOptions, PooledReader, ReconcileStats,
 };
-use bitacora_mcp::{McpServer, TokenStore};
+use bitacora_mcp::{IndexGraphReader, McpServer, TokenStore};
 use bitacora_sync::engine::{
     Command as SyncCommand, EngineConfig, EngineHandle, SyncEngine, SystemTiming, Timing,
 };
-use bitacora_sync::state::{MemoryMergeStore, SyncState, SyncStatus};
+use bitacora_sync::state::{MemoryMergeStore, MergeStateStore, SyncState, SyncStatus};
+use bitacora_sync::store::JsonMergeStore;
 use bitacora_sync::{CliConfig, detect_git, select_backend};
 use bitacora_watch::{EchoFilter, GraphWatcher, IgnoreRules};
 
-use crate::reader::IndexGraphReader;
+use crate::glue::{SlotStatus, block_locator, journal_template_text};
 use crate::session::{Events, Job, Pump, RuntimeConfig, RuntimeError, RuntimeEvent, SyncOptions};
 use crate::store::EchoStore;
 use crate::writer::QueueGraphWriter;
@@ -92,6 +93,8 @@ fn build_engine(
     root: &Path,
     queue: &CommandQueue,
     opts: &SyncOptions,
+    config: &EffectiveConfig,
+    index: &Index,
 ) -> Result<SyncEngine, RuntimeError> {
     let detection = opts.detection.clone().unwrap_or_else(|| detect_git(None));
     let backend = select_backend(&detection, root, CliConfig::default())
@@ -105,13 +108,16 @@ fn build_engine(
         .timing
         .clone()
         .unwrap_or_else(|| Arc::new(SystemTiming));
-    Ok(SyncEngine::new(
-        backend,
-        writer,
-        Box::new(MemoryMergeStore::new()),
-        ec,
-        timing,
-    ))
+    // Conflict state survives restarts when the graph has a git directory.
+    let store: Box<dyn MergeStateStore> = match JsonMergeStore::for_graph(root) {
+        Some(s) => Box::new(s),
+        None => Box::new(MemoryMergeStore::new()),
+    };
+    let mut engine = SyncEngine::new(backend, writer, store, ec, timing);
+    let readers = index.readers().clone();
+    engine.set_block_locator(block_locator(readers.clone()));
+    engine.set_journal_template(journal_template_text(config, &readers));
+    Ok(engine)
 }
 
 impl Session {
@@ -214,18 +220,23 @@ impl Session {
             session.watcher = Some(watcher);
         }
         if let Some(opts) = cfg.sync.as_ref().filter(|o| o.background) {
-            let engine = build_engine(&root, &queue, opts)?;
+            let engine = build_engine(&root, &queue, opts, &config, &session.index)?;
             let handle = bitacora_sync::engine::spawn(engine);
             *lock(&session.sync) = Some(handle);
         }
         if let Some(m) = cfg.mcp {
             let tokens = Arc::new(TokenStore::load_or_init(&m.token_path)?);
-            let reader = Arc::new(IndexGraphReader::new(
-                graph_name(&root),
-                root.display().to_string(),
-                session.index.readers().clone(),
-            ));
-            session.mcp = Some(McpServer::start(m.config, reader, tokens)?);
+            let reader = IndexGraphReader::new(&session.index, root.clone(), graph_name(&root));
+            if let Some(ix) = session.indexer.as_ref() {
+                reader.forward_events(ix.subscribe());
+            }
+            let status = Arc::new(SlotStatus(Arc::clone(&session.sync)));
+            session.mcp = Some(McpServer::start_with_sync(
+                m.config,
+                Arc::new(reader),
+                status,
+                tokens,
+            )?);
         }
         Ok(session)
     }
@@ -308,7 +319,7 @@ impl Session {
             .sync_options
             .as_ref()
             .ok_or_else(|| RuntimeError::Sync("sync is not configured".into()))?;
-        let mut engine = build_engine(&self.root, &self.queue, opts)?;
+        let mut engine = build_engine(&self.root, &self.queue, opts, &self.config, &self.index)?;
         let state = engine.sync_now();
         Ok((state, engine.status()))
     }

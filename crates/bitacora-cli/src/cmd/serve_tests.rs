@@ -73,6 +73,9 @@ fn serve_answers_real_queries_over_http() {
         token_file: Some(token_file),
         data_dir: Some(tmp.path().join("data")),
         allowed_origins: Vec::new(),
+        sync: false,
+        branch: "main".into(),
+        device: None,
     })
     .expect("start serve");
     let addr = running

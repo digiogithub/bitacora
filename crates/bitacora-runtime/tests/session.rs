@@ -74,7 +74,10 @@ fn queue_edit_is_written_atomically_indexed_and_not_echoed() {
         )),
         "own write echoed: {seen:?}"
     );
-    assert!(seen.iter().any(|e| matches!(e, RuntimeEvent::Queue(QueueEvent::Flushed(_)))));
+    assert!(
+        seen.iter()
+            .any(|e| matches!(e, RuntimeEvent::Queue(QueueEvent::Flushed(_))))
+    );
     assert!(s.shutdown(Duration::from_secs(10)).is_clean());
 }
 
@@ -87,13 +90,18 @@ fn external_write_updates_index_and_reloads_core() {
     let key = s.open_page("pages/p.md").unwrap();
     let old_ids = blocks(&s, &key);
 
-    std::fs::write(graph.join("pages/p.md"), "- Alpha\n- Beta changed outside\n- Gamma\n").unwrap();
+    std::fs::write(
+        graph.join("pages/p.md"),
+        "- Alpha\n- Beta changed outside\n- Gamma\n",
+    )
+    .unwrap();
 
     wait_for("external change", Duration::from_secs(10), || {
         events.try_iter().find_map(|e| match e {
-            RuntimeEvent::ExternalChange { path, reloaded: true } if path == "pages/p.md" => {
-                Some(())
-            }
+            RuntimeEvent::ExternalChange {
+                path,
+                reloaded: true,
+            } if path == "pages/p.md" => Some(()),
             _ => None,
         })
     });
@@ -225,14 +233,22 @@ fn mcp_endpoint_serves_with_the_index_reader() {
         .to_owned();
     let mut conn = std::net::TcpStream::connect(&addr).unwrap();
     conn.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
-    write!(conn, "GET /health HTTP/1.1\r\nHost: {addr}\r\nConnection: close\r\n\r\n").unwrap();
+    write!(
+        conn,
+        "GET /health HTTP/1.1\r\nHost: {addr}\r\nConnection: close\r\n\r\n"
+    )
+    .unwrap();
     let mut out = String::new();
     conn.read_to_string(&mut out).unwrap();
     assert!(out.starts_with("HTTP/1.1 200"), "{out}");
     // No token -> rejected.
     let mut conn = std::net::TcpStream::connect(&addr).unwrap();
     conn.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
-    write!(conn, "POST /mcp HTTP/1.1\r\nHost: {addr}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").unwrap();
+    write!(
+        conn,
+        "POST /mcp HTTP/1.1\r\nHost: {addr}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+    )
+    .unwrap();
     let mut out = String::new();
     conn.read_to_string(&mut out).unwrap();
     assert!(out.starts_with("HTTP/1.1 401"), "{out}");
@@ -261,7 +277,10 @@ fn shutdown_flushes_pending_edits_and_indexes_them() {
             },
         )
         .unwrap();
-    assert_eq!(std::fs::read_to_string(graph.join("pages/p.md")).unwrap(), PAGE);
+    assert_eq!(
+        std::fs::read_to_string(graph.join("pages/p.md")).unwrap(),
+        PAGE
+    );
     let report = s.shutdown(Duration::from_secs(10));
     assert!(report.is_clean(), "{report:?}");
     assert_eq!(report.flush.unwrap().written.len(), 1);

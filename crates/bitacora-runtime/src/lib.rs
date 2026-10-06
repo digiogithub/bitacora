@@ -13,17 +13,17 @@
 //! * the watcher's `FileEvent`s update the index and reload (or drop) the matching loaded page
 //!   in core; `Rescan` runs a full reconcile;
 //! * [`QueueGraphWriter`] is the sync engine's `GraphWriter` over core's `QueueLock`;
-//! * [`IndexGraphReader`] is the MCP server's read side;
+//! * the MCP server reads through `bitacora_mcp::IndexGraphReader` and reports the sync engine's
+//!   status; the engine gets index-backed `locate_block` and journal-template hooks;
 //! * [`Session::shutdown`] stops everything in order within a time budget.
 
+mod glue;
 mod live;
-mod reader;
 mod session;
 mod store;
 mod writer;
 
 pub use live::{DEFAULT_SHUTDOWN_BUDGET, Session, ShutdownReport};
-pub use reader::IndexGraphReader;
 pub use session::{EngineTune, McpOptions, RuntimeConfig, RuntimeError, RuntimeEvent, SyncOptions};
 pub use store::EchoStore;
 pub use writer::{DEFAULT_ACQUIRE_TIMEOUT, QueueGraphWriter};

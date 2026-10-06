@@ -5,6 +5,7 @@ pub mod reindex;
 pub mod serve;
 #[cfg(test)]
 mod serve_tests;
+pub mod sync;
 
 use std::path::{Path, PathBuf};
 

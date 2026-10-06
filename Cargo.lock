@@ -818,6 +818,7 @@ dependencies = [
  "bitacora-core",
  "bitacora-index",
  "bitacora-mcp",
+ "bitacora-runtime",
  "bitacora-sync",
  "bitacora-testkit",
  "clap",

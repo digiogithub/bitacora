@@ -21,6 +21,7 @@ bitacora-core.workspace = true
 bitacora-index.workspace = true
 bitacora-sync.workspace = true
 bitacora-mcp.workspace = true
+bitacora-runtime.workspace = true
 clap.workspace = true
 anyhow.workspace = true
 serde.workspace = true
