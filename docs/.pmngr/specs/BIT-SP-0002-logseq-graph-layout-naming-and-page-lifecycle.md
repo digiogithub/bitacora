@@ -6,13 +6,14 @@ status: backlog
 author: mcp
 labels: [core, compat]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T21:54:06Z
+updated: 2026-10-06T21:59:46Z
 requirements:
   R1:
     status: backlog
     trace:
       code: [crates/bitacora-core/src/scan.rs#scan_graph]
       tests: [crates/bitacora-core/src/scan.rs#no_trace]
+    verified: {rev: "sha256:ed8ab0438e20999b", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
   R2:
     status: backlog
     trace:
@@ -20,6 +21,7 @@ requirements:
       tests:
         - crates/bitacora-core/src/scan.rs#golden_scan
         - crates/bitacora-core/src/scan.rs#hidden_prefixes
+    verified: {rev: "sha256:8e7b384b6602b17c", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
   R3:
     status: backlog
     trace:
@@ -28,7 +30,7 @@ requirements:
         - crates/bitacora-config/src/edn.rs
         - crates/bitacora-config/src/accessors.rs
       tests: [crates/bitacora-config/tests/load.rs]
-    verified: {rev: "sha256:4d3240131f1012c0", commit: 63ab8d8b535728d41079976763fa661f48c4bc4c, at: 2026-10-06T19:59:23Z, by: claude}
+    verified: {rev: "sha256:4d3240131f1012c0", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
   R4:
     status: backlog
     trace:
@@ -36,13 +38,13 @@ requirements:
         - crates/bitacora-config/src/cst.rs
         - crates/bitacora-config/src/edit.rs
       tests: [crates/bitacora-config/tests/edit_golden.rs]
-    verified: {rev: "sha256:3efecd8adf33f7c8", commit: 63ab8d8b535728d41079976763fa661f48c4bc4c, at: 2026-10-06T19:59:23Z, by: claude}
+    verified: {rev: "sha256:3efecd8adf33f7c8", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
   R5:
     status: backlog
     trace:
       code: [crates/bitacora-core/src/naming.rs#derive_title]
       tests: [crates/bitacora-core/src/naming.rs#derive_title_pipeline]
-    verified: {rev: "sha256:e1b344492198bca4", commit: 63ab8d8b535728d41079976763fa661f48c4bc4c, at: 2026-10-06T19:59:23Z, by: claude}
+    verified: {rev: "sha256:e1b344492198bca4", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
   R6:
     status: backlog
     trace:
@@ -50,6 +52,7 @@ requirements:
       tests:
         - crates/bitacora-core/src/naming.rs#tlb_encode_vectors
         - crates/bitacora-core/src/naming.rs#tlb_roundtrip
+    verified: {rev: "sha256:41a6b2269ec7e622", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
   R7:
     status: backlog
     trace:
@@ -60,7 +63,7 @@ requirements:
         - crates/bitacora-core/src/naming.rs#legacy_vectors
         - crates/bitacora-core/src/naming.rs#title_property_predicate
         - crates/bitacora-core/tests/page_lifecycle.rs#legacy_graph_writes_title_property_for_lossy_names
-    verified: {rev: "sha256:ba20a74794c25923", commit: 63ab8d8b535728d41079976763fa661f48c4bc4c, at: 2026-10-06T19:59:23Z, by: claude}
+    verified: {rev: "sha256:ba20a74794c25923", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
   R8:
     status: backlog
     trace:
@@ -68,6 +71,7 @@ requirements:
       tests:
         - crates/bitacora-core/src/graph.rs
         - crates/bitacora-core/tests/graph_fixtures.rs
+    verified: {rev: "sha256:2447c9fb89bb69a8", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
   R9:
     status: backlog
     trace:
@@ -75,6 +79,7 @@ requirements:
       tests:
         - crates/bitacora-core/src/graph_path.rs#normalises
         - crates/bitacora-core/src/scan.rs#nfd_names_are_normalised
+    verified: {rev: "sha256:0c7931f4c7fd5949", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
   R10:
     status: backlog
     trace:
@@ -84,6 +89,7 @@ requirements:
       tests:
         - crates/bitacora-core/src/journal.rs#journal_file_is_detected
         - crates/bitacora-core/src/date.rs#parses_strictly
+    verified: {rev: "sha256:7225e5680db07054", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
   R11:
     status: backlog
     trace:
@@ -101,6 +107,7 @@ requirements:
         - crates/bitacora-core/tests/page_rename.rs#journals_are_never_renamed
         - crates/bitacora-app/src/views/workspace.rs#todays_journal_is_ensured_on_open_and_at_the_midnight_rollover
         - crates/bitacora-app/src/graph_ops.rs#todays_journal_is_virtual_until_it_has_content
+    verified: {rev: "sha256:5b70365b3e797ac3", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
   R12:
     status: backlog
     trace:
@@ -124,6 +131,7 @@ requirements:
         - crates/bitacora-core/tests/page_rename.rs
         - crates/bitacora-core/src/rename.rs
         - crates/bitacora-runtime/tests/rename.rs
+    verified: {rev: "sha256:86816c7de3f87db3", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
   R14:
     status: backlog
     trace:
@@ -143,7 +151,7 @@ requirements:
         - crates/bitacora-core/tests/page_rename.rs#merge_appends_blocks_recycles_the_source_and_rewrites_refs
         - crates/bitacora-app/src/graph_ops.rs#deleting_a_page_recycles_the_file_and_drops_the_favorite
         - crates/bitacora-app/src/graph_ops.rs#an_unreferenced_asset_is_recycled_and_a_referenced_one_is_kept
-    verified: {rev: "sha256:4259a0e3887439da", commit: 63ab8d8b535728d41079976763fa661f48c4bc4c, at: 2026-10-06T19:59:23Z, by: claude}
+    verified: {rev: "sha256:4259a0e3887439da", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
   R15:
     status: backlog
     trace:
@@ -167,6 +175,7 @@ requirements:
       tests:
         - crates/bitacora-core/src/scan.rs#bom_reader
         - crates/bitacora-core/tests/page_lifecycle.rs#file_name_keeps_title_case_and_output_is_clean
+    verified: {rev: "sha256:fd46d1304c1c2903", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
   R17:
     status: backlog
     trace:
@@ -181,6 +190,7 @@ requirements:
         - crates/bitacora-core/tests/write_pipeline.rs
         - crates/bitacora-watch/tests/watch.rs
         - crates/bitacora-runtime/tests/config_reload.rs
+    verified: {rev: "sha256:19beca482257ce0e", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
   R18:
     status: backlog
     trace:
@@ -191,6 +201,7 @@ requirements:
         - crates/bitacora-core/src/graph.rs
         - crates/bitacora-core/tests/page_lifecycle.rs#page_property_goes_into_the_pre_block
         - crates/bitacora-core/tests/page_lifecycle.rs#page_property_in_front_matter_page_stays_front_matter
+    verified: {rev: "sha256:c4d54d571b2fd551", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
   R19:
     status: backlog
     trace:
@@ -206,6 +217,7 @@ requirements:
       code: [crates/bitacora-core/src/graph.rs]
       tests:
         - crates/bitacora-core/src/graph.rs#org_pages_are_read_only_and_adoc_ignored
+    verified: {rev: "sha256:9e8495f066671e32", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
 ---
 
 ## Purpose
