@@ -273,7 +273,7 @@ There are 83 components according to <https://gpui-kit.com/component>. Fit: ✅ 
 - Is wgpu's GLES fallback enabled in gpui on Linux (for machines without Vulkan)?
 - Can GPUI Kit's Input "inline tokens" mechanism be reused (Apache-2.0) as the basis for ref chips inside our BlockEditor, or is it tied to Input's internals?
 - Can TextView's `MarkdownPlugin` render Logseq inline syntax efficiently enough for read-only page views (journals scroll), or do we need our own `StyledText` pipeline everywhere?
-- What is the binary size and cold-start time of a GPUI Kit app with tree-sitter features disabled? Measure in the spike.
+- ~~What is the binary size and cold-start time of a GPUI Kit app with tree-sitter features disabled?~~ Measured by the spike: see [[block-editor-spike-report]] (release binary about 43.6 MB with `strip = "debuginfo"`, first frame about 135 ms on Linux/X11 with software Vulkan; macOS and Windows still to measure).
 - Mobile (GPUI Kit v0.6.2 claims iOS and Android): is it worth tracking for a future Bitacora mobile app?
 
 ## Sources

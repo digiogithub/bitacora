@@ -31,6 +31,7 @@ Rust stack:
 
 - [[gpui-and-gpui-kit]] — GPUI fundamentals, GPUI Kit components, text-editing strategy.
 - [[crate-stack]] — crates, versions, workspace layout, CI matrix.
+- [[block-editor-spike-report]] — ADR-002 spike: custom block text element, IME, 1,000-block performance, Textarea fallback, go/no-go.
 
 Bitacora designs:
 
@@ -117,7 +118,7 @@ See [[crate-stack]] §5. Summary:
 | ID | Decision | Rationale / source |
 |---|---|---|
 | ADR-001 | UI = `gpui-kit = "=0.7.1"` (exact pin), reach GPUI only via `gpui_kit::gpui` | Avoid version skew with the `gpui-pre` snapshot it pins. [[gpui-and-gpui-kit]] |
-| ADR-002 | Block editor is custom, built on GPUI `EntityInputHandler` (one text buffer per block) | No GPUI Kit component covers an outliner with inline refs. [[block-editor]] |
+| ADR-002 | Block editor is custom, built on GPUI `EntityInputHandler` (one text buffer per block) | No GPUI Kit component covers an outliner with inline refs. [[block-editor]]. Spike (BIT-US-0040/0060): preliminary go, 1,000-5,000 blocks fast on Linux; macOS/Windows/Linux IME validation still pending (BIT-US-0072), see [[block-editor-spike-report]] |
 | ADR-003 | Custom line-based outline parser keeping raw bytes; `pulldown-cmark` only for rendering block bodies | Lossless round-trip is impossible with AST-based Markdown parsers. [[02-markdown-block-syntax]] |
 | ADR-004 | SQLite via `rusqlite` (bundled, FTS5 word + trigram), single writer thread | [[sqlite-index-schema]] |
 | ADR-005 | Index stored **outside** the graph, in the platform data dir (`<data_dir>/bitacora/graphs/<graph-hash>/index.sqlite`) | Keeps it out of git and out of Logseq's view; it is a cache. |
