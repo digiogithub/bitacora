@@ -2,14 +2,15 @@
 id: BIT-T-0251
 type: task
 title: Class-aware block diff and deterministic metadata merge helpers
-status: backlog
+status: in_progress
 parent: BIT-US-0094
 milestone: BIT-M-0002
 author: mcp
 labels: [bitacora-markdown, merge]
 estimate: 3
 created: 2026-10-06T14:32:01Z
-updated: 2026-10-06T15:11:13Z
+updated: 2026-10-06T17:06:14Z
+started: 2026-10-06T17:06:14Z
 ---
 
 ## Description

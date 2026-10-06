@@ -2,7 +2,7 @@
 id: BIT-T-0353
 type: task
 title: Content diff3 within a block and per-key user property merge
-status: backlog
+status: in_progress
 priority: critical
 parent: BIT-US-0050
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-merge, merge]
 estimate: 3
 created: 2026-10-06T14:34:49Z
-updated: 2026-10-06T15:17:52Z
+updated: 2026-10-06T17:08:27Z
+started: 2026-10-06T17:08:27Z
 ---
 
 ## Description

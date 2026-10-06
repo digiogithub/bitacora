@@ -2,7 +2,7 @@
 id: BIT-T-0352
 type: task
 title: Matcher accuracy benchmark on fixture graph edit pairs
-status: backlog
+status: in_progress
 priority: medium
 parent: BIT-US-0049
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-merge, merge, testing]
 estimate: 2
 created: 2026-10-06T14:34:49Z
-updated: 2026-10-06T15:17:28Z
+updated: 2026-10-06T17:08:27Z
+started: 2026-10-06T17:08:27Z
 ---
 
 ## Description

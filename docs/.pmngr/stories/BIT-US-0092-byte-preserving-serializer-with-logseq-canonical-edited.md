@@ -2,7 +2,7 @@
 id: BIT-US-0092
 type: story
 title: Byte-preserving serializer with Logseq-canonical edited blocks
-status: in_progress
+status: done
 priority: critical
 parent: BIT-EP-0003
 milestone: BIT-M-0002
@@ -10,8 +10,9 @@ author: mcp
 labels: [markdown, compat, serializer]
 estimate: 8
 created: 2026-10-06T14:30:45Z
-updated: 2026-10-06T17:02:01Z
+updated: 2026-10-06T17:08:48Z
 started: 2026-10-06T17:02:01Z
+closed: 2026-10-06T17:08:48Z
 ---
 
 ## Description

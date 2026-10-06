@@ -2,7 +2,7 @@
 id: BIT-US-0040
 type: story
 title: "Spike: custom BlockTextElement on EntityInputHandler with IME"
-status: backlog
+status: in_progress
 priority: critical
 parent: BIT-EP-0002
 milestone: BIT-M-0001
@@ -10,7 +10,8 @@ author: mcp
 labels: [ui, spike, block-editor, bitacora-app]
 estimate: 13
 created: 2026-10-06T14:28:16Z
-updated: 2026-10-06T14:28:16Z
+updated: 2026-10-06T17:06:16Z
+started: 2026-10-06T17:06:16Z
 ---
 
 ## Description

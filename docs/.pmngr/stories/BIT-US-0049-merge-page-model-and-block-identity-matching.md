@@ -2,7 +2,7 @@
 id: BIT-US-0049
 type: story
 title: Merge page model and block identity matching
-status: backlog
+status: in_progress
 priority: critical
 parent: BIT-EP-0012
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [merge, sync]
 estimate: 8
 created: 2026-10-06T14:28:30Z
-updated: 2026-10-06T15:17:27Z
+updated: 2026-10-06T17:08:27Z
+started: 2026-10-06T17:08:27Z
 ---
 
 ## Description

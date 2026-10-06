@@ -2,15 +2,16 @@
 id: BIT-T-0244
 type: task
 title: Document model with dirty tracking and verbatim span writer
-status: in_progress
+status: done
 parent: BIT-US-0092
 milestone: BIT-M-0002
 author: mcp
 labels: [bitacora-markdown, serializer]
 estimate: 3
 created: 2026-10-06T14:32:01Z
-updated: 2026-10-06T17:02:01Z
+updated: 2026-10-06T17:08:48Z
 started: 2026-10-06T17:02:01Z
+closed: 2026-10-06T17:08:48Z
 ---
 
 ## Description

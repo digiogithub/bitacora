@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [markdown, compat]
 created: 2026-10-06T14:21:20Z
-updated: 2026-10-06T16:59:51Z
+updated: 2026-10-06T17:09:10Z
 requirements:
   R1:
     status: backlog
@@ -49,6 +49,11 @@ requirements:
       tests: [crates/bitacora-markdown/src/properties/scan.rs]
   R7:
     status: backlog
+    trace:
+      code: [crates/bitacora-markdown/src/edit/identity.rs]
+      tests:
+        - crates/bitacora-markdown/src/edit/identity.rs
+        - crates/bitacora-markdown/tests/edit_golden.rs
   R8:
     status: backlog
   R9:
@@ -57,23 +62,62 @@ requirements:
     status: backlog
   R11:
     status: backlog
+    trace:
+      code: [crates/bitacora-markdown/src/canonical.rs#write_block]
+      tests:
+        - crates/bitacora-markdown/src/canonical.rs
+        - crates/bitacora-markdown/tests/serializer.rs#canonical_example_is_rebuilt_byte_for_byte
   R12:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-markdown/src/doc.rs#Document
+        - crates/bitacora-markdown/src/serialize.rs#serialize
+      tests:
+        - crates/bitacora-markdown/src/serialize.rs
+        - crates/bitacora-markdown/tests/serializer.rs
   R13:
     status: backlog
+    trace:
+      code: [crates/bitacora-markdown/src/edit/state.rs]
+      tests:
+        - crates/bitacora-markdown/src/edit/state.rs
+        - crates/bitacora-markdown/tests/edit_golden.rs
   R14:
     status: backlog
     trace:
-      code: [crates/bitacora-markdown/src/properties/drawer.rs]
-      tests: [crates/bitacora-markdown/src/properties/drawer.rs]
+      code:
+        - crates/bitacora-markdown/src/properties/drawer.rs
+        - crates/bitacora-markdown/src/canonical.rs#convert_drawers
+      tests:
+        - crates/bitacora-markdown/src/properties/drawer.rs
+        - crates/bitacora-markdown/src/canonical.rs
+        - crates/bitacora-markdown/src/serialize.rs
   R15:
     status: backlog
+    trace:
+      code: [crates/bitacora-markdown/src/edit/properties.rs]
+      tests:
+        - crates/bitacora-markdown/src/edit/properties.rs
+        - crates/bitacora-markdown/tests/edit_golden.rs
   R16:
     status: backlog
   R17:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-markdown/src/canonical.rs#IndentUnit
+        - crates/bitacora-markdown/src/canonical.rs#Eol
+      tests:
+        - crates/bitacora-markdown/src/canonical.rs
+        - crates/bitacora-markdown/src/serialize.rs
   R18:
     status: backlog
+    trace:
+      code: [crates/bitacora-markdown/src/image_meta.rs]
+      tests:
+        - crates/bitacora-markdown/src/image_meta.rs
+        - crates/bitacora-markdown/tests/edit_golden.rs#image_resize
   R19:
     status: backlog
     trace:
