@@ -15,10 +15,13 @@ workspace = true
 bitacora-markdown.workspace = true
 bitacora-merge.workspace = true
 bitacora-config.workspace = true
+blake3.workspace = true
 thiserror.workspace = true
+uuid.workspace = true
 unicode-normalization.workspace = true
 walkdir.workspace = true
 
 [dev-dependencies]
+bitacora-testkit.workspace = true
 proptest.workspace = true
 tempfile.workspace = true

@@ -835,10 +835,13 @@ dependencies = [
  "bitacora-config",
  "bitacora-markdown",
  "bitacora-merge",
+ "bitacora-testkit",
+ "blake3",
  "proptest",
  "tempfile",
  "thiserror 2.0.21",
  "unicode-normalization",
+ "uuid",
  "walkdir",
 ]
 
