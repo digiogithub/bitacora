@@ -2,14 +2,15 @@
 id: BIT-T-0173
 type: task
 title: "DeletePage op: recycle file, favorites cleanup, alias-kept entity"
-status: backlog
+status: done
 parent: BIT-US-0089
 milestone: BIT-M-0003
 author: mcp
 labels: [bitacora-core, bitacora-config, delete]
 estimate: 3
 created: 2026-10-06T14:30:53Z
-updated: 2026-10-06T14:30:53Z
+updated: 2026-10-06T19:13:24Z
+closed: 2026-10-06T19:13:24Z
 ---
 
 ## Description

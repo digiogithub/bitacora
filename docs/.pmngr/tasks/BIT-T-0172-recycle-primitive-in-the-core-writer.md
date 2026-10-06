@@ -2,14 +2,15 @@
 id: BIT-T-0172
 type: task
 title: Recycle primitive in the core writer
-status: backlog
+status: done
 parent: BIT-US-0089
 milestone: BIT-M-0003
 author: mcp
 labels: [bitacora-core, delete]
 estimate: 2
 created: 2026-10-06T14:30:53Z
-updated: 2026-10-06T14:30:53Z
+updated: 2026-10-06T19:13:24Z
+closed: 2026-10-06T19:13:24Z
 ---
 
 ## Description

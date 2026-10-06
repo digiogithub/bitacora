@@ -2,14 +2,15 @@
 id: BIT-T-0223
 type: task
 title: Write Bitacora default config.edn that Logseq accepts
-status: backlog
+status: done
 parent: BIT-US-0099
 milestone: BIT-M-0003
 author: mcp
 labels: [bitacora-config, compat]
 estimate: 2
 created: 2026-10-06T14:31:28Z
-updated: 2026-10-06T14:38:19Z
+updated: 2026-10-06T19:13:24Z
+closed: 2026-10-06T19:13:24Z
 ---
 
 ## Description

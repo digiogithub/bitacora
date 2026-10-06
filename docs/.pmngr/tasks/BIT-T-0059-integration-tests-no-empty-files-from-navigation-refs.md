@@ -2,14 +2,15 @@
 id: BIT-T-0059
 type: task
 title: "Integration tests: no empty files from navigation, refs, aliases"
-status: backlog
+status: done
 parent: BIT-US-0028
 milestone: BIT-M-0003
 author: mcp
 labels: [bitacora-core, test, lifecycle]
 estimate: 2
 created: 2026-10-06T14:28:27Z
-updated: 2026-10-06T14:28:27Z
+updated: 2026-10-06T19:13:24Z
+closed: 2026-10-06T19:13:24Z
 ---
 
 ## Description

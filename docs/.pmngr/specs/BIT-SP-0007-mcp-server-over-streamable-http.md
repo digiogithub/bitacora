@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [mcp, api]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T19:00:29Z
+updated: 2026-10-06T19:12:09Z
 requirements:
   R1:
     status: backlog
@@ -66,8 +66,10 @@ requirements:
         - crates/bitacora-mcp/src/handler.rs
         - crates/bitacora-mcp/src/index_reader.rs
         - crates/bitacora-mcp/src/query.rs
+        - crates/bitacora-mcp/src/reader.rs
       tests:
         - crates/bitacora-mcp/tests/read_tools.rs
+        - crates/bitacora-mcp/tests/read_tools.rs#query_tool_routes_simple_and_advanced_queries
         - crates/bitacora-cli/src/cmd/serve_tests.rs
   R12:
     status: backlog

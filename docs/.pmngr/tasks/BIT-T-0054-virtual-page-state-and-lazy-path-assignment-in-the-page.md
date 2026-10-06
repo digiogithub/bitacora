@@ -2,14 +2,15 @@
 id: BIT-T-0054
 type: task
 title: Virtual page state and lazy path assignment in the page model
-status: backlog
+status: done
 parent: BIT-US-0028
 milestone: BIT-M-0003
 author: mcp
 labels: [bitacora-core, lifecycle]
 estimate: 3
 created: 2026-10-06T14:28:27Z
-updated: 2026-10-06T14:28:27Z
+updated: 2026-10-06T19:13:16Z
+closed: 2026-10-06T19:13:16Z
 ---
 
 ## Description

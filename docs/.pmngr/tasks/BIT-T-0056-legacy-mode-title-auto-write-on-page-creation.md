@@ -2,14 +2,15 @@
 id: BIT-T-0056
 type: task
 title: "Legacy-mode title:: auto-write on page creation"
-status: backlog
+status: done
 parent: BIT-US-0028
 milestone: BIT-M-0003
 author: mcp
 labels: [bitacora-core, lifecycle, compat]
 estimate: 2
 created: 2026-10-06T14:28:27Z
-updated: 2026-10-06T14:38:56Z
+updated: 2026-10-06T19:13:24Z
+closed: 2026-10-06T19:13:24Z
 ---
 
 ## Description

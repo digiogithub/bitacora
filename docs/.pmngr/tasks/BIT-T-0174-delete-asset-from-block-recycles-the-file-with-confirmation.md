@@ -2,14 +2,14 @@
 id: BIT-T-0174
 type: task
 title: Delete asset from block recycles the file (with confirmation)
-status: backlog
+status: todo
 parent: BIT-US-0089
 milestone: BIT-M-0003
 author: mcp
 labels: [bitacora-core, bitacora-app, delete, assets]
 estimate: 2
 created: 2026-10-06T14:30:53Z
-updated: 2026-10-06T14:30:53Z
+updated: 2026-10-06T19:13:24Z
 ---
 
 ## Description

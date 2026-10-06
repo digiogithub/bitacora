@@ -2,14 +2,14 @@
 id: BIT-T-0084
 type: task
 title: Call ensure_today on startup and at midnight rollover in the app
-status: backlog
+status: todo
 parent: BIT-US-0057
 milestone: BIT-M-0003
 author: mcp
 labels: [bitacora-app, journals]
 estimate: 1
 created: 2026-10-06T14:28:51Z
-updated: 2026-10-06T14:28:51Z
+updated: 2026-10-06T19:13:24Z
 ---
 
 ## Description
