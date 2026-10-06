@@ -205,7 +205,15 @@ fn typing_commits_after_the_debounce_and_an_untouched_buffer_makes_no_op(cx: &mu
     // Not committed yet.
     assert_eq!(env.snapshot_texts("Home")[0].1, "one");
     cx.executor().advance_clock(super::view::FLUSH_DELAY);
-    cx.run_until_parked();
+    // The commit is submitted to the writer thread without blocking the UI thread.
+    cx.executor().allow_parking();
+    for _ in 0..400 {
+        cx.run_until_parked();
+        if env.snapshot_texts("Home")[0].1 == "oneX" {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(5));
+    }
     assert_eq!(env.snapshot_texts("Home")[0].1, "oneX");
     assert_eq!(env.disk(HOME), "- oneX\n- two\n");
 }
@@ -1197,4 +1205,134 @@ fn alt_arrows_zoom_and_ctrl_semicolon_toggles_all(cx: &mut TestAppContext) {
     cx.simulate_keystrokes("ctrl-;");
     assert_eq!(view.read_with(cx, |v, _| v.visible_count()), 5);
     assert_eq!(env.disk(HOME), "- p\n\t- c\n\t\t- g\n- q\n\t- q1\n");
+}
+
+#[gpui_test]
+fn a_placeholder_page_is_editable_and_its_file_appears_with_content(cx: &mut TestAppContext) {
+    let env = Env::new(&[(HOME, "- see [[Ghost]]\n")]);
+    let (_view, ed, cx) = open_page(cx, &env, "Ghost");
+    assert_eq!(ed.read_with(cx, |e, _| e.rows().len()), 1);
+    let file = env.graph.path().join("pages/Ghost.md");
+    flush(&ed, cx);
+    let _ = env.queue().flush(Source::Ui);
+    assert!(!file.exists(), "no file before there is content");
+    edit(&ed, 0, Caret::End, cx);
+    cx.simulate_input("hello");
+    flush(&ed, cx);
+    assert_eq!(env.disk("pages/Ghost.md"), "- hello\n");
+}
+
+fn row_bounds(
+    view: &Entity<PageView>,
+    row: usize,
+    cx: &mut VisualTestContext,
+) -> crate::ui::Bounds<crate::ui::Pixels> {
+    let pos = view
+        .read_with(cx, |v, _| {
+            v.items()
+                .iter()
+                .position(|i| matches!(i, crate::views::page_view::Item::Block(r) if *r == row))
+        })
+        .expect("row item");
+    view.read_with(cx, |v, _| v.list_bounds_for_item(pos))
+        .expect("row laid out")
+}
+
+#[gpui_test]
+fn dragging_the_mouse_across_blocks_selects_them(cx: &mut TestAppContext) {
+    use crate::ui::text_edit::{Modifiers, MouseButton};
+    let env = Env::new(&[(HOME, "- one\n- two\n- three\n- four\n")]);
+    let (view, ed, cx) = open_page(cx, &env, "Home");
+    let first = row_bounds(&view, 0, cx);
+    let third = row_bounds(&view, 2, cx);
+    let start = crate::ui::point(first.right() - px(40.), first.top() + px(10.));
+    let end = crate::ui::point(third.right() - px(40.), third.top() + px(10.));
+    cx.simulate_mouse_down(start, MouseButton::Left, Modifiers::default());
+    assert_eq!(editing_row(&ed, cx), Some(0));
+    cx.simulate_mouse_move(end, MouseButton::Left, Modifiers::default());
+    cx.simulate_mouse_up(end, MouseButton::Left, Modifiers::default());
+    let ids = ids(&ed, cx);
+    assert_eq!(editing_row(&ed, cx), None, "the drag left edit mode");
+    assert_eq!(
+        ed.read_with(cx, |e, _| e.selected_blocks()),
+        ids[0..3].to_vec()
+    );
+    // Dragging does not touch the page.
+    assert_eq!(env.disk(HOME), "- one\n- two\n- three\n- four\n");
+    // A plain click afterwards edits again and a stray move does not select.
+    cx.simulate_mouse_move(start, None, Modifiers::default());
+    assert_eq!(ed.read_with(cx, |e, _| e.selected_blocks().len()), 3);
+}
+
+#[gpui_test]
+fn up_and_down_continue_across_journal_days(cx: &mut TestAppContext) {
+    use crate::views::journals::JournalsView;
+    use bitacora_core::date::Date;
+    let env = Env::new(&[
+        ("journals/2025_03_09.md", "- standup notes\n"),
+        ("journals/2025_03_08.md", "- yesterday\n"),
+    ]);
+    setup(cx);
+    let day = Date::new(2025, 3, 9).expect("date");
+    let (feed, cx) =
+        cx.add_window_view(|_, _| JournalsView::with_clock(std::rc::Rc::new(move || Some(day))));
+    cx.simulate_resize(size(px(900.), px(700.)));
+    let link = env.link.clone();
+    feed.update(cx, |v, cx| v.set_session_link(Some(link), cx));
+    let handle = env.handle.clone();
+    feed.update(cx, |v, cx| v.show(handle, None, cx));
+    cx.executor().allow_parking();
+    let (d9, d8) = (day.journal_day(), 20_250_308);
+    for _ in 0..400 {
+        cx.run_until_parked();
+        if feed.read_with(cx, |v, _| {
+            v.editor_for(d9).is_some() && v.editor_for(d8).is_some()
+        }) {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    let top = feed
+        .read_with(cx, |v, _| v.editor_for(d9).cloned())
+        .expect("today is editable");
+    let older = feed
+        .read_with(cx, |v, _| v.editor_for(d8).cloned())
+        .expect("older day is editable");
+    edit(&top, 0, Caret::End, cx);
+    cx.simulate_keystrokes("down");
+    assert_eq!(editing_row(&top, cx), None, "left the first day");
+    assert_eq!(
+        editing_row(&older, cx),
+        Some(0),
+        "continued in the older day"
+    );
+    cx.simulate_keystrokes("up");
+    assert_eq!(editing_row(&older, cx), None);
+    assert_eq!(editing_row(&top, cx), Some(0), "and back");
+    // Nothing was written by moving around.
+    assert_eq!(env.disk("journals/2025_03_09.md"), "- standup notes\n");
+    assert_eq!(env.disk("journals/2025_03_08.md"), "- yesterday\n");
+}
+
+#[gpui_test]
+fn the_completion_popup_floats_instead_of_pushing_the_rows(cx: &mut TestAppContext) {
+    let env = Env::new(&[
+        (HOME, "- one\n- below\n"),
+        ("pages/Alpha.md", "- alpha page\n"),
+    ]);
+    let (view, ed, cx) = open_page(cx, &env, "Home");
+    let before = row_bounds(&view, 1, cx);
+    edit(&ed, 0, Caret::End, cx);
+    cx.run_until_parked();
+    let editing = row_bounds(&view, 1, cx);
+    cx.simulate_input("[[Alp");
+    cx.run_until_parked();
+    assert!(ed.read_with(cx, |e, _| e.completion_open()));
+    let with_popup = row_bounds(&view, 1, cx);
+    assert_eq!(
+        with_popup.top(),
+        editing.top(),
+        "the next row did not move down (it was at {:?} before editing)",
+        before.top()
+    );
 }

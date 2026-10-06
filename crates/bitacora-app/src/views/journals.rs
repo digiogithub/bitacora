@@ -170,35 +170,85 @@ impl JournalsView {
         if self.editors.contains_key(&day) || entry.state != DayState::Loaded {
             return;
         }
-        let Some(key) = editor::ensure_loaded(&link.queue, &handle, &entry.day.title) else {
+        let Some(key) = editor::ensure_loaded(&link.queue, &handle, &link.config, &entry.day.title)
+        else {
             return;
         };
         let hidden =
             bitacora_core::editor::HiddenKeys::with_extra(link.config.block_hidden_properties());
         let queue = link.queue.clone();
         let ed = cx.new(|cx| OutlineEditor::new(queue, hidden, true, window, cx));
+        let config = link.config.clone();
         ed.update(cx, |e, cx| {
+            e.set_config(config);
             e.set_handle(handle);
             e.set_page(key, cx);
         });
-        self.editor_subs
-            .push(cx.subscribe(&ed, move |view, _, event, cx| {
-                view.on_day_editor_event(day, event, cx);
-            }));
+        self.editor_subs.push(
+            cx.subscribe_in(&ed, window, move |view, _, event, window, cx| {
+                view.on_day_editor_event(day, event, window, cx);
+            }),
+        );
         self.editor_subs
             .push(cx.observe(&ed, |_, _, cx| cx.notify()));
         self.editors.insert(day, ed);
     }
 
-    fn on_day_editor_event(&mut self, day: u32, event: &EditorEvent, cx: &mut Context<Self>) {
+    fn on_day_editor_event(
+        &mut self,
+        day: u32,
+        event: &EditorEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let Some(ix) = self.entries.iter().position(|e| e.day.day == day) else {
             return;
         };
         match event {
+            EditorEvent::Leave { down, goal } => {
+                self.continue_in_neighbour(ix, *down, *goal, window, cx)
+            }
             EditorEvent::Entered(_) => {}
             EditorEvent::Row(_) | EditorEvent::Structure => {
                 self.list_state.remeasure_items(ix..ix + 1);
                 cx.notify();
+            }
+        }
+    }
+
+    /// Up/Down went past the first or last block of day `ix`: the caret continues in the next
+    /// (older, when moving down) day that has an editor, at the same x.
+    fn continue_in_neighbour(
+        &mut self,
+        ix: usize,
+        down: bool,
+        goal: crate::ui::Pixels,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let mut next = ix;
+        loop {
+            next = if down {
+                next + 1
+            } else {
+                match next.checked_sub(1) {
+                    Some(n) => n,
+                    None => return,
+                }
+            };
+            if next >= self.entries.len() {
+                return;
+            }
+            self.ensure_editor(next, window, cx);
+            let day = self.entries[next].day.day;
+            if let Some(ed) = self.editors.get(&day).cloned() {
+                self.list_state.scroll_to_reveal_item(next);
+                let from = self.entries[ix].day.day;
+                if let Some(src) = self.editors.get(&from).cloned() {
+                    src.update(cx, |e, cx| e.exit_edit(cx));
+                }
+                ed.update(cx, |e, cx| e.enter_edge(!down, goal, window, cx));
+                return;
             }
         }
     }
@@ -438,11 +488,20 @@ impl JournalsView {
         };
         entry.state = DayState::Loading;
         let day = entry.day.day;
+        let title = entry.day.title.clone();
+        let link = self.link.clone();
         let generation = self.generation;
         let task = cx.spawn(async move |this, cx| {
             let result = cx
                 .background_executor()
-                .spawn(async move { data::journal_rows(&handle, page_id, ROWS_PER_DAY) })
+                .spawn(async move {
+                    // Hand the page to core here, off the UI thread, so that making the day
+                    // editable (when it is drawn) does not read files or wait for the writer.
+                    if let Some(link) = &link {
+                        let _ = editor::ensure_loaded(&link.queue, &handle, &link.config, &title);
+                    }
+                    data::journal_rows(&handle, page_id, ROWS_PER_DAY)
+                })
                 .await;
             let _ = this.update(cx, |view, cx| {
                 if generation != view.generation {

@@ -209,7 +209,9 @@ fn completion_popup(
         x,
     } = data?;
     let mut list = v_flex()
-        .ml(x.max(px(0.)))
+        .absolute()
+        .top_full()
+        .left(x.max(px(0.)))
         .mt_1()
         .w(px(360.))
         .max_h(px(240.))
@@ -238,7 +240,12 @@ fn completion_popup(
                 }),
         );
     }
-    Some(list.into_any_element())
+    // Painted after the rows below it, so the popup floats over them instead of pushing them.
+    Some(
+        crate::ui::deferred(list)
+            .with_priority(1)
+            .into_any_element(),
+    )
 }
 
 /// The edit-mode content of a row: the text element with mouse handling for the caret.
@@ -253,6 +260,7 @@ pub fn edit_content(
     let up = editor.clone();
     v_flex()
         .w_full()
+        .relative()
         .child(
             div()
                 .w_full()
@@ -317,10 +325,18 @@ pub fn conflict_bar(editor: Entity<OutlineEditor>) -> AnyElement {
 pub fn wrap(content: AnyElement, editor: &Entity<OutlineEditor>, cx: &App) -> AnyElement {
     let ed = editor.read(cx);
     let _ = cx.theme();
+    let up = editor.clone();
+    let up_out = editor.clone();
     let container = div()
         .size_full()
         .key_context(ed.key_context_name())
         .track_focus(ed.focus_handle_ref())
+        .on_mouse_up(crate::ui::text_edit::MouseButton::Left, move |_, _, cx| {
+            up.update(cx, |this, _| this.drag_end());
+        })
+        .on_mouse_up_out(crate::ui::text_edit::MouseButton::Left, move |_, _, cx| {
+            up_out.update(cx, |this, _| this.drag_end());
+        })
         .child(content);
     super::view::attach(container, editor).into_any_element()
 }

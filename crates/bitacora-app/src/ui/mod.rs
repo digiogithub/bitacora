@@ -19,7 +19,7 @@ pub use gpui_kit::{
     Bounds, ClickEvent, Context, Entity, EntityId, EventEmitter, FocusHandle, Focusable, Global,
     Hsla, KeyBinding, KeyBindingContextPredicate, KeyDownEvent, PathPromptOptions, Pixels, Point,
     Render, SharedString, Size, StyledImage, Subscription, Task, TitlebarOptions, WeakEntity,
-    Window, WindowAppearance, WindowBounds, WindowOptions, div, point, px, size,
+    Window, WindowAppearance, WindowBounds, WindowOptions, deferred, div, point, px, size,
 };
 
 /// The kit's "cancel" action (Escape in menus and command palettes).

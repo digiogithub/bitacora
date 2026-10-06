@@ -16,7 +16,7 @@ use bitacora_core::editor::{
     PRIVATE_MIME, PasteKind, Refusal, classify_paste, clipboard, parse_private,
 };
 use bitacora_core::graph::PageKey;
-use bitacora_core::queue::{CommandQueue, QueueError, Source};
+use bitacora_core::queue::{CommandQueue, QueueError, Request, Source};
 use bitacora_markdown::properties::PropertyConfig;
 
 use super::actions::{self, context};
@@ -62,8 +62,16 @@ pub enum Caret {
 }
 
 /// What the editor tells the page view.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum EditorEvent {
+    /// Up/Down went past the first or last block of the page: a host that shows several
+    /// pages (the journals feed) continues in the neighbouring one at the same x.
+    Leave {
+        /// Moving down (to the next page) or up.
+        down: bool,
+        /// Goal x of the caret, in page coordinates.
+        goal: Pixels,
+    },
     /// Rows were rebuilt (structure changed): copy them all.
     Structure,
     /// One row changed (its model or its height).
@@ -108,6 +116,7 @@ struct EditState {
 /// The editor of one page.
 pub struct OutlineEditor {
     queue: CommandQueue,
+    config: std::sync::Arc<bitacora_config::EffectiveConfig>,
     handle: Option<GraphHandle>,
     props: PropertyConfig,
     hidden: HiddenKeys,
@@ -126,6 +135,8 @@ pub struct OutlineEditor {
     metrics: Option<TextMetrics>,
     content_width0: Pixels,
     is_selecting: bool,
+    /// Block under the press that started a drag; moving over other rows selects blocks.
+    drag_anchor: Option<BlockId>,
     caret_visible: bool,
     blink_epoch: usize,
     blink_enabled: bool,
@@ -182,6 +193,7 @@ impl OutlineEditor {
         Self {
             props: PropertyConfig::default(),
             queue,
+            config: std::sync::Arc::default(),
             handle: None,
             hidden,
             key: None,
@@ -198,6 +210,7 @@ impl OutlineEditor {
             metrics: None,
             content_width0: px(640.),
             is_selecting: false,
+            drag_anchor: None,
             caret_visible: true,
             blink_epoch: 0,
             blink_enabled: blink,
@@ -206,6 +219,11 @@ impl OutlineEditor {
             dismissed: None,
             _subscriptions: subscriptions,
         }
+    }
+
+    /// The effective configuration (page paths of new pages).
+    pub fn set_config(&mut self, config: std::sync::Arc<bitacora_config::EffectiveConfig>) {
+        self.config = config;
     }
 
     /// The focus handle of the outline.
@@ -492,7 +510,52 @@ impl OutlineEditor {
                         // No commit while an IME composition is active: look again later.
                         this.schedule_flush(cx);
                     } else {
-                        this.flush(cx);
+                        this.flush_in_background(cx);
+                    }
+                }
+            });
+        })
+        .detach();
+    }
+
+    /// The debounced flush: submits the `EditText` without waiting for the writer, so typing
+    /// never blocks on the queue thread. The queue keeps submission order, so later commands
+    /// (which do wait) always see this edit applied.
+    fn flush_in_background(&mut self, cx: &mut Context<Self>) {
+        self.flush_epoch += 1;
+        let Some(e) = self.edit.as_mut() else { return };
+        let new_full = e.proj.to_text(e.buf.text());
+        if new_full == e.full {
+            return;
+        }
+        let (range, inserted) = text_diff(&e.full, &new_full);
+        let id = e.id;
+        let old = std::mem::replace(&mut e.full, new_full.clone());
+        let reply = self.queue.submit(
+            Source::Ui,
+            Request::Run {
+                label: "Typing",
+                cmd: Cmd::EditText {
+                    id,
+                    range,
+                    inserted,
+                },
+            },
+        );
+        cx.spawn(async move |this, cx| {
+            let result = reply.await.unwrap_or(Err(QueueError::Closed));
+            let _ = this.update(cx, |this, cx| match result {
+                Ok(_) => {
+                    this.reload_outline();
+                    cx.notify();
+                }
+                Err(err) => {
+                    tracing::warn!("cannot commit the edit buffer: {err}");
+                    if let Some(e) = this.edit.as_mut()
+                        && e.id == id
+                        && e.full == new_full
+                    {
+                        e.full = old;
                     }
                 }
             });
@@ -932,6 +995,37 @@ impl OutlineEditor {
             Caret::Full(offset..offset)
         };
         self.enter(id, caret, window, cx);
+        self.drag_anchor = Some(id);
+    }
+
+    /// The pointer moved over row `r` with the left button held: once it leaves the block the
+    /// press started in, the drag selects whole blocks from that one to this one.
+    pub fn drag_over(&mut self, r: usize, window: &mut Window, cx: &mut Context<Self>) {
+        let (Some(anchor), Some(id)) = (self.drag_anchor, self.ids.get(r).copied()) else {
+            return;
+        };
+        if id == anchor && !self.has_selection() {
+            return;
+        }
+        if self.edit.is_some() {
+            self.exit_edit(cx);
+            self.is_selecting = false;
+        }
+        let next = Selection {
+            anchor: Some(anchor),
+            head: Some(id),
+        };
+        if self.sel != next {
+            self.sel = next;
+            self.focus_handle.focus(window, cx);
+            cx.notify();
+        }
+    }
+
+    /// The button was released: the drag (if any) is over.
+    pub fn drag_end(&mut self) {
+        self.drag_anchor = None;
+        self.is_selecting = false;
     }
 
     /// Fold arrow click.
@@ -985,6 +1079,12 @@ impl OutlineEditor {
                 },
             )
         };
+        let on_drag = {
+            let ed = ed.clone();
+            Rc::new(move |window: &mut Window, cx: &mut App| {
+                ed.update(cx, |this, cx| this.drag_over(r, window, cx));
+            })
+        };
         let on_checkbox = {
             let ed = ed.clone();
             Rc::new(move |window: &mut Window, cx: &mut App| {
@@ -1033,6 +1133,7 @@ impl OutlineEditor {
             editing: element,
             conflict,
             on_text,
+            on_drag,
             on_checkbox,
             on_bullet,
             on_toggle,
@@ -1388,9 +1489,34 @@ impl OutlineEditor {
         } else {
             let to = if down { e.buf.text().len() } else { 0 };
             e.buf.set_cursor(to);
+            cx.emit(EditorEvent::Leave { down, goal });
         }
         self.restart_blink(cx);
         cx.notify();
+    }
+
+    /// Puts the caret in the first (or last) visible block, near page x `goal`: the entry point
+    /// from a neighbouring page.
+    pub fn enter_edge(
+        &mut self,
+        last: bool,
+        goal: Pixels,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let pick = if last {
+            self.visible.last()
+        } else {
+            self.visible.first()
+        };
+        if let Some(id) = pick.and_then(|r| self.ids.get(*r)).copied() {
+            let caret = if last {
+                Caret::LastRowAtX(goal)
+            } else {
+                Caret::FirstRowAtX(goal)
+            };
+            self.enter(id, caret, window, cx);
+        }
     }
 
     fn on_delete_backward(
@@ -2141,7 +2267,7 @@ impl OutlineEditor {
         let handle = self.handle.as_ref()?;
         let row = handle.reader.block(uuid).ok().flatten()?;
         let page = handle.reader.page_by_id(row.page_id).ok().flatten()?;
-        let key = super::ensure_loaded(&self.queue, handle, &page.original_name)?;
+        let key = super::ensure_loaded(&self.queue, handle, &self.config, &page.original_name)?;
         let snap = self.queue.snapshot(&key)?;
         let wanted = uuid.to_ascii_lowercase();
         snap.blocks
@@ -2238,6 +2364,7 @@ impl OutlineEditor {
             _ => e.buf.select_all(),
         }
         e.goal_x = None;
+        self.drag_anchor = Some(e.id);
         self.is_selecting = true;
         self.restart_blink(cx);
         cx.notify();
@@ -2257,6 +2384,7 @@ impl OutlineEditor {
     /// Mouse up: ends the text selection.
     pub fn edit_mouse_up(&mut self) {
         self.is_selecting = false;
+        self.drag_anchor = None;
     }
 }
 

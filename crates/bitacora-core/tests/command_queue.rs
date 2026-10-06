@@ -330,3 +330,40 @@ fn closed_queue_reports_closed() {
     );
     assert!(matches!(err, Err(QueueError::Closed)), "{err:?}");
 }
+
+#[test]
+fn open_page_makes_a_virtual_page_editable_and_writes_only_with_content() {
+    let (q, join) = spawn_with("- seed\n", manual());
+    let cfg = bitacora_config::EffectiveConfig::default();
+    let r = q
+        .execute(
+            Source::Ui,
+            Request::OpenPage {
+                title: "Brand New".into(),
+                cfg: Box::new(cfg),
+                graph: None,
+            },
+        )
+        .expect("open");
+    let Response::Opened(opened) = r else {
+        panic!("unexpected response");
+    };
+    let k = opened.key().clone();
+    let snap = q.snapshot(&k).expect("snapshot");
+    assert_eq!(snap.blocks.len(), 1);
+    assert!(!snap.dirty, "an untouched virtual page is not dirty");
+    let id = snap.blocks[0].id;
+    q.run(
+        Source::Ui,
+        "Typing",
+        Cmd::EditText {
+            id,
+            range: 0..0,
+            inserted: "hello".into(),
+        },
+    )
+    .expect("edit");
+    assert!(q.snapshot(&k).expect("snap").dirty);
+    let ws = join.shutdown().expect("shutdown");
+    assert!(ws.page(&k).is_some());
+}

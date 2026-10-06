@@ -121,6 +121,18 @@ pub enum Request {
         /// Configuration used for the journal title, file name and template.
         cfg: Box<bitacora_config::EffectiveConfig>,
     },
+    /// Makes the page titled `title` available for editing without creating a file: a page
+    /// already loaded is used as is, an existing file is loaded, otherwise a virtual page (one
+    /// empty block, planned path) is added that is only written once it has content
+    /// ([`crate::editor::Workspace::open_page`]). Answered with [`Response::Opened`].
+    OpenPage {
+        /// Page title (or alias when `graph` is given).
+        title: String,
+        /// Configuration used for the planned path and name format.
+        cfg: Box<bitacora_config::EffectiveConfig>,
+        /// The graph, to resolve aliases and known files (`None` skips that lookup).
+        graph: Option<Box<crate::graph::Graph>>,
+    },
     /// The file of a loaded page changed on disk (BIT-US-0068, BIT-US-0069): a clean page is
     /// reloaded keeping its block ids, a dirty one gets the external edits merged block by block
     /// (3-way, base = the bytes last read or written). A real conflict keeps our content, stops
@@ -158,6 +170,8 @@ pub enum Response {
     Removed(Vec<PageKey>),
     /// Result of [`Request::EnsureToday`]: `None` when journals are disabled.
     Journal(Option<crate::editor::lifecycle::Opened>),
+    /// Result of [`Request::OpenPage`].
+    Opened(crate::editor::lifecycle::Opened),
     /// What an [`Request::ExternalChange`] did.
     External(ExternalOutcome),
     /// An undo was performed.
@@ -1209,6 +1223,15 @@ impl Worker {
                     self.publish(std::slice::from_ref(o.key()));
                 }
                 Ok(Response::Journal(opened))
+            }
+            Request::OpenPage { title, cfg, graph } => {
+                let opened = self
+                    .ws
+                    .open_page(&title, &cfg, graph.as_deref(), &*self.store)
+                    .map_err(|e| QueueError::Invalid(e.to_string()))?;
+                self.seq += 1;
+                self.publish(std::slice::from_ref(opened.key()));
+                Ok(Response::Opened(opened))
             }
             Request::Flush => {
                 let r = self.ws.flush(&mut *self.store);

@@ -661,6 +661,13 @@ pub fn render_block_row(
         .pl(px(8. + row.depth as f32 * 24.))
         .pr(px(12.))
         .when(edit.is_some_and(|e| e.selected), |d| d.bg(theme.selection))
+        .when_some(edit.map(|e| e.on_drag.clone()), |d, drag| {
+            d.on_mouse_move(move |event, window, cx| {
+                if event.dragging() {
+                    drag(window, cx);
+                }
+            })
+        })
         .when_some(actions.focus.clone(), |d, focus| {
             d.on_mouse_down(
                 crate::ui::text_edit::MouseButton::Left,

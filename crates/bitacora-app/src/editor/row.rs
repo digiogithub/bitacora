@@ -28,6 +28,8 @@ pub struct RowEdit {
     pub conflict: Option<Build>,
     /// Click on rendered text or on the row's blank area.
     pub on_text: TextHook,
+    /// The pointer moved over the row with the left button held (block drag selection).
+    pub on_drag: Hook,
     /// Click on the task checkbox.
     pub on_checkbox: Hook,
     /// Click on the bullet (zoom into the block).

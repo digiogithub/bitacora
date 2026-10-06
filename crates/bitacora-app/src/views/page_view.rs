@@ -251,6 +251,8 @@ impl PageView {
             let settings = bitacora_core::editor::EditorSettings::from_config(&link.config);
             let ed = cx.new(|cx| OutlineEditor::new(queue, hidden, true, window, cx));
             ed.read(cx).apply_settings(settings);
+            let config = link.config.clone();
+            ed.update(cx, |e, _| e.set_config(config));
             self._editor_subs = vec![
                 cx.subscribe(&ed, Self::on_editor_event),
                 cx.observe(&ed, |_, _, cx| cx.notify()),
@@ -314,6 +316,7 @@ impl PageView {
                 self.remeasure_block(*r);
                 cx.notify();
             }
+            EditorEvent::Leave { .. } => {}
             EditorEvent::Entered(r) => {
                 if let Some(pos) = self.item_position(Item::Block(*r)) {
                     self.list_state.scroll_to_reveal_item(pos);
@@ -522,7 +525,12 @@ impl PageView {
                     match &route {
                         Route::Page(name) => data::open_page(&handle, name, limit).map(|load| {
                             let live = link.as_ref().and_then(|l| {
-                                editor::ensure_loaded(&l.queue, &handle, &load.header.title)
+                                editor::ensure_loaded(
+                                    &l.queue,
+                                    &handle,
+                                    &l.config,
+                                    &load.header.title,
+                                )
                             });
                             (load, live)
                         }),
