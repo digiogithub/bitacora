@@ -10,14 +10,28 @@
 //! `rmcp` types are confined to the private `handler` and `server` modules so a future rmcp major
 //! touches one place (design `mcp-server.md` section 1).
 
+mod dates;
 mod guard;
 mod handler;
+mod index_reader;
+mod prompts;
+mod query;
 mod reader;
+mod render;
+mod resources;
 mod server;
+mod status;
 mod tokens;
+mod tools;
 
-pub use reader::{GraphInfo, GraphReader, ReaderError, StaticGraphReader};
+pub use index_reader::IndexGraphReader;
+pub use reader::{
+    BlockInfo, ChangeEvent, GraphInfo, GraphReader, ListPagesQuery, PageInfo, ReaderError,
+    ReaderErrorKind, ReaderResult, RefGroupInfo, RefItem, SearchItem, SearchKind, SearchQuery,
+    StaticGraphReader, TaskQuery,
+};
 pub use server::{DEFAULT_PORT, McpConfig, McpServer};
+pub use status::{DisabledSync, SyncState, SyncStatus, SyncStatusProvider};
 pub use tokens::{Scope, TokenInfo, TokenStore, default_token_path};
 
 use bitacora_core as _;
