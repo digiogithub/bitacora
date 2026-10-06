@@ -361,6 +361,17 @@ Read as UTF-8 (BOM stripped and restored per file), compare normalised, write wi
 
 ---
 
+## 8. Implementation notes (BIT-US-0044 / BIT-US-0045)
+
+- **Threading (amends 6):** the engine (`bitacora_sync::engine::SyncEngine`) is a synchronous state machine driven by a command channel on its own `std::thread` (`engine::spawn`); no tokio. Time, sleeping and jitter come from a `Timing` trait so tests do not wait.
+- **Writer seam:** the engine never writes graph files. `writer::GraphWriter::acquire()` flushes editors and pending writes and returns a `GraphLock`; `GraphLock::apply(&[FileChange])` is the only way merge output reaches the work tree, with an `expected` content per file (stale -> nothing applied). `Busy` means "a write transaction is pending": the cycle defers (state `Dirty`, retry after `busy_retry`). Core implements the trait with its command queue (BIT-US-0062); `writer::testing::DirGraphWriter` is the test fake.
+- **Integration order:** files first through the writer, then `update-ref` (CAS) and `reset_index`, so a crash never leaves a HEAD that silently reverts remote work.
+- **Conflicted:** the merge plan is applied to the work tree (ours for conflicting regions), the merged tree is anchored as a commit with parents `[ours, theirs]` in `refs/bitacora/pending-merge`, and the conflicts live behind the `MergeStateStore` trait (`MemoryMergeStore` until BIT-US-0053 persists them). `finish_pending_merge()` is the resolver's seam: it commits the work tree and creates the two-parent `resolve` commit.
+- **Policies applied (5.1):** markdown via `merge_page`; `logseq/config.edn` and other text via `merge_lines` (clean diff3 is accepted, overlap becomes a `config`/`text` conflict keeping ours; the EDN-aware merge is still open); whiteboards, draws and binary files keep ours and save theirs as `<name> (conflict-<short sha>).<ext>` plus a note (the design's `<device> <date>` naming needs data a commit does not carry); add/add of a blank or `-` page takes the other side; deleted-vs-modified files keep ours and record `file_delete_vs_modify`.
+- **Not yet done:** `MergeEnv.prefer` (newest writer) is always ours because `Side` is not re-exported by `bitacora-merge`; resolution memo (rerere); external-marker import and unmerged-index resolution (R8) report `ExternalOperationInProgress`; the app-close 10 s budget relies on the CLI timeouts.
+
+---
+
 ## Requirements for Bitacora
 
 - **MUST** commit after an idle debounce (default 20 s) with a hard cap, never on a blind fixed interval.

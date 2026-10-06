@@ -1,9 +1,15 @@
 //! `bitacora-sync`: Git synchronisation: `GitBackend` (system git CLI plus `gix`), repository
 //! setup and onboarding, the sync loop and conflict state (ADR-007, ADR-020).
 
+pub mod autocommit;
 pub mod backend;
+pub mod commit_msg;
+pub mod engine;
+pub mod merge;
 pub mod onboarding;
 pub mod repo_setup;
+pub mod state;
+pub mod writer;
 
 use bitacora_core as _;
 use bitacora_merge as _;

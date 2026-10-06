@@ -14,9 +14,9 @@ use gix::refs::transaction::PreviousValue;
 
 use super::gix_read::{from_gix, to_gix};
 use super::{
-    ActiveBackend, CommitMessage, CommitOpts, DirtyKind, FetchOutcome, GitBackend, GitError, Oid,
-    PushOutcome, RepoStatus, Result, TreeChange, TreeEdit, check_ref_arg, classify_failure,
-    gix_read, gix_trees,
+    ActiveBackend, CommitInfo, CommitMessage, CommitOpts, DirtyKind, FetchOutcome, GitBackend,
+    GitError, Oid, PushOutcome, RepoStatus, Result, TreeChange, TreeEdit, check_ref_arg,
+    classify_failure, gix_read, gix_trees,
 };
 
 /// Backend running entirely on gix.
@@ -453,6 +453,23 @@ impl GitBackend for GixBackend {
 
     fn status(&self) -> Result<RepoStatus> {
         gix_read::status(&self.repo()?)
+    }
+
+    fn resolve_ref(&self, name: &str) -> Result<Option<Oid>> {
+        check_ref_arg(name)?;
+        gix_read::resolve_ref(&self.repo()?, name)
+    }
+
+    fn commit_info(&self, commit: &Oid) -> Result<CommitInfo> {
+        gix_read::commit_info(&self.repo()?, commit)
+    }
+
+    fn reset_index(&self, commit: &Oid) -> Result<()> {
+        let repo = self.repo()?;
+        let tree = gix_read::tree_of(&repo, commit)?.id;
+        let mut index = repo.index_from_tree(&tree).map_err(GitError::other)?;
+        index.write(Default::default()).map_err(GitError::other)?;
+        Ok(())
     }
 
     fn kind(&self) -> ActiveBackend {

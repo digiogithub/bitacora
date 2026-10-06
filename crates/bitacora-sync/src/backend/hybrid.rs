@@ -1,8 +1,8 @@
 //! `HybridBackend`: system git for network and ref writes, gix for reads (ADR-007).
 
 use super::{
-    ActiveBackend, CliBackend, CommitMessage, CommitOpts, FetchOutcome, GitBackend, GixBackend,
-    Oid, PushOutcome, RepoStatus, Result, TreeChange, TreeEdit,
+    ActiveBackend, CliBackend, CommitInfo, CommitMessage, CommitOpts, FetchOutcome, GitBackend,
+    GixBackend, Oid, PushOutcome, RepoStatus, Result, TreeChange, TreeEdit,
 };
 
 /// Delegates per ADR-007.
@@ -54,6 +54,15 @@ impl GitBackend for HybridBackend {
     }
     fn status(&self) -> Result<RepoStatus> {
         self.gix.status()
+    }
+    fn resolve_ref(&self, name: &str) -> Result<Option<Oid>> {
+        self.cli.resolve_ref(name)
+    }
+    fn commit_info(&self, commit: &Oid) -> Result<CommitInfo> {
+        self.gix.commit_info(commit)
+    }
+    fn reset_index(&self, commit: &Oid) -> Result<()> {
+        self.cli.reset_index(commit)
     }
     fn kind(&self) -> ActiveBackend {
         ActiveBackend::Hybrid

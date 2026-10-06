@@ -4,8 +4,8 @@ use std::collections::{HashMap, VecDeque};
 use std::sync::Mutex;
 
 use super::{
-    ActiveBackend, CommitMessage, CommitOpts, FetchOutcome, GitBackend, Oid, PushOutcome,
-    RepoStatus, Result, TreeChange, TreeEdit,
+    ActiveBackend, CommitInfo, CommitMessage, CommitOpts, FetchOutcome, GitBackend, Oid,
+    PushOutcome, RepoStatus, Result, TreeChange, TreeEdit,
 };
 
 /// A call recorded by [`FakeBackend`].
@@ -164,6 +164,31 @@ impl GitBackend for FakeBackend {
             s.calls.push(FakeCall::Other("status"));
             Ok(s.status.clone())
         })
+    }
+
+    fn resolve_ref(&self, _name: &str) -> Result<Option<Oid>> {
+        self.with(|s| {
+            s.calls.push(FakeCall::Other("resolve_ref"));
+            Ok(s.status.head.clone())
+        })
+    }
+
+    fn commit_info(&self, commit: &Oid) -> Result<CommitInfo> {
+        self.with(|s| {
+            s.calls.push(FakeCall::Other("commit_info"));
+            Ok(CommitInfo {
+                id: commit.clone(),
+                tree: Oid::empty_tree(),
+                parents: Vec::new(),
+                committer_time: 0,
+                message: String::new(),
+            })
+        })
+    }
+
+    fn reset_index(&self, _commit: &Oid) -> Result<()> {
+        self.with(|s| s.calls.push(FakeCall::Other("reset_index")));
+        Ok(())
     }
 
     fn kind(&self) -> ActiveBackend {
