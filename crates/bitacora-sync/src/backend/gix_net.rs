@@ -55,6 +55,17 @@ fn net_err(e: &(dyn std::error::Error + 'static)) -> GitError {
     }
 }
 
+/// User files are sacred: never let a global `core.autocrlf=true` (Windows default) convert line
+/// endings when gix checks out or hashes work tree files.
+const NO_EOL_CONVERSION: [&str; 1] = ["core.autocrlf=false"];
+
+fn open_gix(path: &Path) -> gix::Result<gix::Repository> {
+    gix::open_opts(
+        path,
+        gix::open::Options::default().config_overrides(NO_EOL_CONVERSION),
+    )
+}
+
 impl GixBackend {
     /// Sets the credential provider used when pushing over HTTPS/SSH (ADR-023).
     #[must_use]
@@ -95,13 +106,15 @@ impl GixBackend {
     }
 
     fn repo(&self) -> Result<gix::Repository> {
-        gix::open(&self.path).map_err(|_| GitError::NotARepo)
+        open_gix(&self.path).map_err(|_| GitError::NotARepo)
     }
 
     /// Clones `url` into `dest` and checks out the default branch.
     pub fn clone_repo(url: &str, dest: &Path) -> Result<()> {
         let interrupt = AtomicBool::new(false);
-        let mut prepare = gix::prepare_clone(url, dest).map_err(|e| net_err(&e))?;
+        let mut prepare = gix::prepare_clone(url, dest)
+            .map_err(|e| net_err(&e))?
+            .with_in_memory_config_overrides(NO_EOL_CONVERSION);
         let (mut checkout, _) = prepare
             .fetch_then_checkout(gix::progress::Discard, &interrupt)
             .map_err(|e| net_err(&e))?;
@@ -116,7 +129,7 @@ impl GixBackend {
         check_ref_arg(remote)?;
         check_ref_arg(branch)?;
         if let Some(path) = self.local_remote_path(&self.repo()?, remote)? {
-            let remote_repo = gix::open(path).map_err(|e| net_err(&e))?;
+            let remote_repo = open_gix(&path).map_err(|e| net_err(&e))?;
             let tip = remote_repo
                 .try_find_reference(format!("refs/heads/{branch}").as_str())
                 .map_err(|e| net_err(&e))?
@@ -301,7 +314,7 @@ impl GitBackend for GixBackend {
             .head_id()
             .map_err(|_| GitError::other("nothing to push: HEAD has no commits"))?
             .detach();
-        let dest = gix::open(&remote_path).map_err(|e| net_err(&e))?;
+        let dest = open_gix(&remote_path).map_err(|e| net_err(&e))?;
         let ref_name = format!("refs/heads/{branch}");
         let remote_tip = dest
             .try_find_reference(ref_name.as_str())

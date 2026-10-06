@@ -198,8 +198,11 @@ fn burst_is_coalesced() {
         fs::write(fx.path("pages/b.md"), format!("- v{i}\n")).expect("write");
         sleep(Duration::from_millis(15));
     }
-    let first = fx.wait_file(|f| f.rel_path == "pages/b.md");
-    assert_eq!(first.hash, Some(blake3::hash(b"- v2\n")));
+    // FSEvents (and a loaded CI disk) may deliver the burst in pieces, so an intermediate state
+    // can be reported first; the final content must always arrive, and nothing after it.
+    let last_hash = blake3::hash(b"- v2\n");
+    let last = fx.wait_file(|f| f.rel_path == "pages/b.md" && f.hash == Some(last_hash));
+    assert_eq!(last.bytes.as_deref(), Some(&b"- v2\n"[..]));
     let rest: Vec<_> = fx
         .events_before_sentinel()
         .into_iter()
@@ -247,7 +250,9 @@ fn own_delete_is_suppressed() {
     let leaked: Vec<_> = fx
         .events_before_sentinel()
         .into_iter()
-        .filter(|e| e.rel_path == "pages/e.md")
+        // Only the removal must be suppressed; on Windows the setup file's (debounced) creation
+        // event can still arrive after the watcher starts and is legitimate.
+        .filter(|e| e.rel_path == "pages/e.md" && matches!(e.kind, FileEventKind::Removed))
         .collect();
     assert!(leaked.is_empty(), "{leaked:?}");
 }

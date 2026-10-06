@@ -254,7 +254,13 @@ fn separate_gitdir_is_detected_and_migrated() {
     );
     commit_file(&graph, "pages/Home.md", "- home\n", "first");
     assert!(graph.join(".git").is_file());
-    assert_eq!(detect_separate_gitdir(&graph), Some(gitdir.clone()));
+    // git records the canonical spelling (`/private/var`, long Windows names, `/` separators), so
+    // compare canonicalized paths rather than the temp dir's own spelling.
+    let detected = detect_separate_gitdir(&graph).expect("gitdir pointer");
+    assert_eq!(
+        detected.canonicalize().unwrap(),
+        gitdir.canonicalize().unwrap()
+    );
 
     let config = configs().remove(0).1;
     let err = enable_sync(&graph, &env.url(), "main", &config).unwrap_err();

@@ -8,7 +8,9 @@ use std::time::Duration;
 
 use notify::event::{ModifyKind, RenameMode};
 use notify::{ErrorKind, EventKind, RecommendedWatcher, RecursiveMode};
-use notify_debouncer_full::{DebounceEventResult, Debouncer, RecommendedCache, new_debouncer};
+use notify_debouncer_full::{
+    DebounceEventResult, DebouncedEvent, Debouncer, RecommendedCache, new_debouncer,
+};
 
 use crate::echo::EchoFilter;
 use crate::ignore::IgnoreRules;
@@ -187,33 +189,7 @@ impl Drop for GraphWatcher {
 fn handle(shared: &Shared, allow_poll: bool, res: DebounceEventResult) {
     match res {
         Ok(events) => {
-            let mut rescan = false;
-            let mut ops = Vec::new();
-            let mut touched = HashSet::new();
-            for ev in events {
-                if ev.need_rescan() {
-                    rescan = true;
-                    continue;
-                }
-                match ev.kind {
-                    EventKind::Access(_) => {}
-                    EventKind::Modify(ModifyKind::Name(RenameMode::Both))
-                        if ev.paths.len() == 2 =>
-                    {
-                        ops.push(Op::Rename {
-                            from: ev.paths[0].clone(),
-                            to: ev.paths[1].clone(),
-                        });
-                    }
-                    _ => {
-                        for p in &ev.paths {
-                            if touched.insert(p.clone()) {
-                                ops.push(Op::Touch(p.clone()));
-                            }
-                        }
-                    }
-                }
-            }
+            let (rescan, ops) = plan(events);
             if rescan {
                 (shared.sink)(WatchEvent::Rescan);
             }
@@ -237,5 +213,72 @@ fn handle(shared: &Shared, allow_poll: bool, res: DebounceEventResult) {
                 }
             }
         }
+    }
+}
+
+/// Turns debounced events into a rescan flag plus the operations to apply.
+///
+/// A rescan request (inotify overflow, Windows buffer overflow, FSEvents `MustScanSubDirs`)
+/// asks the consumer for a full reconcile. FSEvents attaches the affected directory to that
+/// request, and the debouncer keeps only one such request per batch, so the path is also walked
+/// here: a directory created with files in it is reported even when the OS coalesced the
+/// per-file events into a single "scan this directory" hint.
+fn plan(events: Vec<DebouncedEvent>) -> (bool, Vec<Op>) {
+    let mut rescan = false;
+    let mut ops = Vec::new();
+    let mut touched = HashSet::new();
+    for ev in events {
+        if ev.need_rescan() {
+            rescan = true;
+            for p in &ev.paths {
+                if touched.insert(p.clone()) {
+                    ops.push(Op::Touch(p.clone()));
+                }
+            }
+            continue;
+        }
+        match ev.kind {
+            EventKind::Access(_) => {}
+            EventKind::Modify(ModifyKind::Name(RenameMode::Both)) if ev.paths.len() == 2 => {
+                ops.push(Op::Rename {
+                    from: ev.paths[0].clone(),
+                    to: ev.paths[1].clone(),
+                });
+            }
+            _ => {
+                for p in &ev.paths {
+                    if touched.insert(p.clone()) {
+                        ops.push(Op::Touch(p.clone()));
+                    }
+                }
+            }
+        }
+    }
+    (rescan, ops)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use notify::Event;
+    use notify::event::Flag;
+    use std::time::Instant;
+
+    #[test]
+    fn rescan_request_with_a_path_also_touches_that_path() {
+        let ev = Event::new(EventKind::Other)
+            .set_flag(Flag::Rescan)
+            .add_path(PathBuf::from("/g/pages/sub"));
+        let (rescan, ops) = plan(vec![DebouncedEvent::new(ev, Instant::now())]);
+        assert!(rescan);
+        assert_eq!(ops, [Op::Touch(PathBuf::from("/g/pages/sub"))]);
+    }
+
+    #[test]
+    fn rescan_request_without_a_path_only_flags_a_rescan() {
+        let ev = Event::new(EventKind::Other).set_flag(Flag::Rescan);
+        let (rescan, ops) = plan(vec![DebouncedEvent::new(ev, Instant::now())]);
+        assert!(rescan);
+        assert!(ops.is_empty());
     }
 }
