@@ -2,7 +2,7 @@
 id: BIT-T-0310
 type: task
 title: Edit embedded blocks in place through nested BlockEditor
-status: backlog
+status: done
 priority: medium
 parent: BIT-US-0104
 milestone: BIT-M-0005
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-app, editor, bitacora-core]
 estimate: 3
 created: 2026-10-06T14:33:07Z
-updated: 2026-10-06T14:33:07Z
+updated: 2026-10-06T22:20:30Z
+closed: 2026-10-06T22:20:30Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-US-0104
 type: story
 title: Block and page embeds rendered and editable in place
-status: backlog
+status: done
 priority: medium
 parent: BIT-EP-0013
 milestone: BIT-M-0005
@@ -10,7 +10,8 @@ author: mcp
 labels: [ui, editor, bitacora-app]
 estimate: 5
 created: 2026-10-06T14:31:46Z
-updated: 2026-10-06T14:31:46Z
+updated: 2026-10-06T22:20:30Z
+closed: 2026-10-06T22:20:30Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-T-0304
 type: task
 title: Live query refresh driven by IndexEvents
-status: backlog
+status: done
 priority: medium
 parent: BIT-US-0102
 milestone: BIT-M-0005
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-app, bitacora-index, query]
 estimate: 2
 created: 2026-10-06T14:33:07Z
-updated: 2026-10-06T14:33:07Z
+updated: 2026-10-06T22:20:30Z
+closed: 2026-10-06T22:20:30Z
 ---
 
 ## Description

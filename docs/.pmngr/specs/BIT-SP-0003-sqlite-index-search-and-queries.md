@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [index, search]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T21:59:46Z
+updated: 2026-10-06T22:20:39Z
 requirements:
   R1:
     status: backlog
@@ -196,7 +196,12 @@ requirements:
         - crates/bitacora-index/src/query/compile.rs
         - crates/bitacora-index/src/query/dates.rs
         - crates/bitacora-index/src/query/mod.rs
-      tests: [crates/bitacora-index/tests/query_simple.rs]
+        - crates/bitacora-app/src/render/query/mod.rs
+        - crates/bitacora-app/src/render/query/table.rs
+        - crates/bitacora-app/src/views/widgets/query_block.rs
+      tests:
+        - crates/bitacora-index/tests/query_simple.rs
+        - crates/bitacora-app/src/views/widgets/tests.rs
     verified: {rev: "sha256:e662d812be0472fc", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
   R19:
     status: backlog
@@ -205,7 +210,11 @@ requirements:
         - crates/bitacora-index/src/query/advanced.rs
         - crates/bitacora-index/src/query/datalog.rs
         - crates/bitacora-index/src/query/edn.rs
-      tests: [crates/bitacora-index/tests/query_advanced.rs]
+        - crates/bitacora-app/src/render/query/mod.rs
+        - crates/bitacora-app/src/views/widgets/query_block.rs
+      tests:
+        - crates/bitacora-index/tests/query_advanced.rs
+        - crates/bitacora-app/src/views/widgets/tests.rs
     verified: {rev: "sha256:72f80f0b36a5ef1f", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
 ---
 
