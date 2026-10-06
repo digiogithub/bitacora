@@ -102,18 +102,20 @@ pub enum Widget {
 /// Recognises a line that is exactly one `{{query ...}}` or `{{embed ...}}` macro.
 pub fn detect_line(line: &str) -> Option<Widget> {
     let t = line.trim();
-    if !t.starts_with("{{") || !t.ends_with("}}") || t.starts_with("{{{") {
+    if !t.starts_with("{{") || !t.ends_with("}}") {
         return None;
     }
     let tokens = scan_line(t, 0, t.len());
     let [InlineToken::Macro(m)] = tokens.as_slice() else {
         return None;
     };
-    if m.span.start != 0 || m.span.end != t.len() || m.triple {
+    if m.span.start != 0 || m.span.end != t.len() {
         return None;
     }
+    // `{{{embed ((id))}}}` is the same macro with the longer braces.
+    let braces = if m.triple { 3 } else { 2 };
     let name = t[m.name.start..m.name.end].to_ascii_lowercase();
-    let inner = t[2..t.len() - 2].trim();
+    let inner = t[braces..t.len() - braces].trim();
     let rest = inner.get(name.len()..).map(str::trim).unwrap_or_default();
     match name.as_str() {
         "query" => {
@@ -185,6 +187,10 @@ mod tests {
         assert_eq!(detect_line("text {{embed [[P]]}}"), None);
         assert_eq!(detect_line("{{embed [[P]]}} text"), None);
         assert_eq!(detect_line("{{embed ((not-a-uuid))}}"), None);
+        assert_eq!(
+            detect_line("{{{embed [[P]] }}}"),
+            Some(Widget::Embed(EmbedTarget::Page("P".into())))
+        );
         assert_eq!(detect_line("{{video https://x}}"), None);
         assert_eq!(detect_line("{{query }}"), None);
     }

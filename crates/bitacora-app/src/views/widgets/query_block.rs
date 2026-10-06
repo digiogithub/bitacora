@@ -676,7 +676,13 @@ impl QueryBlock {
                         div()
                             .id(("qb-cell", cell_id))
                             .cursor_pointer()
-                            .child(SharedString::from(text.clone()))
+                            .child(SharedString::from(
+                                if is_page_col || matches!(row.target, RowTarget::Page(_)) {
+                                    text.clone()
+                                } else {
+                                    layout.text.clone()
+                                },
+                            ))
                             .text_color(if is_page_col {
                                 theme.info
                             } else {

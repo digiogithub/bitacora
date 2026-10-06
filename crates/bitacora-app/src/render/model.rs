@@ -346,7 +346,8 @@ impl BlockModel {
                 title_done = true;
                 let from = analysis.head.title_start.min(end).max(start);
                 // `- #+BEGIN_QUERY` on the first line opens the region right away.
-                if let Some(rest) = strip_prefix_ci(content[from..end].trim_start(), "#+BEGIN_QUERY")
+                if let Some(rest) =
+                    strip_prefix_ci(content[from..end].trim_start(), "#+BEGIN_QUERY")
                     && rest.trim().is_empty()
                 {
                     region = Some(Region::Begin {

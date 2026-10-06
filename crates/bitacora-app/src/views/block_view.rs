@@ -452,12 +452,16 @@ pub fn render_block_row(
             )),
     );
     // `min_h`: an empty block still has a line to click on.
-    let mut content = v_flex()
-        .flex_1()
-        .min_w_0()
-        .min_h(px(22.))
-        .gap_1()
-        .child(title_line);
+    let mut content = v_flex().flex_1().min_w_0().min_h(px(22.)).gap_1();
+    // A block that is only a query or an embed has no title line above its widget.
+    let widget_only = block.title.is_empty()
+        && block.marker.is_none()
+        && block.priority.is_none()
+        && matches!(block.body.first(), Some(BodyItem::Widget(_)))
+        && actions.widgets.is_some();
+    if !widget_only {
+        content = content.child(title_line);
+    }
     for image in &block.title.images {
         content = content.child(image_element(image, graph_root, theme));
     }
