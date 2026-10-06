@@ -2,7 +2,7 @@
 id: BIT-US-0112
 type: story
 title: Flatpak package for Flathub
-status: backlog
+status: in_review
 priority: low
 parent: BIT-EP-0014
 milestone: BIT-M-0005
@@ -10,7 +10,8 @@ author: mcp
 labels: [release, packaging, linux, bitacora-app]
 estimate: 5
 created: 2026-10-06T14:32:37Z
-updated: 2026-10-06T15:15:56Z
+updated: 2026-10-06T19:59:49Z
+started: 2026-10-06T19:59:49Z
 ---
 
 ## Description

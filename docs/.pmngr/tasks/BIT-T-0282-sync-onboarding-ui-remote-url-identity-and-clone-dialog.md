@@ -2,7 +2,7 @@
 id: BIT-T-0282
 type: task
 title: "Sync onboarding UI: remote URL, identity and clone dialog"
-status: backlog
+status: in_progress
 priority: medium
 parent: BIT-US-0043
 milestone: BIT-M-0004
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-app, sync, onboarding, ui]
 estimate: 2
 created: 2026-10-06T14:32:57Z
-updated: 2026-10-06T14:32:57Z
+updated: 2026-10-06T19:59:19Z
+started: 2026-10-06T19:59:19Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-T-0256
 type: task
 title: Build and publish bitacora-cli archives and install scripts
-status: backlog
+status: in_review
 priority: medium
 parent: BIT-US-0110
 milestone: BIT-M-0005
@@ -10,7 +10,8 @@ author: mcp
 labels: [release, ci, bitacora-cli]
 estimate: 3
 created: 2026-10-06T14:32:06Z
-updated: 2026-10-06T14:32:06Z
+updated: 2026-10-06T19:59:49Z
+started: 2026-10-06T19:59:49Z
 ---
 
 ## Description

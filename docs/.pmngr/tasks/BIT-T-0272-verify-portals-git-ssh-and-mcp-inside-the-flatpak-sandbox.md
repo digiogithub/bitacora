@@ -2,7 +2,7 @@
 id: BIT-T-0272
 type: task
 title: Verify portals, git/SSH and MCP inside the Flatpak sandbox
-status: backlog
+status: in_review
 priority: low
 parent: BIT-US-0112
 milestone: BIT-M-0005
@@ -10,7 +10,8 @@ author: mcp
 labels: [packaging, linux, bitacora-app]
 estimate: 2
 created: 2026-10-06T14:32:50Z
-updated: 2026-10-06T15:15:56Z
+updated: 2026-10-06T19:59:49Z
+started: 2026-10-06T19:59:49Z
 ---
 
 ## Description

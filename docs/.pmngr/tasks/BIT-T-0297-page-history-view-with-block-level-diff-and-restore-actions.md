@@ -2,7 +2,7 @@
 id: BIT-T-0297
 type: task
 title: Page history view with block-level diff and restore actions
-status: backlog
+status: in_progress
 priority: low
 parent: BIT-US-0048
 milestone: BIT-M-0004
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-app, history, ui]
 estimate: 3
 created: 2026-10-06T14:32:57Z
-updated: 2026-10-06T14:32:57Z
+updated: 2026-10-06T19:59:19Z
+started: 2026-10-06T19:59:19Z
 ---
 
 ## Description
