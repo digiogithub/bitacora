@@ -2,15 +2,16 @@
 id: BIT-T-0060
 type: task
 title: "Line scanner with fence and #+BEGIN region tracking"
-status: in_progress
+status: done
 parent: BIT-US-0026
 milestone: BIT-M-0002
 author: mcp
 labels: [bitacora-markdown, parser]
 estimate: 3
 created: 2026-10-06T14:28:29Z
-updated: 2026-10-06T16:46:41Z
+updated: 2026-10-06T16:59:58Z
 started: 2026-10-06T16:46:41Z
+closed: 2026-10-06T16:59:58Z
 ---
 
 ## Description

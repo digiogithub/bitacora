@@ -2,7 +2,7 @@
 id: BIT-US-0058
 type: story
 title: Property scanner with mldoc key rules and Logseq value semantics
-status: in_progress
+status: done
 priority: critical
 parent: BIT-EP-0003
 milestone: BIT-M-0002
@@ -10,8 +10,9 @@ author: mcp
 labels: [markdown, compat, parser, properties]
 estimate: 8
 created: 2026-10-06T14:28:45Z
-updated: 2026-10-06T16:46:41Z
+updated: 2026-10-06T17:00:25Z
 started: 2026-10-06T16:46:41Z
+closed: 2026-10-06T17:00:25Z
 ---
 
 ## Description

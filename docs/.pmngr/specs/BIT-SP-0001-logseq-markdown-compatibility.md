@@ -6,20 +6,47 @@ status: backlog
 author: mcp
 labels: [markdown, compat]
 created: 2026-10-06T14:21:20Z
-updated: 2026-10-06T14:27:22Z
+updated: 2026-10-06T16:59:51Z
 requirements:
   R1:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-markdown/src/lines.rs
+        - crates/bitacora-markdown/src/outline.rs#split
+        - crates/bitacora-markdown/src/tree.rs#build_tree
+      tests:
+        - crates/bitacora-markdown/src/lines.rs
+        - crates/bitacora-markdown/src/tree.rs
+        - crates/bitacora-markdown/tests/outline_fixtures.rs
+        - crates/bitacora-markdown/tests/outline_roundtrip.rs
   R2:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-markdown/src/lines.rs#classify
+        - crates/bitacora-markdown/src/outline.rs#BlockKind
+      tests:
+        - crates/bitacora-markdown/src/lines.rs
+        - crates/bitacora-markdown/src/outline.rs
+        - crates/bitacora-markdown/tests/outline_fixtures.rs
   R3:
     status: backlog
   R4:
     status: backlog
+    trace:
+      code: [crates/bitacora-markdown/src/properties/scan.rs]
+      tests: [crates/bitacora-markdown/src/properties/scan.rs]
   R5:
     status: backlog
+    trace:
+      code: [crates/bitacora-markdown/src/properties/value.rs]
+      tests: [crates/bitacora-markdown/src/properties/value.rs]
   R6:
     status: backlog
+    trace:
+      code: [crates/bitacora-markdown/src/properties/scan.rs#PropertyScan]
+      tests: [crates/bitacora-markdown/src/properties/scan.rs]
   R7:
     status: backlog
   R8:
@@ -36,6 +63,9 @@ requirements:
     status: backlog
   R14:
     status: backlog
+    trace:
+      code: [crates/bitacora-markdown/src/properties/drawer.rs]
+      tests: [crates/bitacora-markdown/src/properties/drawer.rs]
   R15:
     status: backlog
   R16:
@@ -46,6 +76,16 @@ requirements:
     status: backlog
   R19:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-markdown/src/lines.rs
+        - crates/bitacora-markdown/src/outline.rs
+        - crates/bitacora-markdown/src/properties/scan.rs
+      tests:
+        - crates/bitacora-markdown/src/outline.rs
+        - crates/bitacora-markdown/src/properties/scan.rs
+        - crates/bitacora-markdown/tests/outline_fixtures.rs
+        - crates/bitacora-markdown/tests/outline_roundtrip.rs
 ---
 
 ## Purpose
