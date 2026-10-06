@@ -29,7 +29,15 @@ fn start_with(cfg: WatchConfig, ignore: IgnoreRules, setup: impl FnOnce(&Path)) 
     setup(dir.path());
     let (tx, rx) = mpsc::channel();
     let echo = EchoFilter::new();
+    let cfg = WatchConfig {
+        trace_events: true,
+        // Short safety rescan so a genuinely lost OS event cannot hang a test (the raw-event
+        // trace still shows what the OS delivered).
+        safety_scan_interval: cfg.safety_scan_interval.or(Some(Duration::from_secs(2))),
+        ..cfg
+    };
     let w = GraphWatcher::start(dir.path(), ignore, echo.clone(), cfg, move |e| {
+        eprintln!("[watch out] {e:?}");
         let _ = tx.send(e);
     })
     .expect("start");
@@ -60,7 +68,9 @@ impl Fixture {
             match self.rx.recv_timeout(left) {
                 Ok(WatchEvent::File(f)) if pred(&f) => return f,
                 Ok(_) => {}
-                Err(_) => panic!("timed out waiting for event"),
+                Err(_) => panic!(
+                    "timed out waiting for event (see captured [watch raw]/[watch out] lines)"
+                ),
             }
         }
     }
@@ -280,6 +290,22 @@ fn new_directory_with_files_is_scanned() {
     assert_eq!(ev.kind, FileEventKind::Upserted);
     fs::remove_dir_all(fx.path("pages/sub")).expect("rm");
     let ev = fx.wait_file(|f| f.rel_path == "pages/sub/g.md");
+    assert_eq!(ev.kind, FileEventKind::Removed);
+}
+
+#[test]
+fn safety_scan_reports_new_directory_files() {
+    let cfg = WatchConfig {
+        safety_scan_interval: Some(Duration::from_millis(200)),
+        ..WatchConfig::default()
+    };
+    let fx = start_with(cfg, IgnoreRules::new(), |_| {});
+    fs::create_dir_all(fx.path("pages/deep/er")).expect("mkdir");
+    fs::write(fx.path("pages/deep/er/s.md"), "- s\n").expect("write");
+    let ev = fx.wait_file(|f| f.rel_path == "pages/deep/er/s.md");
+    assert_eq!(ev.kind, FileEventKind::Upserted);
+    fs::remove_dir_all(fx.path("pages/deep")).expect("rm");
+    let ev = fx.wait_file(|f| f.rel_path == "pages/deep/er/s.md");
     assert_eq!(ev.kind, FileEventKind::Removed);
 }
 
