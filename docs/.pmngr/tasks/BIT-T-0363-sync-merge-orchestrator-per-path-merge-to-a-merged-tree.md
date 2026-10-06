@@ -2,7 +2,7 @@
 id: BIT-T-0363
 type: task
 title: "sync_merge orchestrator: per-path merge to a merged tree"
-status: backlog
+status: done
 priority: critical
 parent: BIT-US-0053
 milestone: BIT-M-0004
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-sync, merge]
 estimate: 3
 created: 2026-10-06T14:34:50Z
-updated: 2026-10-06T15:10:19Z
+updated: 2026-10-06T18:59:52Z
+closed: 2026-10-06T18:59:52Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-T-0364
 type: task
 title: "Persisted merge state: merge-state.json, pending ref, resolution and resolve commit"
-status: backlog
+status: done
 priority: critical
 parent: BIT-US-0053
 milestone: BIT-M-0004
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-sync, merge, conflicts]
 estimate: 3
 created: 2026-10-06T14:34:50Z
-updated: 2026-10-06T14:34:50Z
+updated: 2026-10-06T18:59:52Z
+closed: 2026-10-06T18:59:52Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-T-0359
 type: task
 title: Path policy dispatch and EDN-aware config.edn 3-way merge
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0052
 milestone: BIT-M-0004
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-sync, bitacora-config, merge]
 estimate: 3
 created: 2026-10-06T14:34:49Z
-updated: 2026-10-06T14:34:49Z
+updated: 2026-10-06T18:59:52Z
+closed: 2026-10-06T18:59:52Z
 ---
 
 ## Description

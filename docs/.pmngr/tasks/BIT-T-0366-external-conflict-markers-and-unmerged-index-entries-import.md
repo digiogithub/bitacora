@@ -2,7 +2,7 @@
 id: BIT-T-0366
 type: task
 title: External conflict markers and unmerged index entries import; marker guard
-status: backlog
+status: done
 priority: critical
 parent: BIT-US-0053
 milestone: BIT-M-0004
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-sync, bitacora-index, merge, conflicts]
 estimate: 2
 created: 2026-10-06T14:34:50Z
-updated: 2026-10-06T15:10:19Z
+updated: 2026-10-06T18:59:52Z
+closed: 2026-10-06T18:59:52Z
 ---
 
 ## Description

@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [mcp, api]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T18:25:17Z
+updated: 2026-10-06T19:00:29Z
 requirements:
   R1:
     status: backlog
@@ -60,6 +60,15 @@ requirements:
     status: backlog
   R11:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-mcp/src/tools.rs
+        - crates/bitacora-mcp/src/handler.rs
+        - crates/bitacora-mcp/src/index_reader.rs
+        - crates/bitacora-mcp/src/query.rs
+      tests:
+        - crates/bitacora-mcp/tests/read_tools.rs
+        - crates/bitacora-cli/src/cmd/serve_tests.rs
   R12:
     status: backlog
   R13:
@@ -68,14 +77,41 @@ requirements:
     status: backlog
   R15:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-mcp/src/index_reader.rs#read_asset
+        - crates/bitacora-mcp/src/resources.rs
+      tests:
+        - crates/bitacora-mcp/tests/read_tools.rs#resources_templates_read_and_confinement
   R16:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-mcp/src/render.rs
+        - crates/bitacora-mcp/src/handler.rs
+      tests:
+        - crates/bitacora-mcp/tests/read_tools.rs#tools_list_declares_schemas_and_read_only_hints
+        - crates/bitacora-mcp/src/render.rs
   R17:
     status: backlog
+    trace:
+      code: [crates/bitacora-mcp/src/handler.rs]
+      tests:
+        - crates/bitacora-mcp/tests/read_tools.rs#tools_list_declares_schemas_and_read_only_hints
   R18:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-mcp/src/resources.rs
+        - crates/bitacora-mcp/src/handler.rs
+      tests:
+        - crates/bitacora-mcp/tests/read_tools.rs#resources_templates_read_and_confinement
+        - crates/bitacora-mcp/tests/read_tools.rs#page_changes_notify_subscribed_resources_within_two_seconds
   R19:
     status: backlog
+    trace:
+      code: [crates/bitacora-mcp/src/prompts.rs]
+      tests: [crates/bitacora-mcp/tests/read_tools.rs#prompts_list_and_get]
   R20:
     status: backlog
     trace:

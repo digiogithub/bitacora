@@ -2,7 +2,7 @@
 id: BIT-T-0360
 type: task
 title: Line diff3, whole-file keep-both and binary asset conflict copies
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0052
 milestone: BIT-M-0004
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-sync, merge, assets]
 estimate: 2
 created: 2026-10-06T14:34:49Z
-updated: 2026-10-06T15:10:19Z
+updated: 2026-10-06T18:59:52Z
+closed: 2026-10-06T18:59:52Z
 ---
 
 ## Description

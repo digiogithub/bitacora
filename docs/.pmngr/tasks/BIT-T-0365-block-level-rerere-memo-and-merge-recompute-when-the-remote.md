@@ -2,7 +2,7 @@
 id: BIT-T-0365
 type: task
 title: Block-level rerere memo and merge recompute when the remote moves
-status: backlog
+status: done
 priority: medium
 parent: BIT-US-0053
 milestone: BIT-M-0004
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-sync, merge, conflicts]
 estimate: 2
 created: 2026-10-06T14:34:50Z
-updated: 2026-10-06T14:34:50Z
+updated: 2026-10-06T18:59:52Z
+closed: 2026-10-06T18:59:52Z
 ---
 
 ## Description
