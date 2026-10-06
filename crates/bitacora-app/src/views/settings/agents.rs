@@ -626,7 +626,7 @@ impl SettingsView {
                 .child(
                     Button::new("settings-new-write")
                         .xsmall()
-                        .label("write")
+                        .label(t!("settings.agents.scope_write").to_string())
                         .when(self.new_write, |b| b.primary())
                         .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                             this.new_write = !this.new_write;
@@ -636,7 +636,7 @@ impl SettingsView {
                 .child(
                     Button::new("settings-new-delete")
                         .xsmall()
-                        .label("delete")
+                        .label(t!("settings.agents.scope_delete").to_string())
                         .when(self.new_delete, |b| b.primary())
                         .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                             this.new_delete = !this.new_delete;

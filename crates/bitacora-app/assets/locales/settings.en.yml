@@ -36,6 +36,8 @@ settings:
   general:
     graph_path: Graph folder
     name_format: Page file names
+    name_legacy: legacy
+    name_triple: triple-lowbar
     name_format_help: "How page titles become file names (:file/name-format). Use triple-lowbar for new graphs."
     title_format: Journal page title
     title_format_help: "Journal page title format (:journal/page-title-format)."
@@ -56,6 +58,8 @@ settings:
   editor:
     workflow: Task workflow
     workflow_help: Keywords the task shortcut cycles through (:preferred-workflow).
+    workflow_now: NOW / LATER
+    workflow_todo: TODO / DOING
     template: Default journal template
     template_help: Name of the template applied to new journals (:default-templates).
     template_placeholder: Template name
@@ -123,6 +127,8 @@ settings:
     revoke: Revoke
     in_keychain: Keychain
     in_file: Private file
+    scope_write: write
+    scope_delete: delete
   appearance:
     mode: Theme mode
     theme: Theme

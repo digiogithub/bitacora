@@ -65,7 +65,7 @@ impl SettingsView {
             .child(
                 Button::new("settings-name-legacy")
                     .small()
-                    .label("legacy")
+                    .label(t!("settings.general.name_legacy").to_string())
                     .when(name_format == NameFormat::Legacy, |b| b.primary())
                     .on_click(cx.listener(|this, _: &ClickEvent, window, cx| {
                         this.graph_commit(GraphEdit::NameFormat(NameFormat::Legacy), window, cx);
@@ -74,7 +74,7 @@ impl SettingsView {
             .child(
                 Button::new("settings-name-triple")
                     .small()
-                    .label("triple-lowbar")
+                    .label(t!("settings.general.name_triple").to_string())
                     .when(name_format == NameFormat::TripleLowbar, |b| b.primary())
                     .on_click(cx.listener(|this, _: &ClickEvent, window, cx| {
                         this.graph_commit(
@@ -228,7 +228,7 @@ impl SettingsView {
                     .child(
                         Button::new("settings-workflow-now")
                             .small()
-                            .label("NOW / LATER")
+                            .label(t!("settings.editor.workflow_now").to_string())
                             .when(workflow == PreferredWorkflow::Now, |b| b.primary())
                             .on_click(cx.listener(|this, _: &ClickEvent, window, cx| {
                                 this.graph_commit(
@@ -241,7 +241,7 @@ impl SettingsView {
                     .child(
                         Button::new("settings-workflow-todo")
                             .small()
-                            .label("TODO / DOING")
+                            .label(t!("settings.editor.workflow_todo").to_string())
                             .when(workflow == PreferredWorkflow::Todo, |b| b.primary())
                             .on_click(cx.listener(|this, _: &ClickEvent, window, cx| {
                                 this.graph_commit(
