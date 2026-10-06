@@ -778,39 +778,175 @@ fn ime_composition_keeps_enter_and_tab_away_from_the_outliner(cx: &mut TestAppCo
     assert_eq!(env.disk(HOME), "- a\n- bkan\u{6f22}\n");
 }
 
+const AC_PAGES: [(&str, &str); 4] = [
+    (HOME, "- one\n"),
+    ("pages/Alpha.md", "- alpha page\n"),
+    ("pages/Project Plan.md", "- plan\n"),
+    ("pages/Facts.md", "- the important fact\n- other fact\n"),
+];
+
 #[gpui_test]
 fn autocomplete_context_wins_over_the_block_editor_context(cx: &mut TestAppContext) {
-    let env = Env::new(&[(HOME, "- one\n")]);
+    let env = Env::new(&AC_PAGES);
     let (_view, ed, cx) = open_page(cx, &env, "Home");
     edit(&ed, 0, Caret::End, cx);
     assert_eq!(
         ed.read_with(cx, |e, _| e.key_context_name()),
         "Outliner BlockEditor"
     );
-    ed.update(cx, |e, cx| e.set_completion_open(true, cx));
+    cx.simulate_input("[[Alp");
+    assert_eq!(buffer(&ed, cx).as_deref(), Some("one[[Alp]]"));
+    assert!(ed.read_with(cx, |e, _| e.completion_open()));
     cx.run_until_parked();
     assert_eq!(
         ed.read_with(cx, |e, _| e.key_context_name()),
         "Outliner BlockEditor Autocomplete"
     );
+    // Enter goes to the popup (inserts the page), not to the block.
     cx.simulate_keystrokes("enter");
+    assert_eq!(buffer(&ed, cx).as_deref(), Some("one[[Alpha]]"));
     assert_eq!(
         env.snapshot_texts("Home").len(),
         1,
-        "Enter went to the popup, not the block"
+        "Enter did not split the block"
     );
     assert!(!ed.read_with(cx, |e, _| e.completion_open()));
+    assert_eq!(
+        ed.read_with(cx, |e, _| e.cursor_offset()),
+        12,
+        "caret after the closing brackets"
+    );
     // Escape closes only the popup while it is open.
-    ed.update(cx, |e, cx| e.set_completion_open(true, cx));
+    cx.simulate_input(" #Pro");
+    assert!(ed.read_with(cx, |e, _| e.completion_open()));
     cx.run_until_parked();
     cx.simulate_keystrokes("escape");
     assert_eq!(editing_row(&ed, cx), Some(0), "still editing");
+    assert!(!ed.read_with(cx, |e, _| e.completion_open()));
     // Without the popup the BlockEditor binding applies again.
     cx.simulate_keystrokes("enter");
     assert_eq!(env.snapshot_texts("Home").len(), 2);
     // And the outliner-level binding applies when no block is edited or selected.
     cx.simulate_keystrokes("escape escape");
     assert_eq!(ed.read_with(cx, |e, _| e.key_context_name()), "Outliner");
+}
+
+#[gpui_test]
+fn page_and_tag_completion_insert_the_right_text_and_navigate_with_the_keyboard(
+    cx: &mut TestAppContext,
+) {
+    let env = Env::new(&AC_PAGES);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    edit(&ed, 0, Caret::End, cx);
+    // Tab accepts; a multi-word page after '#' is wrapped in [[ ]].
+    cx.simulate_input(" #Proj");
+    cx.run_until_parked();
+    let first = ed.read_with(cx, |e, _| e.completion().map(|c| c.items.len()));
+    assert!(first.is_some_and(|n| n >= 1), "candidates for #Proj");
+    cx.simulate_keystrokes("tab");
+    assert_eq!(buffer(&ed, cx).as_deref(), Some("one #[[Project Plan]]"));
+    // A query that matches nothing offers a "New page" entry; Down/Up move, Ctrl+N/P too.
+    cx.simulate_input(" [[Brand New");
+    cx.run_until_parked();
+    let labels: Vec<String> = ed.read_with(cx, |e, _| {
+        e.completion()
+            .map(|c| c.items.iter().map(super::completion::Item::label).collect())
+            .unwrap_or_default()
+    });
+    assert_eq!(
+        labels.last().map(String::as_str),
+        Some("New page: Brand New")
+    );
+    cx.simulate_keystrokes("down");
+    cx.simulate_keystrokes("ctrl-n ctrl-p up");
+    assert_eq!(
+        ed.read_with(cx, |e, _| e.completion().map(|c| c.selected)),
+        Some(0)
+    );
+    cx.simulate_keystrokes("up");
+    let last = labels.len() - 1;
+    assert_eq!(
+        ed.read_with(cx, |e, _| e.completion().map(|c| c.selected)),
+        Some(last)
+    );
+    cx.simulate_keystrokes("enter");
+    assert_eq!(
+        buffer(&ed, cx).as_deref(),
+        Some("one #[[Project Plan]] [[Brand New]]")
+    );
+    flush(&ed, cx);
+    // Choosing "New page" writes no page file: the page exists only as text until it is edited.
+    assert!(!env.graph.path().join("pages/Brand New.md").exists());
+    assert_eq!(env.disk(HOME), "- one #[[Project Plan]] [[Brand New]]\n");
+}
+
+#[gpui_test]
+fn block_reference_completion_writes_the_id_in_the_same_undo_step(cx: &mut TestAppContext) {
+    let env = Env::new(&AC_PAGES);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    edit(&ed, 0, Caret::End, cx);
+    cx.simulate_input(" ((important");
+    cx.run_until_parked();
+    assert!(ed.read_with(cx, |e, _| e.completion_open()));
+    cx.simulate_keystrokes("enter");
+    let text = env.snapshot_texts("Home")[0].1.clone();
+    assert!(text.starts_with("one (("), "{text}");
+    let uuid = text
+        .trim_start_matches("one ((")
+        .trim_end_matches("))")
+        .to_owned();
+    assert_eq!(uuid.len(), 36, "{text}");
+    // The referenced block got its id:: on disk.
+    assert!(
+        env.disk("pages/Facts.md")
+            .contains(&format!("- the important fact\n  id:: {uuid}\n")),
+        "{}",
+        env.disk("pages/Facts.md")
+    );
+    assert_eq!(env.disk("pages/Facts.md").matches("id::").count(), 1);
+    // One undo removes the reference and the id:: together.
+    cx.simulate_keystrokes("ctrl-z");
+    assert_eq!(env.snapshot_texts("Home")[0].1, "one ((important))");
+    assert_eq!(
+        env.disk("pages/Facts.md"),
+        "- the important fact\n- other fact\n"
+    );
+}
+
+#[gpui_test]
+fn copy_block_ref_and_embed_persist_an_id_only_for_referenced_blocks(cx: &mut TestAppContext) {
+    let env = Env::new(&[(HOME, "- one\n- two\n")]);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    edit(&ed, 1, Caret::End, cx);
+    // No id:: until a reference is copied.
+    assert_eq!(env.disk(HOME), "- one\n- two\n");
+    cx.simulate_keystrokes("ctrl-c");
+    let copied = cx
+        .read_from_clipboard()
+        .and_then(|c| c.text())
+        .expect("clipboard");
+    assert!(
+        copied.starts_with("((") && copied.ends_with("))"),
+        "{copied}"
+    );
+    let uuid = copied.trim_start_matches("((").trim_end_matches("))");
+    assert!(
+        env.disk(HOME).contains(&format!("- two\n  id:: {uuid}\n")),
+        "{}",
+        env.disk(HOME)
+    );
+    cx.simulate_keystrokes("ctrl-e");
+    let embed = cx
+        .read_from_clipboard()
+        .and_then(|c| c.text())
+        .expect("clipboard");
+    assert_eq!(embed, format!("{{{{embed (({uuid}))}}}}"));
+    // Copying with a text selection copies the text, not a reference.
+    cx.simulate_keystrokes("ctrl-a ctrl-c");
+    assert_eq!(
+        cx.read_from_clipboard().and_then(|c| c.text()),
+        Some("two".to_owned())
+    );
 }
 
 #[gpui_test]

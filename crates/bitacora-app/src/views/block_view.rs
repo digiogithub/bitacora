@@ -544,9 +544,9 @@ pub fn render_block_row(
         if let Some(build) = &e.editing {
             let mut editing = v_flex().flex_1().min_w_0().gap_1();
             if let Some(conflict) = &e.conflict {
-                editing = editing.child(conflict());
+                editing = editing.child(conflict(theme));
             }
-            content = editing.child(build());
+            content = editing.child(build(theme));
         } else {
             let hook = e.on_text.clone();
             content = content.on_mouse_down(

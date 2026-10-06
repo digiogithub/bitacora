@@ -17,8 +17,9 @@ use crate::ui::text_edit::{
     MouseUpEvent, Style, TextAlign, fill, relative,
 };
 use crate::ui::{
-    ActiveTheme as _, AnyElement, App, Bounds, Entity, InteractiveElement as _, ParentElement as _,
-    Pixels, SharedString, Sizable as _, Styled as _, Window, div, h_flex, point, px, size,
+    ActiveTheme as _, AnyElement, App, Bounds, Entity, FluentBuilder as _, InteractiveElement as _,
+    ParentElement as _, Pixels, SharedString, Sizable as _, Styled as _, Window, div, h_flex,
+    point, px, size, v_flex,
 };
 
 /// Element showing the edited block of an [`OutlineEditor`].
@@ -186,27 +187,97 @@ impl Element for BlockTextElement {
     }
 }
 
+/// The completion popup under the caret column, when one is open.
+#[derive(Debug, Clone)]
+pub struct PopupData {
+    /// Candidate labels.
+    pub labels: Vec<String>,
+    /// Highlighted candidate.
+    pub selected: usize,
+    /// Caret column inside the text area.
+    pub x: Pixels,
+}
+
+fn completion_popup(
+    editor: &Entity<OutlineEditor>,
+    theme: &crate::ui::theme::Theme,
+    data: Option<PopupData>,
+) -> Option<AnyElement> {
+    let PopupData {
+        labels: items,
+        selected,
+        x,
+    } = data?;
+    let mut list = v_flex()
+        .ml(x.max(px(0.)))
+        .mt_1()
+        .w(px(360.))
+        .max_h(px(240.))
+        .overflow_hidden()
+        .rounded(px(6.))
+        .border_1()
+        .border_color(theme.border)
+        .bg(theme.background)
+        .shadow_md()
+        .py_1();
+    for (ix, label) in items.into_iter().enumerate() {
+        let ed = editor.clone();
+        list = list.child(
+            div()
+                .id(("completion", ix))
+                .px_2()
+                .py(px(2.))
+                .text_sm()
+                .truncate()
+                .cursor_pointer()
+                .when(ix == selected, |d| d.bg(theme.selection))
+                .child(label)
+                .on_mouse_down(MouseButton::Left, move |_, window, cx| {
+                    cx.stop_propagation();
+                    ed.update(cx, |this, cx| this.accept_completion(ix, window, cx));
+                }),
+        );
+    }
+    Some(list.into_any_element())
+}
+
 /// The edit-mode content of a row: the text element with mouse handling for the caret.
-pub fn edit_content(editor: Entity<OutlineEditor>) -> AnyElement {
+pub fn edit_content(
+    editor: Entity<OutlineEditor>,
+    theme: &crate::ui::theme::Theme,
+    popup: Option<PopupData>,
+) -> AnyElement {
+    let popup = completion_popup(&editor, theme, popup);
     let down = editor.clone();
     let moved = editor.clone();
     let up = editor.clone();
-    div()
+    v_flex()
         .w_full()
-        .cursor(CursorStyle::IBeam)
-        .on_mouse_down(MouseButton::Left, move |e: &MouseDownEvent, window, cx| {
-            down.update(cx, |this, cx| {
-                this.edit_mouse_down(e.position, e.click_count, e.modifiers.shift, window, cx);
-            });
-            cx.stop_propagation();
-        })
-        .on_mouse_move(move |e: &MouseMoveEvent, _, cx| {
-            moved.update(cx, |this, cx| this.edit_mouse_move(e.position, cx));
-        })
-        .on_mouse_up(MouseButton::Left, move |_: &MouseUpEvent, _, cx| {
-            up.update(cx, |this, _| this.edit_mouse_up());
-        })
-        .child(BlockTextElement::new(editor))
+        .child(
+            div()
+                .w_full()
+                .cursor(CursorStyle::IBeam)
+                .on_mouse_down(MouseButton::Left, move |e: &MouseDownEvent, window, cx| {
+                    down.update(cx, |this, cx| {
+                        this.edit_mouse_down(
+                            e.position,
+                            e.click_count,
+                            e.modifiers.shift,
+                            window,
+                            cx,
+                        );
+                    });
+                    cx.stop_propagation();
+                })
+                .on_mouse_move(move |e: &MouseMoveEvent, _, cx| {
+                    moved.update(cx, |this, cx| this.edit_mouse_move(e.position, cx));
+                })
+                .on_mouse_up(MouseButton::Left, move |_: &MouseUpEvent, _, cx| {
+                    up.update(cx, |this, _| this.edit_mouse_up());
+                })
+                .child(BlockTextElement::new(editor)),
+        )
+        .children(popup)
         .into_any_element()
 }
 

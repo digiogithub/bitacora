@@ -139,7 +139,8 @@
       "secondary-a": "outliner::SelectAllText",
       "secondary-shift-v": "outliner::PasteRaw",
       "escape": "outliner::ExitEdit",
-      "ctrl-cmd-space": "outliner::ShowCharacterPalette"
+      "ctrl-cmd-space": "outliner::ShowCharacterPalette",
+      "secondary-e": "outliner::CopyEmbed"
     }
   },
   {

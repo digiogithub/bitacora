@@ -42,6 +42,7 @@ actions!(
         NewBlock,
         InsertNewline,
         Copy,
+        CopyEmbed,
         Cut,
         Paste,
         PasteRaw,
@@ -100,6 +101,7 @@ const WORD: &str = "ctrl";
 /// platform.
 pub fn platform_bindings() -> Vec<(String, &'static str, &'static str)> {
     let w = WORD;
+    #[allow(unused_mut)] // only the non-macOS bindings push more
     let mut out = vec![
         (format!("{w}-left"), "outliner::WordLeft", "BlockEditor"),
         (format!("{w}-right"), "outliner::WordRight", "BlockEditor"),

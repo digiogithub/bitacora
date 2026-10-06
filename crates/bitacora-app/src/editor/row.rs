@@ -4,6 +4,7 @@
 
 use std::rc::Rc;
 
+use crate::ui::theme::Theme;
 use crate::ui::{AnyElement, App, Window};
 
 /// Callback with window access.
@@ -13,15 +14,18 @@ pub type Hook = Rc<dyn Fn(&mut Window, &mut App)>;
 /// Shift was held.
 pub type TextHook = Rc<dyn Fn(usize, bool, &mut Window, &mut App)>;
 
+/// Builds an element with the active theme.
+pub type Build = Rc<dyn Fn(&Theme) -> AnyElement>;
+
 /// Editor callbacks and state of one row.
 #[derive(Clone)]
 pub struct RowEdit {
     /// The block is selected (highlighted).
     pub selected: bool,
     /// The block is in edit mode: this builds its editor element.
-    pub editing: Option<Rc<dyn Fn() -> AnyElement>>,
+    pub editing: Option<Build>,
     /// A line shown above the editor (the "changed on disk" choice), when there is one.
-    pub conflict: Option<Rc<dyn Fn() -> AnyElement>>,
+    pub conflict: Option<Build>,
     /// Click on rendered text or on the row's blank area.
     pub on_text: TextHook,
     /// Click on the task checkbox.

@@ -9,6 +9,7 @@
 pub mod actions;
 pub mod autopair;
 pub mod buffer;
+pub mod completion;
 pub mod element;
 pub mod html;
 pub mod layout;

@@ -22,6 +22,7 @@ use bitacora_markdown::properties::PropertyConfig;
 use super::actions::{self, context};
 use super::autopair;
 use super::buffer::BlockBuffer;
+use super::completion::{self, Item, Trigger};
 use super::html;
 use super::layout::BlockLayout;
 use super::outline::Outline;
@@ -80,6 +81,17 @@ pub struct Selection {
     pub head: Option<BlockId>,
 }
 
+/// The open completion popup.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CompletionState {
+    /// What the caret is inside of.
+    pub trigger: Trigger,
+    /// Candidates, best first.
+    pub items: Vec<Item>,
+    /// Highlighted candidate.
+    pub selected: usize,
+}
+
 /// The block in edit mode.
 #[derive(Debug)]
 struct EditState {
@@ -118,7 +130,9 @@ pub struct OutlineEditor {
     blink_epoch: usize,
     blink_enabled: bool,
     flush_epoch: usize,
-    completion_open: bool,
+    completion: Option<CompletionState>,
+    /// The trigger the user dismissed with Esc (it stays closed until the text leaves it).
+    dismissed: Option<usize>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -188,7 +202,8 @@ impl OutlineEditor {
             blink_epoch: 0,
             blink_enabled: blink,
             flush_epoch: 0,
-            completion_open: false,
+            completion: None,
+            dismissed: None,
             _subscriptions: subscriptions,
         }
     }
@@ -300,7 +315,20 @@ impl OutlineEditor {
 
     /// Whether a completion popup is open (key context).
     pub fn completion_open(&self) -> bool {
-        self.completion_open
+        self.completion.is_some()
+    }
+
+    /// The open completion popup.
+    pub fn completion(&self) -> Option<&CompletionState> {
+        self.completion.as_ref()
+    }
+
+    /// Caret position inside the edited block's text area (for anchoring the popup).
+    pub fn caret_x(&self) -> Pixels {
+        match (&self.last_layout, &self.edit) {
+            (Some(layout), Some(e)) => layout.position_for_index(e.buf.cursor()).x,
+            _ => px(0.),
+        }
     }
 
     /// Whether the caret is in the visible half of its blink cycle.
@@ -315,7 +343,7 @@ impl OutlineEditor {
     /// The key context of the focused outline.
     pub fn key_context_name(&self) -> &'static str {
         if self.edit.is_some() {
-            if self.completion_open {
+            if self.completion.is_some() {
                 "Outliner BlockEditor Autocomplete"
             } else {
                 "Outliner BlockEditor"
@@ -516,7 +544,8 @@ impl OutlineEditor {
         self.flush(cx);
         let Some(e) = self.edit.take() else { return };
         self.queue.set_editing_block(None);
-        self.completion_open = false;
+        self.completion = None;
+        self.dismissed = None;
         self.reload_outline();
         if let Some(r) = self.rebuild_row_model(e.id) {
             cx.emit(EditorEvent::Row(r));
@@ -594,6 +623,8 @@ impl OutlineEditor {
             conflict: None,
         });
         self.sel = Selection::default();
+        self.completion = None;
+        self.dismissed = None;
         self.last_layout = None;
         self.queue.set_editing_block(Some(id));
         self.focus_handle.focus(window, cx);
@@ -967,9 +998,17 @@ impl OutlineEditor {
                 ed.update(cx, |this, cx| this.toggle_row(r, window, cx));
             })
         };
+        let popup = this.completion().map(|c| super::element::PopupData {
+            labels: c.items.iter().map(Item::label).collect(),
+            selected: c.selected,
+            x: this.caret_x(),
+        });
         let element = editing.then(|| {
             let ed = ed.clone();
-            Rc::new(move || super::element::edit_content(ed.clone())) as Rc<dyn Fn() -> _>
+            let popup = popup.clone();
+            Rc::new(move |theme: &crate::ui::theme::Theme| {
+                super::element::edit_content(ed.clone(), theme, popup.clone())
+            }) as Rc<dyn Fn(&crate::ui::theme::Theme) -> _>
         });
         let conflict = if editing {
             this.edit
@@ -977,7 +1016,9 @@ impl OutlineEditor {
                 .and_then(|e| e.conflict.as_ref())
                 .map(|_| {
                     let ed = ed.clone();
-                    Rc::new(move || super::element::conflict_bar(ed.clone())) as Rc<dyn Fn() -> _>
+                    Rc::new(move |_: &crate::ui::theme::Theme| {
+                        super::element::conflict_bar(ed.clone())
+                    }) as Rc<dyn Fn(&crate::ui::theme::Theme) -> _>
                 })
         } else {
             None
@@ -1054,6 +1095,7 @@ impl OutlineEditor {
         let id = e.id;
         self.schedule_flush(cx);
         self.restart_blink(cx);
+        self.update_completion();
         if let Some(r) = self.row_of(id) {
             cx.emit(EditorEvent::Row(r));
         }
@@ -1065,7 +1107,50 @@ impl OutlineEditor {
         f(&mut e.buf);
         e.goal_x = None;
         self.restart_blink(cx);
+        let before = self.completion.is_some();
+        self.update_completion();
+        if (before || self.completion.is_some())
+            && let Some(r) = self.edit.as_ref().and_then(|e| self.row_of(e.id))
+        {
+            cx.emit(EditorEvent::Row(r));
+        }
         cx.notify();
+    }
+
+    /// Recomputes the completion popup from the caret position.
+    fn update_completion(&mut self) {
+        let Some(e) = &self.edit else {
+            self.completion = None;
+            return;
+        };
+        if e.buf.marked().is_some() || !e.buf.selection().is_empty() {
+            return;
+        }
+        let Some(trigger) = completion::detect(e.buf.text(), e.buf.cursor()) else {
+            self.completion = None;
+            self.dismissed = None;
+            return;
+        };
+        if self.dismissed == Some(trigger.start()) {
+            self.completion = None;
+            return;
+        }
+        let Some(handle) = &self.handle else { return };
+        let page = self
+            .outline
+            .as_ref()
+            .map(|o| o.snapshot().title.clone())
+            .unwrap_or_default();
+        let items = completion::candidates(handle, &trigger, &page, &e.full);
+        let selected = match &self.completion {
+            Some(c) if c.trigger.start() == trigger.start() => c.selected,
+            _ => 0,
+        };
+        self.completion = (!items.is_empty()).then(|| CompletionState {
+            selected: selected.min(items.len() - 1),
+            trigger,
+            items,
+        });
     }
 
     fn marked(&self) -> bool {
@@ -1453,9 +1538,8 @@ impl OutlineEditor {
     }
 
     fn on_exit_edit(&mut self, _: &actions::ExitEdit, window: &mut Window, cx: &mut Context<Self>) {
-        if self.completion_open {
-            self.completion_open = false;
-            cx.notify();
+        if self.completion.is_some() {
+            self.close_completion(cx);
             return;
         }
         if let Some(id) = self.editing() {
@@ -1804,15 +1888,66 @@ impl OutlineEditor {
         true
     }
 
-    fn on_copy(&mut self, _: &actions::Copy, _: &mut Window, cx: &mut Context<Self>) {
+    fn on_copy(&mut self, _: &actions::Copy, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(e) = &self.edit {
             if !e.buf.selection().is_empty() {
                 cx.write_to_clipboard(ClipboardItem::new_string(e.buf.selected_text().to_owned()));
+            } else {
+                // No text selected: copy a `((reference))` to the block (its `id::` is written
+                // now, in one undo step with nothing else).
+                self.copy_block_ref(false, window, cx);
             }
             return;
         }
         let ids = self.targets();
         self.write_blocks(&ids, false, cx);
+    }
+
+    fn on_copy_embed(
+        &mut self,
+        _: &actions::CopyEmbed,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.edit.is_some() {
+            self.copy_block_ref(true, window, cx);
+        }
+    }
+
+    /// Copies `((uuid))` (or `{{embed ((uuid))}}`) of the edited block, giving it an `id::`.
+    fn copy_block_ref(&mut self, embed: bool, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(id) = self.editing() else { return };
+        let cursor = self.full_selection();
+        let selection = Selection::default();
+        let Some(tx) = self.run(
+            "Copy block reference",
+            Cmd::EnsureUuid { id, uuid: None },
+            window,
+            cx,
+        ) else {
+            // Already has an id::: nothing changed, read it from the snapshot below.
+            self.reload_outline();
+            self.write_ref(id, embed, cx);
+            return;
+        };
+        self.after_command(Some(id), cursor, selection, tx.cursor_after, window, cx);
+        self.write_ref(id, embed, cx);
+    }
+
+    fn write_ref(&mut self, id: BlockId, embed: bool, cx: &mut Context<Self>) {
+        let uuid = self
+            .outline
+            .as_ref()
+            .and_then(|o| o.block(id))
+            .and_then(|b| b.uuid);
+        if let Some(uuid) = uuid {
+            let text = if embed {
+                format!("{{{{embed (({uuid}))}}}}")
+            } else {
+                format!("(({uuid}))")
+            };
+            cx.write_to_clipboard(ClipboardItem::new_string(text));
+        }
     }
 
     fn on_cut(&mut self, _: &actions::Cut, window: &mut Window, cx: &mut Context<Self>) {
@@ -1927,32 +2062,116 @@ impl OutlineEditor {
         window.show_character_palette();
     }
 
-    // ---- autocomplete popup (key context only until the popup UI lands) ------------------
+    // ---- autocomplete popup ----------------------------------------------------------
 
     fn on_accept_completion(
         &mut self,
         _: &actions::AcceptCompletion,
-        _: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.completion_open = false;
+        let selected = self.completion.as_ref().map_or(0, |c| c.selected);
+        self.accept_completion(selected, window, cx);
+    }
+
+    /// Inserts candidate `ix` of the popup in place of the trigger text.
+    pub fn accept_completion(&mut self, ix: usize, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(c) = self.completion.take() else {
+            return;
+        };
+        let Some(item) = c.items.get(ix).cloned() else {
+            return;
+        };
+        let Some(e) = &self.edit else { return };
+        let cursor = e.buf.cursor();
+        let range = c.trigger.replace_range(cursor);
+        match item {
+            Item::Page { title, .. } => {
+                let text = completion::page_text(&c.trigger, &title);
+                let to = range.start + text.len();
+                self.dismissed = None;
+                self.edit_buffer(cx, |b| {
+                    b.replace_range(range, &text);
+                    b.set_cursor(to);
+                });
+                // The caret is past the inserted text: no popup for it.
+                self.dismissed = Some(c.trigger.start());
+                self.completion = None;
+            }
+            Item::Block { uuid, .. } => {
+                let (Some(id), Some(referenced)) = (self.editing(), self.resolve_block(&uuid))
+                else {
+                    self.notice(window, cx, "That block is not available for linking.");
+                    return;
+                };
+                let Some(e) = &self.edit else { return };
+                let full = e.proj.visible_to_full(e.buf.text(), range.start)
+                    ..e.proj.visible_to_full(e.buf.text(), range.end);
+                if let Some(tx) = self.run(
+                    "Insert block reference",
+                    Cmd::InsertBlockRef {
+                        target: id,
+                        range: full,
+                        referenced,
+                    },
+                    window,
+                    cx,
+                ) {
+                    self.after_command(
+                        Some(id),
+                        None,
+                        Selection::default(),
+                        tx.cursor_after,
+                        window,
+                        cx,
+                    );
+                }
+            }
+        }
         cx.notify();
+    }
+
+    /// The core id of the block with index uuid `uuid` (its page is loaded on demand).
+    fn resolve_block(&self, uuid: &str) -> Option<BlockId> {
+        let handle = self.handle.as_ref()?;
+        let row = handle.reader.block(uuid).ok().flatten()?;
+        let page = handle.reader.page_by_id(row.page_id).ok().flatten()?;
+        let key = super::ensure_loaded(&self.queue, handle, &page.original_name)?;
+        let snap = self.queue.snapshot(&key)?;
+        let wanted = uuid.to_ascii_lowercase();
+        snap.blocks
+            .iter()
+            .find(|b| b.uuid.is_some_and(|u| u.to_string() == wanted))
+            .or_else(|| {
+                snap.blocks
+                    .iter()
+                    .find(|b| b.text.trim() == row.content.trim())
+            })
+            .map(|b| b.id)
     }
 
     fn on_completion_next(
         &mut self,
         _: &actions::CompletionNext,
         _: &mut Window,
-        _: &mut Context<Self>,
+        cx: &mut Context<Self>,
     ) {
+        if let Some(c) = &mut self.completion {
+            c.selected = (c.selected + 1) % c.items.len();
+            cx.notify();
+        }
     }
 
     fn on_completion_previous(
         &mut self,
         _: &actions::CompletionPrevious,
         _: &mut Window,
-        _: &mut Context<Self>,
+        cx: &mut Context<Self>,
     ) {
+        if let Some(c) = &mut self.completion {
+            c.selected = (c.selected + c.items.len() - 1) % c.items.len();
+            cx.notify();
+        }
     }
 
     fn on_dismiss_completion(
@@ -1961,14 +2180,17 @@ impl OutlineEditor {
         _: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.completion_open = false;
-        cx.notify();
+        self.close_completion(cx);
     }
 
-    /// Opens or closes the completion popup state (drives the `Autocomplete` key context).
-    pub fn set_completion_open(&mut self, open: bool, cx: &mut Context<Self>) {
-        self.completion_open = open;
-        cx.notify();
+    fn close_completion(&mut self, cx: &mut Context<Self>) {
+        if let Some(c) = self.completion.take() {
+            self.dismissed = Some(c.trigger.start());
+            if let Some(r) = self.edit.as_ref().and_then(|e| self.row_of(e.id)) {
+                cx.emit(EditorEvent::Row(r));
+            }
+            cx.notify();
+        }
     }
 
     fn apply_pair_edit(&mut self, edit: autopair::Edit, cx: &mut Context<Self>) {
@@ -2073,6 +2295,7 @@ pub fn attach<E: crate::ui::InteractiveElement>(
         actions::NewBlock => on_new_block,
         actions::InsertNewline => on_insert_newline,
         actions::Copy => on_copy,
+        actions::CopyEmbed => on_copy_embed,
         actions::Cut => on_cut,
         actions::Paste => on_paste,
         actions::PasteRaw => on_paste_raw,
