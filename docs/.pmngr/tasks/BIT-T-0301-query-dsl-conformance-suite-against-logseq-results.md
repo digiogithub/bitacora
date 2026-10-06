@@ -2,7 +2,7 @@
 id: BIT-T-0301
 type: task
 title: Query DSL conformance suite against Logseq results
-status: in_progress
+status: in_review
 priority: high
 parent: BIT-US-0101
 milestone: BIT-M-0005
@@ -10,7 +10,7 @@ author: mcp
 labels: [bitacora-index, query, testing]
 estimate: 3
 created: 2026-10-06T14:33:07Z
-updated: 2026-10-06T18:49:11Z
+updated: 2026-10-06T19:05:49Z
 started: 2026-10-06T18:49:11Z
 ---
 

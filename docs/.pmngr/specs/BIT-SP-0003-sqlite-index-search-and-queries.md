@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [index, search]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T18:44:33Z
+updated: 2026-10-06T19:05:56Z
 requirements:
   R1:
     status: backlog
@@ -171,8 +171,23 @@ requirements:
       tests: [crates/bitacora-index/tests/read_refs.rs]
   R18:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-index/src/query/dsl.rs
+        - crates/bitacora-index/src/query/compile.rs
+        - crates/bitacora-index/src/query/dates.rs
+        - crates/bitacora-index/src/query/mod.rs
+      tests: [crates/bitacora-index/tests/query_simple.rs]
   R19:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-index/src/query/advanced.rs
+        - crates/bitacora-index/src/query/datalog.rs
+        - crates/bitacora-index/src/query/edn.rs
+      tests:
+        - crates/bitacora-index/tests/query_advanced.rs
+        - fixtures/queries/advanced
 ---
 
 ## Purpose

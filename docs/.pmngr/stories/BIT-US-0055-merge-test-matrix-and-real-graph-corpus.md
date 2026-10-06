@@ -2,7 +2,7 @@
 id: BIT-US-0055
 type: story
 title: Merge test matrix and real-graph corpus
-status: backlog
+status: in_progress
 priority: high
 parent: BIT-EP-0012
 milestone: BIT-M-0004
@@ -10,7 +10,8 @@ author: mcp
 labels: [merge, sync, testing]
 estimate: 5
 created: 2026-10-06T14:28:30Z
-updated: 2026-10-06T15:10:56Z
+updated: 2026-10-06T19:03:20Z
+started: 2026-10-06T19:03:20Z
 ---
 
 ## Description

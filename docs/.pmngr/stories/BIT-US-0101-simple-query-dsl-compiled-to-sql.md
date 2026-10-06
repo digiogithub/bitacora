@@ -2,7 +2,7 @@
 id: BIT-US-0101
 type: story
 title: Simple query DSL compiled to SQL
-status: in_progress
+status: in_review
 priority: high
 parent: BIT-EP-0013
 milestone: BIT-M-0005
@@ -10,7 +10,7 @@ author: mcp
 labels: [query, bitacora-index]
 estimate: 8
 created: 2026-10-06T14:31:46Z
-updated: 2026-10-06T18:49:11Z
+updated: 2026-10-06T19:06:06Z
 started: 2026-10-06T18:49:11Z
 ---
 

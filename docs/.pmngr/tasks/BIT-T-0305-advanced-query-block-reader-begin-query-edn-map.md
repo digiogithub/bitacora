@@ -2,7 +2,7 @@
 id: BIT-T-0305
 type: task
 title: Advanced query block reader (BEGIN_QUERY EDN map)
-status: backlog
+status: done
 priority: medium
 parent: BIT-US-0103
 milestone: BIT-M-0005
@@ -10,7 +10,9 @@ author: mcp
 labels: [bitacora-index, query]
 estimate: 2
 created: 2026-10-06T14:33:07Z
-updated: 2026-10-06T14:33:07Z
+updated: 2026-10-06T19:05:56Z
+started: 2026-10-06T19:05:49Z
+closed: 2026-10-06T19:05:56Z
 ---
 
 ## Description
