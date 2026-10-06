@@ -2,7 +2,7 @@
 id: BIT-T-0132
 type: task
 title: Implement Graph/Page/Block model types and page loader with origin spans
-status: in_progress
+status: done
 priority: critical
 parent: BIT-US-0029
 milestone: BIT-M-0003
@@ -10,8 +10,9 @@ author: mcp
 labels: [bitacora-core, core]
 estimate: 3
 created: 2026-10-06T14:29:59Z
-updated: 2026-10-06T18:28:38Z
+updated: 2026-10-06T18:39:25Z
 started: 2026-10-06T18:28:38Z
+closed: 2026-10-06T18:39:25Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-T-0066
 type: task
 title: Unlinked references via FTS phrase prefilter and Logseq regex
-status: backlog
+status: done
 priority: medium
 parent: BIT-US-0008
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-index, index]
 estimate: 2
 created: 2026-10-06T14:28:35Z
-updated: 2026-10-06T14:28:35Z
+updated: 2026-10-06T18:39:52Z
+closed: 2026-10-06T18:39:52Z
 ---
 
 ## Description

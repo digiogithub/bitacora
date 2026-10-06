@@ -2,7 +2,7 @@
 id: BIT-T-0267
 type: task
 title: Read snapshots for views and MCP without blocking the writer
-status: in_progress
+status: done
 priority: high
 parent: BIT-US-0062
 milestone: BIT-M-0003
@@ -10,8 +10,9 @@ author: mcp
 labels: [bitacora-core, core]
 estimate: 2
 created: 2026-10-06T14:32:23Z
-updated: 2026-10-06T18:28:39Z
+updated: 2026-10-06T18:39:25Z
 started: 2026-10-06T18:28:39Z
+closed: 2026-10-06T18:39:25Z
 ---
 
 ## Description

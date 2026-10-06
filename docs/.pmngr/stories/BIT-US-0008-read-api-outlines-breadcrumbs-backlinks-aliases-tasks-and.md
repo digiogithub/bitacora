@@ -2,7 +2,7 @@
 id: BIT-US-0008
 type: story
 title: "Read API: outlines, breadcrumbs, backlinks, aliases, tasks and namespaces"
-status: backlog
+status: done
 priority: high
 parent: BIT-EP-0005
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [index, bitacora-index]
 estimate: 5
 created: 2026-10-06T14:25:24Z
-updated: 2026-10-06T14:25:24Z
+updated: 2026-10-06T18:39:52Z
+closed: 2026-10-06T18:39:52Z
 ---
 
 ## Description

@@ -6,10 +6,17 @@ status: backlog
 author: mcp
 labels: [core, io]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T15:08:30Z
+updated: 2026-10-06T18:39:25Z
 requirements:
   R1:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-core/src/queue.rs#CommandQueue
+        - crates/bitacora-core/src/editor/flush.rs#FileStore
+      tests:
+        - crates/bitacora-core/tests/command_queue.rs
+        - crates/bitacora-core/tests/single_writer_guard.rs
   R2:
     status: backlog
   R3:

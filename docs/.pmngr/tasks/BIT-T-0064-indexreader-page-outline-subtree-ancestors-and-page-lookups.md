@@ -2,7 +2,7 @@
 id: BIT-T-0064
 type: task
 title: "IndexReader: page outline, subtree, ancestors and page lookups"
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0008
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-index, index]
 estimate: 3
 created: 2026-10-06T14:28:35Z
-updated: 2026-10-06T14:28:35Z
+updated: 2026-10-06T18:39:44Z
+closed: 2026-10-06T18:39:44Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-T-0133
 type: task
 title: Implement block-level Op variants with apply and inverse
-status: in_progress
+status: done
 priority: critical
 parent: BIT-US-0029
 milestone: BIT-M-0003
@@ -10,8 +10,9 @@ author: mcp
 labels: [bitacora-core, core]
 estimate: 5
 created: 2026-10-06T14:29:59Z
-updated: 2026-10-06T18:28:39Z
+updated: 2026-10-06T18:39:25Z
 started: 2026-10-06T18:28:39Z
+closed: 2026-10-06T18:39:25Z
 ---
 
 ## Description
