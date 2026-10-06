@@ -2,7 +2,7 @@
 id: BIT-T-0373
 type: task
 title: "GixBackend network and ref writes for the gix-only fallback: fetch, push, clone, commit, update-ref"
-status: backlog
+status: in_review
 priority: high
 parent: BIT-US-0042
 milestone: BIT-M-0004
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-sync, gix, backend]
 estimate: 5
 created: 2026-10-06T15:15:10Z
-updated: 2026-10-06T15:15:10Z
+updated: 2026-10-06T17:30:22Z
+started: 2026-10-06T17:30:22Z
 ---
 
 ## Description

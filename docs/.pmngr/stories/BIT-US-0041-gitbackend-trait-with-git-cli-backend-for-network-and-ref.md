@@ -2,7 +2,7 @@
 id: BIT-US-0041
 type: story
 title: GitBackend trait with git CLI backend for network and ref writes
-status: backlog
+status: done
 priority: critical
 parent: BIT-EP-0011
 milestone: BIT-M-0004
@@ -10,7 +10,8 @@ author: mcp
 labels: [git, sync, backend]
 estimate: 8
 created: 2026-10-06T14:28:30Z
-updated: 2026-10-06T15:14:45Z
+updated: 2026-10-06T17:30:22Z
+closed: 2026-10-06T17:30:22Z
 ---
 
 ## Description

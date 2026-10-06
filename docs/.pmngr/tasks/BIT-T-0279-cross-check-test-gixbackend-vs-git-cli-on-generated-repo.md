@@ -2,7 +2,7 @@
 id: BIT-T-0279
 type: task
 title: "Cross-check test: GixBackend vs git CLI on generated repo histories"
-status: backlog
+status: done
 priority: medium
 parent: BIT-US-0042
 milestone: BIT-M-0004
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-sync, gix, testing]
 estimate: 2
 created: 2026-10-06T14:32:57Z
-updated: 2026-10-06T14:32:57Z
+updated: 2026-10-06T17:30:22Z
+closed: 2026-10-06T17:30:22Z
 ---
 
 ## Description

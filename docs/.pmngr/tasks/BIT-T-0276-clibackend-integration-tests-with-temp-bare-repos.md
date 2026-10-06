@@ -2,7 +2,7 @@
 id: BIT-T-0276
 type: task
 title: CliBackend integration tests with temp bare repos
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0041
 milestone: BIT-M-0004
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-sync, git, testing]
 estimate: 2
 created: 2026-10-06T14:32:57Z
-updated: 2026-10-06T15:15:35Z
+updated: 2026-10-06T17:30:22Z
+closed: 2026-10-06T17:30:22Z
 ---
 
 ## Description

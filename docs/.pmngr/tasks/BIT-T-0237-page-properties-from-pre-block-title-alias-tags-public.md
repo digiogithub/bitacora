@@ -2,7 +2,7 @@
 id: BIT-T-0237
 type: task
 title: "Page properties from pre-block: title, alias, tags, public, filters, icon"
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0098
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-core, compat]
 estimate: 2
 created: 2026-10-06T14:31:34Z
-updated: 2026-10-06T14:31:34Z
+updated: 2026-10-06T17:31:40Z
+closed: 2026-10-06T17:31:40Z
 ---
 
 ## Description

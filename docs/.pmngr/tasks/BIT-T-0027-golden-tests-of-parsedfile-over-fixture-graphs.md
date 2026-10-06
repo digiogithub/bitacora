@@ -2,7 +2,7 @@
 id: BIT-T-0027
 type: task
 title: Golden tests of ParsedFile over fixture graphs
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0005
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-index, testing]
 estimate: 2
 created: 2026-10-06T14:26:33Z
-updated: 2026-10-06T14:26:33Z
+updated: 2026-10-06T17:32:45Z
+closed: 2026-10-06T17:32:45Z
 ---
 
 ## Description

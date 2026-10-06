@@ -2,7 +2,7 @@
 id: BIT-T-0239
 type: task
 title: Graph-load golden test over fixture graphs
-status: backlog
+status: done
 priority: medium
 parent: BIT-US-0098
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-core, test, compat]
 estimate: 2
 created: 2026-10-06T14:31:40Z
-updated: 2026-10-06T14:31:40Z
+updated: 2026-10-06T17:31:40Z
+closed: 2026-10-06T17:31:40Z
 ---
 
 ## Description

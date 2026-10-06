@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [index, search]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T17:14:17Z
+updated: 2026-10-06T17:32:59Z
 requirements:
   R1:
     status: backlog
@@ -29,6 +29,13 @@ requirements:
       tests: [crates/bitacora-index/tests/lifecycle.rs]
   R4:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-index/src/parse.rs#parse
+        - crates/bitacora-index/src/parsed.rs#ParsedBlock
+      tests:
+        - crates/bitacora-index/tests/parse_unit.rs#intervals_are_pre_order
+        - crates/bitacora-index/tests/parse_golden.rs
   R5:
     status: backlog
   R6:
@@ -37,16 +44,34 @@ requirements:
     status: backlog
   R8:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-index/src/parse.rs#page_refs_of
+        - crates/bitacora-index/src/parsed.rs#PageRefKind
+      tests:
+        - crates/bitacora-index/tests/parse_unit.rs#ref_kinds_follow_logseq
+        - crates/bitacora-index/tests/parse_unit.rs#block_ref_kinds
+        - crates/bitacora-index/tests/parse_golden.rs
   R9:
     status: backlog
   R10:
     status: backlog
+    trace:
+      code: [crates/bitacora-index/src/parse.rs#type_property]
+      tests:
+        - crates/bitacora-index/tests/parse_unit.rs#typed_properties
+        - crates/bitacora-index/tests/parse_unit.rs#comma_separated_keys_from_config
   R11:
     status: backlog
   R12:
     status: backlog
   R13:
     status: backlog
+    trace:
+      code: [crates/bitacora-index/src/normalize.rs#search_text]
+      tests:
+        - crates/bitacora-index/src/normalize.rs#tests
+        - crates/bitacora-index/tests/parse_unit.rs#search_text_strips_built_ins_and_folds
   R14:
     status: backlog
   R15:

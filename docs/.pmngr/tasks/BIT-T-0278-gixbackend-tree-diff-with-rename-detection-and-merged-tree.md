@@ -2,7 +2,7 @@
 id: BIT-T-0278
 type: task
 title: "GixBackend: tree diff with rename detection and merged tree writing"
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0042
 milestone: BIT-M-0004
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-sync, gix, backend]
 estimate: 3
 created: 2026-10-06T14:32:57Z
-updated: 2026-10-06T14:32:57Z
+updated: 2026-10-06T17:30:22Z
+closed: 2026-10-06T17:30:22Z
 ---
 
 ## Description

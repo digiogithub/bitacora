@@ -2,7 +2,7 @@
 id: BIT-T-0281
 type: task
 title: Enable sync on existing graph (init/connect) and open graph from remote (clone)
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0043
 milestone: BIT-M-0004
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-sync, git, onboarding]
 estimate: 3
 created: 2026-10-06T14:32:57Z
-updated: 2026-10-06T14:32:57Z
+updated: 2026-10-06T17:30:22Z
+closed: 2026-10-06T17:30:22Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-T-0273
 type: task
 title: Define GitBackend trait, domain types and error classification
-status: backlog
+status: done
 priority: critical
 parent: BIT-US-0041
 milestone: BIT-M-0004
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-sync, git, backend]
 estimate: 2
 created: 2026-10-06T14:32:56Z
-updated: 2026-10-06T15:15:35Z
+updated: 2026-10-06T17:30:13Z
+closed: 2026-10-06T17:30:13Z
 ---
 
 ## Description

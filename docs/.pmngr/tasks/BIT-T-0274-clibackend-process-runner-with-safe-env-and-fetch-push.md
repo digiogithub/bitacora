@@ -2,7 +2,7 @@
 id: BIT-T-0274
 type: task
 title: "CliBackend: process runner with safe env and fetch/push/commit/commit-tree/update-ref"
-status: backlog
+status: done
 priority: critical
 parent: BIT-US-0041
 milestone: BIT-M-0004
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-sync, git, backend]
 estimate: 3
 created: 2026-10-06T14:32:56Z
-updated: 2026-10-06T14:32:56Z
+updated: 2026-10-06T17:30:22Z
+closed: 2026-10-06T17:30:22Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-T-0160
 type: task
 title: Duplicate-title resolution during graph load
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0088
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-core, compat]
 estimate: 2
 created: 2026-10-06T14:30:36Z
-updated: 2026-10-06T14:30:36Z
+updated: 2026-10-06T17:31:40Z
+closed: 2026-10-06T17:31:40Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-US-0005
 type: story
 title: "Derive ParsedFile index rows: outline intervals, refs, properties and tasks"
-status: backlog
+status: done
 priority: critical
 parent: BIT-EP-0005
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [index, bitacora-index]
 estimate: 8
 created: 2026-10-06T14:25:23Z
-updated: 2026-10-06T14:25:23Z
+updated: 2026-10-06T17:32:45Z
+closed: 2026-10-06T17:32:45Z
 ---
 
 ## Description

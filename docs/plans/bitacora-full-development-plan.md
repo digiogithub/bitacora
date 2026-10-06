@@ -53,3 +53,5 @@ Orchestrated by the main Claude Code session; implementation by Claude Code suba
 - Core: committed fixtures for journals and ignore-rules; move US-0081/0085/0091/0027 to done once fixtures exist.
 - MCP: start server from app/tray, OS keychain via keyring, Settings > Agents UI (BIT-T-0116), per-tool scope enforcement (with US-0021).
 - Config: rewrite-edn oracle outputs (needs Babashka).
+- Merge: BIT-SP-0006.R14 second scenario (write `id::` for newly referenced blocks in merge commit) — do in sync orchestration (US-0053). Metadata-only change vs delete keeps delete (documented risk).
+- Requirements verification: needs JUnit via nextest + `gintrack spec ingest` (being prototyped in US-0095).

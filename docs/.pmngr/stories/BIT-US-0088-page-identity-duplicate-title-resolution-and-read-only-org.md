@@ -2,7 +2,7 @@
 id: BIT-US-0088
 type: story
 title: Page identity, duplicate-title resolution and read-only .org pages
-status: backlog
+status: done
 priority: high
 parent: BIT-EP-0004
 milestone: BIT-M-0002
@@ -10,7 +10,9 @@ author: mcp
 labels: [core, compat]
 estimate: 3
 created: 2026-10-06T14:30:18Z
-updated: 2026-10-06T14:30:18Z
+updated: 2026-10-06T17:33:06Z
+started: 2026-10-06T17:31:35Z
+closed: 2026-10-06T17:33:06Z
 ---
 
 ## Description

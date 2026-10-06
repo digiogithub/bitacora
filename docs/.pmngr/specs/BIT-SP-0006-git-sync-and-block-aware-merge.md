@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [git, sync, merge]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T17:27:54Z
+updated: 2026-10-06T17:30:31Z
 requirements:
   R1:
     status: backlog
@@ -14,12 +14,30 @@ requirements:
     status: backlog
   R3:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-sync/src/repo_setup.rs
+        - crates/bitacora-sync/src/onboarding.rs
+      tests:
+        - crates/bitacora-sync/src/repo_setup.rs
+        - crates/bitacora-sync/tests/onboarding.rs
   R4:
     status: backlog
   R5:
     status: backlog
   R6:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-sync/src/backend/mod.rs
+        - crates/bitacora-sync/src/backend/cli.rs
+        - crates/bitacora-sync/src/backend/detect.rs
+        - crates/bitacora-sync/src/backend/gix_net.rs
+        - crates/bitacora-sync/src/backend/gix_read.rs
+        - crates/bitacora-sync/src/backend/gix_trees.rs
+      tests:
+        - crates/bitacora-sync/tests/backends.rs
+        - crates/bitacora-sync/src/backend/detect.rs
   R7:
     status: backlog
   R8:
@@ -89,6 +107,9 @@ requirements:
     status: backlog
   R20:
     status: backlog
+    trace:
+      code: [crates/bitacora-sync/src/repo_setup.rs]
+      tests: [crates/bitacora-sync/src/repo_setup.rs]
   R21:
     status: backlog
   R22:

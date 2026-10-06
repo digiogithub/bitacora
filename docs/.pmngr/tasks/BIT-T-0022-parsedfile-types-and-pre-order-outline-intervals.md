@@ -2,7 +2,7 @@
 id: BIT-T-0022
 type: task
 title: ParsedFile types and pre-order outline intervals
-status: backlog
+status: done
 priority: critical
 parent: BIT-US-0005
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-index, index]
 estimate: 3
 created: 2026-10-06T14:26:33Z
-updated: 2026-10-06T14:26:33Z
+updated: 2026-10-06T17:32:41Z
+closed: 2026-10-06T17:32:41Z
 ---
 
 ## Description
