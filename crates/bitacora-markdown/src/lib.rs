@@ -8,6 +8,7 @@
 //!    and the Markdown `:PROPERTIES:` drawer reader.
 
 pub mod canonical;
+pub mod classify;
 pub mod doc;
 pub mod edit;
 pub mod image_meta;
@@ -19,6 +20,11 @@ pub mod span;
 pub mod tree;
 
 pub use canonical::{Eol, IndentUnit, convert_drawers, write_block, write_pre_block};
+pub use classify::{
+    BlockParts, CARD_KEYS, CanonicalView, DiffClass, IdentityConflict, LineClass, MetadataMerge,
+    PartProp, PropClass, Side, canonical_view, canonical_view_of, class_of, classify_diff,
+    classify_lines, is_card_key, merge_metadata, parse_block_text, union_logbook,
+};
 pub use doc::{Document, Node};
 pub use lines::{Line, LineKind, Lines, ParserOptions, UnclosedRegion};
 pub use outline::{BlockKind, Outline, RawBlock, content_of, pre_block_content, split, split_with};

@@ -384,7 +384,7 @@ Read as UTF-8 (BOM stripped and restored per file), compare normalised, write wi
 
 1. Merge commits vs strict linear history (replay local commits onto remote = "rebase")? Merge chosen for safety; revisit if users dislike the graph shape.
 2. Should `collapsed::` be moved out of files into device-local state (fewer diffs) while keeping Logseq compatibility (Logseq writes it)?
-3. Fuzzy matching threshold (0.6) and the risk of mis-pairing short blocks like "- TODO" — needs a corpus test from real graphs.
+3. Fuzzy matching threshold (0.6) and the risk of mis-pairing short blocks like "- TODO" — needs a corpus test from real graphs. **Partially resolved (BIT-T-0352):** blocks with fewer than 4 first-line tokens never match fuzzily (only exactly, under a matched parent, LCS-ordered), and cross-parent (moved) fuzzy matching requires >= 4 tokens. `crates/bitacora-merge/tests/matcher_accuracy.rs` synthesizes edits (word appends, leaf deletes, inserts, sibling swaps) over `fixtures/graphs/**` (166 pages, 3413 pairs): precision 1.000, recall 1.000 (thresholds 0.99 / 0.95). A real-world corpus is still desirable.
 4. Should Bitacora auto-add `id::` to every block (stable identity, better merges) at the cost of noisier files vs Logseq's "only when referenced"?
 5. ~~Bundle git on macOS/Linux too or require system git?~~ **Resolved (ADR-020):** never bundle; use system git when present, else the gix-only backend.
 6. Whiteboards: is a shape-level merge (tldraw JSON by shape id) worth doing in v2?
