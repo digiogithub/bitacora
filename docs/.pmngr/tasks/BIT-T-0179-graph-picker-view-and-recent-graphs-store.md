@@ -2,7 +2,7 @@
 id: BIT-T-0179
 type: task
 title: Graph picker view and recent graphs store
-status: backlog
+status: in_progress
 priority: high
 parent: BIT-US-0073
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-app, ui]
 estimate: 3
 created: 2026-10-06T14:30:56Z
-updated: 2026-10-06T14:30:56Z
+updated: 2026-10-06T18:28:35Z
+started: 2026-10-06T18:28:35Z
 ---
 
 ## Description

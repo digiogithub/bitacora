@@ -2,7 +2,7 @@
 id: BIT-T-0185
 type: task
 title: Render-all-fixtures smoke test
-status: backlog
+status: in_progress
 priority: high
 parent: BIT-US-0074
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-app, testing]
 estimate: 2
 created: 2026-10-06T14:30:56Z
-updated: 2026-10-06T14:30:56Z
+updated: 2026-10-06T18:28:35Z
+started: 2026-10-06T18:28:35Z
 ---
 
 ## Description

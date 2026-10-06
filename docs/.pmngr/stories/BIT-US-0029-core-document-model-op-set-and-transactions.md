@@ -2,7 +2,7 @@
 id: BIT-US-0029
 type: story
 title: Core document model, Op set and transactions
-status: backlog
+status: in_progress
 priority: critical
 parent: BIT-EP-0007
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [editor, core, bitacora-core]
 estimate: 8
 created: 2026-10-06T14:28:07Z
-updated: 2026-10-06T14:28:07Z
+updated: 2026-10-06T18:28:32Z
+started: 2026-10-06T18:28:32Z
 ---
 
 ## Description

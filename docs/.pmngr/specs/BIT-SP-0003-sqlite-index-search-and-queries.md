@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [index, search]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T18:25:17Z
+updated: 2026-10-06T18:35:32Z
 requirements:
   R1:
     status: backlog
@@ -104,14 +104,30 @@ requirements:
   R13:
     status: backlog
     trace:
-      code: [crates/bitacora-index/src/normalize.rs#search_text]
+      code:
+        - crates/bitacora-index/src/search/query.rs
+        - crates/bitacora-index/src/normalize.rs
       tests:
-        - crates/bitacora-index/src/normalize.rs#tests
-        - crates/bitacora-index/tests/parse_unit.rs#search_text_strips_built_ins_and_folds
+        - crates/bitacora-index/src/search/query.rs
+        - crates/bitacora-index/tests/search.rs
   R14:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-index/src/search/mod.rs
+        - crates/bitacora-index/src/search/fuzzy.rs
+        - crates/bitacora-index/src/search/snippet.rs
+      tests:
+        - crates/bitacora-index/tests/search.rs
+        - crates/bitacora-index/tests/bench_search.rs
+        - crates/bitacora-index/src/search/snippet.rs
   R15:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-index/src/search/mod.rs#set_substring
+        - crates/bitacora-index/src/writer.rs#set_substring
+      tests: [crates/bitacora-index/tests/search.rs]
   R16:
     status: backlog
     trace:

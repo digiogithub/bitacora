@@ -2,7 +2,7 @@
 id: BIT-T-0266
 type: task
 title: CommandQueue with single consumer thread, origins and reply handles
-status: backlog
+status: in_progress
 priority: critical
 parent: BIT-US-0062
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-core, core]
 estimate: 3
 created: 2026-10-06T14:32:23Z
-updated: 2026-10-06T14:32:23Z
+updated: 2026-10-06T18:28:39Z
+started: 2026-10-06T18:28:39Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-US-0074
 type: story
 title: "Read-only block rendering: refs, tags, markers, properties, code and images"
-status: backlog
+status: in_progress
 priority: high
 parent: BIT-EP-0006
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [ui, rendering, bitacora-app]
 estimate: 8
 created: 2026-10-06T14:29:26Z
-updated: 2026-10-06T14:29:26Z
+updated: 2026-10-06T18:28:35Z
+started: 2026-10-06T18:28:35Z
 ---
 
 ## Description

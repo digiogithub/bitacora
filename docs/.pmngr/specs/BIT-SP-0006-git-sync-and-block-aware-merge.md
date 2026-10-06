@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [git, sync, merge]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T18:25:17Z
+updated: 2026-10-06T18:35:37Z
 requirements:
   R1:
     status: backlog
@@ -63,9 +63,15 @@ requirements:
         - crates/bitacora-sync/src/backend/gix_net.rs
         - crates/bitacora-sync/src/backend/gix_read.rs
         - crates/bitacora-sync/src/backend/gix_trees.rs
+        - crates/bitacora-sync/src/backend/git2_push.rs
+        - crates/bitacora-sync/src/credentials.rs
+        - crates/bitacora-sync/src/askpass.rs
+        - crates/bitacora-sync/src/bin/askpass.rs
       tests:
         - crates/bitacora-sync/tests/backends.rs
         - crates/bitacora-sync/src/backend/detect.rs
+        - crates/bitacora-sync/tests/git2_push.rs
+        - crates/bitacora-sync/tests/askpass.rs
     verified: {rev: "sha256:a2d25d6021befccb", commit: 25c13e48dc591ad5061edb5019d652abb345b4e4, at: 2026-10-06T18:25:15Z, by: claude}
   R7:
     status: backlog

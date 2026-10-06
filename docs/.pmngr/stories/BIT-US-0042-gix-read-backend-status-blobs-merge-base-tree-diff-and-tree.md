@@ -2,7 +2,7 @@
 id: BIT-US-0042
 type: story
 title: "gix read backend: status, blobs, merge-base, tree diff and tree writing"
-status: in_review
+status: done
 priority: high
 parent: BIT-EP-0011
 milestone: BIT-M-0004
@@ -10,8 +10,9 @@ author: mcp
 labels: [git, sync, backend, gix]
 estimate: 8
 created: 2026-10-06T14:28:30Z
-updated: 2026-10-06T17:30:22Z
+updated: 2026-10-06T18:35:25Z
 started: 2026-10-06T17:30:22Z
+closed: 2026-10-06T18:35:25Z
 ---
 
 ## Description

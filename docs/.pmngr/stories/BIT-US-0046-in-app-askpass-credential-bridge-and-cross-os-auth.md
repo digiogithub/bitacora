@@ -2,7 +2,7 @@
 id: BIT-US-0046
 type: story
 title: In-app askpass credential bridge and cross-OS auth verification
-status: backlog
+status: in_review
 priority: high
 parent: BIT-EP-0011
 milestone: BIT-M-0004
@@ -10,7 +10,8 @@ author: mcp
 labels: [git, sync, auth, ui]
 estimate: 5
 created: 2026-10-06T14:28:30Z
-updated: 2026-10-06T15:15:56Z
+updated: 2026-10-06T18:35:25Z
+started: 2026-10-06T18:35:25Z
 ---
 
 ## Description

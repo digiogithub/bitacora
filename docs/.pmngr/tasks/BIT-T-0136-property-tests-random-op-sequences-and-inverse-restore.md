@@ -2,7 +2,7 @@
 id: BIT-T-0136
 type: task
 title: "Property tests: random op sequences and inverse restore exact serialized bytes"
-status: backlog
+status: in_progress
 priority: high
 parent: BIT-US-0029
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-core, test]
 estimate: 3
 created: 2026-10-06T14:30:00Z
-updated: 2026-10-06T14:30:00Z
+updated: 2026-10-06T18:28:39Z
+started: 2026-10-06T18:28:39Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-US-0009
 type: story
 title: Full-text search with ranking, fuzzy titles and snippets
-status: backlog
+status: done
 priority: high
 parent: BIT-EP-0005
 milestone: BIT-M-0002
@@ -10,7 +10,9 @@ author: mcp
 labels: [index, search, bitacora-index]
 estimate: 8
 created: 2026-10-06T14:25:24Z
-updated: 2026-10-06T14:25:24Z
+updated: 2026-10-06T18:35:32Z
+started: 2026-10-06T18:26:43Z
+closed: 2026-10-06T18:35:32Z
 ---
 
 ## Description

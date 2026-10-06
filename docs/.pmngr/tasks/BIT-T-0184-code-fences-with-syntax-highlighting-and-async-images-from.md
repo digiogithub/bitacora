@@ -2,7 +2,7 @@
 id: BIT-T-0184
 type: task
 title: Code fences with syntax highlighting and async images from assets
-status: backlog
+status: in_progress
 priority: medium
 parent: BIT-US-0074
 milestone: BIT-M-0002
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-app, ui, rendering]
 estimate: 3
 created: 2026-10-06T14:30:56Z
-updated: 2026-10-06T14:30:56Z
+updated: 2026-10-06T18:28:35Z
+started: 2026-10-06T18:28:35Z
 ---
 
 ## Description

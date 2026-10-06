@@ -2,7 +2,7 @@
 id: BIT-T-0134
 type: task
 title: "Implement page-level Ops: SetPreamble, CreatePage, DeletePage, RenameFile"
-status: backlog
+status: in_progress
 priority: high
 parent: BIT-US-0029
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-core, core]
 estimate: 2
 created: 2026-10-06T14:30:00Z
-updated: 2026-10-06T14:30:00Z
+updated: 2026-10-06T18:28:39Z
+started: 2026-10-06T18:28:39Z
 ---
 
 ## Description

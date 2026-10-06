@@ -2,7 +2,7 @@
 id: BIT-T-0374
 type: task
 title: "gix fallback credentials: HTTPS via OS keyring and in-app prompt, SSH via gix transport"
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0046
 milestone: BIT-M-0004
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-sync, auth, gix]
 estimate: 3
 created: 2026-10-06T15:15:10Z
-updated: 2026-10-06T15:15:10Z
+updated: 2026-10-06T18:35:25Z
+closed: 2026-10-06T18:35:25Z
 ---
 
 ## Description

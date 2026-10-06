@@ -2,7 +2,7 @@
 id: BIT-T-0073
 type: task
 title: Search latency benchmark on the 5,000-page graph (p95 < 50 ms)
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0009
 milestone: BIT-M-0002
@@ -10,7 +10,9 @@ author: mcp
 labels: [bitacora-index, benchmark, search, performance]
 estimate: 2
 created: 2026-10-06T14:28:35Z
-updated: 2026-10-06T14:28:35Z
+updated: 2026-10-06T18:35:32Z
+started: 2026-10-06T18:26:43Z
+closed: 2026-10-06T18:35:32Z
 ---
 
 ## Description
