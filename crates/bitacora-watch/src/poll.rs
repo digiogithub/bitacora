@@ -69,12 +69,9 @@ pub(crate) fn spawn(
         .spawn(move || {
             while let Err(RecvTimeoutError::Timeout) = rx.recv_timeout(interval) {
                 let ops = poller.tick();
-                if !ops.is_empty() {
-                    processor
-                        .lock()
-                        .unwrap_or_else(PoisonError::into_inner)
-                        .apply(ops);
-                }
+                let mut p = processor.lock().unwrap_or_else(PoisonError::into_inner);
+                p.apply(ops);
+                p.sweep_missing();
             }
         });
     tx
