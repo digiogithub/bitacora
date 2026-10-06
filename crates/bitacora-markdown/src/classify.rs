@@ -116,7 +116,11 @@ enum Role {
     /// Title, body, `SCHEDULED:` / `DEADLINE:` and every unrecognised line.
     Text,
     /// A valid property line of the effective group.
-    Prop { key: String, value: String },
+    Prop {
+        key_raw: String,
+        key: String,
+        value: String,
+    },
     /// `:PROPERTIES:` / `:END:` of a properties drawer.
     PropsWrapper,
     /// `:LOGBOOK:` / `:END:` of a logbook drawer.
@@ -143,11 +147,16 @@ fn analyse(input: &[u8], range: Span) -> Vec<LineInfo> {
     let scan = scan_properties(input, range, opts);
 
     // Property lines of the effective group, by absolute start offset.
-    let mut props: Vec<(Span, String, String)> = Vec::new();
+    let mut props: Vec<(Span, String, String, String)> = Vec::new();
     let mut wrapper_lines: BTreeSet<usize> = BTreeSet::new();
     if let Some(group) = scan.effective() {
         for l in group.lines.iter().filter(|l| l.valid) {
-            props.push((l.span, l.key_norm.clone(), l.value_raw.clone()));
+            props.push((
+                l.span,
+                l.key_raw.clone(),
+                l.key_norm.clone(),
+                l.value_raw.clone(),
+            ));
         }
         if group.origin == GroupOrigin::Drawer {
             // The first and last line of the drawer are its wrappers.
@@ -187,11 +196,12 @@ fn analyse(input: &[u8], range: Span) -> Vec<LineInfo> {
                 continue;
             }
         }
-        let role = if let Some((_, k, v)) = props
+        let role = if let Some((_, kr, k, v)) = props
             .iter()
-            .find(|(s, _, _)| s.start >= abs.start && s.start < abs.end)
+            .find(|(s, _, _, _)| s.start >= abs.start && s.start < abs.end)
         {
             Role::Prop {
+                key_raw: kr.clone(),
                 key: k.clone(),
                 value: v.clone(),
             }
@@ -259,45 +269,95 @@ impl CanonicalView {
     }
 }
 
-/// Builds the [`CanonicalView`] of a block's semantic text (the output of
-/// [`crate::outline::content_of`], with `\n` line endings).
+/// One property line of a block, in written order.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PartProp {
+    /// The key as written.
+    pub key_raw: String,
+    /// The normalised key.
+    pub key: String,
+    /// The trimmed value.
+    pub value: String,
+    /// The class of the key.
+    pub class: PropClass,
+}
+
+/// A block's semantic text split into its parts, in written order.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct BlockParts {
+    /// Title and body lines (everything that is neither a property nor a logbook line), trailing
+    /// whitespace removed, trailing blank lines dropped.
+    pub content: Vec<String>,
+    /// Valid property lines of the effective group (drawer wrappers dropped).
+    pub props: Vec<PartProp>,
+    /// The trimmed non-empty lines inside `:LOGBOOK:` drawers (wrappers dropped).
+    pub logbook: Vec<String>,
+}
+
+/// Splits a block's semantic text (the output of [`crate::outline::content_of`], `\n` line
+/// endings) into content lines, property lines and logbook lines.
 #[must_use]
-pub fn canonical_view(text: &str) -> CanonicalView {
+pub fn parse_block_text(text: &str) -> BlockParts {
     let bytes = text.as_bytes();
-    let mut view = CanonicalView::default();
+    let mut parts = BlockParts::default();
     for li in analyse(bytes, Span::new(0, bytes.len())) {
         let raw = String::from_utf8_lossy(li.span.slice(bytes));
         let line = raw.trim_end_matches(['\n', '\r']).trim_end();
         match li.role {
-            Role::Text => view.content.push(line.to_owned()),
+            Role::Text => parts.content.push(line.to_owned()),
             Role::PropsWrapper | Role::LogbookWrapper => {}
             Role::Logbook => {
                 let t = line.trim();
                 if !t.is_empty() {
-                    view.logbook.insert(t.to_owned());
+                    parts.logbook.push(t.to_owned());
                 }
             }
-            Role::Prop { key, value } => {
-                let value = value.trim().to_owned();
-                match class_of(&key) {
-                    PropClass::Content => view.props.push((key, value)),
-                    PropClass::Metadata => {
-                        if !view.metadata.contains_key(&key) {
-                            view.metadata_order.push(key.clone());
-                        }
-                        view.metadata.insert(key, value);
-                    }
-                    PropClass::Identity => {
-                        if view.identity.is_none() {
-                            view.identity = Some(value);
-                        }
-                    }
-                }
+            Role::Prop {
+                key_raw,
+                key,
+                value,
+            } => {
+                let class = class_of(&key);
+                parts.props.push(PartProp {
+                    key_raw,
+                    key,
+                    value: value.trim().to_owned(),
+                    class,
+                });
             }
         }
     }
-    while view.content.last().is_some_and(String::is_empty) {
-        view.content.pop();
+    while parts.content.last().is_some_and(String::is_empty) {
+        parts.content.pop();
+    }
+    parts
+}
+
+/// Builds the [`CanonicalView`] of a block's semantic text (the output of
+/// [`crate::outline::content_of`], with `\n` line endings).
+#[must_use]
+pub fn canonical_view(text: &str) -> CanonicalView {
+    let parts = parse_block_text(text);
+    let mut view = CanonicalView {
+        content: parts.content,
+        logbook: parts.logbook.into_iter().collect(),
+        ..CanonicalView::default()
+    };
+    for p in parts.props {
+        match p.class {
+            PropClass::Content => view.props.push((p.key, p.value)),
+            PropClass::Metadata => {
+                if !view.metadata.contains_key(&p.key) {
+                    view.metadata_order.push(p.key.clone());
+                }
+                view.metadata.insert(p.key, p.value);
+            }
+            PropClass::Identity => {
+                if view.identity.is_none() {
+                    view.identity = Some(p.value);
+                }
+            }
+        }
     }
     view.props.sort();
     view

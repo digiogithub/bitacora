@@ -15,9 +15,9 @@ pub mod span;
 pub mod tree;
 
 pub use classify::{
-    CARD_KEYS, CanonicalView, DiffClass, IdentityConflict, LineClass, MetadataMerge, PropClass,
-    Side, canonical_view, canonical_view_of, class_of, classify_diff, classify_lines, is_card_key,
-    merge_metadata, union_logbook,
+    BlockParts, CARD_KEYS, CanonicalView, DiffClass, IdentityConflict, LineClass, MetadataMerge,
+    PartProp, PropClass, Side, canonical_view, canonical_view_of, class_of, classify_diff,
+    classify_lines, is_card_key, merge_metadata, parse_block_text, union_logbook,
 };
 pub use lines::{Line, LineKind, Lines, ParserOptions, UnclosedRegion};
 pub use outline::{BlockKind, Outline, RawBlock, content_of, pre_block_content, split, split_with};

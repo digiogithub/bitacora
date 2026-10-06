@@ -1,6 +1,25 @@
 //! `bitacora-merge`: Block-aware 3-way merge of Logseq pages (ADR-016). Depends only on `bitacora-markdown`.
+//!
+//! * [`model`]: page model (BIT-US-0049), [`matcher`]: block identity matching.
+//! * [`fields`], [`marker`], [`meta`], [`block`]: field-level merge with automatic metadata
+//!   resolution (BIT-US-0050).
 
-use bitacora_markdown as _;
+pub mod block;
+pub mod conflict;
+pub mod fields;
+pub mod lcs;
+pub mod marker;
+pub mod matcher;
+pub mod meta;
+pub mod model;
+
+pub use block::{MergedBlock, merge_block};
+pub use conflict::{Conflict, ConflictKind, IdRewrite};
+pub use fields::{Diff3, FieldResult, diff3, merge_content, merge_user_props};
+pub use marker::{TitleParts, marker_rank, merge_planning, merge_title, split_title};
+pub use matcher::{Matching, Triple, match_blocks, match_pages};
+pub use meta::{MergeEnv, merge_meta};
+pub use model::{BlockKey, FileStyle, MergeBlock, MergePage, Meta, PropEntry};
 
 /// Errors produced by this crate.
 #[derive(Debug, thiserror::Error)]

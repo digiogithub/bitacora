@@ -14,3 +14,7 @@ workspace = true
 [dependencies]
 bitacora-markdown.workspace = true
 thiserror.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
