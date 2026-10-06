@@ -21,3 +21,5 @@ bitacora-index.workspace = true
 bitacora-sync.workspace = true
 bitacora-mcp.workspace = true
 clap.workspace = true
+anyhow.workspace = true
+tokio.workspace = true
