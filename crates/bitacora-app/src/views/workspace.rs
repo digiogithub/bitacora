@@ -6,10 +6,11 @@ use std::time::Duration;
 use async_channel::Sender;
 use tokio::task::JoinError;
 
-use crate::actions::{ToggleLeftSidebar, ToggleRightSidebar, ToggleTheme};
+use crate::actions::{GoBack, GoForward, ToggleLeftSidebar, ToggleRightSidebar, ToggleTheme};
+use crate::data::GraphHandle;
 use crate::layout::{LAYOUT_VERSION, load_layout, save_layout};
+use crate::nav::Route;
 use crate::recent::{RecentGraphs, graph_name, has_graph_config};
-use crate::render::inline::NavTarget;
 use crate::session::{GraphSession, SessionEvent, SessionOptions, initial_page};
 use crate::theme;
 use crate::tokio_bridge;
@@ -20,8 +21,9 @@ use crate::ui::{
     Task, Window, div, h_flex, px, v_flex,
 };
 use crate::ui::{Level, notify};
-use crate::views::page_view::{PageEvent, PageView};
-use crate::views::panels::{PanelKind, PlaceholderPanel, SharedPageView};
+use crate::views::main_view::MainView;
+use crate::views::page_view::PageView;
+use crate::views::panels::{PanelKind, PlaceholderPanel, SharedMainView};
 use crate::views::picker::{GraphPicker, PickerEvent};
 use crate::views::sidebar::{LeftSidebar, SidebarEvent, Target};
 use crate::views::status_bar::{AppStatusBar, Slot, SlotState, StatusEvent};
@@ -58,7 +60,7 @@ pub struct Workspace {
     status: Entity<AppStatusBar>,
     status_tx: Sender<StatusEvent>,
     picker: Entity<GraphPicker>,
-    page: Entity<PageView>,
+    main: Entity<MainView>,
     recents: RecentGraphs,
     graph_root: Option<PathBuf>,
     session: Option<GraphSession>,
@@ -83,15 +85,15 @@ impl Workspace {
             .map(RecentGraphs::load)
             .unwrap_or_default();
         let picker = cx.new(|_| GraphPicker::new(recents.graphs().to_vec()));
-        let page = cx.new(PageView::new);
-        cx.set_global(SharedPageView(page.clone()));
+        let main = cx.new(MainView::new);
+        cx.set_global(SharedMainView(main.clone()));
 
         let (dock, skin) = DockSkin::dock_area("workspace", Some(LAYOUT_VERSION), window, cx);
         skin.set_toggle_button_visible(false, cx);
         let mut subscriptions = vec![cx.subscribe_in(&dock, window, Self::on_dock_event)];
         subscriptions.push(cx.observe(&sidebar, |_, _, cx| cx.notify()));
         subscriptions.push(cx.subscribe_in(&picker, window, Self::on_picker_event));
-        subscriptions.push(cx.subscribe_in(&page, window, Self::on_page_event));
+        subscriptions.push(cx.observe(&main, |_, _, cx| cx.notify()));
         subscriptions.push(cx.subscribe_in(&sidebar, window, Self::on_sidebar_event));
 
         let restored = config
@@ -120,7 +122,7 @@ impl Workspace {
             status,
             status_tx,
             picker,
-            page,
+            main,
             recents,
             graph_root: None,
             session: None,
@@ -138,9 +140,14 @@ impl Workspace {
         &self.picker
     }
 
+    /// The main area (journals feed and page view with history).
+    pub fn main_view(&self) -> &Entity<MainView> {
+        &self.main
+    }
+
     /// The page view entity.
-    pub fn page_view(&self) -> &Entity<PageView> {
-        &self.page
+    pub fn page_view(&self, cx: &App) -> Entity<PageView> {
+        self.main.read(cx).page().clone()
     }
 
     /// The open graph folder, if any.
@@ -231,11 +238,7 @@ impl Workspace {
             }
         }));
 
-        if let Some((file, title)) = initial_page(&path, self.config.initial_page.as_deref()) {
-            self.page.update(cx, |page, cx| {
-                page.open_file(path.clone(), file, title, cx);
-            });
-        }
+        self.main.update(cx, |main, cx| main.clear_graph(cx));
         cx.notify();
     }
 
@@ -270,6 +273,19 @@ impl Workspace {
                     cx.notify();
                 });
             }
+            SessionEvent::Reader(handle) => {
+                let initial = self
+                    .config
+                    .initial_page
+                    .as_deref()
+                    .map(|req| requested_route(&handle, req));
+                self.main
+                    .update(cx, |main, cx| main.set_graph(handle, initial, cx));
+            }
+            SessionEvent::Index(event) => {
+                self.main
+                    .update(cx, |main, cx| main.on_index_event(&event, cx));
+            }
             SessionEvent::Progress { done, total } => {
                 self.status.update(cx, |bar, cx| {
                     bar.apply(StatusEvent::IndexProgress { done, total });
@@ -287,6 +303,8 @@ impl Workspace {
                 );
                 self.status
                     .update(cx, |bar, cx| bar.set_index(SlotState::Idle, cx));
+                // Pages opened while a cold build was still running may have been incomplete.
+                self.main.update(cx, |main, cx| main.reload(cx));
                 if summary.cold_build {
                     notify(
                         window,
@@ -299,6 +317,14 @@ impl Workspace {
             SessionEvent::Failed(message) => {
                 self.status
                     .update(cx, |bar, cx| bar.set_index(SlotState::Error, cx));
+                // Without the index the page can still be read straight from its file.
+                if let Some(root) = self.graph_root.clone()
+                    && let Some((file, title)) =
+                        initial_page(&root, self.config.initial_page.as_deref())
+                {
+                    let page = self.main.read(cx).page().clone();
+                    page.update(cx, |page, cx| page.open_file(file, title, cx));
+                }
                 notify(
                     window,
                     cx,
@@ -329,22 +355,6 @@ impl Workspace {
         }
     }
 
-    fn on_page_event(
-        &mut self,
-        _: &Entity<PageView>,
-        event: &PageEvent,
-        _: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        let PageEvent::Navigate(target) = event;
-        match target {
-            NavTarget::Url(url) => cx.open_url(url),
-            // Page and block navigation arrive with BIT-US-0075.
-            NavTarget::Page(name) => tracing::debug!(page = %name, "navigate to page"),
-            NavTarget::Block(id) => tracing::debug!(block = %id, "navigate to block"),
-        }
-    }
-
     fn on_sidebar_event(
         &mut self,
         _: &Entity<LeftSidebar>,
@@ -352,9 +362,16 @@ impl Workspace {
         _: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if *event == SidebarEvent::Navigate(Target::GraphSwitcher) {
-            self.picker_visible = true;
-            cx.notify();
+        match event {
+            SidebarEvent::Navigate(Target::GraphSwitcher) => {
+                self.picker_visible = true;
+                cx.notify();
+            }
+            SidebarEvent::Navigate(Target::Journals) => {
+                self.main
+                    .update(cx, |main, cx| main.navigate(Route::Journals, cx));
+            }
+            SidebarEvent::Navigate(_) => {}
         }
     }
 
@@ -478,8 +495,31 @@ impl Workspace {
         });
     }
 
+    fn go_back(&mut self, _: &GoBack, _: &mut Window, cx: &mut Context<Self>) {
+        self.main.update(cx, |main, cx| main.go_back(cx));
+    }
+
+    fn go_forward(&mut self, _: &GoForward, _: &mut Window, cx: &mut Context<Self>) {
+        self.main.update(cx, |main, cx| main.go_forward(cx));
+    }
+
     fn toggle_theme(&mut self, _: &ToggleTheme, window: &mut Window, cx: &mut Context<Self>) {
         theme::toggle(cx, Some(window));
+    }
+}
+
+/// The route for `--page <req>`: a graph-relative file path (derived to its page title) or a
+/// page name.
+fn requested_route(handle: &GraphHandle, req: &str) -> Route {
+    let cfg = &handle.settings.config;
+    let is_file = req.ends_with(".md") && handle.root.join(req).is_file();
+    if !is_file {
+        return Route::Page(req.to_owned());
+    }
+    let title = bitacora_core::naming::derive_title(req, None, cfg);
+    match bitacora_core::journal::detect_journal(&title, cfg) {
+        Some(journal) => Route::Page(journal.title),
+        None => Route::Page(title),
     }
 }
 
@@ -513,6 +553,8 @@ impl Render for Workspace {
             .on_action(cx.listener(Self::toggle_left))
             .on_action(cx.listener(Self::toggle_right))
             .on_action(cx.listener(Self::toggle_theme))
+            .on_action(cx.listener(Self::go_back))
+            .on_action(cx.listener(Self::go_forward))
             .size_full()
             .child(main)
             .child(self.status.clone())
@@ -698,8 +740,15 @@ mod tests {
             SlotState::Idle
         );
         assert_eq!(bar.read_with(cx, |b, _| b.index_progress()), None);
-        let page = ws.read_with(cx, |w, _| w.page_view().clone());
-        assert_eq!(page.read_with(cx, |p, _| p.model().rows.len()), 1);
+        let page = ws.read_with(cx, |w, cx| w.page_view(cx));
+        for _ in 0..200 {
+            cx.run_until_parked();
+            if page.read_with(cx, |p, _| p.rows().len() == 1) {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        assert_eq!(page.read_with(cx, |p, _| p.rows().len()), 1);
         assert_eq!(
             page.read_with(cx, |p, _| p.title().map(str::to_owned)),
             Some("Home".into())

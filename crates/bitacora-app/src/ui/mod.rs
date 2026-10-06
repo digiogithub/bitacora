@@ -36,6 +36,11 @@ pub mod button {
     pub use gpui_kit::component::button::{Button, ButtonVariants};
 }
 
+/// Popovers.
+pub mod popover {
+    pub use gpui_kit::component::popover::{Popover, PopoverState};
+}
+
 /// Menus and dropdowns.
 pub mod menu {
     pub use gpui_kit::component::menu::{DropdownMenu, PopupMenu, PopupMenuItem};

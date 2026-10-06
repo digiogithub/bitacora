@@ -419,8 +419,19 @@ fn property_value(
     layout_line(value, resolver)
 }
 
-/// One visible row of a page: a block with its tree position.
-#[derive(Debug, Clone, PartialEq)]
+/// A block that references another block (shown when the reference bubble is opened).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Referrer {
+    /// UUID of the referencing block.
+    pub uuid: String,
+    /// Title of the page it lives on.
+    pub page: String,
+    /// Its first line.
+    pub title: String,
+}
+
+/// One row of an outline: a block with its tree position and view-only state.
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct Row {
     /// Index of the block in the page (the pre-block is not a row's index source: it is row 0
     /// with `block_index == None`).
@@ -431,9 +442,72 @@ pub struct Row {
     pub has_children: bool,
     /// What to draw.
     pub block: BlockModel,
+    /// Block UUID from the index (rows read from files have none).
+    pub uuid: Option<String>,
+    /// View-only collapse override (`None`: follow `collapsed::`). Never persisted.
+    pub view_collapsed: Option<bool>,
+    /// How many blocks reference this block.
+    pub ref_count: usize,
+    /// The referencing blocks once the bubble was opened; `None` while closed.
+    pub referrers: Option<Vec<Referrer>>,
 }
 
-/// A page as a flat list of visible rows (collapsed subtrees are skipped).
+impl Row {
+    /// Whether the children are hidden right now.
+    pub fn is_collapsed(&self) -> bool {
+        self.has_children && self.view_collapsed.unwrap_or(self.block.collapsed)
+    }
+}
+
+/// Indexes of the rows that are visible: descendants of a collapsed row are skipped.
+pub fn visible_rows(rows: &[Row]) -> Vec<usize> {
+    let mut out = Vec::with_capacity(rows.len());
+    let mut hidden_below: Option<usize> = None;
+    for (i, row) in rows.iter().enumerate() {
+        if let Some(limit) = hidden_below {
+            if row.depth > limit {
+                continue;
+            }
+            hidden_below = None;
+        }
+        if row.is_collapsed() {
+            hidden_below = Some(row.depth);
+        }
+        out.push(i);
+    }
+    out
+}
+
+/// Flips the view-only collapse state of row `ix`; false when it has no children.
+pub fn toggle_row(rows: &mut [Row], ix: usize) -> bool {
+    let Some(row) = rows.get_mut(ix) else {
+        return false;
+    };
+    if !row.has_children {
+        return false;
+    }
+    row.view_collapsed = Some(!row.is_collapsed());
+    true
+}
+
+/// The view-only collapse overrides keyed by block UUID (kept across a reload).
+pub fn collapse_overrides(rows: &[Row]) -> std::collections::HashMap<String, bool> {
+    rows.iter()
+        .filter_map(|r| Some((r.uuid.clone()?, r.view_collapsed?)))
+        .collect()
+}
+
+/// Re-applies [`collapse_overrides`] to freshly loaded rows.
+pub fn apply_overrides(rows: &mut [Row], overrides: &std::collections::HashMap<String, bool>) {
+    for row in rows {
+        if let Some(c) = row.uuid.as_ref().and_then(|u| overrides.get(u)) {
+            row.view_collapsed = Some(*c);
+        }
+    }
+}
+
+/// A page as a flat list of rows; collapsed subtrees stay in the list and are hidden by
+/// [`visible_rows`].
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct PageModel {
     /// Rows in document order.
@@ -452,35 +526,24 @@ impl PageModel {
             // A pre-block without anything to show (blank) is not a row.
             if !block.title.is_empty() || !block.properties.is_empty() || !block.body.is_empty() {
                 rows.push(Row {
-                    block_index: None,
-                    depth: 0,
-                    has_children: false,
                     block,
+                    ..Row::default()
                 });
             }
         }
-        let mut hidden_below: Option<usize> = None;
         for (i, raw) in outline.blocks.iter().enumerate() {
             let depth = links[i].depth.saturating_sub(1);
-            if let Some(limit) = hidden_below {
-                if depth > limit {
-                    continue;
-                }
-                hidden_below = None;
-            }
             let content = content_of(source, raw);
             let block = BlockModel::from_content(&content, cfg, resolver);
             let has_children = links
                 .get(i + 1)
                 .is_some_and(|next| next.depth.saturating_sub(1) > depth);
-            if block.collapsed && has_children {
-                hidden_below = Some(depth);
-            }
             rows.push(Row {
                 block_index: Some(i),
                 depth,
                 has_children,
                 block,
+                ..Row::default()
             });
         }
         Self { rows }
@@ -591,13 +654,12 @@ mod tests {
     fn page_rows_follow_depth_and_collapse() {
         let src = "title:: Demo\n\n- a\n  collapsed:: true\n\t- hidden\n- b\n\t- c\n";
         let page = PageModel::from_source(src.as_bytes(), &PropertyConfig::default(), &NoBlocks);
-        let texts: Vec<_> = page
-            .rows
-            .iter()
-            .map(|r| (r.depth, r.block.title.text.clone()))
+        let shown: Vec<_> = visible_rows(&page.rows)
+            .into_iter()
+            .map(|i| (page.rows[i].depth, page.rows[i].block.title.text.clone()))
             .collect();
         assert_eq!(
-            texts,
+            shown,
             [
                 (0, String::new()),
                 (0, "a".into()),
@@ -605,7 +667,29 @@ mod tests {
                 (1, "c".into())
             ]
         );
+        assert_eq!(page.rows.len(), 5);
         assert!(page.rows[1].has_children && page.rows[1].block.collapsed);
         assert_eq!(page.rows[0].block.properties.len(), 1);
+    }
+
+    #[test]
+    fn view_collapse_toggles_and_survives_a_reload() {
+        let src = "- a\n\t- b\n\t\t- c\n- d\n";
+        let mut page =
+            PageModel::from_source(src.as_bytes(), &PropertyConfig::default(), &NoBlocks);
+        assert_eq!(visible_rows(&page.rows).len(), 4);
+        assert!(toggle_row(&mut page.rows, 0));
+        assert_eq!(visible_rows(&page.rows), [0, 3]);
+        assert!(toggle_row(&mut page.rows, 0));
+        assert_eq!(visible_rows(&page.rows).len(), 4);
+        assert!(!toggle_row(&mut page.rows, 2), "leaf rows do not toggle");
+        page.rows[1].uuid = Some("u1".into());
+        assert!(toggle_row(&mut page.rows, 1));
+        let overrides = collapse_overrides(&page.rows);
+        let mut fresh =
+            PageModel::from_source(src.as_bytes(), &PropertyConfig::default(), &NoBlocks);
+        fresh.rows[1].uuid = Some("u1".into());
+        apply_overrides(&mut fresh.rows, &overrides);
+        assert_eq!(visible_rows(&fresh.rows), [0, 1, 3]);
     }
 }

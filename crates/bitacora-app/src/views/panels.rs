@@ -7,7 +7,7 @@ use crate::ui::{
     App, AppContext as _, Context, Entity, EventEmitter, FocusHandle, Focusable, Global,
     IntoElement, ParentElement as _, Render, SharedString, Styled as _, Window, div,
 };
-use crate::views::page_view::PageView;
+use crate::views::main_view::MainView;
 
 /// Persisted panel name of the center page host. Never change: it is in layout files.
 pub const PAGE_HOST: &str = "PageHost";
@@ -37,21 +37,21 @@ impl PanelKind {
 pub struct PlaceholderPanel {
     kind: PanelKind,
     focus: FocusHandle,
-    page: Option<Entity<PageView>>,
+    page: Option<Entity<MainView>>,
 }
 
 /// The shared page view, set by the workspace before panels are built so that a restored
 /// layout's `PageHost` panel shows the same view as a freshly built one.
 #[derive(Debug)]
-pub struct SharedPageView(pub Entity<PageView>);
+pub struct SharedMainView(pub Entity<MainView>);
 
-impl Global for SharedPageView {}
+impl Global for SharedMainView {}
 
 impl PlaceholderPanel {
     /// Creates the panel entity.
     pub fn new(kind: PanelKind, cx: &mut Context<Self>) -> Self {
         let page = (kind == PanelKind::PageHost)
-            .then(|| cx.try_global::<SharedPageView>().map(|g| g.0.clone()))
+            .then(|| cx.try_global::<SharedMainView>().map(|g| g.0.clone()))
             .flatten();
         Self {
             kind,

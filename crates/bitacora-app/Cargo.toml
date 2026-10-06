@@ -26,6 +26,7 @@ bitacora-config.workspace = true
 # The ONLY crate allowed to depend on gpui-kit (ADR-001); reach GPUI via `gpui_kit::gpui`.
 gpui-kit.workspace = true
 anyhow.workspace = true
+jiff.workspace = true
 async-channel.workspace = true
 clap.workspace = true
 directories.workspace = true

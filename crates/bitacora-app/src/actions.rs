@@ -4,5 +4,12 @@ use crate::ui::actions;
 
 actions!(
     bitacora,
-    [ToggleLeftSidebar, ToggleRightSidebar, ToggleTheme, Quit]
+    [
+        ToggleLeftSidebar,
+        ToggleRightSidebar,
+        ToggleTheme,
+        GoBack,
+        GoForward,
+        Quit
+    ]
 );

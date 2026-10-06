@@ -21,6 +21,8 @@ use bitacora_index::{
     config_hash,
 };
 
+use crate::data::{GraphHandle, ViewSettings};
+
 /// Minimum time between two progress events.
 const PROGRESS_INTERVAL: Duration = Duration::from_millis(50);
 
@@ -34,6 +36,10 @@ pub enum SessionEvent {
         /// Files the reconcile will look at.
         total: usize,
     },
+    /// The read API of the index is available (pages may still be incomplete until `Ready`).
+    Reader(GraphHandle),
+    /// The index changed after the startup reconcile finished (file edits, sync, rename).
+    Index(IndexEvent),
     /// Files indexed so far during the reconcile.
     Progress {
         /// Files written.
@@ -176,6 +182,11 @@ fn open_and_reconcile(
         .map(|files| parse_order(&files).len())
         .map_err(|e| format!("cannot scan the graph: {e}"))?;
     send(SessionEvent::Opened { rebuilt, total });
+    send(SessionEvent::Reader(GraphHandle {
+        reader: index.read_api(),
+        root: root.to_path_buf(),
+        settings: Arc::new(ViewSettings::from_config(&cfg)),
+    }));
 
     let mut opts = IndexerOptions::new(root, cfg);
     opts.today = today_utc();
@@ -218,9 +229,14 @@ fn count_progress(
     let mut done = 0;
     let mut last = Instant::now();
     while let Ok(event) = events.recv() {
+        if finished.load(Ordering::SeqCst) {
+            // After the startup reconcile every change is forwarded to the views.
+            let _ = tx.send_blocking(SessionEvent::Index(event));
+            continue;
+        }
         if matches!(event, IndexEvent::FileReplaced { .. }) {
             done += 1;
-            if last.elapsed() >= PROGRESS_INTERVAL && !finished.load(Ordering::SeqCst) {
+            if last.elapsed() >= PROGRESS_INTERVAL {
                 last = Instant::now();
                 let _ = tx.send_blocking(SessionEvent::Progress {
                     done: done.min(total),
