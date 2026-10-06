@@ -1,0 +1,14 @@
+# Rust
+/target/
+**/*.rs.bk
+
+# Local tooling state
+/.pando/
+.pando.toml
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
