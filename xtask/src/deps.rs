@@ -38,7 +38,10 @@ fn allowed_edges() -> BTreeMap<&'static str, BTreeSet<&'static str>> {
             set(&["bitacora-markdown", "bitacora-merge", "bitacora-config"]),
         ),
         ("bitacora-watch", set(&["bitacora-core"])),
-        ("bitacora-index", set(&["bitacora-core"])),
+        (
+            "bitacora-index",
+            set(&["bitacora-core", "bitacora-config", "bitacora-markdown"]),
+        ),
         ("bitacora-sync", set(&["bitacora-core", "bitacora-merge"])),
         (
             "bitacora-mcp",

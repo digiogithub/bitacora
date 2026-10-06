@@ -1,0 +1,16 @@
+---
+source: crates/bitacora-index/tests/parse_golden.rs
+expression: out
+---
+== PROVENANCE.md :: provenance (PROVENANCE)
+  [0..0] d1 s0 pNone h1 | "Provenance: edge-cases-legacy-names"
+== pages/Projects%2FBitacora.md :: projects/bitacora (Projects/Bitacora)
+  [0..0] d1 s0 pNone | "legacy: percent-encoded slash namespace"
+== pages/Q%3A why%3F.md :: q: why? (Q: why?)
+  [0..0] d1 s0 pNone | "reserved characters become percent escapes in legacy names: title \"Q: why?\""
+== pages/Version 1.0.md :: version 1/0 (Version 1/0)
+  [0..0] d1 s0 pNone | "legacy name: dot separates namespace, so this is page \"Version 1/0\""
+== pages/legacy-title-property.md :: legacy title property (Legacy title property)
+  [0..0] d1 s0 pNone PRE | "title:: Legacy title property"
+      prop title t0 b1 "Legacy title property" -> ["legacy title property"]
+  [1..1] d1 s1 pNone | "legacy page with explicit title:: property"

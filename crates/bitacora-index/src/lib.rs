@@ -5,12 +5,12 @@
 //! lifecycle ([`Index::open`]) with a read-only connection pool and a single owned
 //! write connection. See `docs/design/sqlite-index-schema.md` §1.1, §3 and §4.1 step 1.
 
-// Reserved for the reindex pipeline (US-0006+); keeps the dependency edge declared.
-use bitacora_core as _;
-
 mod error;
 mod index;
 mod location;
+pub mod normalize;
+pub mod parse;
+pub mod parsed;
 mod pool;
 pub mod schema;
 
@@ -19,6 +19,8 @@ pub use index::{
     Index, OpenOptions, OpenOutcome, RebuildKind, RecreateReason, StoredVersions, WriteConnection,
 };
 pub use location::{IndexLocation, graph_id};
+pub use parse::{PARSER_VERSION, ParseConfig, parse};
+pub use parsed::*;
 pub use pool::{PooledReader, ReaderPool};
 
 /// Crate name, used by smoke tests.

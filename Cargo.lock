@@ -800,13 +800,17 @@ dependencies = [
 name = "bitacora-index"
 version = "0.1.0"
 dependencies = [
+ "bitacora-config",
  "bitacora-core",
+ "bitacora-markdown",
  "blake3",
  "directories",
+ "insta",
  "parking_lot",
  "rusqlite",
  "tempfile",
  "thiserror 2.0.21",
+ "unicode-normalization",
 ]
 
 [[package]]

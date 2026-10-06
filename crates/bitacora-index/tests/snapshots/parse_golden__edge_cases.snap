@@ -1,0 +1,233 @@
+---
+source: crates/bitacora-index/tests/parse_golden.rs
+expression: out
+---
+== PROVENANCE.md :: provenance (PROVENANCE)
+  [0..0] d1 s0 pNone h1 | "Provenance: edge-cases and edge-cases-legacy-names"
+  [1..1] d1 s1 pNone h2 | "edge-cases/pages (config: `:file/name-format :triple-lowbar`)"
+  [2..2] d1 s2 pNone h2 | "edge-cases/journals"
+  [3..3] d1 s3 pNone h2 | "edge-cases/logseq and assets"
+  [4..4] d1 s4 pNone h2 | "edge-cases-legacy-names (config has no `:file/name-format`, so legacy naming)"
+== journals/2024_05_01.md :: 2024-05-01 wednesday (2024-05-01 Wednesday) journal=20240501
+  [0..0] d1 s0 pNone | "journal entry"
+  [1..1] d1 s1 pNone TODO | "journal task"
+      pages: 5:todo
+== journals/2024_05_02.md :: 2024-05-02 thursday (2024-05-02 Thursday) journal=20240502
+  [0..0] d1 s0 pNone | "journal with BOM and CRLF"
+== journals/2030_12_31.md :: 2030-12-31 tuesday (2030-12-31 Tuesday) journal=20301231
+  [0..0] d1 s0 pNone | "journal in the future with no trailing newline"
+== pages/CON___.md :: con (CON)
+  [0..0] d1 s0 pNone | "windows reserved name page CON"
+== pages/Case Sensitive.md :: case sensitive (Case Sensitive)
+  [0..0] d1 s0 pNone | "a file whose title only differs by case"
+== pages/Projects___Bitacora___Design.md :: projects/bitacora/design (Projects/Bitacora/Design)
+  [0..0] d1 s0 pNone | "a namespaced page, triple-lowbar file name"
+  [1..1] d1 s1 pNone | "parent: [[Projects]]"
+      pages: 1:projects
+== pages/aa%3F%23___bbb___ccc.md :: aa?#/bbb/ccc (aa?#/bbb/ccc)
+  [0..0] d1 s0 pNone | "percent-encoded reserved characters in the title"
+== pages/archived.md :: archived (archived)
+  [0..0] d1 s0 pNone | "content for an archived (hidden) page"
+== pages/assets-reference.md :: assets-reference (assets-reference)
+  [0..0] d1 s0 pNone | "image ![pixel](../assets/pixel.png)"
+  [1..1] d1 s1 pNone | "link to asset [file](../assets/pixel.png)"
+== pages/bom-crlf.md :: bom-crlf (bom-crlf)
+  [0..0] d1 s0 pNone | "bom and crlf"
+  [1..1] d1 s1 pNone | "second"
+== pages/bom-utf8.md :: bom-utf8 (bom-utf8)
+  [0..0] d1 s0 pNone | "bom first block"
+  [1..1] d1 s1 pNone | "bom second block"
+== pages/code-fence-closed.md :: code-fence-closed (code-fence-closed)
+  [0..0] d1 s0 pNone | "closed fence"
+  [1..1] d1 s1 pNone | "~~~ tilde fence"
+  [2..2] d1 s2 pNone | "after fences"
+== pages/code-fence-unclosed.md :: code-fence-unclosed (code-fence-unclosed)
+  [0..0] d1 s0 pNone | "block before fence"
+  [1..1] d1 s1 pNone | "```rust"
+  [2..2] d1 s2 pNone | "this line is inside the unclosed fence"
+== pages/collapsed-and-id.md :: collapsed-and-id (collapsed-and-id)
+  [0..1] d1 s0 pNone collapsed | "collapsed parent"
+      prop collapsed t2 b2 "true" -> ["true=1"]
+  [1..1] d2 s0 pSome(0) | "hidden child"
+  [2..2] d1 s1 pNone id=6f1c0a52-3b7e-4d0e-9a41-0c2d5b8e7a10 | "block with id"
+      prop id t0 b2 "6f1c0a52-3b7e-4d0e-9a41-0c2d5b8e7a10" -> ["6f1c0a52-3b7e-4d0e-9a41-0c2d5b8e7a10"]
+  [3..3] d1 s2 pNone id=0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d | "block with id and props"
+      pages: 4:color
+      prop color t0 b0 "red" -> ["red"]
+      prop id t0 b2 "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d" -> ["0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"]
+      prop collapsed t2 b2 "false" -> ["false=0"]
+== pages/continuation-lines.md :: continuation-lines (continuation-lines)
+  [0..1] d1 s0 pNone | "first line of block"
+  [1..1] d2 s0 pSome(0) | "nested child"
+  [2..2] d1 s1 pNone | "next block"
+== pages/crlf.md :: crlf (crlf)
+  [0..0] d1 s0 pNone | "crlf first block"
+  [1..2] d1 s1 pNone | "crlf second block"
+  [2..2] d2 s0 pSome(1) | "crlf child"
+== pages/empty-blocks.md :: empty-blocks (empty-blocks)
+  [0..0] d1 s0 pNone | ""
+  [1..1] d1 s1 pNone | ""
+  [2..2] d1 s2 pNone | "text between empties"
+  [3..4] d1 s3 pNone | ""
+  [4..4] d2 s0 pSome(3) | "empty parent with child"
+  [5..5] d1 s4 pNone | ""
+== pages/ends with.___.md :: ends with. (ends with.)
+  [0..0] d1 s0 pNone | "title ends with a dot"
+== pages/escaping.md :: escaping (escaping)
+  [0..0] d1 s0 pNone | "escaping: \\- not a bullet, \\* star, \\_ underscore"
+  [1..1] d1 s1 pNone | "line with * star and _ underscore_ and **bold**"
+  [2..2] d1 s2 pNone | "1. ordered-looking text"
+  [3..3] d1 s3 pNone | "> quote block"
+== pages/foo%5F%5F%5Fbar.md :: foo___bar (foo___bar)
+  [0..0] d1 s0 pNone | "literal triple underscore in title foo___bar"
+== pages/heading-no-bullet.md :: heading-no-bullet (heading-no-bullet)
+  [0..0] d1 s0 pNone h1 | "Heading without bullet"
+  [1..1] d1 s1 pNone | "bullet after heading"
+  [2..2] d1 s2 pNone h2 | "Second heading without bullet"
+  [3..3] d1 s3 pNone | "last bullet"
+== pages/heading-property.md :: heading-property (heading-property)
+  [0..0] d1 s0 pNone h1 | "Heading block"
+      prop heading t2 b2 "true" -> ["true=1"]
+  [1..1] d1 s1 pNone h2 | "Level two heading block"
+  [2..2] d1 s2 pNone h3 | "plain block"
+      prop heading t1 b2 "3" -> ["3=3"]
+== pages/indent-2-spaces.md :: indent-2-spaces (indent-2-spaces)
+  [0..2] d1 s0 pNone | "two-space parent"
+  [1..2] d2 s0 pSome(0) | "child with two spaces"
+  [2..2] d3 s0 pSome(1) | "grandchild with four spaces"
+  [3..3] d1 s1 pNone | "sibling"
+== pages/indent-4-spaces.md :: indent-4-spaces (indent-4-spaces)
+  [0..2] d1 s0 pNone | "four-space parent"
+  [1..2] d2 s0 pSome(0) | "child with four spaces"
+  [2..2] d3 s0 pSome(1) | "grandchild with eight spaces"
+  [3..3] d1 s1 pNone | "sibling"
+== pages/indent-irregular.md :: indent-irregular (indent-irregular)
+  [0..3] d1 s0 pNone | "level one"
+  [1..1] d2 s0 pSome(0) | "jumps three levels at once"
+  [2..3] d2 s1 pSome(0) | "back to level two"
+  [3..3] d3 s0 pSome(2) | "odd eight-space jump"
+  [4..4] d1 s1 pNone | "level one again"
+== pages/indent-mixed-tabs-spaces.md :: indent-mixed-tabs-spaces (indent-mixed-tabs-spaces)
+  [0..3] d1 s0 pNone | "mixed parent"
+  [1..3] d2 s0 pSome(0) | "tab child"
+  [2..3] d3 s0 pSome(1) | "two-space child after tab"
+  [3..3] d4 s0 pSome(2) | "tab plus spaces child"
+  [4..4] d1 s1 pNone | "sibling"
+== pages/indent-tabs.md :: indent-tabs (indent-tabs)
+  [0..2] d1 s0 pNone | "tab indented parent"
+  [1..2] d2 s0 pSome(0) | "child with one tab"
+  [2..2] d3 s0 pSome(1) | "grandchild with two tabs"
+  [3..3] d1 s1 pNone | "sibling"
+== pages/inline-refs.md :: inline-refs (inline-refs)
+  [0..0] d1 s0 pNone | "link [[page]] and nested [[nested [[ref]] link]]"
+      pages: 1:page 1:nested [[ref]] link 1:ref
+  [1..1] d1 s1 pNone | "tag #tag and #[[multi word tag]] and #a/b"
+      pages: 2:tag 2:multi word tag 2:a/b 7:a
+  [2..2] d1 s2 pNone | "block ref ((6f1c0a52-3b7e-4d0e-9a41-0c2d5b8e7a10))"
+      blocks: 1:6f1c0a52-3b7e-4d0e-9a41-0c2d5b8e7a10
+  [3..3] d1 s3 pNone | "embed {{embed [[page]]}} and {{embed ((6f1c0a52-3b7e-4d0e-9a41-0c2d5b8e7a10))}}"
+      pages: 8:page
+      blocks: 2:6f1c0a52-3b7e-4d0e-9a41-0c2d5b8e7a10
+  [4..4] d1 s4 pNone | "query {{query (and [[page]] (task TODO))}}"
+  [5..5] d1 s5 pNone | "escaped \\[[not a link]] and \\#nottag"
+  [6..6] d1 s6 pNone | "inline code `[[not a link]]` and url https://example.com/#frag"
+== pages/logbook-drawer.md :: logbook-drawer (logbook-drawer)
+  [0..0] d1 s0 pNone DOING | "task with logbook"
+      pages: 5:doing
+  [1..1] d1 s1 pNone | "block after logbook"
+== pages/mixed-line-endings.md :: mixed-line-endings (mixed-line-endings)
+  [0..0] d1 s0 pNone | "mixed line endings lf"
+  [1..1] d1 s1 pNone | "then crlf"
+  [2..2] d1 s2 pNone | "then lf again"
+== pages/no-bullets.md :: no-bullets (no-bullets)
+  [0..0] d1 s0 pNone PRE | "Just a paragraph with no bullets at all."
+== pages/no-trailing-newline.md :: no-trailing-newline (no-trailing-newline)
+  [0..0] d1 s0 pNone | "no trailing newline at end of file"
+== pages/org-page.org :: org-page (org-page)
+  diag unsupported LNone: org-mode files are indexed as pages only
+== pages/pre-block-directive-deep.md :: directive deep in the page (Directive deep in the page)
+  aliases: ["deep-directive"]
+  [0..0] d1 s0 pNone | "first block"
+  [1..1] d1 s1 pNone | "second block"
+  [2..2] d1 s2 pNone | "third block"
+== pages/pre-block-properties.md :: page properties pre-block (Page properties pre-block)
+  aliases: ["pre-block", "props"]
+  tags: ["edge", "fixture"]
+  [0..0] d1 s0 pNone PRE | "title:: Page properties pre-block"
+      pages: 3:pre-block 3:props 3:edge 3:fixture
+      prop title t0 b1 "Page properties pre-block" -> ["page properties pre-block"]
+      prop alias t3 b1 "pre-block, props" -> ["pre-block", "props"]
+      prop tags t3 b1 "fixture, edge" -> ["edge", "fixture"]
+  [1..1] d1 s1 pNone | "first real block"
+  [2..2] d1 s2 pNone | "second block"
+== pages/pre-block-yaml-front-matter.md :: yaml front matter page (YAML front matter page)
+  tags: ["[fixture", "yaml]"]
+  [0..0] d1 s0 pNone PRE | "---"
+      pages: 3:[fixture 3:yaml]
+      prop title t0 b1 "YAML front matter page" -> ["yaml front matter page"]
+      prop tags t3 b1 "[fixture, yaml]" -> ["[fixture", "yaml]"]
+  [1..1] d1 s1 pNone | "block after front matter"
+== pages/property-values.md :: property-values (property-values)
+  [0..0] d1 s0 pNone | "quoted:: \"a value: with colon\""
+      pages: 4:quoted
+      prop quoted t0 b0 "\"a value: with colon\"" -> ["\"a value: with colon\""]
+  [1..1] d1 s1 pNone | "plain:: value"
+      pages: 3:ref 3:tag 4:plain 4:other
+      prop plain t0 b0 "value" -> ["value"]
+      prop other t3 b0 "[[ref]], #tag, plain" -> ["ref", "tag"]
+  [2..2] d1 s2 pNone | "empty::"
+      pages: 4:empty
+      prop empty t0 b0 "" -> [""]
+  [3..3] d1 s3 pNone | "url:: https://example.com/a?b=c"
+      pages: 4:url
+      prop url t0 b0 "https://example.com/a?b=c" -> ["https://example.com/a?b=c"]
+  [4..4] d1 s4 pNone | "csv:: a, b, c"
+      pages: 4:csv
+      prop csv t0 b0 "a, b, c" -> ["a, b, c"]
+  [5..5] d1 s5 pNone | "spaced key:: not a property"
+== pages/scheduled-deadline.md :: scheduled-deadline (scheduled-deadline)
+  [0..0] d1 s0 pNone TODO S=<2024-05-01 Wed> | "scheduled task"
+      pages: 5:todo
+  [1..1] d1 s1 pNone TODO D=<2024-05-02 Thu 10:00 +1w> repeated | "deadline task"
+      pages: 5:todo
+  [2..2] d1 s2 pNone S=<2024-05-01 Wed .+1d> D=<2024-05-03 Fri> repeated | "both"
+== pages/star-plus-bullets.md :: star-plus-bullets (star-plus-bullets)
+  [0..0] d1 s0 pNone PRE | "* star bullet"
+  [1..1] d1 s1 pNone | "dash bullet"
+== pages/tasks-markers.md :: tasks-markers (tasks-markers)
+  [0..0] d1 s0 pNone TODO | "todo task"
+      pages: 5:todo
+  [1..1] d1 s1 pNone DOING | "doing task"
+      pages: 5:doing
+  [2..2] d1 s2 pNone NOW | "now task"
+      pages: 5:now
+  [3..3] d1 s3 pNone LATER | "later task"
+      pages: 5:later
+  [4..4] d1 s4 pNone WAIT | "wait task"
+      pages: 5:wait
+  [5..5] d1 s5 pNone DONE | "done task"
+      pages: 5:done
+  [6..6] d1 s6 pNone CANCELED | "canceled task"
+      pages: 5:canceled
+  [7..7] d1 s7 pNone CANCELLED | "cancelled task"
+      pages: 5:cancelled
+  [8..8] d1 s8 pNone IN-PROGRESS | "in-progress task"
+      pages: 5:in-progress
+  [9..9] d1 s9 pNone TODO [#A] | "priority a"
+      pages: 5:todo 6:a
+  [10..10] d1 s10 pNone LATER [#C] | "priority c"
+      pages: 5:later 6:c
+== pages/trailing-whitespace.md :: trailing-whitespace (trailing-whitespace)
+  [0..0] d1 s0 pNone | "trailing spaces"
+  [1..1] d1 s1 pNone | "trailing tab"
+  [2..2] d1 s2 pNone | "no trailing"
+== pages/unicode-中文-🚀.md :: unicode-中文-🚀 (unicode-中文-🚀)
+  [0..0] d1 s0 pNone | "CJK 日本語のページ"
+  [1..1] d1 s1 pNone | "emoji 🚀✨ block"
+  [2..2] d1 s2 pNone | "combining e\u{301} and precomposed é"
+  [3..3] d1 s3 pNone | "link [[中文页面]] and #标签"
+      pages: 1:中文页面 2:标签
+== pages/whitespace-only-lines.md :: whitespace-only-lines (whitespace-only-lines)
+  [0..0] d1 s0 pNone | "block before whitespace-only lines"
+  [1..1] d1 s1 pNone | "block after whitespace-only lines"
+  [2..2] d1 s2 pNone | "final block"
