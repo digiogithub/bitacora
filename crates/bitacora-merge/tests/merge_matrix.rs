@@ -355,3 +355,38 @@ fn identity_laws_over_fixture_pages() {
     }
     assert!(n > 20, "fixtures found: {n}");
 }
+
+#[test]
+fn spec_r12_scenarios_with_short_blocks() {
+    let r = m("- A\n- C\n", "- A\n- B1\n- C\n", "- A\n- B2\n- C\n");
+    assert_eq!(r.output, "- A\n- B1\n- B2\n- C\n");
+
+    let r = m("- Draft\n", "", "- Draft v2\n");
+    assert_eq!(r.conflicts.len(), 1);
+    assert_eq!(r.conflicts[0].conflict.kind, ConflictKind::DeleteVsModify);
+    assert_eq!(r.output, "- Draft v2\n");
+
+    let r = m("- A\n- B\n", "- B\n- A\n", "- A!\n- B\n");
+    assert_eq!(r.output, "- B\n- A!\n");
+    assert!(r.conflicts.is_empty());
+}
+
+#[test]
+fn only_changed_blocks_differ_with_tabs_and_crlf() {
+    let blocks: Vec<String> = (0..40)
+        .map(|i| format!("\t- block number {i} text here\r\n"))
+        .collect();
+    let b = format!("- root\r\n{}", blocks.concat());
+    let mut ob = blocks.clone();
+    ob[3] = "\t- block number 3 text here ours\r\n".to_owned();
+    let o = format!("- root\r\n{}", ob.concat());
+    let mut tb = blocks;
+    tb[7] = "\t- block number 7 text here theirs\r\n".to_owned();
+    let t = format!("- root\r\n{}", tb.concat());
+    let r = m(&b, &o, &t);
+    let expect = o.replace(
+        "block number 7 text here\r\n",
+        "block number 7 text here theirs\r\n",
+    );
+    assert_eq!(r.output, expect);
+}

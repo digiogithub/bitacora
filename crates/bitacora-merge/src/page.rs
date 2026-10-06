@@ -448,6 +448,9 @@ fn structural(base: &str, ours: &str, theirs: &str, env: &MergeEnv<'_>) -> Optio
 
     let bytes = serialize(&doc, &WriteOptions::default());
     result.output = String::from_utf8(bytes).ok()?;
+    if ours.trim().is_empty() && !result.output.is_empty() && !result.output.ends_with('\n') {
+        result.output.push('\n');
+    }
     if op.style.bom {
         result.output.insert(0, '\u{feff}');
     }
