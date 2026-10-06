@@ -103,6 +103,7 @@ fn start(cx: &mut App, args: &Args, dirs: &AppDirs) -> anyhow::Result<()> {
         mcp_token_path: bitacora_mcp::default_token_path(),
         global_config: None,
         state_dir: Some(dirs.data_dir.clone()),
+        system_credentials: true,
     };
     let options = WindowOptions {
         titlebar: Some(TitlebarOptions {

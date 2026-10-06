@@ -19,6 +19,8 @@ pub enum PickerEvent {
     Open(PathBuf),
     /// Drop this folder from the recent list.
     Forget(PathBuf),
+    /// Open the "open graph from a remote" dialog (BIT-T-0282).
+    CloneFromRemote,
 }
 
 /// The picker view.
@@ -162,6 +164,14 @@ impl Render for GraphPicker {
                             .icon(IconName::FolderOpen)
                             .label(t!("picker.open_folder").to_string())
                             .on_click(cx.listener(|this, _: &ClickEvent, _, cx| this.browse(cx))),
+                    )
+                    .child(
+                        Button::new("clone-from-remote")
+                            .icon(IconName::Globe)
+                            .label(t!("picker.clone_from_remote").to_string())
+                            .on_click(cx.listener(|_, _: &ClickEvent, _, cx| {
+                                cx.emit(PickerEvent::CloneFromRemote);
+                            })),
                     )
                     .child(
                         div()

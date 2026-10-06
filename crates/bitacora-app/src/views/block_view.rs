@@ -298,6 +298,9 @@ pub struct RowActions {
     pub toggle: Option<Action>,
     /// Open or close the list of blocks referencing this block (count bubble).
     pub referrers: Option<Action>,
+    /// The block got the focus (a click on it): the editing-block protection hook of core
+    /// (BIT-T-0344) learns which block the user is on.
+    pub focus: Option<Action>,
 }
 
 impl std::fmt::Debug for RowActions {
@@ -313,6 +316,7 @@ impl RowActions {
             nav,
             toggle: None,
             referrers: None,
+            focus: None,
         }
     }
 }
@@ -582,6 +586,14 @@ pub fn render_block_row(
         .py(px(2.))
         .pl(px(8. + row.depth as f32 * 24.))
         .pr(px(12.))
+        .when_some(actions.focus.clone(), |d, focus| {
+            d.on_mouse_down(
+                crate::ui::text_edit::MouseButton::Left,
+                move |_, window, cx| {
+                    focus(window, cx);
+                },
+            )
+        })
         .child(toggle_slot)
         .child(bullet_slot)
         .child(content)

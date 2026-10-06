@@ -14,24 +14,34 @@ use crate::actions::{
     FocusRightSidebar, GoAllPages, GoBack, GoForward, GoJournals, OpenCommandPalette, OpenSearch,
     Quit, ToggleLeftSidebar, ToggleRightSidebar, ToggleTheme,
 };
+use crate::credentials::CredentialHub;
 use crate::data::{self, GraphHandle};
+use crate::editing;
 use crate::graph_ops::{self, AssetOutcome};
 use crate::graph_state::GraphState;
 use crate::layout::{LAYOUT_VERSION, load_layout, save_layout};
 use crate::nav::Route;
 use crate::recent::{RecentGraphs, graph_name, has_graph_config};
 use crate::session::{
-    GraphSession, SessionEvent, SessionLink, SessionNotice, SessionOptions, initial_page,
+    GraphSession, SessionEvent, SessionHandle, SessionLink, SessionNotice, SessionOptions,
+    SyncSetup, initial_page,
 };
+use crate::sync_prefs::SyncPrefs;
 use crate::theme;
 use crate::tokio_bridge;
 use crate::ui::dock::{DockArea, DockEvent, DockLayout, DockPlacement, DockSkin, panel_handle};
 use crate::ui::{
     App, AppContext as _, Context, Entity, FluentBuilder as _, FocusHandle, Focusable,
-    InteractiveElement as _, IntoElement, ParentElement as _, Render, Styled as _, Subscription,
-    Task, Window, div, h_flex, px, v_flex,
+    InteractiveElement as _, IntoElement, KeyDownEvent, ParentElement as _, Render, Styled as _,
+    Subscription, Task, Window, div, h_flex, px, v_flex,
 };
 use crate::ui::{Level, notify};
+use crate::views::conflicts::{ConflictsEvent, ConflictsView};
+use crate::views::credential_dialog::CredentialDialog;
+use crate::views::disk_conflict::{
+    DiskConflictBanner, DiskConflictEvent, DiskDiffEvent, DiskDiffView,
+};
+use crate::views::history::{HistoryEvent, HistoryView};
 use crate::views::main_view::{MainEvent, MainView};
 use crate::views::page_view::PageView;
 use crate::views::palette::{Palette, PaletteCommand, PaletteEvent};
@@ -39,8 +49,13 @@ use crate::views::panels::{HubEvent, PaneHub, PanelKind, PlaceholderPanel, Share
 use crate::views::picker::{GraphPicker, PickerEvent};
 use crate::views::right_sidebar::{RightSidebar, StackEvent};
 use crate::views::sidebar::{LeftSidebar, SidebarEvent, Target};
-use crate::views::status_bar::{AppStatusBar, Slot, SlotState, StatusEvent};
+use crate::views::status_bar::{AppStatusBar, Slot, SlotState, StatusBarEvent, StatusEvent};
+use crate::views::sync_dialog::{SyncDialog, SyncDialogEvent};
+use crate::views::sync_panel::{SyncPanel, SyncPanelEvent};
+use bitacora_core::graph::PageKey;
+use bitacora_core::queue::{Keep, Request, Source};
 use rust_i18n::t;
+use std::sync::Arc;
 
 /// Delay before a layout change is written to disk.
 const SAVE_DEBOUNCE: Duration = Duration::from_millis(500);
@@ -87,6 +102,9 @@ pub struct WorkspaceConfig {
     /// Directory of the per-graph UI state (recent pages, right sidebar stack); `None` keeps it
     /// in memory only.
     pub state_dir: Option<PathBuf>,
+    /// Keep remote passwords in the OS keyring and start the askpass bridge for the system git
+    /// (the app sets it; tests leave it off and use an in-memory store).
+    pub system_credentials: bool,
 }
 
 /// The root view of the main window.
@@ -103,6 +121,19 @@ pub struct Workspace {
     hub: Entity<PaneHub>,
     stack: Entity<RightSidebar>,
     palette: Entity<Palette>,
+    sync_dialog: Entity<SyncDialog>,
+    credential_dialog: Entity<CredentialDialog>,
+    sync_panel: Entity<SyncPanel>,
+    history: Entity<HistoryView>,
+    conflicts: Entity<ConflictsView>,
+    disk_banner: Entity<DiskConflictBanner>,
+    disk_diff: Entity<DiskDiffView>,
+    credentials: Option<Arc<CredentialHub>>,
+    prompt_task: Option<Task<()>>,
+    sync_prefs: SyncPrefs,
+    sync_prefs_file: Option<PathBuf>,
+    session_handle: Option<SessionHandle>,
+    sync_conflicted: bool,
     handle: Option<GraphHandle>,
     graph_state: GraphState,
     graph_state_file: Option<PathBuf>,
@@ -139,6 +170,13 @@ impl Workspace {
         let hub = cx.new(|_| PaneHub::new(main.clone(), stack.clone()));
         cx.set_global(SharedHub(hub.clone()));
         let palette = cx.new(|cx| Palette::new(window, cx));
+        let sync_dialog = cx.new(|cx| SyncDialog::new(window, cx));
+        let credential_dialog = cx.new(|cx| CredentialDialog::new(window, cx));
+        let sync_panel = cx.new(|_| SyncPanel::new());
+        let history = cx.new(|_| HistoryView::new());
+        let conflicts = cx.new(|cx| ConflictsView::new(window, cx));
+        let disk_banner = cx.new(|_| DiskConflictBanner::new());
+        let disk_diff = cx.new(|_| DiskDiffView::new());
 
         let (dock, skin) = DockSkin::dock_area("workspace", Some(LAYOUT_VERSION), window, cx);
         skin.set_toggle_button_visible(false, cx);
@@ -152,6 +190,25 @@ impl Workspace {
         subscriptions.push(cx.subscribe_in(&palette, window, Self::on_palette_event));
         subscriptions.push(cx.observe(&palette, |_, _, cx| cx.notify()));
         subscriptions.push(cx.subscribe_in(&sidebar, window, Self::on_sidebar_event));
+        subscriptions.push(cx.subscribe_in(&status, window, Self::on_status_event));
+        subscriptions.push(cx.subscribe_in(&sync_panel, window, Self::on_sync_panel_event));
+        subscriptions.push(cx.subscribe_in(&sync_dialog, window, Self::on_sync_dialog_event));
+        subscriptions.push(cx.subscribe_in(
+            &history,
+            window,
+            |this, _, _: &HistoryEvent, window, cx| {
+                window.focus(&this.focus, cx);
+            },
+        ));
+        subscriptions.push(cx.subscribe_in(&conflicts, window, Self::on_conflicts_event));
+        subscriptions.push(cx.subscribe_in(&disk_banner, window, Self::on_disk_event));
+        subscriptions.push(cx.subscribe_in(
+            &disk_diff,
+            window,
+            |this, _, _: &DiskDiffEvent, window, cx| {
+                window.focus(&this.focus, cx);
+            },
+        ));
 
         let restored = config
             .layout_file
@@ -183,6 +240,19 @@ impl Workspace {
             hub,
             stack,
             palette,
+            sync_dialog,
+            credential_dialog,
+            sync_panel,
+            history,
+            conflicts,
+            disk_banner,
+            disk_diff,
+            credentials: None,
+            prompt_task: None,
+            sync_prefs: SyncPrefs::default(),
+            sync_prefs_file: None,
+            session_handle: None,
+            sync_conflicted: false,
             handle: None,
             graph_state: GraphState::default(),
             graph_state_file: None,
@@ -295,12 +365,34 @@ impl Workspace {
             stack.clear(cx);
             stack.restore(&stack_entries, cx);
         });
+        self.sync_prefs_file = self
+            .config
+            .state_dir
+            .as_deref()
+            .map(|dir| SyncPrefs::file_for(dir, &path));
+        self.sync_prefs = self
+            .sync_prefs_file
+            .as_deref()
+            .map(SyncPrefs::load)
+            .unwrap_or_default();
+        let sync = if self.sync_prefs.enabled {
+            let hub = self.credentials(window, cx);
+            Some(SyncSetup {
+                branch: self.sync_prefs.branch.clone(),
+                device: self.sync_prefs.device.clone(),
+                cli: Some(hub.cli_config()),
+                credentials: Some(hub.provider()),
+            })
+        } else {
+            None
+        };
         let started = GraphSession::start(
             path.clone(),
             SessionOptions {
                 data_dir: self.config.index_data_dir.clone(),
                 mcp_token_path: self.config.mcp_token_path.clone(),
                 global_config: self.config.global_config.clone(),
+                sync,
             },
         );
         let (session, events) = match started {
@@ -315,9 +407,20 @@ impl Workspace {
                 return;
             }
         };
+        self.session_handle = session.handle();
         self.session = Some(session);
         self.graph_root = Some(path.clone());
         self.picker_visible = false;
+        self.sync_conflicted = false;
+        self.disk_banner.update(cx, |b, cx| b.clear_all(cx));
+        let enabled = self.sync_prefs.enabled;
+        self.status.update(cx, |bar, cx| {
+            bar.set_sync_view(None, cx);
+            if enabled {
+                bar.set_sync(SlotState::Busy, cx);
+            }
+        });
+        self.refresh_sync_panel(cx);
         self.recents.touch(&path);
         if let Some(file) = &self.config.recent_file
             && let Err(err) = self.recents.save(file)
@@ -611,6 +714,28 @@ impl Workspace {
                 self.start_day_clock(cx);
             }
             SessionEvent::Notice(notice) => Self::show_notice(&notice, window, cx),
+            SessionEvent::Sync(view) => {
+                let view = *view;
+                let conflicted = view.status.conflicts > 0;
+                if conflicted && !self.sync_conflicted {
+                    notify(window, cx, Level::Warning, view.message.clone());
+                }
+                self.sync_conflicted = conflicted;
+                self.status
+                    .update(cx, |bar, cx| bar.set_sync_view(Some(view.clone()), cx));
+                self.sync_panel
+                    .update(cx, |panel, cx| panel.set_view(Some(view), cx));
+                if self.conflicts.read(cx).is_open() {
+                    self.conflicts.update(cx, |c, cx| c.reload(cx));
+                }
+            }
+            SessionEvent::DiskConflict(notice) => {
+                self.disk_banner
+                    .update(cx, |b, cx| b.set_notice(notice, cx));
+            }
+            SessionEvent::DiskConflictCleared(key) => {
+                self.disk_banner.update(cx, |b, cx| b.clear(&key, cx));
+            }
             SessionEvent::Reader(handle) => {
                 let initial = self
                     .config
@@ -715,6 +840,18 @@ impl Workspace {
                 Level::Warning,
                 t!("notice.mcp_unavailable", error = error).to_string(),
             ),
+            SessionNotice::SyncUnavailable(error) => (
+                Level::Warning,
+                t!("notice.sync_unavailable", error = error).to_string(),
+            ),
+            SessionNotice::SyncRecovery(text) => (
+                Level::Info,
+                t!("notice.sync_recovery", text = text).to_string(),
+            ),
+            SessionNotice::EditingBlockChanged => (
+                Level::Warning,
+                t!("notice.editing_block_changed").to_string(),
+            ),
         };
         notify(window, cx, level, text);
     }
@@ -728,6 +865,7 @@ impl Workspace {
     ) {
         match event {
             PickerEvent::Open(path) => self.open_graph(path.clone(), window, cx),
+            PickerEvent::CloneFromRemote => self.open_clone_dialog(window, cx),
             PickerEvent::Forget(path) => {
                 self.recents.remove(path);
                 if let Some(file) = &self.config.recent_file
@@ -804,9 +942,22 @@ impl Workspace {
                 }
                 self.sidebar
                     .update(cx, |sidebar, cx| sidebar.set_current(Some(route), cx));
+                let key = match route {
+                    Route::Page(name) => Some(PageKey::from_title(name)),
+                    _ => None,
+                };
+                let on_page = key.is_some();
+                self.disk_banner.update(cx, |b, cx| b.set_current(key, cx));
+                self.sync_panel
+                    .update(cx, |p, cx| p.set_history_available(on_page, cx));
             }
             MainEvent::OpenInSidebar(route) => {
                 self.open_in_right_sidebar(route.clone(), window, cx);
+            }
+            MainEvent::BlockFocus(focus) => {
+                if let Some(queue) = self.queue() {
+                    editing::sync_editing_block(queue, &focus.title, focus.block_index);
+                }
             }
         }
     }
@@ -911,7 +1062,423 @@ impl Workspace {
                 self.picker_visible = true;
                 cx.notify();
             }
+            PaletteCommand::SyncNow => self.sync_now(window, cx),
+            PaletteCommand::SyncSettings => self.open_sync_panel(cx),
+            PaletteCommand::PageHistory => self.open_history(window, cx),
+            PaletteCommand::ResolveConflicts => self.open_conflicts(window, cx),
+            PaletteCommand::CloneGraph => self.open_clone_dialog(window, cx),
         }
+    }
+
+    // ---- sync (BIT-US-0043, BIT-US-0046, BIT-US-0047, BIT-US-0048, BIT-US-0054, BIT-US-0070) ----
+
+    /// The credential hub, created on first use: prompts from the engine and the onboarding
+    /// threads arrive in the credential dialog.
+    pub fn credentials(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Arc<CredentialHub> {
+        if let Some(hub) = &self.credentials {
+            return hub.clone();
+        }
+        let (tx, rx) = async_channel::unbounded();
+        let hub = Arc::new(if self.config.system_credentials {
+            CredentialHub::start(tx)
+        } else {
+            CredentialHub::start_in_memory(tx, None)
+        });
+        self.prompt_task = Some(cx.spawn_in(window, async move |this, cx| {
+            while let Ok(request) = rx.recv().await {
+                let alive = this.update_in(cx, |ws, window, cx| {
+                    ws.credential_dialog
+                        .update(cx, |dialog, cx| dialog.ask(request, window, cx));
+                });
+                if alive.is_err() {
+                    break;
+                }
+            }
+        }));
+        self.credentials = Some(hub.clone());
+        hub
+    }
+
+    fn refresh_sync_panel(&mut self, cx: &mut Context<Self>) {
+        let askpass = self.credentials.as_ref().map_or_else(
+            || crate::credentials::askpass_helper_path().is_some(),
+            |h| h.askpass_active(),
+        );
+        let (root, prefs) = (self.graph_root.clone(), self.sync_prefs.clone());
+        self.sync_panel
+            .update(cx, |panel, cx| panel.set_prefs(root, prefs, askpass, cx));
+        self.sync_panel
+            .update(cx, |panel, cx| panel.set_view(None, cx));
+    }
+
+    /// "Sync now" / "Retry": asks the engine for a cycle.
+    pub fn sync_now(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(hub) = &self.credentials {
+            hub.reset_cancel();
+        }
+        let Some(handle) = self.session_handle.clone() else {
+            return;
+        };
+        let rx = handle.run(|s| s.sync_now());
+        cx.spawn_in(window, async move |this, cx| {
+            if let Ok(false) = rx.recv().await {
+                // No engine runs: sync is off for this graph, so show where to turn it on.
+                let _ = this.update_in(cx, |ws, window, cx| {
+                    notify(window, cx, Level::Info, t!("sync.panel.off").to_string());
+                    ws.open_sync_panel(cx);
+                });
+            }
+        })
+        .detach();
+    }
+
+    /// Shows the sync panel.
+    pub fn open_sync_panel(&mut self, cx: &mut Context<Self>) {
+        let on_page = matches!(self.main.read(cx).route(), Some(Route::Page(_)));
+        self.sync_panel.update(cx, |panel, cx| {
+            panel.set_history_available(on_page, cx);
+            panel.show(cx);
+        });
+    }
+
+    /// The sync panel entity.
+    pub fn sync_panel(&self) -> &Entity<SyncPanel> {
+        &self.sync_panel
+    }
+
+    /// The sync dialog entity.
+    pub fn sync_dialog(&self) -> &Entity<SyncDialog> {
+        &self.sync_dialog
+    }
+
+    /// The credential dialog entity.
+    pub fn credential_dialog(&self) -> &Entity<CredentialDialog> {
+        &self.credential_dialog
+    }
+
+    /// The history overlay entity.
+    pub fn history(&self) -> &Entity<HistoryView> {
+        &self.history
+    }
+
+    /// The conflict resolver entity.
+    pub fn conflicts(&self) -> &Entity<ConflictsView> {
+        &self.conflicts
+    }
+
+    /// The "page changed on disk" banner entity.
+    pub fn disk_banner(&self) -> &Entity<DiskConflictBanner> {
+        &self.disk_banner
+    }
+
+    /// The disk diff overlay entity.
+    pub fn disk_diff(&self) -> &Entity<DiskDiffView> {
+        &self.disk_diff
+    }
+
+    /// The sync preferences of the open graph.
+    pub fn sync_prefs(&self) -> &SyncPrefs {
+        &self.sync_prefs
+    }
+
+    /// Opens "Open graph from a remote".
+    pub fn open_clone_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let parent = self
+            .graph_root
+            .as_deref()
+            .and_then(|r| r.parent())
+            .map(std::path::Path::to_path_buf)
+            .or_else(|| std::env::var_os("HOME").map(PathBuf::from))
+            .unwrap_or_default();
+        let hub = self.credentials(window, cx);
+        self.sync_dialog
+            .update(cx, |d, cx| d.open_clone(parent, Some(hub), window, cx));
+    }
+
+    /// Opens "Enable sync" for the open graph.
+    pub fn open_enable_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(root) = self.graph_root.clone() else {
+            return;
+        };
+        let hub = self.credentials(window, cx);
+        let prefs = self.sync_prefs.clone();
+        self.sync_dialog.update(cx, |d, cx| {
+            d.open_enable(root, &prefs, Some(hub), window, cx)
+        });
+    }
+
+    /// Opens the history of the page on screen.
+    pub fn open_history(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let title = match self.main.read(cx).route() {
+            Some(Route::Page(name)) => Some(name.clone()),
+            _ => None,
+        };
+        let (Some(title), Some(handle), Some(graph)) =
+            (title, self.session_handle.clone(), self.handle.clone())
+        else {
+            notify(window, cx, Level::Info, t!("delete.not_a_page").to_string());
+            return;
+        };
+        let rel = graph
+            .reader
+            .page_by_name(&title)
+            .ok()
+            .flatten()
+            .and_then(|p| p.file_path);
+        match rel {
+            Some(rel) => self
+                .history
+                .update(cx, |h, cx| h.open_for(handle, rel, title, cx)),
+            None => notify(window, cx, Level::Info, t!("history.empty").to_string()),
+        }
+    }
+
+    /// Opens the conflict resolver.
+    pub fn open_conflicts(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let (Some(root), Some(handle)) = (self.graph_root.clone(), self.session_handle.clone())
+        else {
+            return;
+        };
+        self.conflicts
+            .update(cx, |c, cx| c.open_for(root, handle, window, cx));
+    }
+
+    /// Stops the session and opens the same graph again (sync preferences changed).
+    fn restart_session(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(root) = self.graph_root.clone() else {
+            return;
+        };
+        let session = self.take_session();
+        self.hub.update(cx, |hub, _| hub.set_handle(None));
+        let task = cx.background_spawn(async move {
+            if let Some(session) = session {
+                session.close();
+            }
+            root
+        });
+        cx.spawn_in(window, async move |this, cx| {
+            let root = task.await;
+            let _ = this.update_in(cx, |ws, window, cx| {
+                ws.graph_root = None;
+                ws.open_graph(root, window, cx);
+            });
+        })
+        .detach();
+    }
+
+    fn save_sync_prefs(&self) {
+        if let Some(file) = &self.sync_prefs_file
+            && let Err(err) = self.sync_prefs.save(file)
+        {
+            tracing::warn!("cannot save the sync preferences: {err}");
+        }
+    }
+
+    fn on_status_event(
+        &mut self,
+        _: &Entity<AppStatusBar>,
+        event: &StatusBarEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            StatusBarEvent::SyncClicked => self.open_sync_panel(cx),
+            StatusBarEvent::SyncNow => self.sync_now(window, cx),
+        }
+    }
+
+    fn on_sync_panel_event(
+        &mut self,
+        _: &Entity<SyncPanel>,
+        event: &SyncPanelEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            SyncPanelEvent::SyncNow => self.sync_now(window, cx),
+            SyncPanelEvent::Enable => {
+                self.sync_panel.update(cx, |p, cx| p.close(cx));
+                self.open_enable_dialog(window, cx);
+            }
+            SyncPanelEvent::Disable => {
+                self.sync_prefs.enabled = false;
+                self.save_sync_prefs();
+                self.sync_panel.update(cx, |p, cx| p.close(cx));
+                self.restart_session(window, cx);
+            }
+            SyncPanelEvent::OpenConflicts => {
+                self.sync_panel.update(cx, |p, cx| p.close(cx));
+                self.open_conflicts(window, cx);
+            }
+            SyncPanelEvent::OpenHistory => {
+                self.sync_panel.update(cx, |p, cx| p.close(cx));
+                self.open_history(window, cx);
+            }
+            SyncPanelEvent::Closed => window.focus(&self.focus, cx),
+        }
+    }
+
+    fn on_sync_dialog_event(
+        &mut self,
+        _: &Entity<SyncDialog>,
+        event: &SyncDialogEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            SyncDialogEvent::Enabled {
+                prefs, needs_merge, ..
+            } => {
+                self.sync_prefs = prefs.clone();
+                self.save_sync_prefs();
+                let text = if *needs_merge {
+                    t!("sync.dialog.needs_merge").to_string()
+                } else {
+                    t!("sync.dialog.enabled").to_string()
+                };
+                notify(window, cx, Level::Success, text);
+                self.restart_session(window, cx);
+            }
+            SyncDialogEvent::Cloned { root, prefs } => {
+                let canonical = root.canonicalize().unwrap_or_else(|_| root.clone());
+                if let Some(dir) = &self.config.state_dir
+                    && let Err(err) = prefs.save(&SyncPrefs::file_for(dir, &canonical))
+                {
+                    tracing::warn!("cannot save the sync preferences: {err}");
+                }
+                notify(
+                    window,
+                    cx,
+                    Level::Success,
+                    t!("sync.dialog.cloned", name = graph_name(&canonical)).to_string(),
+                );
+                self.open_graph(canonical, window, cx);
+            }
+            SyncDialogEvent::Closed => window.focus(&self.focus, cx),
+        }
+    }
+
+    fn on_conflicts_event(
+        &mut self,
+        _: &Entity<ConflictsView>,
+        event: &ConflictsEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            ConflictsEvent::Closed => window.focus(&self.focus, cx),
+            ConflictsEvent::Resolved => {
+                for pane in self.panes(cx) {
+                    pane.update(cx, |main, cx| main.reload(cx));
+                }
+            }
+        }
+    }
+
+    fn on_disk_event(
+        &mut self,
+        _: &Entity<DiskConflictBanner>,
+        event: &DiskConflictEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            DiskConflictEvent::KeepMine(key) => {
+                self.resolve_disk(key.clone(), Keep::Mine, window, cx)
+            }
+            DiskConflictEvent::TakeDisk(key) => {
+                self.resolve_disk(key.clone(), Keep::Disk, window, cx)
+            }
+            DiskConflictEvent::ShowDiff(key) => {
+                let notice = self.disk_banner.read(cx).notice(key).cloned();
+                if let Some(notice) = notice {
+                    let title = self
+                        .main
+                        .read(cx)
+                        .route()
+                        .and_then(|r| match r {
+                            Route::Page(name) => Some(name.clone()),
+                            _ => None,
+                        })
+                        .unwrap_or_default();
+                    self.disk_diff
+                        .update(cx, |d, cx| d.show(title, &notice, cx));
+                }
+            }
+        }
+    }
+
+    /// Keeps my version (`Keep::Mine`, the disk file is backed up) or loads the disk version
+    /// (`Keep::Disk`, my edits are backed up) of a conflicted page through the command queue.
+    pub fn resolve_disk(
+        &mut self,
+        key: PageKey,
+        keep: Keep,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(queue) = self.queue().cloned() else {
+            return;
+        };
+        let task_key = key.clone();
+        let task = cx.background_spawn(async move {
+            queue
+                .execute(
+                    Source::Ui,
+                    Request::Resolve {
+                        key: task_key,
+                        keep,
+                    },
+                )
+                .map(|_| ())
+                .map_err(|e| e.to_string())
+        });
+        cx.spawn_in(window, async move |this, cx| {
+            let result = task.await;
+            let _ = this.update_in(cx, |ws, window, cx| match result {
+                Ok(()) => {
+                    ws.disk_banner.update(cx, |b, cx| b.clear(&key, cx));
+                    ws.disk_diff.update(cx, |d, cx| d.close(cx));
+                    let text = match keep {
+                        Keep::Mine => t!("disk.kept_mine"),
+                        Keep::Disk => t!("disk.took_disk"),
+                    };
+                    notify(window, cx, Level::Success, text.to_string());
+                    for pane in ws.panes(cx) {
+                        pane.update(cx, |main, cx| main.reload(cx));
+                    }
+                }
+                Err(error) => notify(
+                    window,
+                    cx,
+                    Level::Error,
+                    t!("disk.resolve_failed", error = error).to_string(),
+                ),
+            });
+        })
+        .detach();
+    }
+
+    /// Closes the topmost sync overlay on Escape; `true` when one was open.
+    fn close_topmost_overlay(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
+        if self.disk_diff.read(cx).is_open() {
+            self.disk_diff.update(cx, |d, cx| d.close(cx));
+        } else if self.sync_dialog.read(cx).mode().is_some() {
+            self.sync_dialog.update(cx, |d, cx| d.close(window, cx));
+        } else if self.conflicts.read(cx).is_open() {
+            self.conflicts.update(cx, |c, cx| c.close(cx));
+        } else if self.history.read(cx).is_open() {
+            self.history.update(cx, |h, cx| h.close(cx));
+        } else if self.sync_panel.read(cx).is_open() {
+            self.sync_panel.update(cx, |p, cx| p.close(cx));
+        } else {
+            return false;
+        }
+        true
     }
 
     /// Rebuilds the index of the open graph from its files: stops the session, deletes the
@@ -1127,6 +1694,7 @@ impl Workspace {
     /// session left.
     pub fn take_session(&mut self) -> Option<GraphSession> {
         self.link = None;
+        self.session_handle = None;
         self.session_task = None;
         self.session.take()
     }
@@ -1210,14 +1778,18 @@ impl Render for Workspace {
             div().flex_1().min_h_0().child(self.picker.clone())
         } else {
             div().flex_1().min_h_0().child(
-                h_flex()
-                    .size_full()
-                    .child(
-                        div()
-                            .h_full()
-                            .when(sidebar_visible, |d| d.child(self.sidebar.clone())),
-                    )
-                    .child(div().flex_1().min_w_0().h_full().child(self.dock.clone())),
+                v_flex().size_full().child(self.disk_banner.clone()).child(
+                    div().flex_1().min_h_0().child(
+                        h_flex()
+                            .size_full()
+                            .child(
+                                div()
+                                    .h_full()
+                                    .when(sidebar_visible, |d| d.child(self.sidebar.clone())),
+                            )
+                            .child(div().flex_1().min_w_0().h_full().child(self.dock.clone())),
+                    ),
+                ),
             )
         };
         v_flex()
@@ -1235,10 +1807,21 @@ impl Render for Workspace {
             .on_action(cx.listener(Self::focus_right_sidebar))
             .on_action(cx.listener(Self::go_back))
             .on_action(cx.listener(Self::go_forward))
+            .on_key_down(cx.listener(|this, event: &KeyDownEvent, window, cx| {
+                if event.keystroke.key == "escape" {
+                    this.close_topmost_overlay(window, cx);
+                }
+            }))
             .size_full()
             .child(main)
             .child(self.status.clone())
             .child(self.palette.clone())
+            .child(self.sync_panel.clone())
+            .child(self.history.clone())
+            .child(self.conflicts.clone())
+            .child(self.disk_diff.clone())
+            .child(self.sync_dialog.clone())
+            .child(self.credential_dialog.clone())
     }
 }
 

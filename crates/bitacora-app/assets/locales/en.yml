@@ -49,6 +49,11 @@ palette:
   cmd_reindex: Reindex graph
   cmd_switch_graph: Switch graph
   cmd_delete_page: Delete current page...
+  cmd_sync_now: Sync now
+  cmd_sync_settings: Sync settings...
+  cmd_page_history: Page history...
+  cmd_conflicts: Resolve sync conflicts...
+  cmd_clone: Open graph from a remote...
 panel:
   page_host:
     title: Page
@@ -62,6 +67,8 @@ status:
     idle: "Sync: up to date"
     busy: "Sync: syncing"
     error: "Sync: error"
+    now: Sync now
+    retry: Retry
   mcp:
     off: "MCP: off"
     idle: "MCP: listening"
@@ -109,6 +116,7 @@ picker:
   index_rebuilt: Index rebuilt
   indexing_failed: "Indexing failed: %{error}"
   index_summary: "Indexed %{count} files"
+  clone_from_remote: Open graph from a remote...
 theme:
   system: Follow system
   light: Light
@@ -123,6 +131,9 @@ notice:
   index_error: "Cannot index %{path}: %{error}"
   mcp_unavailable: "MCP endpoint not started: %{error}"
   unwritten_on_quit: "%{count} file(s) could not be saved before quitting"
+  sync_unavailable: "Sync could not start: %{error}"
+  sync_recovery: "%{text}"
+  editing_block_changed: The block you are editing changed on disk
   shutdown_slow: "Shutdown did not finish in time: %{steps}"
 right:
   block: Block
@@ -139,3 +150,155 @@ delete:
   asset_kept: "\"%{name}\" is still used by %{count} block(s); the file was kept"
   failed: "Cannot delete: %{error}"
   not_a_page: Open a page first
+sync:
+  error:
+    required: This field is required
+    whitespace: Remove spaces and control characters
+    leading_dash: Must not start with a dash
+    unsupported_url: Use an https://, ssh:// or user@host:path address, or a local path
+    bad_branch: Not a valid branch name
+    bad_email: Enter a valid email address
+    identity_incomplete: Fill in both name and email, or leave both empty
+    destination_not_empty: The folder is not empty
+  dialog:
+    no_graph: No graph is open
+    url_placeholder: https://github.com/you/notes.git
+    name_placeholder: Your name
+    email_placeholder: you@example.org
+    device_placeholder: laptop
+    dest_placeholder: Folder for the new graph
+    dest_prompt: Choose the folder for the graph
+    enable_title: Enable sync
+    clone_title: Open graph from a remote
+    enable_intro: Connect this graph to a remote repository. Bitacora creates the repository if needed, commits your pages and pushes them.
+    clone_intro: Download a graph from a remote repository into a new folder and open it.
+    url: Remote URL
+    dest: Destination folder
+    browse: Browse...
+    branch: Branch
+    name: Author name
+    email: Author email
+    device: Device name
+    identity_note: The author is stored in this repository only; your global settings are not changed. Leave both empty to use "Bitacora".
+    running_enable: Connecting to the remote and pushing...
+    running_clone: Downloading the graph...
+    migrate: Copy the repository data into the graph folder
+    cancel: Cancel
+    enable: Enable sync
+    clone: Clone and open
+    needs_merge: The remote already has history; the first sync merges it with this graph.
+    enabled: Sync is on
+    cloned: "Cloned %{name}"
+  panel:
+    title: Sync
+    ago_now: just now
+    ago_minutes: "%{count} min ago"
+    ago_hours: "%{count} h ago"
+    ago_days: "%{count} d ago"
+    last_sync: "Last sync: %{when}"
+    never_synced: Not synced yet
+    ahead_behind: "%{ahead} to push, %{behind} to merge"
+    resolve_conflicts: "Resolve conflicts (%{count})"
+    retry: Retry
+    sync_now: Sync now
+    starting: Sync is starting...
+    off: Sync is off for this graph.
+    backend: Git backend
+    none: not set
+    identity_default: Bitacora (default)
+    remote: Remote
+    branch: Branch
+    device: Device
+    identity: Commit author
+    change: Change...
+    enable: Enable sync...
+    disable: Turn sync off
+    askpass_on: Password and passphrase prompts appear in Bitacora.
+    askpass_off: The askpass helper was not found; the system client cannot prompt for credentials (use an SSH agent or a credential helper).
+    cli_intro: "The same from a terminal:"
+    history: History of the current page...
+credentials:
+  kind_password: Remote credentials
+  kind_passphrase: SSH key passphrase
+  username: User name
+  secret: Password or token
+  password: Password or token
+  passphrase: Passphrase
+  remember: Remember in the system keyring
+  more: "%{count} more request(s) waiting"
+  cancel: Cancel
+  ok: OK
+  intro: "The remote %{target} asks for credentials."
+history:
+  title: "History of %{page}"
+  session_gone: The graph session is closed
+  loading: Loading history...
+  loading_diff: Comparing...
+  empty: No commits touched this page yet.
+  pick_version: Pick a version to compare it with the page as it is now.
+  same: This version is identical to the current page.
+  only_meta: Only metadata differs (ids, collapsed state). Turn on metadata changes to see them.
+  restored: "Restored %{count} block(s)"
+  restored_skipped: "Restored %{count} block(s); %{skipped} could not be applied"
+  undone: Restore undone
+  by_agent: "agent %{agent}"
+  change_added: created
+  change_modified: edited
+  change_renamed: "renamed from %{from}"
+  change_deleted: deleted
+  kind_added: Added since
+  kind_removed: Removed since
+  kind_changed: Changed
+  kind_meta: Metadata only
+  that_version: That version
+  now: Now
+  restore_selected: "Restore selected (%{count})"
+  restore_page: Restore whole page
+  undo: Undo restore
+  show_meta: Metadata changes
+conflicts:
+  title: Resolve conflicts
+  none: There are no conflicts to resolve.
+  progress: "%{done} of %{total} resolved"
+  finished: All conflicts resolved. The merge is committed and pushed.
+  remaining: "%{count} conflict(s) left"
+  shortcuts: "Keys: j/k move, m mine, t theirs, b both, e edit, Esc close"
+  mine: Mine (this device)
+  theirs: Theirs
+  theirs_by: "Theirs (%{author}, %{when})"
+  deleted: (deleted)
+  keep_mine: Keep mine
+  keep_theirs: Keep theirs
+  keep_both: Keep both
+  keep_both_alias: Keep both (alias)
+  keep_modified: Keep (modified)
+  delete: Delete
+  edit: Edit
+  all_mine: All mine
+  all_theirs: All theirs
+  chose_mine: Kept mine
+  chose_theirs: Kept theirs
+  chose_both: Kept both
+  chose_edit: Edited
+  suggestion: "Suggestion: %{text}"
+  edit_hint: Write the final text. Both versions are shown above; conflict markers are never written.
+  save_edit: Save
+  cancel_edit: Cancel
+disk:
+  title: This page changed on disk
+  body: Another program edited the file while you had unsaved changes. Your version is kept and not saved until you choose.
+  body_no_base: The file changed on disk while you had unsaved changes. Your version is kept and not saved until you choose.
+  keep_mine: Keep mine (overwrite)
+  take_disk: Take disk version
+  show_diff: Show diff
+  diff_title: "Changes on disk: %{page}"
+  no_diff: No block differs.
+  kind_changed: Changed
+  kind_only_mine: Only in mine
+  kind_only_disk: Only on disk
+  mine: Mine (unsaved)
+  disk: On disk
+  absent: (not present)
+  kept_mine: Kept your version; the disk version was backed up
+  took_disk: Loaded the disk version; your version was backed up
+  resolve_failed: "Cannot resolve: %{error}"
