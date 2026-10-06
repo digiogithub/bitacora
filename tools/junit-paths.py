@@ -5,7 +5,8 @@ report so `gintrack spec ingest` can map tests to `path#symbol` trace refs.
 nextest names unit tests `<module path>::<test>` with classname `<crate>` and integration tests
 `<test>` with classname `<crate>::<binary>`. We resolve:
 
-  unit test  `edit::state::tests::x`  -> crates/<crate>/src/edit/state.rs (or .../state/mod.rs)
+  unit test  `edit::state::tests::x`  -> crates/<crate>/src/edit/state.rs (or .../state/mod.rs),
+             symbol rewritten to the bare name `x` (bin targets `<crate>::bin/<name>` and `xtask` too)
   integration `<crate>::roundtrip`    -> crates/<crate>/tests/roundtrip.rs
 
 Usage: tools/junit-paths.py target/nextest/ci/junit.xml [repo-root]   (rewrites the file in place)
@@ -15,13 +16,20 @@ import sys
 import xml.etree.ElementTree as ET
 
 
+def crate_dir(root, crate):
+    for cand in (os.path.join("crates", crate), crate):
+        if os.path.isdir(os.path.join(root, cand)):
+            return cand
+    return os.path.join("crates", crate)
+
+
 def unit_file(root, crate, name):
     parts = name.split("::")
     if "tests" in parts:
         parts = parts[: parts.index("tests")]
     else:
         parts = parts[:-1]
-    base = os.path.join("crates", crate, "src")
+    base = os.path.join(crate_dir(root, crate), "src")
     while parts:
         for cand in (
             os.path.join(base, *parts) + ".rs",
@@ -43,11 +51,16 @@ def main():
     for case in tree.iter("testcase"):
         classname = case.get("classname", "")
         crate, _, binary = classname.partition("::")
-        if binary:
-            f = os.path.join("crates", crate, "tests", binary + ".rs")
+        if binary and not binary.startswith("bin/"):
+            f = os.path.join(crate_dir(root, crate), "tests", binary + ".rs")
             f = f if os.path.isfile(os.path.join(root, f)) else None
         else:
-            f = unit_file(root, crate, case.get("name", ""))
+            # Unit tests (lib or bin target): the symbol becomes the bare test name so trace refs
+            # `path#test_name` resolve, like for integration tests.
+            full = case.get("name", "")
+            f = unit_file(root, crate, full)
+            if f:
+                case.set("name", full.rsplit("::", 1)[-1])
         if f:
             case.set("file", f.replace(os.sep, "/"))
             # The symbol must be the bare test name for integration tests and the in-file path for
