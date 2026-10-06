@@ -2,7 +2,7 @@
 id: BIT-US-0052
 type: story
 title: "File-level merge cases: special files, add/add journals, renames, delete/modify"
-status: backlog
+status: in_progress
 priority: high
 parent: BIT-EP-0012
 milestone: BIT-M-0004
@@ -10,7 +10,8 @@ author: mcp
 labels: [merge, sync, files]
 estimate: 8
 created: 2026-10-06T14:28:30Z
-updated: 2026-10-06T15:10:56Z
+updated: 2026-10-06T18:41:31Z
+started: 2026-10-06T18:41:31Z
 ---
 
 ## Description
