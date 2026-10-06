@@ -169,6 +169,9 @@ pub fn classify_failure(stderr: &str) -> GitError {
         "operation timed out",
         "could not read from remote repository",
         "failed to connect",
+        // libgit2 on Windows (WinHTTP) spells a refused connection this way.
+        "failed to send request",
+        "could not be established",
         "temporary failure in name resolution",
         "timed out after",
         "does not appear to be a git repository",
