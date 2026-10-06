@@ -16,7 +16,7 @@ use crate::replace::{
     DeleteOutcome, FileInput, ReplaceOutcome, WriteOptions, delete_file, rename_file_row,
     replace_file, seed_builtin_pages, touch_file,
 };
-use crate::schema::{FTS_TRIGGER_NAMES, FTS_TRIGGERS_SQL};
+use crate::schema::{FTS_TRIGGER_NAMES, FTS_TRIGGERS_NO_TRI_SQL, FTS_TRIGGERS_SQL};
 
 /// Files per transaction in bulk mode (Logseq batches 100; design §4.1 step 6 says about 200).
 pub const BULK_BATCH_FILES: usize = 200;
@@ -95,6 +95,7 @@ enum Job {
     SetMeta(String, String, Reply<()>),
     Flush(Reply<()>),
     Renormalize(Reply<()>),
+    SetSubstring(bool, Reply<bool>),
     Stop,
 }
 
@@ -227,6 +228,12 @@ impl IndexWriter {
         self.submit(Job::Renormalize).wait()
     }
 
+    /// Apply `search.substring`: drop (`false`) or create and fill (`true`) the trigram block
+    /// index `blocks_fts_tri`. Returns whether the index changed.
+    pub fn set_substring(&self, enabled: bool) -> Result<bool, Error> {
+        self.submit(|r| Job::SetSubstring(enabled, r)).wait()
+    }
+
     /// Wait until every job queued before this call has been processed.
     pub fn flush(&self) -> Result<(), Error> {
         self.submit(Job::Flush).wait()
@@ -337,6 +344,16 @@ impl Writer {
                 }
                 Job::Renormalize(reply) => {
                     let _ = reply.send(self.renormalize());
+                }
+                Job::SetSubstring(enabled, reply) => {
+                    let r = self.commit_bulk_batch().and_then(|()| {
+                        crate::search::set_substring_in(
+                            self.conn.conn(),
+                            enabled,
+                            self.bulk.is_some(),
+                        )
+                    });
+                    let _ = reply.send(r);
                 }
                 Job::Flush(reply) => {
                     let _ = reply.send(self.commit_bulk_batch());
@@ -495,7 +512,11 @@ impl Writer {
         self.commit_bulk_batch()?;
         let conn = self.conn.conn();
         rebuild_fts(conn)?;
-        conn.execute_batch(FTS_TRIGGERS_SQL)?;
+        conn.execute_batch(if crate::search::substring_enabled(conn)? {
+            FTS_TRIGGERS_SQL
+        } else {
+            FTS_TRIGGERS_NO_TRI_SQL
+        })?;
         let mut stmt = conn.prepare("PRAGMA foreign_key_check")?;
         let violations = stmt.query_map([], |_| Ok(()))?.count();
         drop(stmt);
@@ -510,7 +531,11 @@ impl Writer {
 
 /// `INSERT INTO <fts>(<fts>) VALUES('rebuild')` for the three external-content FTS5 tables.
 pub(crate) fn rebuild_fts(conn: &Connection) -> Result<(), Error> {
+    let tri = crate::search::substring_enabled(conn)?;
     for fts in ["blocks_fts", "blocks_fts_tri", "pages_fts"] {
+        if fts == "blocks_fts_tri" && !tri {
+            continue;
+        }
         conn.execute_batch(&format!("INSERT INTO {fts}({fts}) VALUES('rebuild')"))?;
     }
     Ok(())

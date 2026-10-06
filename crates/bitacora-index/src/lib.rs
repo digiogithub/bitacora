@@ -19,6 +19,7 @@ mod pool;
 mod reconcile;
 mod replace;
 pub mod schema;
+pub mod search;
 mod writer;
 
 pub use carry::{OldBlock, assign_uuids};

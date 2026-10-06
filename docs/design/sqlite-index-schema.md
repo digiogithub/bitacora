@@ -611,6 +611,17 @@ This follows Logseq `master:src/main/frontend/worker/search.cljs:991-1068`:
 
 Property names, property values and templates are not searched through FTS. They come from small `SELECT DISTINCT key FROM block_properties` and `SELECT DISTINCT value_norm FROM block_property_values WHERE key = ?` queries plus the fuzzy matcher, as Logseq does (`src/main/frontend/search.cljs:184-215`).
 
+### 6.3 Implementation notes (BIT-US-0009)
+
+Code: `crates/bitacora-index/src/search/` (`query`, `fuzzy`, `snippet`, `mod`); entry point `search::search(&Connection, &str, &SearchOptions)`.
+
+- **Parser.** Whitespace tokens, `"phrases"`, `and`/`&`, `or`/`|`, `not`; every term is folded with the index normalizer and double-quoted (`"` doubled); tokens without a letter or digit are dropped; leading/trailing/doubled operators are dropped (`a and not b` is `a NOT b`). The last plain word gets a prefix `*` for the word index.
+- **Stages.** Exact title or alias (`pages.name`, alias directed as declared), `pages_fts` trigram (or `LIKE` on `search_title` under three characters), nucleo fuzzy over `pages.search_title` (two or more characters, atoms ANDed), bm25 on `blocks_fts`, and, only when the word search returned fewer than `limit` blocks, trigram on `blocks_fts_tri` (all positive terms of three or more characters) or `LIKE` (short terms, or substring disabled).
+- **Fusion.** RRF `k = 60`; the exact-title list has weight 3, pages get a 1.25 factor over blocks, and with `SearchOptions::today` journal days from the last year get up to +15%.
+- **Snippets.** Built from raw `content`: the folded text is matched and ranges are mapped back through a per-character offset map; window of 160 chars, `…` markers, newlines shown as spaces.
+- **`search.substring`.** `IndexWriter::set_substring(bool)` (or `search::set_substring` on the write connection) drops `blocks_fts_tri` and switches the FTS triggers to the no-trigram variant, or recreates and rebuilds it; the cold-build fast path and `rebuild_fts` consult `sqlite_master`, so the choice survives bulk builds. The setting is not persisted: the caller applies it after `Index::open` (a recreated database starts with the trigram index).
+- **Benchmark.** `tests/bench_search.rs` (ignored): 5,200 pages / 51,500 blocks, 14 queries x 20 runs, release build.
+
 ---
 
 ## 7. Simple query DSL → SQL

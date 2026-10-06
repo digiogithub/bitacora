@@ -23,6 +23,9 @@ pub const SCHEMA_V1_SQL: &str = concat!(
 /// The FTS sync triggers, recreated after the cold-build fast path.
 pub(crate) const FTS_TRIGGERS_SQL: &str = include_str!("fts_triggers.sql");
 
+/// The FTS sync triggers when the trigram block index is absent (`search.substring = false`).
+pub(crate) const FTS_TRIGGERS_NO_TRI_SQL: &str = include_str!("fts_triggers_no_tri.sql");
+
 /// Names of the FTS sync triggers (dropped for the cold-build fast path).
 pub(crate) const FTS_TRIGGER_NAMES: [&str; 6] = [
     "blocks_ai",

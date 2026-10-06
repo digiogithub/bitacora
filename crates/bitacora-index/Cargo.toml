@@ -24,6 +24,7 @@ rusqlite.workspace = true
 uuid.workspace = true
 rayon.workspace = true
 similar.workspace = true
+nucleo-matcher.workspace = true
 
 [dev-dependencies]
 insta.workspace = true
