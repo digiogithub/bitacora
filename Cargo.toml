@@ -81,6 +81,7 @@ jiff = "0.2"
 nucleo = "0.5"
 nucleo-matcher = "0.3"
 directories = "6"
+blake3 = "1.8"
 keyring = "4.2"
 rust-i18n = "4.2"
 

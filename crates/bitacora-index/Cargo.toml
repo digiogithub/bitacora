@@ -14,3 +14,10 @@ workspace = true
 [dependencies]
 bitacora-core.workspace = true
 thiserror.workspace = true
+blake3.workspace = true
+directories.workspace = true
+parking_lot.workspace = true
+rusqlite.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
