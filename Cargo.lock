@@ -813,11 +813,17 @@ name = "bitacora-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bitacora-config",
  "bitacora-core",
  "bitacora-index",
  "bitacora-mcp",
  "bitacora-sync",
+ "bitacora-testkit",
  "clap",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
  "tokio",
 ]
 
@@ -860,7 +866,10 @@ dependencies = [
  "parking_lot",
  "proptest",
  "rayon",
+ "regex",
  "rusqlite",
+ "serde",
+ "serde_json",
  "similar 3.2.0",
  "tempfile",
  "thiserror 2.0.21",

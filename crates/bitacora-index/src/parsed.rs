@@ -231,7 +231,10 @@ pub enum Severity {
 }
 
 /// Kind of a diagnostic (`diagnostics.kind`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
 pub enum DiagnosticKind {
     /// The file (or part of it) could not be parsed (invalid UTF-8 was replaced).
     ParseError,
@@ -243,6 +246,10 @@ pub enum DiagnosticKind {
     TooLarge,
     /// The file is not parsed (org-mode, EDN, ...).
     Unsupported,
+    /// Two files define the same page title; the first (smallest path) owns the page.
+    DuplicatePage,
+    /// Two paths differ only by case.
+    CaseConflict,
 }
 
 impl DiagnosticKind {
@@ -255,7 +262,24 @@ impl DiagnosticKind {
             Self::InvalidProperty => "invalid_property",
             Self::TooLarge => "too_large",
             Self::Unsupported => "unsupported",
+            Self::DuplicatePage => "duplicate_page",
+            Self::CaseConflict => "case_conflict",
         }
+    }
+
+    /// Inverse of [`Self::as_str`].
+    #[must_use]
+    pub fn from_name(name: &str) -> Option<Self> {
+        Some(match name {
+            "parse_error" => Self::ParseError,
+            "duplicate_block_id" => Self::DuplicateBlockId,
+            "invalid_property" => Self::InvalidProperty,
+            "too_large" => Self::TooLarge,
+            "unsupported" => Self::Unsupported,
+            "duplicate_page" => Self::DuplicatePage,
+            "case_conflict" => Self::CaseConflict,
+            _ => return None,
+        })
     }
 }
 

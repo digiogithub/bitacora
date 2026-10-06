@@ -580,6 +580,17 @@ WHERE (scheduled BETWEEN :today AND :future OR deadline BETWEEN :today AND :futu
   AND marker NOT IN ('DONE','CANCELED','CANCELLED');
 ```
 
+### 5.1 Implementation notes (BIT-US-0008, BIT-US-0010)
+
+`bitacora-index::read::IndexReader` (`index.read_api()`) exposes the queries above as typed functions; no `rusqlite` type leaks.
+
+- **Linked references** return the blocks whose *own* refs hit the alias closure (outside the page), keep only the top-most block of nested hits, and attach a breadcrumb; descendants are reached with `subtree`. `filters::` is a map of page title to boolean (`true` include: every included page must be in the block's path-refs; `false` exclude), as Logseq's `filter-blocks` does. Filters are evaluated with an interval `EXISTS` over `block_page_refs`, not through the `block_path_refs` view.
+- **Kind-agnostic refs.** `block_page_refs.kind` never takes part in reference queries: a page written as `[[x]]`, `#x` and `#[[x]]` in one block is one `:block/refs` entry, and a block is found by any spelling (tested). The ingest records one content-ref kind per (block, page) pair (`Tag` when `#x` appears, else `Link`).
+- **Unlinked references** run the FTS prefilter as `blocks_fts f CROSS JOIN blocks b ON b.id = f.rowid` without `ORDER BY` (ordering is done in Rust) so the planner cannot walk `blocks`; the Logseq regex runs on content with `:LOGBOOK:` drawers removed; blocks that already reference the page or one of its aliases are dropped. Names whose normalised form has no word characters (and CJK-only names, which `unicode61` tokenises as one token) are not found by the prefilter.
+- **Agenda** follows the query in this section (tasks only, window `[today, today + N]`, repeating tasks whose first date is not after the window end).
+- **Doctor.** `inspect_index(db_path)` never goes through `Index::open` (which deletes corrupt files); it runs `quick_check`, `foreign_key_check` and the FTS5 `integrity-check` of `blocks_fts`, `blocks_fts_tri`, `pages_fts` on a read-write connection and reports instead of repairing. `DiagnosticKind` gained `DuplicatePage` and `CaseConflict`.
+- **CLI.** `bitacora-cli reindex|doctor --graph <path> [--data-dir <dir>] [--json]`; `doctor` exits 2 when the index is missing or a check fails.
+
 ---
 
 ## 6. Search
