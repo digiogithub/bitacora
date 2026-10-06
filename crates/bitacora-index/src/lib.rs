@@ -17,6 +17,7 @@ pub mod normalize;
 pub mod parse;
 pub mod parsed;
 mod pool;
+pub mod query;
 pub mod read;
 mod reconcile;
 mod replace;

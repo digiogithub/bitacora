@@ -1,0 +1,6 @@
+;; class: supported
+;; expect: finished chapter zero [[Beta]] | read chapter one #reading
+[:find (pull ?b [*])
+ :where [?b :block/content ?c]
+        [(re-pattern "chapter (one|zero)") ?re]
+        [(re-find ?re ?c)]]

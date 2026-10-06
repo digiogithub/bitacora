@@ -1,0 +1,5 @@
+;; class: supported
+;; expect: classic | fiction
+[:find [?name ...]
+ :where [?p :block/tags ?t]
+        [?t :block/name ?name]]

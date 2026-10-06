@@ -1,0 +1,5 @@
+;; class: error
+;; error: both
+[:find (pull ?b [*])
+ :where [?b :block/marker "TODO"]
+        [?b :block/name "x"]]

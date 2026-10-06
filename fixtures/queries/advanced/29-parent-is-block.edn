@@ -1,0 +1,7 @@
+;; class: supported
+;; expect: child of reading task
+[:find (pull ?c [*])
+ :where [?c :block/parent ?b]
+        [?b :block/marker "TODO"]
+        [?b :block/page ?p]
+        [?p :block/name "alpha"]]

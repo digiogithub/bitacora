@@ -1,0 +1,4 @@
+;; class: unsupported
+;; error: attribute :block/children
+[:find (pull ?b [*])
+ :where [?b :block/children ?c]]

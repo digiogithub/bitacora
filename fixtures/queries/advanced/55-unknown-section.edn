@@ -1,0 +1,5 @@
+;; class: unsupported
+;; error: query section :keys
+[:find ?b
+ :keys block
+ :where [?b :block/marker "TODO"]]

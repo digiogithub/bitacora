@@ -1,0 +1,5 @@
+;; class: supported
+;; expect: plain note about standup | standup notes | standup today | today entry about standup
+[:find (pull ?b [*])
+ :where [?b :block/content ?c]
+        [(clojure.string/includes? ?c "standup")]]

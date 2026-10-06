@@ -1,0 +1,5 @@
+;; class: supported
+;; expect: child of reading task | read chapter one #reading
+[:find (pull ?b [*])
+ :where [?b :block/path-refs ?p]
+        [?p :block/name "reading"]]

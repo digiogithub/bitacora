@@ -1,0 +1,5 @@
+;; class: supported
+;; expect: <pre> | finished chapter zero [[Beta]] | plain note about standup | read chapter one #reading | skim notes
+[:find (pull ?b [*])
+ :where [?b :block/parent ?p]
+        [?p :block/name "alpha"]]

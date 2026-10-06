@@ -1,0 +1,4 @@
+;; class: supported
+;; expect: skim notes
+[:find (pull ?b [*])
+ :where (property ?b :status "paused")]

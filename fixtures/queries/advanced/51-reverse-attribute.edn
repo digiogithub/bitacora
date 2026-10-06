@@ -1,0 +1,5 @@
+;; class: unsupported
+;; error: reverse attribute
+[:find (pull ?b [*])
+ :where [?p :block/name "alpha"]
+        [?p :block/_refs ?b]]

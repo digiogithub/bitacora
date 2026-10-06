@@ -1,0 +1,5 @@
+;; class: supported
+;; expect: do someday | fix build
+[:find (pull ?b [*])
+ :where (or [?b :block/marker "NOW"]
+           [?b :block/marker "LATER"])]

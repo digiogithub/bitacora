@@ -1,0 +1,4 @@
+;; class: supported
+;; expect: DOING,1 | DONE,2 | LATER,1 | NOW,1 | TODO,5
+[:find ?m (count ?b)
+ :where [?b :block/marker ?m]]

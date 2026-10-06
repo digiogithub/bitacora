@@ -1,0 +1,4 @@
+;; class: error
+;; error: cannot tell whether
+[:find ?x
+ :where [?b :block/uuid ?x]]

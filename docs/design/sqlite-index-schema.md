@@ -709,6 +709,18 @@ ORDER BY (SELECT value_num FROM block_property_values v WHERE v.block_id=b.id AN
 2. **Property value matching is case-insensitive** (`value_norm`). In Logseq, ref sets keep their original case, so `(property tags Book)` vs `tags:: book` is case-sensitive in practice.
 3. **`[[x]]` keeps Logseq semantics**: it matches every block on page x and the descendants of referencing blocks. It does **not** expand aliases, as Logseq's `page-ref` rule doesn't (`rules.cljc:140-143`).
 
+### 7.5 Implementation notes (BIT-US-0101)
+
+Code: `crates/bitacora-index/src/query/` (`edn`, `dsl`, `dates`, `compile`, `mod`); entry points `IndexReader::query_simple(src, &QueryContext)` and the connection-free `query::compile_simple`.
+
+- **Parser.** `pre_transform` rewrites `[[x]]`, `#x` and `#[[x]]` (outside strings) into the string `"[[x]]"`, then a small EDN reader builds the AST. The `{{query ...}}` wrapper is optional. Several top-level forms are an implicit `and` (Logseq reads only the first form). `sort-by` and `sample` are lifted out of the tree. Unknown operators fail with `unsupported: query operator ...`; a malformed query with `syntax error: ...`.
+- **Names are resolved inside the SQL** (`(SELECT id FROM pages WHERE name = ?)`), so compilation needs no connection and an unknown page yields an empty set. Every value is a bound parameter.
+- **NULL safety.** Leaves over nullable columns (`marker`, `priority`, `namespace_parent_id`, `page_id` equality) are wrapped in `COALESCE(..., 0)`; the other leaves are `IN (SELECT ...)` forms that never yield NULL. `(not a b)` negates the conjunction of its arguments (Datalog `not`).
+- **Dates.** `QueryContext` carries today's date, `now_ms` and the start of today; `-Nh`/`-Nmin` count from the start of today like the day offsets (the documented DSL behaviour), `now` is `now_ms`. Journal titles use `journal_title_formatters`.
+- **`between created-at|last-modified-at`** matches `block_property_values.value_num` in `[a, b)` or the `created_at` / `updated_at` columns. Other keys are `unsupported`.
+- **`"text"`** uses `blocks_fts_tri` when it exists and the text has at least 3 characters, else `instr(search_text, ?)`; the reader turns the trigram path off when `search.substring` dropped the table.
+- **`sort-by`** orders numbers first (`MIN(value_num)`), then text (`MIN(raw_value)`), NULLs last, default descending; `created-at` / `last-modified-at` fall back to the block columns. `sample n` is `ORDER BY random() LIMIT n` and replaces any sort. The block holding the query is excluded through `QueryContext::query_block`.
+
 ---
 
 ## 8. Advanced (Datalog) queries: supported subset
@@ -735,6 +747,19 @@ Compile `[:find … :in $ … :where …]` into SQL by treating each attribute a
 - **Inputs:** every `:inputs` keyword from `deps/graph-parser/src/logseq/graph_parser/util/db.cljs:76-168` (`:current-page`, `:query-page`, `:current-block`, `:parent-block`, `:today`, `:±Nd`, `:±Nd-start`, `:today-HHMM`, `:right-now-ms`, …), plus `"[[page]]"` strings.
 - **Find specs:** `?x`, `[?x ...]`, `(pull ?b [*])` (hydrate the block in Rust), `(pull ?p [*])`, scalar aggregates `(count ?b)`, `(min …)`, `(max …)` → SQL aggregates.
 - **Not supported in v1:** `:result-transform` and `:view` (SCI code), arbitrary Clojure fns, `pull` patterns with nested reverse refs, rules not in the whitelist. These are reported as "unsupported", and the raw results are still shown when that is possible.
+
+### 8.1 Implementation notes (BIT-US-0103)
+
+Code: `crates/bitacora-index/src/query/` (`advanced`, `datalog`); entry point `IndexReader::query_advanced(src, &QueryContext) -> AdvancedOutcome`. Corpus: `fixtures/queries/advanced/*.edn` (43 queries written for this project, each with `;; class:` and expected rows), driven by `tests/query_advanced.rs`.
+
+- **Block reader.** Accepts the text between `#+BEGIN_QUERY` / `#+END_QUERY` or a bare map/vector. `:query` may be a `[:find ...]` vector (Datalog), or a list/string (DSL, run by the simple engine). `:title`, `:collapsed?` are returned; `:result-transform`, `:view` and user `:rules` become `unsupported: <construct>` warnings and the rows are still returned.
+- **Typing.** Each variable is a block, a page or a file, inferred from the attributes it appears with; a variable whose only evidence is `:block/properties` is a block, one that only appears as the value of `:block/refs` is a page; otherwise the error is `cannot tell whether ?x is a page or a block`.
+- **Compilation.** Clauses are processed as: data patterns and DSL rules, function bindings, predicates, then `not` / `not-join` / `or` / `or-join` (`NOT EXISTS` / `OR EXISTS` sub-scopes). Entity variables inside `or` that nothing else binds range over their whole table. `get` on a `:block/properties` map joins `block_property_values`; property text values are compared case-insensitively (deviation 7.4.2).
+- **Functions / predicates.** `= not= == < <= > >=`, `contains?` (constant set), `includes? starts-with? ends-with?`, `re-find` / `re-matches` / `re-pattern` (a `bitacora_regexp` UDF over the `regex` crate; constant patterns are validated at compile time), `missing?`, `get`, `get-else`, `str`, `identity`, `ground`, `lower-case`, `upper-case`, `+ - *`. Everything else is `unsupported: function ...`.
+- **Rules.** The built-in DSL rules (`page-ref`, `block-content`, `task`, `priority`, `property`, `has-property`, `page`, `between`, `page-property`, `has-page-property`, `namespace`, `page-tags`, `all-page-tags`) are inlined through the simple-DSL leaf compiler. `:namespace` and `:alias` are direct (non-recursive) in v1.
+- **Inputs.** `$`, scalar variables, `:current-page`, `:query-page`, `:current-block`, `:parent-block`, `:today`, `:yesterday`, `:tomorrow`, `:right-now-ms`, `:start-of-today-ms`, `:end-of-today-ms`, `:+-Nd|w|m|y`, `:+-Nd-start|end`, `:Nd-before[-ms]` and `"[[page]]"` strings. `:today-HHMM` is not supported.
+- **Find.** Relation, `[?x ...]`, `[?x ?y]` and `?x .`; `(pull ?e pattern)` returns the whole entity (patterns with nested or reverse parts add a warning); `count`, `count-distinct`, `sum`, `min`, `max`, `avg`. Rows are `SELECT DISTINCT` (set semantics), then aggregated, ordered by the find columns. An aggregate over no rows yields one row (SQL), not an empty result (Datalog).
+- **Findings for open question 7.** The patterns that matter in practice are marker/priority filters, `:block/page` + `:block/name` / `:block/journal-day` joins, `:block/refs` / `:block/path-refs`, `:block/properties` + `get`, content `includes?`, `not` / `or`, DSL rules and date inputs; all are covered. Custom rules, reverse attributes, `:result-transform` and `:view` need either rule support or a script runtime and remain open.
 
 ---
 

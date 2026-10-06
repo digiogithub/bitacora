@@ -1,0 +1,4 @@
+;; class: supported
+;; expect: 20261001,20261006
+[:find (min ?d) (max ?d)
+ :where [?p :block/journal-day ?d]]

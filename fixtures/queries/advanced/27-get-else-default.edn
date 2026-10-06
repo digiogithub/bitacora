@@ -1,0 +1,5 @@
+;; class: supported
+;; expect: A,1 | none,4
+[:find ?p (count ?b)
+ :where [?b :block/marker "TODO"]
+        [(get-else $ ?b :block/priority "none") ?p]]

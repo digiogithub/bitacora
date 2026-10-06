@@ -1,0 +1,4 @@
+;; class: warning:pull pattern
+;; expect: skim notes
+[:find (pull ?b [* {:block/_refs [*]}])
+ :where [?b :block/marker "DOING"]]

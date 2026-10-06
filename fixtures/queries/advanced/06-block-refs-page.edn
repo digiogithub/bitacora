@@ -1,0 +1,5 @@
+;; class: supported
+;; expect: finished chapter zero [[Beta]]
+[:find (pull ?b [*])
+ :where [?b :block/refs ?p]
+        [?p :block/name "beta"]]

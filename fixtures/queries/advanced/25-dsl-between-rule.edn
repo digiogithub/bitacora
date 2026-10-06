@@ -1,0 +1,5 @@
+;; class: supported
+;; expect: file report [[Alpha]] | fix build
+[:find (pull ?b [*])
+ :where (between ?b 20261005 20261006)
+        (task ?b #{"NOW" "TODO"})]

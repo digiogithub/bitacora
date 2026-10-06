@@ -1,0 +1,5 @@
+;; class: supported
+;; expect: proj/sub1 | proj/sub1/deep | proj/sub2
+[:find ?name
+ :where [?p :block/name ?name]
+        [(clojure.string/starts-with? ?name "proj/")]]

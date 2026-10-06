@@ -1,0 +1,5 @@
+;; class: warning:view
+;; expect: skim notes
+{:query [:find (pull ?b [*])
+         :where [?b :block/marker "DOING"]]
+ :view (fn [rows] [:div (map str rows)])}
