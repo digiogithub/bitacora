@@ -1,0 +1,15 @@
+[
+  {
+    "context": "Workspace",
+    "bindings": {
+      "secondary-b": "bitacora::ToggleLeftSidebar",
+      "secondary-shift-b": "bitacora::ToggleRightSidebar",
+      "secondary-shift-l": "bitacora::ToggleTheme"
+    }
+  },
+  {
+    "bindings": {
+      "secondary-q": "bitacora::Quit"
+    }
+  }
+]

@@ -1,0 +1,45 @@
+app:
+  name: Bitacora
+sidebar:
+  journals: Journals
+  all_pages: All pages
+  favorites: Favorites
+  recent: Recent
+  graph_switcher: Switch graph
+  group_navigate: Navigate
+  group_favorites: Favorites
+  group_recent: Recent
+  group_graph: Graph
+  empty: Nothing here yet
+  no_graph: No graph open
+panel:
+  page_host:
+    title: Page
+    empty: No page open
+  right:
+    title: Right sidebar
+    empty: Right sidebar
+status:
+  sync:
+    off: "Sync: off"
+    idle: "Sync: up to date"
+    busy: "Sync: syncing"
+    error: "Sync: error"
+  mcp:
+    off: "MCP: off"
+    idle: "MCP: listening"
+    busy: "MCP: busy"
+    error: "MCP: error"
+  index:
+    off: "Index: off"
+    idle: "Index: ready"
+    busy: "Index: indexing"
+    error: "Index: error"
+  heartbeat: "Heartbeat %{count}"
+  theme_button: Theme
+theme:
+  system: Follow system
+  light: Light
+  dark: Dark
+  light_themes: Light themes
+  dark_themes: Dark themes

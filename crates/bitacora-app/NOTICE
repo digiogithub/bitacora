@@ -1,0 +1,12 @@
+Third-party attribution for bitacora-app
+
+src/tokio_bridge.rs
+  The design (a tokio runtime kept as a GPUI global; a spawn function returning a
+  GPUI Task that aborts the tokio task when dropped) follows the `gpui_tokio` crate
+  of the Zed repository, licensed under the Apache License 2.0
+  (https://github.com/zed-industries/zed/tree/main/crates/gpui_tokio).
+  The implementation in this repository is original and was written independently;
+  no source code was copied (ADR-014). Only Apache-2.0 GPUI crates are used from
+  the Zed project; GPL-licensed Zed crates are never used.
+
+GPUI and GPUI Kit are licensed under the Apache License 2.0.

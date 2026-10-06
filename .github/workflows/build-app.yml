@@ -1,0 +1,112 @@
+name: build-app
+
+# Builds the desktop app for the three OSes, uploads the binaries as artifacts and
+# smoke-tests that a window opens and renders a first frame (BIT-T-0033).
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-app:
+    # On pull requests only when labelled `build-artifacts`.
+    if: github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'build-artifacts')
+    name: build-app (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux build and runtime dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            gcc g++ clang cmake pkg-config libfontconfig-dev libwayland-dev \
+            libxkbcommon-x11-dev libx11-xcb-dev libssl-dev libzstd-dev libasound2-dev \
+            libvulkan1 mesa-vulkan-drivers xvfb x11-utils
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.98.1
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build (release)
+        run: cargo build -p bitacora-app --profile release --locked
+
+      - name: Smoke test (Linux, X11 under Xvfb with lavapipe)
+        if: runner.os == 'Linux'
+        # No physical GPU on the runner: allow failure but keep the log visible.
+        continue-on-error: true
+        run: |
+          mkdir -p "$RUNNER_TEMP/graph"
+          xvfb-run -a -s "-screen 0 1400x900x24" \
+            ./target/release/bitacora --graph "$RUNNER_TEMP/graph" --smoke-test 2>&1 | tee smoke.log
+          grep "first frame rendered in" smoke.log
+
+      - name: Smoke test (macOS)
+        if: runner.os == 'macOS'
+        continue-on-error: true
+        run: |
+          mkdir -p "$RUNNER_TEMP/graph"
+          ./target/release/bitacora --graph "$RUNNER_TEMP/graph" --smoke-test 2>&1 | tee smoke.log
+          grep "first frame rendered in" smoke.log
+
+      - name: Smoke test (Windows)
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/graph"
+          ./target/release/bitacora.exe --graph "$RUNNER_TEMP/graph" --smoke-test 2>&1 | tee smoke.log
+          grep "first frame rendered in" smoke.log
+
+      - name: Package (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p dist
+          cp target/release/bitacora dist/
+          printf '%s\n' \
+            'Bitacora (Linux x86_64).' \
+            'Requires a Vulkan driver (libvulkan1 plus a Mesa or vendor ICD), X11 or Wayland,' \
+            'and libxkbcommon-x11, fontconfig and OpenSSL runtime libraries.' \
+            'Run: ./bitacora --graph /path/to/logseq/graph' > dist/README.txt
+
+      - name: Package (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p dist
+          cp target/release/bitacora dist/
+          printf '%s\n' \
+            'Bitacora (macOS).' \
+            'Unsigned build: run `xattr -d com.apple.quarantine ./bitacora` if Gatekeeper blocks it.' \
+            'Run: ./bitacora --graph /path/to/logseq/graph' > dist/README.txt
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp target/release/bitacora.exe dist/
+          printf '%s\r\n' \
+            'Bitacora (Windows).' \
+            'Unsigned build: SmartScreen may warn on first run.' \
+            'Run: bitacora.exe --graph C:\path\to\logseq\graph' > dist/README.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bitacora-${{ runner.os }}
+          path: dist/
+          retention-days: 14
+          if-no-files-found: error
