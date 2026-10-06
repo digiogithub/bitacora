@@ -955,27 +955,42 @@ async fn page_changes_notify_subscribed_resources_within_two_seconds() {
         assert!(rpc_message(&b).get("error").is_none(), "{b}");
     }
 
-    let listener = read_sse_until(
+    // The standalone SSE stream has no replay, so a change made before the listener is attached
+    // would be missed. Re-trigger a change (edit + reconcile) every 300 ms until the notification
+    // shows up, then assert it arrived within two seconds of the trigger that caused it.
+    let mut listener = Box::pin(read_sse_until(
         &env,
         &session,
-        "notifications/resources/updated",
-        Duration::from_secs(15),
-    );
-    let touch = async {
-        tokio::time::sleep(Duration::from_millis(500)).await;
-        let path = env.graph.join("pages/Notes.md");
+        "bitacora://page/Notes",
+        Duration::from_secs(30),
+    ));
+    let path = env.graph.join("pages/Notes.md");
+    let mut n = 0;
+    let (seen, last_trigger) = loop {
+        n += 1;
+        tokio::select! {
+            seen = &mut listener => break (seen, None),
+            () = tokio::time::sleep(Duration::from_millis(300)) => {}
+        }
         let mut text = std::fs::read_to_string(&path).unwrap();
-        text.push_str("- a brand new block\n");
+        text.push_str(&format!("- a brand new block {n}\n"));
         std::fs::write(&path, text).unwrap();
         // The CLI drives this from a timer; the test triggers the reconcile directly.
         let started = std::time::Instant::now();
         env.indexer.reconcile().expect("reconcile");
-        started
+        tokio::select! {
+            seen = &mut listener => break (seen, Some(started)),
+            () = tokio::time::sleep(Duration::from_millis(1)) => {}
+        }
+        assert!(n < 100, "no notification after {n} triggers");
     };
-    let (seen, started) = tokio::join!(listener, touch);
     let seen = seen.expect("notification arrived");
+    assert!(seen.contains("notifications/resources/updated"), "{seen}");
     assert!(seen.contains("bitacora://page/Notes"), "{seen}");
-    assert!(started.elapsed() < Duration::from_secs(2));
+    if let Some(started) = last_trigger {
+        assert!(started.elapsed() < Duration::from_secs(2));
+    }
+    drop(listener);
     stop(env);
 }
 
