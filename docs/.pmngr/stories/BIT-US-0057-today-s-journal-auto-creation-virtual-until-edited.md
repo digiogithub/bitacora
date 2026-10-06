@@ -2,7 +2,7 @@
 id: BIT-US-0057
 type: story
 title: Today's journal auto-creation (virtual until edited)
-status: backlog
+status: in_progress
 priority: high
 parent: BIT-EP-0009
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [core, compat, journals]
 estimate: 3
 created: 2026-10-06T14:28:36Z
-updated: 2026-10-06T14:28:36Z
+updated: 2026-10-06T19:13:32Z
+started: 2026-10-06T19:13:32Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-US-0099
 type: story
 title: New graph creation with a Bitacora default config Logseq accepts
-status: backlog
+status: done
 priority: medium
 parent: BIT-EP-0009
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [core, compat, config]
 estimate: 3
 created: 2026-10-06T14:31:16Z
-updated: 2026-10-06T14:37:04Z
+updated: 2026-10-06T19:13:32Z
+closed: 2026-10-06T19:13:32Z
 ---
 
 ## Description

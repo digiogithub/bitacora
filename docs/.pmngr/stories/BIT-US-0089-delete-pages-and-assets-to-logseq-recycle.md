@@ -2,7 +2,7 @@
 id: BIT-US-0089
 type: story
 title: Delete pages and assets to logseq/.recycle
-status: backlog
+status: in_progress
 priority: high
 parent: BIT-EP-0009
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [core, compat, delete]
 estimate: 3
 created: 2026-10-06T14:30:30Z
-updated: 2026-10-06T14:30:30Z
+updated: 2026-10-06T19:13:32Z
+started: 2026-10-06T19:13:32Z
 ---
 
 ## Description

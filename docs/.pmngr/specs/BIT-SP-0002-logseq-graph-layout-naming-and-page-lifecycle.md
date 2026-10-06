@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [core, compat]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T18:25:17Z
+updated: 2026-10-06T19:13:44Z
 requirements:
   R1:
     status: backlog
@@ -52,10 +52,13 @@ requirements:
   R7:
     status: backlog
     trace:
-      code: [crates/bitacora-core/src/naming.rs#legacy]
+      code:
+        - crates/bitacora-core/src/naming.rs#legacy
+        - crates/bitacora-core/src/editor/lifecycle.rs#auto_title_preamble
       tests:
         - crates/bitacora-core/src/naming.rs#legacy_vectors
         - crates/bitacora-core/src/naming.rs#title_property_predicate
+        - crates/bitacora-core/tests/page_lifecycle.rs#legacy_graph_writes_title_property_for_lossy_names
   R8:
     status: backlog
     trace:
@@ -82,35 +85,69 @@ requirements:
   R11:
     status: backlog
     trace:
-      code: [crates/bitacora-core/src/journal.rs#journal_file_path]
-      tests: [crates/bitacora-core/src/journal.rs#file_paths]
+      code:
+        - crates/bitacora-core/src/journal.rs#journal_file_path
+        - crates/bitacora-core/src/editor/lifecycle.rs#ensure_today
+      tests:
+        - crates/bitacora-core/src/journal.rs#file_paths
+        - crates/bitacora-core/tests/page_lifecycle.rs#today_is_virtual_until_typed
+        - crates/bitacora-core/tests/page_lifecycle.rs#journal_directory_and_file_format_are_configurable
   R12:
     status: backlog
     trace:
-      code: [crates/bitacora-core/src/graph.rs]
-      tests: [crates/bitacora-core/tests/graph_fixtures.rs]
+      code:
+        - crates/bitacora-core/src/graph.rs
+        - crates/bitacora-core/src/editor/lifecycle.rs#open_page
+        - crates/bitacora-core/src/editor/model.rs#is_virtual
+      tests:
+        - crates/bitacora-core/tests/graph_fixtures.rs
+        - crates/bitacora-core/tests/page_lifecycle.rs
   R13:
     status: backlog
   R14:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-core/src/recycle.rs
+        - crates/bitacora-core/src/editor/flush.rs#recycle
+        - crates/bitacora-core/src/editor/fsio.rs#recycle
+        - crates/bitacora-core/src/editor/op.rs#DeleteAsset
+      tests:
+        - crates/bitacora-core/tests/page_lifecycle.rs#deleting_a_page_recycles_its_file
+        - crates/bitacora-core/tests/page_lifecycle.rs#deleting_an_asset_recycles_it_and_undo_restores_it
+        - crates/bitacora-core/tests/page_lifecycle.rs#fs_store_recycles_with_rename_and_overwrites
   R15:
     status: backlog
   R16:
     status: backlog
     trace:
-      code: [crates/bitacora-core/src/scan.rs#decode_text]
+      code:
+        - crates/bitacora-core/src/scan.rs#decode_text
+        - crates/bitacora-core/src/editor/model.rs#serialize_checked
       tests:
         - crates/bitacora-core/src/scan.rs#bom_reader
-        - crates/bitacora-core/src/scan.rs#no_trace
+        - crates/bitacora-core/tests/page_lifecycle.rs#file_name_keeps_title_case_and_output_is_clean
   R17:
     status: backlog
   R18:
     status: backlog
     trace:
-      code: [crates/bitacora-core/src/graph.rs]
-      tests: [crates/bitacora-core/src/graph.rs#tests]
+      code:
+        - crates/bitacora-core/src/graph.rs
+        - crates/bitacora-core/src/editor/cmd.rs#set_page_property
+      tests:
+        - crates/bitacora-core/src/graph.rs#tests
+        - crates/bitacora-core/tests/page_lifecycle.rs#page_property_goes_into_the_pre_block
+        - crates/bitacora-core/tests/page_lifecycle.rs#page_property_in_front_matter_page_stays_front_matter
   R19:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-core/src/new_graph.rs
+        - crates/bitacora-config/src/default_config.edn
+      tests:
+        - crates/bitacora-core/tests/page_lifecycle.rs#new_graph_layout_and_config
+        - crates/bitacora-config/tests/load.rs#default_config_text_parses
   R20:
     status: backlog
     trace:

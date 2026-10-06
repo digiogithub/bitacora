@@ -2,7 +2,7 @@
 id: BIT-US-0028
 type: story
 title: Lazy page file creation and new-page writing
-status: backlog
+status: done
 priority: critical
 parent: BIT-EP-0009
 milestone: BIT-M-0003
@@ -10,7 +10,8 @@ author: mcp
 labels: [core, compat, lifecycle]
 estimate: 5
 created: 2026-10-06T14:28:02Z
-updated: 2026-10-06T14:28:02Z
+updated: 2026-10-06T19:13:32Z
+closed: 2026-10-06T19:13:32Z
 ---
 
 ## Description
