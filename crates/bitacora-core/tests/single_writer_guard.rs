@@ -1,5 +1,5 @@
 //! Single-writer guard (BIT-T-0268, AGENTS.md rule 3): graph files are written only by
-//! `bitacora-core`'s writer (`editor/flush.rs`).
+//! `bitacora-core`'s writer (`editor/fsio.rs`, driven by `editor/flush.rs`).
 //!
 //! A clippy `disallowed-methods` entry would also hit tests and fixtures in every crate, so the
 //! rule is enforced here instead: this test scans the non-test source of the crates that must
@@ -24,7 +24,9 @@ const FORBIDDEN: &[&str] = &[
 
 /// (crate, path relative to the crate's `src`) pairs that may mutate the file system.
 const ALLOWED: &[(&str, &str)] = &[
-    ("bitacora-core", "editor/flush.rs"),
+    ("bitacora-core", "editor/fsio.rs"),
+    // `reindex --force` deletes the SQLite cache files, never graph files.
+    ("bitacora-cli", "cmd/reindex.rs"),
     // API token store under the app config dir, not the graph.
     ("bitacora-mcp", "tokens.rs"),
 ];

@@ -16,8 +16,10 @@
 //!   the [`QueueLock`] is dropped; [`QueueLock::apply`] writes file changes with an
 //!   expected-content check. `bitacora-sync`'s `GraphWriter` adapter lives in the app/cli glue
 //!   (sync depends on core, not the other way round) and maps `FileChange` to [`FileEdit`];
-//! * debounced writes (BIT-US-0063): today [`Request::Flush`] or [`QueueConfig::auto_flush`]
-//!   write dirty pages; the debounce timer will drive the same `flush`.
+//! * debounced writes (BIT-US-0063): by default the consumer writes a dirty page 400 ms after its
+//!   last edit (at most 2 s after the first unwritten one, see [`DebounceConfig`]); failures are
+//!   retried with backoff, conflicts are parked and reported through [`QueueEvent`]s.
+//!   [`Request::Flush`], [`CommandQueue::acquire`] and shutdown flush everything on demand.
 
 use std::collections::{HashMap, VecDeque};
 use std::future::Future;
@@ -27,16 +29,27 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Condvar, Mutex, RwLock};
 use std::task::{Context, Poll, Waker};
 use std::thread::JoinHandle;
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, Instant, SystemTime};
 
 use uuid::Uuid;
 
+use crate::editor::TakeDisk;
 use crate::editor::{
     BlockId, Cmd, CommitError, FileStore, FlushReport, Op, Transaction, TxId, Workspace,
     WrittenFile,
 };
 use crate::graph::PageKey;
 use crate::graph_path::GraphPath;
+use crate::write_queue::{DebounceConfig, WriteQueue};
+
+/// Page written while a conflict is pending: which side wins.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum Keep {
+    /// Overwrite the external version with ours (it is backed up to `logseq/bak` first).
+    Mine,
+    /// Replace our unsaved edits with the external version (they are backed up first).
+    Disk,
+}
 
 /// Who submitted a command (kept in the audit log; MCP writes are audited, rule 7).
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -81,6 +94,19 @@ pub enum Request {
     },
     /// Write every dirty page now.
     Flush,
+    /// Resolve a write conflict (BIT-US-0065/0066).
+    Resolve {
+        /// Conflicting page.
+        key: PageKey,
+        /// Which side wins.
+        keep: Keep,
+    },
+    /// Files were reported deleted by the watcher: drop the pages without unsaved edits (dirty
+    /// ones are recreated by the next flush).
+    CheckMissing {
+        /// Deleted files.
+        paths: Vec<GraphPath>,
+    },
 }
 
 /// Successful result of a [`Request`].
@@ -92,6 +118,10 @@ pub enum Response {
     Loaded,
     /// Dirty pages were written.
     Flushed(FlushReport),
+    /// A conflict was resolved ("keep mine" reports its write, "take disk" an empty report).
+    Resolved(FlushReport, Option<TakeDisk>),
+    /// Pages dropped because their file was deleted externally.
+    Removed(Vec<PageKey>),
 }
 
 /// Why a request failed.
@@ -364,6 +394,21 @@ pub enum QueueEvent {
     },
     /// A loaded page was replaced by new disk content (ids changed).
     PageReloaded(PageKey),
+    /// Pages were not written because their file changed on disk (nothing was overwritten;
+    /// resolve with [`Request::Resolve`] or merge the external change).
+    Conflict(Vec<PageKey>),
+    /// Writes failed; the pages stay dirty and are retried with backoff. Drives the persistent
+    /// "cannot save" notice.
+    WriteFailed {
+        /// Pages and error messages.
+        failed: Vec<(PageKey, String)>,
+        /// Files not written.
+        unwritten: Vec<GraphPath>,
+    },
+    /// Files deleted externally while their page had unsaved edits were recreated.
+    Recreated(Vec<PageKey>),
+    /// Pages removed because their file was deleted externally (remove from the index).
+    PagesRemoved(Vec<PageKey>),
 }
 
 /// Observer of [`QueueEvent`]s. Runs on the consumer thread: keep it quick.
@@ -373,9 +418,11 @@ pub type Observer = Box<dyn Fn(&QueueEvent) + Send>;
 pub struct QueueConfig {
     /// Called for every event.
     pub observers: Vec<Observer>,
-    /// Write dirty pages after every committed command (default `false`; the debounced write
-    /// queue, BIT-US-0063, replaces this).
+    /// Write dirty pages after every committed command (default `false`; mainly for tests).
     pub auto_flush: bool,
+    /// Debounced background writes (default 400 ms / 2 s, BIT-US-0063). `None` writes only on
+    /// [`Request::Flush`], [`CommandQueue::acquire`] and shutdown.
+    pub debounce: Option<DebounceConfig>,
     /// Entries kept in the audit ring.
     pub audit_capacity: usize,
 }
@@ -385,6 +432,7 @@ impl Default for QueueConfig {
         Self {
             observers: Vec::new(),
             auto_flush: false,
+            debounce: Some(DebounceConfig::default()),
             audit_capacity: 10_000,
         }
     }
@@ -512,16 +560,26 @@ pub struct CommandQueue {
 
 /// Owner of the consumer thread.
 pub struct QueueJoin {
-    handle: Option<JoinHandle<Workspace>>,
+    handle: Option<JoinHandle<(Workspace, FlushReport)>>,
     tx: Sender<Msg>,
 }
 
 impl QueueJoin {
-    /// Stops the consumer after the commands already queued and returns the workspace.
+    /// Flushes every dirty page, stops the consumer after the commands already queued and
+    /// returns the workspace.
     ///
     /// # Errors
     /// [`QueueError::Closed`] when the thread panicked.
-    pub fn shutdown(mut self) -> Result<Workspace, QueueError> {
+    pub fn shutdown(self) -> Result<Workspace, QueueError> {
+        self.shutdown_with_report().map(|(ws, _)| ws)
+    }
+
+    /// Like [`QueueJoin::shutdown`] and also returns the report of the final flush: pages left
+    /// in `conflicts` / `failed` still hold unsaved edits (warn the user before quitting).
+    ///
+    /// # Errors
+    /// [`QueueError::Closed`] when the thread panicked.
+    pub fn shutdown_with_report(mut self) -> Result<(Workspace, FlushReport), QueueError> {
         let _ = self.tx.send(Msg::Shutdown);
         match self.handle.take() {
             Some(h) => h.join().map_err(|_| QueueError::Closed),
@@ -546,12 +604,15 @@ impl CommandQueue {
             audit: Mutex::new(VecDeque::new()),
             snapshots: Arc::new(RwLock::new(HashMap::new())),
         });
+        let sched = config.debounce.map(WriteQueue::new);
         let worker = Worker {
             ws,
             store,
             config,
             inner: inner.clone(),
             seq: 0,
+            sched,
+            started: Instant::now(),
         };
         worker.publish_all();
         #[allow(clippy::expect_used)] // thread spawn failure is unrecoverable at start-up
@@ -686,21 +747,62 @@ struct Worker {
     config: QueueConfig,
     inner: Arc<Inner>,
     seq: u64,
+    sched: Option<WriteQueue>,
+    started: Instant,
 }
 
+/// Stands for "files of deleted pages are waiting to be removed" in the write queue.
+const DELETES_KEY: &str = "\u{0}pending-deletes";
+
 impl Worker {
-    fn run(mut self, rx: &Receiver<Msg>) -> Workspace {
-        while let Ok(msg) = rx.recv() {
+    fn now(&self) -> Duration {
+        self.started.elapsed()
+    }
+
+    fn run(mut self, rx: &Receiver<Msg>) -> (Workspace, FlushReport) {
+        // Leftovers of a crash between "create temp" and "rename".
+        let _ = self.store.cleanup_stale();
+        loop {
+            let deadline = self.sched.as_ref().and_then(WriteQueue::next_deadline);
+            let msg = match deadline {
+                Some(d) => match rx.recv_timeout(d.saturating_sub(self.now())) {
+                    Ok(m) => Some(m),
+                    Err(mpsc::RecvTimeoutError::Timeout) => None,
+                    Err(mpsc::RecvTimeoutError::Disconnected) => break,
+                },
+                None => match rx.recv() {
+                    Ok(m) => Some(m),
+                    Err(_) => break,
+                },
+            };
             match msg {
-                Msg::Command(c) => {
+                Some(Msg::Command(c)) => {
                     let r = self.handle(c.source, c.request);
                     c.reply.send(r);
                 }
-                Msg::Acquire(a) => self.locked(a),
-                Msg::Shutdown => break,
+                Some(Msg::Acquire(a)) => self.locked(a),
+                Some(Msg::Shutdown) => break,
+                None => {}
             }
+            self.flush_due();
         }
-        self.ws
+        let report = self.ws.flush(&mut *self.store);
+        self.after_flush(&report);
+        (self.ws, report)
+    }
+
+    /// Writes the pages whose debounce expired (and failed ones whose backoff elapsed).
+    fn flush_due(&mut self) {
+        let now = self.now();
+        let Some(sched) = self.sched.as_ref() else {
+            return;
+        };
+        let due = sched.due(now);
+        if due.is_empty() {
+            return;
+        }
+        let report = self.ws.flush_pages(&mut *self.store, &due);
+        self.after_flush(&report);
     }
 
     fn emit(&self, ev: &QueueEvent) {
@@ -766,8 +868,61 @@ impl Worker {
             .filter_map(|w| w.page.clone())
             .collect();
         self.publish(&keys);
-        if !report.written.is_empty() || !report.deleted.is_empty() {
+        self.settle(report);
+        if !report.written.is_empty() || !report.deleted.is_empty() || !report.backups.is_empty() {
             self.emit(&QueueEvent::Flushed(report.clone()));
+        }
+        if !report.conflicts.is_empty() {
+            self.emit(&QueueEvent::Conflict(report.conflicts.clone()));
+        }
+        if !report.failed.is_empty() {
+            self.emit(&QueueEvent::WriteFailed {
+                failed: report.failed.clone(),
+                unwritten: report.unwritten.clone(),
+            });
+        }
+        if !report.recreated.is_empty() {
+            self.emit(&QueueEvent::Recreated(report.recreated.clone()));
+        }
+    }
+
+    /// Updates the write schedule after a flush: written pages are done, conflicting ones are
+    /// parked, failed ones retry with backoff.
+    fn settle(&mut self, report: &FlushReport) {
+        let now = self.now();
+        let Some(sched) = self.sched.as_mut() else {
+            return;
+        };
+        for key in sched.all() {
+            if report.conflicts.contains(&key) {
+                sched.parked(&key);
+            } else if report.failed.iter().any(|(k, _)| *k == key) {
+                sched.failed(&key, now);
+            } else if key.as_str() == DELETES_KEY {
+                if self.ws.pending_deletes().is_empty() {
+                    sched.done(&key);
+                }
+            } else if self.ws.page(&key).is_none_or(|p| !p.needs_write()) {
+                sched.done(&key);
+            }
+        }
+        // Failures of pages that were not pending (explicit flush) also retry.
+        for (key, _) in &report.failed {
+            if sched.attempts(key) == 0 {
+                sched.failed(key, now);
+            }
+        }
+    }
+
+    fn schedule(&mut self, pages: &[PageKey]) {
+        let now = self.now();
+        let deletes = !self.ws.pending_deletes().is_empty();
+        let Some(sched) = self.sched.as_mut() else {
+            return;
+        };
+        sched.mark(pages, now);
+        if deletes {
+            sched.mark(&[PageKey::from_title(DELETES_KEY)], now);
         }
     }
 
@@ -800,6 +955,43 @@ impl Worker {
                 self.after_flush(&r);
                 Ok(Response::Flushed(r))
             }
+            Request::Resolve { key, keep } => {
+                let now = SystemTime::now();
+                match keep {
+                    Keep::Mine => {
+                        let r = self.ws.resolve_keep_mine(&key, &mut *self.store, now);
+                        self.after_flush(&r);
+                        Ok(Response::Resolved(r, None))
+                    }
+                    Keep::Disk => {
+                        let mut r = FlushReport::default();
+                        let t = self.ws.take_disk(&key, &mut *self.store, now, &mut r);
+                        self.seq += 1;
+                        self.publish(std::slice::from_ref(&key));
+                        if let Some(s) = self.sched.as_mut() {
+                            s.done(&key);
+                        }
+                        match t {
+                            TakeDisk::Reloaded => self.emit(&QueueEvent::PageReloaded(key)),
+                            TakeDisk::Removed => {
+                                self.emit(&QueueEvent::PagesRemoved(vec![key]));
+                            }
+                            TakeDisk::Unknown => {}
+                        }
+                        self.after_flush(&r);
+                        Ok(Response::Resolved(r, Some(t)))
+                    }
+                }
+            }
+            Request::CheckMissing { paths } => {
+                let gone = self.ws.drop_missing(&*self.store, &paths);
+                if !gone.is_empty() {
+                    self.seq += 1;
+                    self.publish(&gone);
+                    self.emit(&QueueEvent::PagesRemoved(gone.clone()));
+                }
+                Ok(Response::Removed(gone))
+            }
         }
     }
 
@@ -818,6 +1010,8 @@ impl Worker {
         if self.config.auto_flush {
             let r = self.ws.flush(&mut *self.store);
             self.after_flush(&r);
+        } else {
+            self.schedule(&tx.pages);
         }
         Ok(Response::Committed(tx))
     }

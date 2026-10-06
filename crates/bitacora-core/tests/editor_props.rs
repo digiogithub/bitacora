@@ -147,7 +147,10 @@ proptest! {
             while !text.is_char_boundary(s) { s -= 1 }
             while !text.is_char_boundary(e) { e += 1 }
             let mut op = Op::EditText { id, range: s..e, removed: text[s..e].to_owned(), inserted: ins.clone() };
-            op.apply(&mut ws).expect("apply");
+            // Text that would re-parse as extra blocks (e.g. breaking a code fence) is refused.
+            if op.apply(&mut ws).is_err() {
+                continue;
+            }
             ops.push(op);
         }
         for op in ops.iter().rev() {

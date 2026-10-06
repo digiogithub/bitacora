@@ -526,3 +526,9 @@ Linked references are grouped by page with breadcrumbs. Unlinked references are 
   always a conflict?
 - Should undo history persist across restarts (e.g. per-graph journal file)?
 - Org-mode: render-only in MVP. When editing arrives, can the same span model handle `*`-depth headlines?
+
+## Implementation notes: write pipeline (BIT-US-0063..0066)
+
+- **Unrepresentable text.** A block whose text has a line that starts (after indentation) with a list marker (`x\n- y`) would re-parse as extra blocks, exactly as in Logseq's parser. `SetText`/`EditText`/`InsertSubtree` ops fail with `OpError::Unrepresentable` and the planners refuse with `Refusal::Unrepresentable`; text inside fences is fine. Text a block was loaded with is always accepted (undo of loaded content).
+- **Scheduling.** `QueueConfig::debounce` defaults to 400 ms / 2 s (`write_queue::WriteQueue`, pure, fake-clock tested); pages of one transaction share a batch; failures retry 1 s doubling to 60 s; conflicts are parked until resolved (`Request::Resolve { Keep::Mine | Keep::Disk }`). Shutdown and `acquire` flush everything.
+- **Writer.** `editor/fsio.rs` (`atomic_write`, `cleanup_stale_tmp`, `FsStore`); `editor/flush.rs` runs the pre-write stat+blake3 check against `DiskSnapshot`; `editor/backup.rs` writes `logseq/bak/<dir>/<stem>/<ts>.Desktop.<ext>` (newest 6).

@@ -50,6 +50,9 @@ pub enum OpError {
     /// `inverse` was asked of an op that was not applied yet.
     #[error("op has not been applied, so it has no inverse")]
     NotApplied,
+    /// The text contains a line that would re-parse as a new block (e.g. `x\n- y`).
+    #[error("text cannot be stored in one block: a line starts like a list item")]
+    Unrepresentable,
     /// Malformed op.
     #[error("invalid op: {0}")]
     Invalid(&'static str),
@@ -162,6 +165,15 @@ fn stale<T>(why: &'static str) -> Result<T, OpError> {
     Err(OpError::Stale(why))
 }
 
+fn subtree_representable(st: &super::model::Subtree) -> bool {
+    let loaded = st
+        .origin
+        .as_ref()
+        .is_some_and(|o| o.text_hash == super::model::text_hash(&st.text));
+    (loaded || super::model::text_is_representable(&st.text))
+        && st.children.iter().all(subtree_representable)
+}
+
 impl Op {
     /// Applies the op, filling captured data. On error the graph is unchanged.
     ///
@@ -174,7 +186,12 @@ impl Op {
                 parent,
                 index,
                 subtree,
-            } => ws.attach(page, *parent, *index, subtree.clone()),
+            } => {
+                if !subtree_representable(subtree) {
+                    return Err(OpError::Unrepresentable);
+                }
+                ws.attach(page, *parent, *index, subtree.clone())
+            }
             Self::RemoveSubtree { page, id, captured } => {
                 if ws.locate(*id) != Some(page) {
                     return Err(OpError::UnknownBlock(*id));

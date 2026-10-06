@@ -157,6 +157,10 @@ pub struct DiskSnapshot {
     pub bytes: Arc<[u8]>,
     /// BLAKE3 of `bytes`.
     pub hash: blake3::Hash,
+    /// File length when last stat'ed (with `mtime`, the cheap "unchanged" test before hashing).
+    pub len: Option<u64>,
+    /// File modification time when last stat'ed.
+    pub mtime: Option<std::time::SystemTime>,
 }
 
 impl DiskSnapshot {
@@ -166,16 +170,58 @@ impl DiskSnapshot {
         Self {
             bytes: Arc::from(bytes),
             hash: blake3::hash(bytes),
+            len: None,
+            mtime: None,
         }
     }
+}
+
+/// True when `text` survives a canonical write and re-parse as exactly one block of that text.
+///
+/// A line that starts (after indentation) with a bullet marker such as `- ` would be read back
+/// as a *new* block (Logseq's parser does the same: an indented `- ` line is a nested bullet),
+/// so such text cannot be stored in one block without changing the page structure.
+#[must_use]
+pub fn text_is_representable(text: &str) -> bool {
+    if text.trim().is_empty() {
+        return true;
+    }
+    let mut doc = Document::parse(Vec::new());
+    doc.blocks = vec![Node::Edited {
+        depth: 1,
+        content: text.to_owned(),
+    }];
+    let out = serialize(&doc, &WriteOptions::default());
+    let parsed = Document::parse(out);
+    parsed.blocks.len() == 1
+        && parsed.pre_block_text().is_none()
+        && parsed.blocks[0].depth() == 1
+        && parsed
+            .block_content(0)
+            .is_some_and(|c| c.trim() == text.trim())
 }
 
 /// Errors of page-level operations.
 #[derive(Debug, thiserror::Error)]
 pub enum ModelError {
+    /// The serializer output does not re-parse to the model, even rendered canonically; nothing
+    /// may be written.
+    #[error("serializer self-check failed: output does not match the page model")]
+    SelfCheckFailed,
     /// The freshly written bytes no longer match the model structure.
     #[error("saved bytes do not match the page model")]
     SnapshotMismatch,
+}
+
+/// Result of [`Page::serialize_checked`].
+#[derive(Debug, Clone)]
+pub struct Serialized {
+    /// The bytes to write.
+    pub bytes: Vec<u8>,
+    /// The preferred rendering failed the re-parse check and the canonical one was used.
+    pub fell_back: bool,
+    /// The bytes re-parse to the model (`false` = refuse to write).
+    pub ok: bool,
 }
 
 /// An editable page.
@@ -409,29 +455,40 @@ impl Page {
     /// we write never re-parses differently.
     #[must_use]
     pub fn serialize(&self) -> Vec<u8> {
-        let mut out = self.serialize_inner();
-        // A page that never existed on disk ends with a line break, like Logseq's files.
-        if self.disk.is_none() && !out.is_empty() && !out.ends_with(b"\n") {
-            out.push(b'\n');
-        }
-        out
+        self.serialize_checked().bytes
     }
 
-    fn serialize_inner(&self) -> Vec<u8> {
+    /// Like [`Page::serialize`] but reports the result of the self-check (BIT-US-0064): whether
+    /// the canonical fallback was needed and whether the output still mismatches the model, in
+    /// which case it must not be written.
+    #[must_use]
+    pub fn serialize_checked(&self) -> Serialized {
         let order = self.dfs();
         let mut doc = self.base.clone();
         doc.pre_block = self.pre_node();
         doc.blocks = self.nodes(&order, false);
-        let out = serialize(&doc, &WriteOptions::default());
-        if self.matches_model(&out, &order) {
-            return out;
+        let mut out = serialize(&doc, &WriteOptions::default());
+        let mut fell_back = false;
+        let mut ok = true;
+        if !self.matches_model(&out, &order) {
+            fell_back = true;
+            doc.pre_block = self.preamble.as_ref().map(|t| Node::Edited {
+                depth: 0,
+                content: t.clone(),
+            });
+            doc.blocks = self.nodes(&order, true);
+            out = serialize(&doc, &WriteOptions::default());
+            ok = self.matches_model(&out, &order);
         }
-        doc.pre_block = self.preamble.as_ref().map(|t| Node::Edited {
-            depth: 0,
-            content: t.clone(),
-        });
-        doc.blocks = self.nodes(&order, true);
-        serialize(&doc, &WriteOptions::default())
+        // A page that never existed on disk ends with a line break, like Logseq's files.
+        if self.disk.is_none() && !out.is_empty() && !out.ends_with(b"\n") {
+            out.push(b'\n');
+        }
+        Serialized {
+            bytes: out,
+            fell_back,
+            ok,
+        }
     }
 
     fn matches_model(&self, bytes: &[u8], order: &[BlockId]) -> bool {
@@ -454,6 +511,14 @@ impl Page {
                             .is_some_and(|c| c.trim() == b.text.trim())
                 })
             })
+    }
+
+    /// Records the stat of the file holding `disk` (after a write or a load).
+    pub fn set_disk_stat(&mut self, stat: Option<super::flush::FileStat>) {
+        if let (Some(d), Some(s)) = (self.disk.as_mut(), stat) {
+            d.len = Some(s.len);
+            d.mtime = s.mtime;
+        }
     }
 
     /// True when the page has to be written (content changed or file renamed).

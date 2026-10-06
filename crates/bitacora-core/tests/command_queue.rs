@@ -23,6 +23,14 @@ fn path() -> GraphPath {
     GraphPath::new("pages/p.md").expect("path")
 }
 
+/// Explicit flushes only: these tests inspect the dirty state between commands.
+fn manual() -> QueueConfig {
+    QueueConfig {
+        debounce: None,
+        ..QueueConfig::default()
+    }
+}
+
 fn spawn_with(src: &str, cfg: QueueConfig) -> (CommandQueue, QueueJoin) {
     let mut ws = Workspace::new();
     ws.load_page(key(), "p", Some(path()), src.as_bytes());
@@ -46,7 +54,7 @@ fn push(q: &CommandQueue, source: Source, text: &str) {
 
 #[test]
 fn two_producers_thousand_commands_each_all_applied_in_a_consistent_order() {
-    let (q, join) = spawn_with("- seed\n", QueueConfig::default());
+    let (q, join) = spawn_with("- seed\n", manual());
     let handles: Vec<_> = (0..2)
         .map(|p| {
             let q = q.clone();
@@ -99,7 +107,7 @@ fn two_producers_thousand_commands_each_all_applied_in_a_consistent_order() {
 #[test]
 fn identical_submission_order_gives_identical_state() {
     let run = || {
-        let (q, join) = spawn_with("- a\n- b\n", QueueConfig::default());
+        let (q, join) = spawn_with("- a\n- b\n", manual());
         for i in 0..50 {
             push(&q, Source::Ui, &format!("n{i}"));
         }
@@ -111,7 +119,7 @@ fn identical_submission_order_gives_identical_state() {
 
 #[test]
 fn refusals_and_errors_are_returned_and_state_is_unchanged() {
-    let (q, join) = spawn_with("- a\n", QueueConfig::default());
+    let (q, join) = spawn_with("- a\n", manual());
     let s0 = q.snapshot(&key()).expect("snap");
     let a = s0.blocks[0].id;
     let err = q
@@ -125,7 +133,7 @@ fn refusals_and_errors_are_returned_and_state_is_unchanged() {
 
 #[test]
 fn snapshots_never_block_and_reflect_commits_and_flush() {
-    let (q, join) = spawn_with("- a\n\t- a1\n", QueueConfig::default());
+    let (q, join) = spawn_with("- a\n\t- a1\n", manual());
     let s = q.snapshot(&key()).expect("snap");
     assert_eq!(
         s.blocks.iter().map(|b| b.depth).collect::<Vec<_>>(),
@@ -163,11 +171,12 @@ fn observers_see_commits_and_flushed_files() {
                 QueueEvent::Flushed(r) => format!("flush:{}", r.written.len()),
                 QueueEvent::FilesApplied { written, .. } => format!("applied:{}", written.len()),
                 QueueEvent::PageReloaded(_) => "reloaded".to_owned(),
+                _ => "other".to_owned(),
             };
             sink.lock().expect("lock").push(s);
         })],
         auto_flush: true,
-        ..QueueConfig::default()
+        ..manual()
     };
     let (q, join) = spawn_with("- a\n", cfg);
     push(&q, Source::Mcp, "x");
@@ -177,7 +186,7 @@ fn observers_see_commits_and_flushed_files() {
 
 #[test]
 fn load_page_is_refused_while_dirty() {
-    let (q, join) = spawn_with("- a\n", QueueConfig::default());
+    let (q, join) = spawn_with("- a\n", manual());
     push(&q, Source::Ui, "x");
     let load = |q: &CommandQueue| {
         q.execute(
@@ -200,7 +209,7 @@ fn load_page_is_refused_while_dirty() {
 
 #[test]
 fn lock_flushes_blocks_other_writers_and_applies_with_expected_check() {
-    let (q, join) = spawn_with("- a\n", QueueConfig::default());
+    let (q, join) = spawn_with("- a\n", manual());
     push(&q, Source::Ui, "dirty");
     let mut lock = q.acquire(Duration::from_secs(2)).expect("acquire");
     // acquire flushed the pending edit
@@ -264,7 +273,7 @@ fn lock_flushes_blocks_other_writers_and_applies_with_expected_check() {
 
 #[test]
 fn acquire_times_out_with_busy_and_does_not_leave_a_lock_behind() {
-    let (q, join) = spawn_with("- a\n", QueueConfig::default());
+    let (q, join) = spawn_with("- a\n", manual());
     let lock = q.acquire(Duration::from_secs(2)).expect("first");
     let err = q.acquire(Duration::from_millis(50)).expect_err("busy");
     assert!(matches!(err, QueueError::Busy));
@@ -282,7 +291,7 @@ fn reply_works_with_async_executors() {
             self.0.unpark();
         }
     }
-    let (q, join) = spawn_with("- a\n", QueueConfig::default());
+    let (q, join) = spawn_with("- a\n", manual());
     let mut fut = Box::pin(q.submit(
         Source::Mcp,
         Request::Run {
@@ -308,7 +317,7 @@ fn reply_works_with_async_executors() {
 
 #[test]
 fn closed_queue_reports_closed() {
-    let (q, join) = spawn_with("- a\n", QueueConfig::default());
+    let (q, join) = spawn_with("- a\n", manual());
     drop(join.shutdown());
     let err = q.run(
         Source::Ui,
