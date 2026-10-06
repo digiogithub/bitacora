@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [core, compat]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T20:00:00Z
+updated: 2026-10-06T20:27:13Z
 requirements:
   R1:
     status: backlog
@@ -157,6 +157,16 @@ requirements:
         - crates/bitacora-core/tests/page_lifecycle.rs#file_name_keeps_title_case_and_output_is_clean
   R17:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-core/src/editor/backup.rs
+        - crates/bitacora-core/src/editor/flush.rs
+        - crates/bitacora-core/src/editor/external.rs
+        - crates/bitacora-watch/src/process.rs
+      tests:
+        - crates/bitacora-core/tests/write_pipeline.rs
+        - crates/bitacora-core/tests/external_changes.rs
+        - crates/bitacora-watch/tests/watch.rs
   R18:
     status: backlog
     trace:
@@ -493,12 +503,12 @@ Bitacora SHALL read and write UTF-8, SHALL write LF line endings in files it cre
 
 ### BIT-SP-0002.R17 — External change protection and Logseq-layout backups
 
-Bitacora SHALL NOT rewrite a file whose on-disk content (trimmed) differs from Bitacora's last-known content without first merging, backing up or asking the user (Logseq's `:file/not-matched-from-disk`, `fs/node.cljs:44-50`). It SHOULD write backups before destructive overwrites in Logseq's layout `logseq/bak/<dir>/<stem>/<ISO-8601 timestamp with ":" → "_">.<Client>.<ext>`, keeping the newest 6 per directory (`backup_file.cljs:27-34`). It SHOULD watch the graph directory and re-parse files changed externally (Logseq, git, sync), using trimmed-content comparison to drop no-op events and ignoring a journal whose trimmed content equals `-` or the default template.
+Bitacora SHALL NOT rewrite a file whose on-disk content (trimmed) differs from Bitacora's last-known content without first merging, backing up or asking the user (Logseq's `:file/not-matched-from-disk`, `fs/node.cljs:44-50`). It SHOULD write backups before destructive overwrites in Logseq's layout `logseq/bak/<dir>/<stem>/<ISO-8601 timestamp with ":" → "_">.<Client>.<ext>`, keeping the newest 6 per directory (`backup_file.cljs:27-34`); the client label is `Desktop`, as in Logseq 0.10.x (`src/electron/electron/backup_file.cljs:47`). It SHOULD watch the graph directory and re-parse files changed externally (Logseq, git, sync), using trimmed-content comparison to drop no-op events and ignoring a journal whose trimmed content equals `-` or the default template.
 
 #### Scenario: Backup layout
 - GIVEN `pages/foo.md` changed on disk after Bitacora read it
 - WHEN the user's pending edit is applied after confirmation
-- THEN the previous disk content is saved as `logseq/bak/pages/foo/2025-11-14T09_30_12.345Z.Bitacora.md` and at most 6 files remain in `logseq/bak/pages/foo/`
+- THEN the previous disk content is saved as `logseq/bak/pages/foo/2025-11-14T09_30_12.345Z.Desktop.md` and at most 6 files remain in `logseq/bak/pages/foo/`
 
 #### Scenario: Whitespace-only external change
 - GIVEN an external tool appends a trailing newline to `pages/foo.md`

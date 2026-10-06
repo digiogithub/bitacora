@@ -109,6 +109,29 @@ jobs:
             exit 1
           fi
 
+  test-core-os:
+    # Headless crates on macOS and Windows too (Linux is covered by test-core). Built without
+    # bitacora-app, so gpui-kit is never compiled and no GUI packages are needed.
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
+    name: test-core (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    steps:
+      - name: Windows - check out with CRLF conversion on (proves .gitattributes keeps fixtures exact)
+        if: runner.os == 'Windows'
+        run: git config --global core.autocrlf true
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache-shared-key: test-core-${{ matrix.os }}
+          cache-save-if: ${{ github.ref == 'refs/heads/main' }}
+      - name: Test headless crates
+        run: cargo test --workspace --exclude bitacora-app --locked
+
   lint:
     needs: changes
     if: needs.changes.outputs.rust == 'true'

@@ -10,7 +10,7 @@ author: mcp
 labels: [core, io, bitacora-core, bitacora-app]
 estimate: 5
 created: 2026-10-06T14:29:01Z
-updated: 2026-10-06T18:52:32Z
+updated: 2026-10-06T20:27:13Z
 closed: 2026-10-06T18:52:32Z
 ---
 
@@ -24,5 +24,5 @@ As a Logseq user, I want previous versions of a page saved in `logseq/bak/` (whe
 - Multi-file transactions report the list of files not written.
 
 ## Notes
-Implements: BIT-SP-0005.R9, BIT-SP-0005.R10.
+Implements: BIT-SP-0005.R9, BIT-SP-0005.R10, BIT-SP-0002.R17.
 See [[01-file-graph-layout]] §11 and requirement 19, [[block-editor]] §5.2 step 7 and §5.3, [[04-editor-outliner-operations]] §5 step 10. ADR-011.
