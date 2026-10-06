@@ -1,0 +1,4 @@
+- shared block text for id
+  id:: 11110000-0000-4000-8000-000000000001
+  tag:: ours
+- tail

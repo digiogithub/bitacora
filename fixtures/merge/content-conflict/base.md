@@ -1,0 +1,3 @@
+- a
+- the shared block text here
+- c

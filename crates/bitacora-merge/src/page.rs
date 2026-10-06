@@ -17,7 +17,7 @@ use bitacora_markdown::{
 
 use crate::block::{MergedBlock, merge_block};
 use crate::conflict::{Conflict, ConflictKind, IdRewrite, Note, NoteKind, PageConflict};
-use crate::fields::{diff3, merge_content, merge_user_props};
+use crate::fields::{diff3_touching, merge_content, merge_user_props};
 use crate::matcher::match_blocks;
 use crate::meta::MergeEnv;
 use crate::model::{BlockKey, MergeBlock, MergePage, PreBlock, PropEntry};
@@ -92,7 +92,7 @@ pub fn merge_lines(base: &str, ours: &str, theirs: &str) -> MergeResult {
         v.iter().map(String::as_str).collect()
     }
     let (b, o, t) = (split(base), split(ours), split(theirs));
-    let m = diff3(&refs(&b), &refs(&o), &refs(&t));
+    let m = diff3_touching(&refs(&b), &refs(&o), &refs(&t));
     let mut r = MergeResult {
         output: m.lines.concat(),
         ..MergeResult::default()
