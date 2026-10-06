@@ -7,6 +7,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Component, Path, PathBuf};
 use std::sync::mpsc::Receiver;
 
+use bitacora_index::query::{Cell, QueryContext, QueryError, ResultKind};
 use bitacora_index::search::{Scope, SearchHit, SearchOptions, search};
 use bitacora_index::{
     BlockRow, Index, IndexEvent, IndexReader, IndexStats, PageFilter, PageRow, PageSort,
@@ -16,9 +17,24 @@ use tokio::sync::broadcast;
 
 use crate::dates;
 use crate::reader::{
-    BlockInfo, ChangeEvent, GraphInfo, GraphReader, ListPagesQuery, PageInfo, ReaderError,
-    ReaderResult, RefGroupInfo, RefItem, SearchItem, SearchKind, SearchQuery, TaskQuery,
+    BlockInfo, ChangeEvent, GraphInfo, GraphReader, ListPagesQuery, PageInfo, QueryOutcome,
+    QueryRequest, ReaderError, ReaderErrorKind, ReaderResult, RefGroupInfo, RefItem, SearchItem,
+    SearchKind, SearchQuery, TaskQuery,
 };
+
+/// Upper bound of rows a query may produce before pagination.
+const QUERY_ROW_CAP: usize = 5000;
+
+fn cell_json(c: &Cell) -> serde_json::Value {
+    match c {
+        Cell::Null => serde_json::Value::Null,
+        Cell::Int(n) => serde_json::json!(n),
+        Cell::Real(f) => serde_json::json!(f),
+        Cell::Text(t) => serde_json::json!(t),
+        Cell::Block(b) => serde_json::json!({"block": b.uuid}),
+        Cell::Page(p) => serde_json::json!({"page": p.original_name}),
+    }
+}
 
 fn ie(e: impl std::fmt::Display) -> ReaderError {
     ReaderError::internal(e.to_string())
@@ -468,6 +484,91 @@ impl GraphReader for IndexGraphReader {
             .iter()
             .map(|t| self.block_info(&t.block, &mut names))
             .collect()
+    }
+
+    fn run_query(&self, q: &QueryRequest) -> ReaderResult<QueryOutcome> {
+        let text = q.text.trim();
+        let today = dates::today_int();
+        let date = bitacora_core::date::Date::new(
+            i32::try_from(today / 10_000).unwrap_or(1970),
+            u8::try_from((today / 100) % 100).unwrap_or(1),
+            u8::try_from(today % 100).unwrap_or(1),
+        )
+        .ok_or_else(|| ReaderError::internal("invalid local date"))?;
+        let mut ctx = QueryContext::new(date, jiff::Timestamp::now().as_millisecond());
+        if let Some(ms) = dates::day_start_ms(today) {
+            ctx.today_start_ms = ms;
+        }
+        ctx.limit = Some(QUERY_ROW_CAP);
+        ctx.current_block = q.current_block.clone();
+        ctx.current_page = match q.current_page.as_deref().map(str::trim) {
+            None | Some("") => None,
+            Some(name) => Some(match self.page_row(name)? {
+                Some(p) => p.name,
+                None => name.to_lowercase(),
+            }),
+        };
+        let qe = |e: QueryError| match e {
+            QueryError::Syntax(m) => ReaderError::invalid_query(m),
+            QueryError::Unsupported(c) => ReaderError {
+                kind: ReaderErrorKind::NotSupported,
+                message: format!("unsupported: {c}"),
+            },
+            QueryError::Index(e) => ie(e),
+        };
+        if text.starts_with("#+") || text.starts_with('{') || text.starts_with("[:find") {
+            let out = self.api.query_advanced(text, &ctx).map_err(qe)?;
+            let warnings = out.warnings.iter().map(ToString::to_string).collect();
+            let all_blocks = !out.rows.is_empty()
+                && out
+                    .rows
+                    .iter()
+                    .all(|r| r.len() == 1 && matches!(r[0], Cell::Block(_)));
+            let all_pages = !out.rows.is_empty()
+                && out
+                    .rows
+                    .iter()
+                    .all(|r| r.len() == 1 && matches!(r[0], Cell::Page(_)));
+            let mut res = QueryOutcome {
+                title: out.title.clone(),
+                warnings,
+                ..QueryOutcome::default()
+            };
+            if all_blocks {
+                let rows: Vec<BlockRow> = out.blocks().into_iter().cloned().collect();
+                res.kind = "blocks".into();
+                res.blocks = self.blocks(&rows)?;
+            } else if all_pages {
+                res.kind = "pages".into();
+                for p in out.pages() {
+                    res.pages.push(self.page_info(p)?);
+                }
+            } else {
+                res.kind = "rows".into();
+                res.columns = out.columns.clone();
+                res.rows = out
+                    .rows
+                    .iter()
+                    .map(|r| r.iter().map(cell_json).collect())
+                    .collect();
+            }
+            return Ok(res);
+        }
+        let out = self.api.query_simple(text, &ctx).map_err(qe)?;
+        let mut res = QueryOutcome::default();
+        match out.kind {
+            ResultKind::Blocks => {
+                res.kind = "blocks".into();
+                res.blocks = self.blocks(&out.blocks)?;
+            }
+            ResultKind::Pages => {
+                res.kind = "pages".into();
+                for p in &out.pages {
+                    res.pages.push(self.page_info(p)?);
+                }
+            }
+        }
+        Ok(res)
     }
 
     fn page_file_text(&self, page: &PageInfo) -> ReaderResult<Option<String>> {

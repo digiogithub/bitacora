@@ -64,6 +64,7 @@ impl From<ReaderError> for ToolError {
         let code = match e.kind {
             ReaderErrorKind::NotSupported => Code::NotSupported,
             ReaderErrorKind::Invalid => Code::InvalidArgument,
+            ReaderErrorKind::InvalidQuery => Code::InvalidQuery,
             ReaderErrorKind::Internal => Code::Internal,
         };
         Self::new(code, e.message)

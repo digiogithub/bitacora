@@ -314,8 +314,10 @@ impl BitacoraMcp {
     }
 
     #[tool(
-        description = "Logseq simple query (Logseq DB.q). Subset today: and, (task ...), (priority ...), \
-                       [[page]] and \"text\"; other terms return NOT_SUPPORTED, datalog INVALID_QUERY.",
+        description = "Logseq query: simple DSL (and/or/not, task, priority, between, property, \
+                       page-property, sort-by, ...) or an advanced query (#+BEGIN_QUERY block or EDN \
+                       datalog map). Paginated; unsupported constructs give NOT_SUPPORTED \
+                       `unsupported: <construct>` or a warning.",
         annotations(read_only_hint = true, open_world_hint = false),
         output_schema = schema_for_type::<QueryOut>()
     )]
