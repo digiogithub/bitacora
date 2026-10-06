@@ -227,6 +227,20 @@ impl Workspace {
         only: Option<&[PageKey]>,
     ) -> FlushReport {
         let mut report = FlushReport::default();
+        let creates: Vec<_> = self
+            .pending_creates()
+            .iter()
+            .map(|(p, b)| (p.clone(), b.clone()))
+            .collect();
+        for (path, bytes) in creates {
+            match store.write(&path, &bytes) {
+                Ok(()) => self.finish_create(&path),
+                Err(e) => {
+                    let k = PageKey::from_title(path.as_str());
+                    fail(&mut report, &k, &path, e.to_string());
+                }
+            }
+        }
         let restores: Vec<_> = self.pending_restores().iter().cloned().collect();
         for path in restores {
             match store.unrecycle(&path) {

@@ -28,7 +28,7 @@ pub use clipboard::{
     ClipBlock, ClipboardPayload, PRIVATE_MIME, PasteKind, classify_paste, export_blocks,
     parse_outline, parse_private, to_markdown,
 };
-pub use cmd::{Cmd, Planned, Refusal, Target, plan, plan_full};
+pub use cmd::{Cmd, NewAsset, Planned, Refusal, Target, plan, plan_full};
 pub use complete::{
     BlockSuggestion, Completion, CompletionProvider, PageSuggestion, WorkspaceProvider,
     block_candidates, block_embed_text, block_ref_text, complete_page, page_candidates,

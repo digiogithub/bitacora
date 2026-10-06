@@ -53,6 +53,13 @@ pub enum PageEvent {
     Navigate(NavTarget),
     /// The user Shift+clicked: show the target in the right sidebar.
     OpenInSidebar(NavTarget),
+    /// The user asked to delete the file behind an asset link (BIT-US-0096).
+    DeleteAsset {
+        /// Link target (`../assets/x.png`).
+        link: String,
+        /// Index uuid of the block that holds the link.
+        block: Option<String>,
+    },
 }
 
 impl PageEvent {
@@ -317,6 +324,10 @@ impl PageView {
                 cx.notify();
             }
             EditorEvent::Leave { .. } => {}
+            EditorEvent::DeleteAsset { link, block } => cx.emit(PageEvent::DeleteAsset {
+                link: link.clone(),
+                block: block.clone(),
+            }),
             EditorEvent::Entered(r) => {
                 if let Some(pos) = self.item_position(Item::Block(*r)) {
                     self.list_state.scroll_to_reveal_item(pos);
@@ -1653,6 +1664,21 @@ mod tests {
         assert_eq!(resolve_asset(root, "../../etc/passwd"), None);
         assert_eq!(resolve_asset(root, "/etc/passwd"), None);
         assert_eq!(resolve_asset(root, "https://x.org/a.png"), None);
+    }
+
+    #[test]
+    fn asset_links_resolve_from_deep_pages_and_aliases_stay_unresolved() {
+        let dir = tempfile::tempdir().expect("dir");
+        std::fs::create_dir_all(dir.path().join("assets")).expect("assets");
+        std::fs::write(dir.path().join("assets/a b.png"), [1]).expect("file");
+        let root = dir.path();
+        // From `pages/sub/x.md` the link climbs two levels: not under `pages/`, so it falls back
+        // to `<root>/assets`.
+        assert_eq!(
+            resolve_asset(root, "../../assets/a%20b.png"),
+            Some(root.join("assets/a b.png"))
+        );
+        assert_eq!(resolve_asset(root, "@alias/x.pdf"), None);
     }
 
     /// Every fixture page builds a model without panicking, and a sample of them is drawn.

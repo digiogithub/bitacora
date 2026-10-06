@@ -967,6 +967,9 @@ impl Workspace {
                 self.open_in_right_sidebar(route.clone(), window, cx);
             }
             MainEvent::ConflictJump => self.open_conflicts(window, cx),
+            MainEvent::DeleteAsset { link, block } => {
+                self.request_delete_asset(link.clone(), block.clone(), window, cx);
+            }
             MainEvent::BlockFocus(focus) => {
                 if let Some(queue) = self.queue() {
                     editing::sync_editing_block(queue, &focus.title, focus.block_index);

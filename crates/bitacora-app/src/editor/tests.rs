@@ -172,6 +172,44 @@ fn editing_row(ed: &Entity<OutlineEditor>, cx: &mut VisualTestContext) -> Option
     })
 }
 
+/// Keystrokes with the platform "secondary" modifier (Cmd on macOS, Ctrl elsewhere); the keymap
+/// binds `secondary-...`.
+fn k(keys: &str) -> String {
+    if cfg!(target_os = "macos") {
+        keys.replace("ctrl-", "cmd-")
+    } else {
+        keys.to_owned()
+    }
+}
+
+/// Keystrokes with the word-motion modifier (Alt on macOS, Ctrl elsewhere).
+fn kw(keys: &str) -> String {
+    if cfg!(target_os = "macos") {
+        keys.replace("ctrl-", "alt-")
+    } else {
+        keys.to_owned()
+    }
+}
+
+/// Move-block keys (Alt+Shift+Up/Down; Cmd+Shift+Up/Down on macOS).
+fn km(keys: &str) -> String {
+    if cfg!(target_os = "macos") {
+        keys.replace("alt-shift-", "cmd-shift-")
+    } else {
+        keys.to_owned()
+    }
+}
+
+/// Zoom keys (Alt+Right/Left; Cmd+. and Cmd+, on macOS where Alt moves by word).
+fn kz(keys: &str) -> String {
+    if cfg!(target_os = "macos") {
+        keys.replace("alt-right", "cmd-.")
+            .replace("alt-left", "cmd-,")
+    } else {
+        keys.to_owned()
+    }
+}
+
 fn pair(depth: usize, text: &str) -> (usize, String) {
     (depth, text.to_owned())
 }
@@ -390,7 +428,7 @@ fn tab_shift_tab_and_alt_shift_arrows_restructure_and_keep_the_caret(cx: &mut Te
     assert_eq!(editing_row(&ed, cx), Some(1));
     cx.simulate_keystrokes("shift-tab");
     assert_eq!(env.snapshot_texts("Home")[1], pair(1, "b"));
-    cx.simulate_keystrokes("alt-shift-up");
+    cx.simulate_keystrokes(&km("alt-shift-up"));
     assert_eq!(
         env.snapshot_texts("Home"),
         [pair(1, "b"), pair(1, "a"), pair(1, "c")]
@@ -400,7 +438,7 @@ fn tab_shift_tab_and_alt_shift_arrows_restructure_and_keep_the_caret(cx: &mut Te
         Some(0),
         "the caret follows the moved block"
     );
-    cx.simulate_keystrokes("alt-shift-down alt-shift-down");
+    cx.simulate_keystrokes(&km("alt-shift-down alt-shift-down"));
     assert_eq!(
         env.snapshot_texts("Home"),
         [pair(1, "a"), pair(1, "c"), pair(1, "b")]
@@ -417,19 +455,19 @@ fn collapse_and_expand_persist_collapsed_true_and_restore_the_bytes(cx: &mut Tes
     let env = Env::new(&[(HOME, "- a\n\t- a1\n\t- a2\n- b\n")]);
     let (view, ed, cx) = open_page(cx, &env, "Home");
     edit(&ed, 0, Caret::End, cx);
-    cx.simulate_keystrokes("ctrl-up");
+    cx.simulate_keystrokes(&k("ctrl-up"));
     assert_eq!(
         env.disk(HOME),
         "- a\n  collapsed:: true\n\t- a1\n\t- a2\n- b\n"
     );
     assert_eq!(view.read_with(cx, |v, _| v.visible_count()), 2);
     assert_eq!(editing_row(&ed, cx), Some(0));
-    cx.simulate_keystrokes("ctrl-down");
+    cx.simulate_keystrokes(&k("ctrl-down"));
     assert_eq!(env.disk(HOME), "- a\n\t- a1\n\t- a2\n- b\n");
     assert_eq!(view.read_with(cx, |v, _| v.visible_count()), 4);
     // Leaves are ignored.
     edit(&ed, 1, Caret::End, cx);
-    cx.simulate_keystrokes("ctrl-up");
+    cx.simulate_keystrokes(&k("ctrl-up"));
     assert_eq!(env.disk(HOME), "- a\n\t- a1\n\t- a2\n- b\n");
 }
 
@@ -452,10 +490,10 @@ fn ctrl_enter_cycles_the_task_marker_and_the_checkbox_toggles_done(cx: &mut Test
     let env = Env::new(&[(HOME, "- write\n- other\n")]);
     let (_view, ed, cx) = open_page(cx, &env, "Home");
     edit(&ed, 0, Caret::End, cx);
-    cx.simulate_keystrokes("ctrl-enter");
+    cx.simulate_keystrokes(&k("ctrl-enter"));
     assert_eq!(env.snapshot_texts("Home")[0].1, "LATER write");
     assert_eq!(buffer(&ed, cx).as_deref(), Some("LATER write"));
-    cx.simulate_keystrokes("ctrl-enter ctrl-enter ctrl-enter");
+    cx.simulate_keystrokes(&k("ctrl-enter ctrl-enter ctrl-enter"));
     assert_eq!(
         env.snapshot_texts("Home")[0].1,
         "write",
@@ -501,7 +539,7 @@ fn escape_selects_shift_arrows_extend_and_bulk_operations_use_one_transaction(
         [pair(1, "a"), pair(2, "b"), pair(2, "c"), pair(1, "d")]
     );
     // Undo reverts both blocks in one step.
-    cx.simulate_keystrokes("ctrl-z");
+    cx.simulate_keystrokes(&k("ctrl-z"));
     assert_eq!(
         env.snapshot_texts("Home")
             .iter()
@@ -509,7 +547,7 @@ fn escape_selects_shift_arrows_extend_and_bulk_operations_use_one_transaction(
             .collect::<Vec<_>>(),
         [1, 1, 1, 1]
     );
-    cx.simulate_keystrokes("ctrl-shift-z");
+    cx.simulate_keystrokes(&k("ctrl-shift-z"));
     assert_eq!(
         env.snapshot_texts("Home")
             .iter()
@@ -524,7 +562,7 @@ fn selection_delete_enter_and_select_all(cx: &mut TestAppContext) {
     let env = Env::new(&[(HOME, "- a\n- b\n- c\n")]);
     let (_view, ed, cx) = open_page(cx, &env, "Home");
     edit(&ed, 0, Caret::End, cx);
-    cx.simulate_keystrokes("escape ctrl-shift-a");
+    cx.simulate_keystrokes(&k("escape ctrl-shift-a"));
     assert_eq!(ed.read_with(cx, |e, _| e.selected_blocks().len()), 3);
     cx.simulate_keystrokes("escape");
     assert!(!ed.read_with(cx, |e, _| e.has_selection()));
@@ -545,7 +583,7 @@ fn ctrl_a_in_selection_mode_selects_the_parent(cx: &mut TestAppContext) {
     let (_view, ed, cx) = open_page(cx, &env, "Home");
     let child = ids(&ed, cx)[1];
     ed.update_in(cx, |e, window, cx| e.select_only(child, window, cx));
-    cx.simulate_keystrokes("ctrl-a");
+    cx.simulate_keystrokes(&k("ctrl-a"));
     let parent = ids(&ed, cx)[0];
     assert_eq!(ed.read_with(cx, |e, _| e.selected_blocks()), [parent]);
 }
@@ -558,7 +596,7 @@ fn copy_cut_and_paste_of_block_subtrees(cx: &mut TestAppContext) {
     )]);
     let (_view, ed, cx) = open_page(cx, &env, "Home");
     edit(&ed, 0, Caret::End, cx);
-    cx.simulate_keystrokes("escape ctrl-c");
+    cx.simulate_keystrokes(&k("escape ctrl-c"));
     // Plain text: tab-indented Markdown without id::.
     assert_eq!(
         cx.read_from_clipboard().and_then(|c| c.text()),
@@ -567,7 +605,7 @@ fn copy_cut_and_paste_of_block_subtrees(cx: &mut TestAppContext) {
     // Paste after block b: a copy gets fresh identities (no id:: line).
     let b = ids(&ed, cx)[2];
     ed.update_in(cx, |e, window, cx| e.select_only(b, window, cx));
-    cx.simulate_keystrokes("ctrl-v");
+    cx.simulate_keystrokes(&k("ctrl-v"));
     let texts = env.snapshot_texts("Home");
     assert_eq!(texts.len(), 5, "{texts:?}");
     assert_eq!(texts[3], pair(1, "a"));
@@ -575,11 +613,11 @@ fn copy_cut_and_paste_of_block_subtrees(cx: &mut TestAppContext) {
     // Cut removes the subtree and the paste restores it with its id::.
     let a = ids(&ed, cx)[0];
     ed.update_in(cx, |e, window, cx| e.select_only(a, window, cx));
-    cx.simulate_keystrokes("ctrl-x");
+    cx.simulate_keystrokes(&k("ctrl-x"));
     assert_eq!(env.snapshot_texts("Home").len(), 3);
     let last = *ids(&ed, cx).last().expect("last");
     ed.update_in(cx, |e, window, cx| e.select_only(last, window, cx));
-    cx.simulate_keystrokes("ctrl-v");
+    cx.simulate_keystrokes(&k("ctrl-v"));
     assert!(
         env.disk(HOME)
             .contains("id:: 6f2c1b7a-0000-4000-8000-000000000001"),
@@ -598,7 +636,7 @@ fn pasting_a_markdown_list_while_editing_creates_blocks_and_plain_text_goes_inli
     cx.write_to_clipboard(crate::ui::text_edit::ClipboardItem::new_string(
         "- one\n  - two\n- three".to_owned(),
     ));
-    cx.simulate_keystrokes("ctrl-v");
+    cx.simulate_keystrokes(&k("ctrl-v"));
     assert_eq!(
         env.snapshot_texts("Home"),
         [
@@ -614,14 +652,14 @@ fn pasting_a_markdown_list_while_editing_creates_blocks_and_plain_text_goes_inli
     cx.write_to_clipboard(crate::ui::text_edit::ClipboardItem::new_string(
         "+x".to_owned(),
     ));
-    cx.simulate_keystrokes("ctrl-v");
+    cx.simulate_keystrokes(&k("ctrl-v"));
     assert_eq!(buffer(&ed, cx).as_deref(), Some("tail+x"));
     // HTML is converted to Markdown, a list becomes blocks.
     cx.write_to_clipboard(crate::ui::text_edit::ClipboardItem::new_string(
         "<ul><li>h1</li><li>h2</li></ul>".to_owned(),
     ));
     edit(&ed, 3, Caret::End, cx);
-    cx.simulate_keystrokes("ctrl-v");
+    cx.simulate_keystrokes(&k("ctrl-v"));
     let texts = env.snapshot_texts("Home");
     assert!(
         texts.iter().any(|t| t.1 == "h1") && texts.iter().any(|t| t.1 == "h2"),
@@ -636,7 +674,7 @@ fn undo_and_redo_restore_the_text_the_caret_and_the_bytes(cx: &mut TestAppContex
     edit(&ed, 0, Caret::Visible(2), cx);
     cx.simulate_keystrokes("enter");
     assert_eq!(env.snapshot_texts("Home").len(), 3);
-    cx.simulate_keystrokes("ctrl-z");
+    cx.simulate_keystrokes(&k("ctrl-z"));
     assert_eq!(env.snapshot_texts("Home").len(), 2);
     assert_eq!(
         env.disk(HOME),
@@ -649,7 +687,7 @@ fn undo_and_redo_restore_the_text_the_caret_and_the_bytes(cx: &mut TestAppContex
         2,
         "caret restored"
     );
-    cx.simulate_keystrokes("ctrl-shift-z");
+    cx.simulate_keystrokes(&k("ctrl-shift-z"));
     assert_eq!(env.snapshot_texts("Home").len(), 3);
     assert_eq!(
         editing_row(&ed, cx),
@@ -658,13 +696,13 @@ fn undo_and_redo_restore_the_text_the_caret_and_the_bytes(cx: &mut TestAppContex
     );
     // Typing is undone in word-sized steps and the buffer follows.
     cx.simulate_input("abc");
-    cx.simulate_keystrokes("ctrl-z");
+    cx.simulate_keystrokes(&k("ctrl-z"));
     assert_eq!(
         buffer(&ed, cx).as_deref(),
         Some("llo"),
         "typing undone, caret restored"
     );
-    cx.simulate_keystrokes("ctrl-y");
+    cx.simulate_keystrokes(&k("ctrl-y"));
     assert_eq!(buffer(&ed, cx).as_deref(), Some("abcllo"));
 }
 
@@ -673,7 +711,7 @@ fn zoom_in_re_roots_the_view_with_a_breadcrumb_and_changes_no_file(cx: &mut Test
     let env = Env::new(&[(HOME, "- p\n\t- c1\n\t\t- g\n- q\n")]);
     let (view, ed, cx) = open_page(cx, &env, "Home");
     edit(&ed, 1, Caret::End, cx);
-    cx.simulate_keystrokes("ctrl-.");
+    cx.simulate_keystrokes(&k("ctrl-."));
     assert_eq!(
         view.read_with(cx, |v, _| v.rows().len()),
         2,
@@ -683,7 +721,7 @@ fn zoom_in_re_roots_the_view_with_a_breadcrumb_and_changes_no_file(cx: &mut Test
     let crumbs: Vec<String> =
         ed.read_with(cx, |e, _| e.crumbs().into_iter().map(|c| c.0).collect());
     assert_eq!(crumbs, ["Home", "p", "c1"]);
-    cx.simulate_keystrokes("ctrl-,");
+    cx.simulate_keystrokes(&k("ctrl-,"));
     let parent = ids(&ed, cx)[0];
     assert_eq!(ed.read_with(cx, |e, _| e.zoom_root()), Some(parent));
     assert_eq!(
@@ -691,7 +729,7 @@ fn zoom_in_re_roots_the_view_with_a_breadcrumb_and_changes_no_file(cx: &mut Test
         3,
         "zoomed out to the parent"
     );
-    cx.simulate_keystrokes("ctrl-,");
+    cx.simulate_keystrokes(&k("ctrl-,"));
     assert_eq!(ed.read_with(cx, |e, _| e.zoom_root()), None);
     assert_eq!(view.read_with(cx, |v, _| v.rows().len()), 4);
     assert_eq!(env.disk(HOME), "- p\n\t- c1\n\t\t- g\n- q\n");
@@ -917,7 +955,7 @@ fn block_reference_completion_writes_the_id_in_the_same_undo_step(cx: &mut TestA
     );
     assert_eq!(env.disk("pages/Facts.md").matches("id::").count(), 1);
     // One undo removes the reference and the id:: together.
-    cx.simulate_keystrokes("ctrl-z");
+    cx.simulate_keystrokes(&k("ctrl-z"));
     assert_eq!(env.snapshot_texts("Home")[0].1, "one ((important))");
     assert_eq!(
         env.disk("pages/Facts.md"),
@@ -932,7 +970,7 @@ fn copy_block_ref_and_embed_persist_an_id_only_for_referenced_blocks(cx: &mut Te
     edit(&ed, 1, Caret::End, cx);
     // No id:: until a reference is copied.
     assert_eq!(env.disk(HOME), "- one\n- two\n");
-    cx.simulate_keystrokes("ctrl-c");
+    cx.simulate_keystrokes(&k("ctrl-c"));
     let copied = cx
         .read_from_clipboard()
         .and_then(|c| c.text())
@@ -947,14 +985,14 @@ fn copy_block_ref_and_embed_persist_an_id_only_for_referenced_blocks(cx: &mut Te
         "{}",
         env.disk(HOME)
     );
-    cx.simulate_keystrokes("ctrl-e");
+    cx.simulate_keystrokes(&k("ctrl-e"));
     let embed = cx
         .read_from_clipboard()
         .and_then(|c| c.text())
         .expect("clipboard");
     assert_eq!(embed, format!("{{{{embed (({uuid}))}}}}"));
     // Copying with a text selection copies the text, not a reference.
-    cx.simulate_keystrokes("ctrl-a ctrl-c");
+    cx.simulate_keystrokes(&k("ctrl-a ctrl-c"));
     assert_eq!(
         cx.read_from_clipboard().and_then(|c| c.text()),
         Some("two".to_owned())
@@ -1153,25 +1191,25 @@ fn text_keys_inside_the_edited_block(cx: &mut TestAppContext) {
     let (_view, ed, cx) = open_page(cx, &env, "Home");
     edit(&ed, 0, Caret::End, cx);
     // Word motion, word selection and word deletion.
-    cx.simulate_keystrokes("ctrl-left");
+    cx.simulate_keystrokes(&kw("ctrl-left"));
     assert_eq!(ed.read_with(cx, |e, _| e.cursor_offset()), 11);
-    cx.simulate_keystrokes("ctrl-shift-left");
+    cx.simulate_keystrokes(&kw("ctrl-shift-left"));
     assert_eq!(ed.read_with(cx, |e, _| e.selection_range()), 6..11);
-    cx.simulate_keystrokes("ctrl-right");
+    cx.simulate_keystrokes(&kw("ctrl-right"));
     assert_eq!(ed.read_with(cx, |e, _| e.cursor_offset()), 10);
-    cx.simulate_keystrokes("ctrl-backspace");
+    cx.simulate_keystrokes(&kw("ctrl-backspace"));
     assert_eq!(buffer(&ed, cx).as_deref(), Some("alpha  gamma"));
-    cx.simulate_keystrokes("home ctrl-delete");
+    cx.simulate_keystrokes(&kw("home ctrl-delete"));
     assert_eq!(buffer(&ed, cx).as_deref(), Some("  gamma"));
     // Select all text, copy, cut, paste and raw paste.
-    cx.simulate_keystrokes("ctrl-a ctrl-c");
+    cx.simulate_keystrokes(&k("ctrl-a ctrl-c"));
     assert_eq!(
         cx.read_from_clipboard().and_then(|c| c.text()),
         Some("  gamma".to_owned())
     );
-    cx.simulate_keystrokes("ctrl-x");
+    cx.simulate_keystrokes(&k("ctrl-x"));
     assert_eq!(buffer(&ed, cx).as_deref(), Some(""));
-    cx.simulate_keystrokes("ctrl-v ctrl-shift-v");
+    cx.simulate_keystrokes(&k("ctrl-v ctrl-shift-v"));
     assert_eq!(buffer(&ed, cx).as_deref(), Some("  gamma  gamma"));
     // Shift+Home/End and Shift+Up/Down select inside and across the block edge.
     cx.simulate_keystrokes("home shift-end");
@@ -1189,20 +1227,20 @@ fn alt_arrows_zoom_and_ctrl_semicolon_toggles_all(cx: &mut TestAppContext) {
     let env = Env::new(&[(HOME, "- p\n\t- c\n\t\t- g\n- q\n\t- q1\n")]);
     let (view, ed, cx) = open_page(cx, &env, "Home");
     edit(&ed, 1, Caret::End, cx);
-    cx.simulate_keystrokes("alt-right");
+    cx.simulate_keystrokes(&kz("alt-right"));
     assert_eq!(view.read_with(cx, |v, _| v.rows().len()), 2);
-    cx.simulate_keystrokes("alt-left");
+    cx.simulate_keystrokes(&kz("alt-left"));
     assert_eq!(
         view.read_with(cx, |v, _| v.rows().len()),
         3,
         "zoomed out to the parent"
     );
-    cx.simulate_keystrokes("alt-left");
+    cx.simulate_keystrokes(&kz("alt-left"));
     assert_eq!(view.read_with(cx, |v, _| v.rows().len()), 5);
     edit(&ed, 0, Caret::End, cx);
-    cx.simulate_keystrokes("ctrl-;");
+    cx.simulate_keystrokes(&k("ctrl-;"));
     assert_eq!(view.read_with(cx, |v, _| v.visible_count()), 2);
-    cx.simulate_keystrokes("ctrl-;");
+    cx.simulate_keystrokes(&k("ctrl-;"));
     assert_eq!(view.read_with(cx, |v, _| v.visible_count()), 5);
     assert_eq!(env.disk(HOME), "- p\n\t- c\n\t\t- g\n- q\n\t- q1\n");
 }
@@ -1335,4 +1373,122 @@ fn the_completion_popup_floats_instead_of_pushing_the_rows(cx: &mut TestAppConte
         "the next row did not move down (it was at {:?} before editing)",
         before.top()
     );
+}
+
+fn wait_for(cx: &mut VisualTestContext, done: impl Fn() -> bool) {
+    cx.executor().allow_parking();
+    for _ in 0..400 {
+        cx.run_until_parked();
+        if done() {
+            return;
+        }
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    panic!("condition not reached");
+}
+
+fn assets_in(env: &Env) -> Vec<String> {
+    let _ = env.queue().flush(Source::Ui);
+    std::fs::read_dir(env.graph.path().join("assets"))
+        .map(|d| {
+            d.map(|e| e.expect("entry").file_name().to_string_lossy().into_owned())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+#[gpui_test]
+fn dropping_files_on_a_block_saves_assets_and_links_them(cx: &mut TestAppContext) {
+    let env = Env::new(&[("pages/sub/Home.md", "- one\n- two\n")]);
+    let src = tempfile::tempdir().expect("src");
+    let doc = src.path().join("report 50%.docx");
+    std::fs::write(&doc, [9u8, 9]).expect("doc");
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    ed.update_in(cx, |e, window, cx| {
+        e.drop_files(1, &[doc.clone()], window, cx)
+    });
+    wait_for(cx, || env.snapshot_texts("Home")[1].1.contains("assets/"));
+    let text = env.snapshot_texts("Home")[1].1.clone();
+    let name = assets_in(&env).pop().expect("asset written");
+    assert!(
+        name.starts_with("report_50_") && name.ends_with("_0.docx"),
+        "{name}"
+    );
+    assert_eq!(text, format!("two[report 50%.docx](../../assets/{name})"));
+    assert_eq!(
+        std::fs::read(env.graph.path().join("assets").join(&name)).expect("asset"),
+        [9, 9]
+    );
+    assert_eq!(
+        env.disk("pages/sub/Home.md"),
+        format!("- one\n- two[report 50%.docx](../../assets/{name})\n")
+    );
+    // One undo takes the link out and recycles the file.
+    cx.simulate_keystrokes(&k("ctrl-z"));
+    assert_eq!(env.snapshot_texts("Home")[1].1, "two");
+    let _ = env.disk("pages/sub/Home.md");
+    assert!(assets_in(&env).is_empty());
+}
+
+#[gpui_test]
+fn pasting_a_clipboard_image_attaches_it(cx: &mut TestAppContext) {
+    let env = Env::new(&[("journals/2025_11_14.md", "- note\n")]);
+    let (_view, ed, cx) = open_page(cx, &env, "Nov 14th, 2025");
+    edit(&ed, 0, Caret::End, cx);
+    let image = crate::ui::text_edit::Image::from_bytes(
+        crate::ui::text_edit::ImageFormat::Png,
+        vec![137, 80, 78, 71],
+    );
+    cx.write_to_clipboard(crate::ui::text_edit::ClipboardItem::new_image(&image));
+    cx.simulate_keystrokes(&k("ctrl-v"));
+    wait_for(cx, || {
+        env.snapshot_texts("Nov 14th, 2025")[0]
+            .1
+            .contains("assets/")
+    });
+    let name = assets_in(&env).pop().expect("asset");
+    assert!(
+        name.starts_with("image_") && name.ends_with("_0.png"),
+        "{name}"
+    );
+    assert_eq!(
+        env.snapshot_texts("Nov 14th, 2025")[0].1,
+        format!("note![image.png](../assets/{name})")
+    );
+    assert_eq!(
+        editing_row(&ed, cx),
+        Some(0),
+        "the caret stays in the block"
+    );
+}
+
+#[gpui_test]
+fn delete_asset_asks_the_host_and_keeps_the_text(cx: &mut TestAppContext) {
+    let env = Env::new(&[
+        (HOME, "- pic ![a](../assets/a.png)\n- other\n"),
+        ("assets/a.png", "x"),
+    ]);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    let seen = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+    let sink = seen.clone();
+    let _sub = cx.update(|_, cx| {
+        cx.subscribe(&ed, move |_, event: &super::EditorEvent, _| {
+            if let super::EditorEvent::DeleteAsset { link, .. } = event {
+                sink.borrow_mut().push(link.clone());
+            }
+        })
+    });
+    assert!(ed.read_with(cx, |e, _| e.row_has_asset(0)));
+    assert!(!ed.read_with(cx, |e, _| e.row_has_asset(1)));
+    edit(&ed, 0, Caret::End, cx);
+    cx.simulate_keystrokes(&format!(
+        "{}-alt-backspace",
+        if cfg!(target_os = "macos") {
+            "cmd"
+        } else {
+            "ctrl"
+        }
+    ));
+    assert_eq!(*seen.borrow(), ["assets/a.png"]);
+    assert_eq!(env.snapshot_texts("Home")[0].1, "pic ![a](../assets/a.png)");
 }

@@ -78,6 +78,13 @@ pub enum EditorEvent {
     Row(usize),
     /// The row got the caret: scroll it into view.
     Entered(usize),
+    /// The user asked to delete the file behind an asset link of a block (the host confirms).
+    DeleteAsset {
+        /// The link target as written in the block (`../assets/x.png`).
+        link: String,
+        /// Index uuid of the block the link is in, so that it is not counted as a user.
+        block: Option<String>,
+    },
 }
 
 /// The block selection: an anchor, a moving head, and the blocks between them in reading order.
@@ -1085,6 +1092,20 @@ impl OutlineEditor {
                 ed.update(cx, |this, cx| this.drag_over(r, window, cx));
             })
         };
+        let on_drop = {
+            let ed = ed.clone();
+            Rc::new(
+                move |paths: &[std::path::PathBuf], window: &mut Window, cx: &mut App| {
+                    ed.update(cx, |this, cx| this.drop_files(r, paths, window, cx));
+                },
+            )
+        };
+        let on_delete_asset = this.row_has_asset(r).then(|| {
+            let ed = ed.clone();
+            Rc::new(move |window: &mut Window, cx: &mut App| {
+                ed.update(cx, |this, cx| this.delete_asset_of(id, window, cx));
+            }) as super::row::Hook
+        });
         let on_checkbox = {
             let ed = ed.clone();
             Rc::new(move |window: &mut Window, cx: &mut App| {
@@ -1134,6 +1155,8 @@ impl OutlineEditor {
             conflict,
             on_text,
             on_drag,
+            on_drop,
+            on_delete_asset,
             on_checkbox,
             on_bullet,
             on_toggle,
@@ -2107,6 +2130,16 @@ impl OutlineEditor {
         let Some(item) = cx.read_from_clipboard() else {
             return;
         };
+        // Copied files, or an image without text, become attachments (BIT-US-0096).
+        let incoming = super::assets::from_clipboard(&item);
+        let has_files = incoming
+            .iter()
+            .any(|i| matches!(i, super::assets::Incoming::Path(_)));
+        let image_only = !incoming.is_empty() && item.text().is_none_or(|t| t.trim().is_empty());
+        if has_files || image_only {
+            self.attach_files(None, incoming, window, cx);
+            return;
+        }
         let Some(text) = item.text() else { return };
         let private = (!raw)
             .then(|| item.metadata().and_then(|m| parse_private(m)))
@@ -2333,6 +2366,220 @@ impl OutlineEditor {
         });
     }
 
+    // ---- attachments (BIT-US-0096) -----------------------------------------------------------
+
+    /// Saves `incoming` files under `assets/` and links them in `target` (default: the edited
+    /// block, else the last selected one) at the caret. The files are read on a background
+    /// thread; the command is one undoable transaction.
+    pub fn attach_files(
+        &mut self,
+        target: Option<BlockId>,
+        incoming: Vec<super::assets::Incoming>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let target = target
+            .or_else(|| self.editing())
+            .or_else(|| self.selected_blocks().last().copied());
+        let Some(target) = target else {
+            self.notice(window, cx, "Select a block to attach the files to.");
+            return;
+        };
+        if incoming.is_empty() {
+            return;
+        }
+        let task = cx
+            .background_executor()
+            .spawn(async move { super::assets::load(incoming) });
+        cx.spawn_in(window, async move |this, cx| {
+            let (files, skipped) = task.await;
+            let _ = this.update_in(cx, |this, window, cx| {
+                this.finish_attach(target, files, &skipped, window, cx);
+            });
+        })
+        .detach();
+    }
+
+    fn finish_attach(
+        &mut self,
+        target: BlockId,
+        files: Vec<super::assets::Loaded>,
+        skipped: &[String],
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if !skipped.is_empty() {
+            self.notice(
+                window,
+                cx,
+                format!("Could not attach: {}", skipped.join(", ")),
+            );
+        }
+        if files.is_empty() {
+            return;
+        }
+        self.flush(cx);
+        let editing = self.editing();
+        if editing.is_some_and(|e| e != target) {
+            self.exit_edit(cx);
+        }
+        let cursor = match (self.editing(), self.full_selection()) {
+            (Some(_), Some(c)) => c,
+            _ => {
+                let Some(text) = self
+                    .outline
+                    .as_ref()
+                    .and_then(|o| o.block(target))
+                    .map(|b| b.text.clone())
+                else {
+                    return;
+                };
+                let proj = EditProjection::from_text(&text, &self.hidden);
+                let end = proj.visible_to_full(proj.visible(), proj.visible().len());
+                end..end
+            }
+        };
+        let page_file = self
+            .key
+            .as_ref()
+            .and_then(|k| self.queue.snapshot(k))
+            .and_then(|s| s.path.clone());
+        let assets = super::assets::plan(files, page_file.as_ref(), super::assets::now_ms());
+        let selection = self.sel.clone();
+        let was_editing = self.editing() == Some(target);
+        let Some(tx) = self.run(
+            "Attach files",
+            Cmd::ImportAssets {
+                target,
+                cursor: cursor.clone(),
+                assets,
+            },
+            window,
+            cx,
+        ) else {
+            return;
+        };
+        if was_editing {
+            self.after_command(
+                Some(target),
+                Some(cursor),
+                selection,
+                tx.cursor_after,
+                window,
+                cx,
+            );
+        } else {
+            let at = tx.cursor_after.map_or(0..0, |c| c.selection);
+            self.enter(target, Caret::Full(at), window, cx);
+        }
+    }
+
+    /// Files were dropped on row `r`.
+    pub fn drop_files(
+        &mut self,
+        r: usize,
+        paths: &[std::path::PathBuf],
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let target = self.ids.get(r).copied();
+        self.drop_files_target(target, paths, window, cx);
+    }
+
+    /// Files were dropped outside any block: they go to the edited or selected block.
+    pub fn drop_files_on_page(
+        &mut self,
+        paths: &[std::path::PathBuf],
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.drop_files_target(None, paths, window, cx);
+    }
+
+    fn drop_files_target(
+        &mut self,
+        target: Option<BlockId>,
+        paths: &[std::path::PathBuf],
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let incoming = paths
+            .iter()
+            .cloned()
+            .map(super::assets::Incoming::Path)
+            .collect();
+        self.attach_files(target, incoming, window, cx);
+    }
+
+    /// "Delete asset": asks the host to delete the file behind the (first) asset link of the
+    /// edited or selected block. The block's text is not changed.
+    fn on_delete_asset(
+        &mut self,
+        _: &actions::DeleteAsset,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(id) = self
+            .editing()
+            .or_else(|| self.selected_blocks().last().copied())
+        else {
+            return;
+        };
+        self.delete_asset_of(id, window, cx);
+    }
+
+    /// Requests deletion of the asset linked from block `id`.
+    pub fn delete_asset_of(&mut self, id: BlockId, window: &mut Window, cx: &mut Context<Self>) {
+        self.flush(cx);
+        let Some(text) = self
+            .outline
+            .as_ref()
+            .and_then(|o| o.block(id))
+            .map(|b| b.text.clone())
+        else {
+            return;
+        };
+        let Some(path) = bitacora_core::recycle::asset_links(&text)
+            .into_iter()
+            .next()
+        else {
+            self.notice(window, cx, "This block has no attachment.");
+            return;
+        };
+        let block = self.index_uuid(id, &text, path.as_str());
+        cx.emit(EditorEvent::DeleteAsset {
+            link: path.as_str().to_owned(),
+            block,
+        });
+    }
+
+    /// The index uuid of block `id`: its `id::`, or the index row of this page that has the same
+    /// text and mentions `needle`.
+    fn index_uuid(&self, id: BlockId, text: &str, needle: &str) -> Option<String> {
+        let snap = self.key.as_ref().and_then(|k| self.queue.snapshot(k))?;
+        if let Some(u) = snap.blocks.iter().find(|b| b.id == id).and_then(|b| b.uuid) {
+            return Some(u.to_string());
+        }
+        let handle = self.handle.as_ref()?;
+        let page = handle.reader.page_by_name(&snap.title).ok().flatten()?;
+        handle
+            .reader
+            .blocks_mentioning(needle, 100)
+            .ok()?
+            .into_iter()
+            .find(|b| b.page_id == page.id && b.content.trim() == text.trim())
+            .map(|b| b.uuid)
+    }
+
+    /// Whether row `r` links to an asset file (it shows the "delete asset" button).
+    #[must_use]
+    pub fn row_has_asset(&self, r: usize) -> bool {
+        self.ids
+            .get(r)
+            .and_then(|id| self.outline.as_ref()?.block(*id))
+            .is_some_and(|b| !bitacora_core::recycle::asset_links(&b.text).is_empty())
+    }
+
     // ---- mouse (edited block) ------------------------------------------------------------
 
     fn offset_at(&self, position: crate::ui::Point<Pixels>) -> Option<usize> {
@@ -2455,6 +2702,7 @@ pub fn attach<E: crate::ui::InteractiveElement>(
         actions::EditSelected => on_edit_selected,
         actions::ClearSelection => on_clear_selection,
         actions::DeleteSelected => on_delete_selected,
+        actions::DeleteAsset => on_delete_asset,
         actions::AcceptCompletion => on_accept_completion,
         actions::CompletionNext => on_completion_next,
         actions::CompletionPrevious => on_completion_previous,

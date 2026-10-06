@@ -417,6 +417,35 @@ pub(super) fn paste_text(
     }
 }
 
+/// Attachments plus their links in the edited block (BIT-US-0096): the file creations come
+/// first, then one text edit, so a single undo removes both.
+pub(super) fn import_assets(
+    ws: &Workspace,
+    target: BlockId,
+    cursor: &Range<usize>,
+    assets: &[super::cmd::NewAsset],
+) -> Result<Planned, Refusal> {
+    if assets.is_empty() {
+        return Err(Refusal::NothingApplicable);
+    }
+    let links = assets
+        .iter()
+        .map(|a| a.link.as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+    let mut planned = super::split::edit_text(ws, target, cursor, &links)?;
+    let mut ops: Vec<Op> = assets
+        .iter()
+        .map(|a| Op::ImportAsset {
+            path: a.path.clone(),
+            bytes: a.bytes.clone(),
+        })
+        .collect();
+    ops.append(&mut planned.ops);
+    planned.ops = ops;
+    Ok(planned)
+}
+
 impl Workspace {
     /// Cut: the clipboard contents for the selection and its deletion, as one transaction.
     ///

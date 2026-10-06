@@ -1093,6 +1093,7 @@ impl Worker {
             } else if key.as_str() == DELETES_KEY {
                 if self.ws.pending_deletes().is_empty()
                     && self.ws.pending_restores().is_empty()
+                    && self.ws.pending_creates().is_empty()
                     && self.ws.pending_edits().is_empty()
                 {
                     sched.done(&key);
@@ -1113,6 +1114,7 @@ impl Worker {
         let now = self.now();
         let deletes = !self.ws.pending_deletes().is_empty()
             || !self.ws.pending_restores().is_empty()
+            || !self.ws.pending_creates().is_empty()
             || !self.ws.pending_edits().is_empty();
         let Some(sched) = self.sched.as_mut() else {
             return;

@@ -161,6 +161,8 @@ impl RightSidebar {
         let subscription = cx.subscribe(&view, |this, _, event: &PageEvent, cx| match event {
             PageEvent::Navigate(target) => cx.emit(StackEvent::Navigate(target.clone())),
             PageEvent::OpenInSidebar(target) => this.open_target(target, cx),
+            // Sidebar pages are read-only: nothing to delete from here.
+            PageEvent::DeleteAsset { .. } => {}
         });
         if let Some(handle) = self.handle.clone() {
             let route = route.clone();

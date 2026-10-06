@@ -97,7 +97,8 @@
       "escape": "outliner::ClearSelection",
       "backspace": "outliner::DeleteSelected",
       "delete": "outliner::DeleteSelected",
-      "secondary-shift-v": "outliner::PasteRaw"
+      "secondary-shift-v": "outliner::PasteRaw",
+      "secondary-alt-backspace": "outliner::DeleteAsset"
     }
   },
   {
@@ -140,7 +141,8 @@
       "secondary-shift-v": "outliner::PasteRaw",
       "escape": "outliner::ExitEdit",
       "ctrl-cmd-space": "outliner::ShowCharacterPalette",
-      "secondary-e": "outliner::CopyEmbed"
+      "secondary-e": "outliner::CopyEmbed",
+      "secondary-alt-backspace": "outliner::DeleteAsset"
     }
   },
   {

@@ -14,6 +14,9 @@ pub type Hook = Rc<dyn Fn(&mut Window, &mut App)>;
 /// Shift was held.
 pub type TextHook = Rc<dyn Fn(usize, bool, &mut Window, &mut App)>;
 
+/// Files dropped on a row.
+pub type DropHook = Rc<dyn Fn(&[std::path::PathBuf], &mut Window, &mut App)>;
+
 /// Builds an element with the active theme.
 pub type Build = Rc<dyn Fn(&Theme) -> AnyElement>;
 
@@ -30,6 +33,10 @@ pub struct RowEdit {
     pub on_text: TextHook,
     /// The pointer moved over the row with the left button held (block drag selection).
     pub on_drag: Hook,
+    /// Files were dropped on the row.
+    pub on_drop: DropHook,
+    /// "Delete asset" button, present when the block links to an asset file.
+    pub on_delete_asset: Option<Hook>,
     /// Click on the task checkbox.
     pub on_checkbox: Hook,
     /// Click on the bullet (zoom into the block).

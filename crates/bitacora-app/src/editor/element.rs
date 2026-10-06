@@ -327,10 +327,18 @@ pub fn wrap(content: AnyElement, editor: &Entity<OutlineEditor>, cx: &App) -> An
     let _ = cx.theme();
     let up = editor.clone();
     let up_out = editor.clone();
+    let dropped = editor.clone();
     let container = div()
         .size_full()
         .key_context(ed.key_context_name())
         .track_focus(ed.focus_handle_ref())
+        .on_drop(
+            move |paths: &crate::ui::text_edit::ExternalPaths, window, cx| {
+                dropped.update(cx, |this, cx| {
+                    this.drop_files_on_page(paths.paths(), window, cx);
+                });
+            },
+        )
         .on_mouse_up(crate::ui::text_edit::MouseButton::Left, move |_, _, cx| {
             up.update(cx, |this, _| this.drag_end());
         })

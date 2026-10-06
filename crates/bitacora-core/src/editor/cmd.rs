@@ -26,6 +26,17 @@ pub enum Target {
     LastChild(BlockId),
 }
 
+/// A file to attach (see [`Cmd::ImportAssets`]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NewAsset {
+    /// Where it is written (`assets/<name>`).
+    pub path: GraphPath,
+    /// Content.
+    pub bytes: std::sync::Arc<[u8]>,
+    /// The Markdown link inserted in the block.
+    pub link: String,
+}
+
 /// A user intent.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Cmd {
@@ -232,6 +243,16 @@ pub enum Cmd {
         /// Raw paste (Mod+Shift+V): always inline.
         raw: bool,
     },
+    /// Save pasted or dropped files as attachments and put their links into `target` in place
+    /// of `cursor`, as one undoable transaction (BIT-US-0096). The links are one per line.
+    ImportAssets {
+        /// Block being edited.
+        target: BlockId,
+        /// Caret or selection (bytes of the block text).
+        cursor: Range<usize>,
+        /// The files and the links that point at them.
+        assets: Vec<NewAsset>,
+    },
     /// Give a block an `id::` (no-op when it has one); the id is generated unless given.
     EnsureUuid {
         /// Block.
@@ -391,6 +412,11 @@ pub fn plan_full(ws: &Workspace, cmd: &Cmd) -> Result<Planned, Refusal> {
             text,
             raw,
         } => super::clipboard::paste_text(ws, *target, cursor, text, *raw),
+        Cmd::ImportAssets {
+            target,
+            cursor,
+            assets,
+        } => super::clipboard::import_assets(ws, *target, cursor, assets),
         Cmd::EnsureUuid { id, uuid } => {
             super::complete::ensure_uuid(ws, *id, *uuid).map(Into::into)
         }

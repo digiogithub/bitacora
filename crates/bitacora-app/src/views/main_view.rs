@@ -30,6 +30,13 @@ pub enum MainEvent {
     BlockFocus(BlockFocusEvent),
     /// A conflict-marked block was clicked: open the resolver.
     ConflictJump,
+    /// Delete the file behind an asset link, after asking (BIT-US-0096).
+    DeleteAsset {
+        /// Link target.
+        link: String,
+        /// Index uuid of the block that holds the link.
+        block: Option<String>,
+    },
 }
 
 /// Journals feed, all-pages table and page view with history: one pane of the main area. Every
@@ -265,7 +272,15 @@ impl MainView {
         event: &PageEvent,
         cx: &mut Context<Self>,
     ) {
-        let (PageEvent::Navigate(target) | PageEvent::OpenInSidebar(target)) = event;
+        let (PageEvent::Navigate(target) | PageEvent::OpenInSidebar(target)) = event else {
+            if let PageEvent::DeleteAsset { link, block } = event {
+                cx.emit(MainEvent::DeleteAsset {
+                    link: link.clone(),
+                    block: block.clone(),
+                });
+            }
+            return;
+        };
         let sidebar = matches!(event, PageEvent::OpenInSidebar(_));
         let route = match target {
             NavTarget::Url(url) => {

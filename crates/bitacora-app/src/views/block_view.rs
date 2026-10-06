@@ -28,21 +28,41 @@ pub fn resolve_asset(graph_root: &Path, src: &str) -> Option<PathBuf> {
         return None;
     }
     let src = src.strip_prefix("file:").unwrap_or(src);
+    // `@alias/...` links point to a configured asset directory: not resolved here.
+    if src.starts_with('@') {
+        return None;
+    }
     // Relative paths are written from a page in `pages/` or `journals/`.
-    let mut parts: Vec<std::ffi::OsString> = vec!["pages".into()];
-    for component in Path::new(src).components() {
-        match component {
-            Component::Normal(n) => parts.push(n.to_owned()),
-            Component::ParentDir => {
-                parts.pop()?;
+    let relative = (|| {
+        let mut parts: Vec<std::ffi::OsString> = vec!["pages".into()];
+        for component in Path::new(src).components() {
+            match component {
+                Component::Normal(n) => parts.push(n.to_owned()),
+                Component::ParentDir => {
+                    parts.pop()?;
+                }
+                Component::CurDir => {}
+                Component::RootDir | Component::Prefix(_) => return None,
             }
-            Component::CurDir => {}
-            Component::RootDir | Component::Prefix(_) => return None,
+        }
+        let mut out = graph_root.to_path_buf();
+        out.extend(parts);
+        Some(out)
+    })();
+    if relative.as_ref().is_some_and(|p| p.exists()) {
+        return relative;
+    }
+    // Local asset links (`^[./]*assets`) fall back to `<root>/assets` whatever the depth of the
+    // page that holds them (`../../assets/x.png` from `pages/sub/x.md`).
+    if bitacora_core::assets::is_local_asset_link(src)
+        && let Some(path) = bitacora_core::recycle::asset_path_from_link(src)
+    {
+        let fallback = path.to_fs_path(graph_root);
+        if fallback.exists() {
+            return Some(fallback);
         }
     }
-    let mut out = graph_root.to_path_buf();
-    out.extend(parts);
-    Some(out)
+    relative
 }
 
 pub type Nav = std::rc::Rc<dyn Fn(NavTarget, OpenIn, &mut App)>;
@@ -661,6 +681,14 @@ pub fn render_block_row(
         .pl(px(8. + row.depth as f32 * 24.))
         .pr(px(12.))
         .when(edit.is_some_and(|e| e.selected), |d| d.bg(theme.selection))
+        .when_some(edit.map(|e| e.on_drop.clone()), |d, drop| {
+            d.on_drop(
+                move |paths: &crate::ui::text_edit::ExternalPaths, window, cx| {
+                    cx.stop_propagation();
+                    drop(paths.paths(), window, cx);
+                },
+            )
+        })
         .when_some(edit.map(|e| e.on_drag.clone()), |d, drag| {
             d.on_mouse_move(move |event, window, cx| {
                 if event.dragging() {
@@ -680,6 +708,22 @@ pub fn render_block_row(
         .child(bullet_slot)
         .child(content)
         .children(bubble)
+        .children(edit.and_then(|e| e.on_delete_asset.clone()).map(|delete| {
+            div()
+                .id(("delete-asset", id))
+                .flex_none()
+                .mt(px(2.))
+                .px_1()
+                .rounded(px(4.))
+                .cursor_pointer()
+                .text_color(theme.muted_foreground)
+                .hover(|d| d.bg(theme.muted))
+                .child(icon(IconName::Delete))
+                .on_mouse_down(crate::ui::text_edit::MouseButton::Left, |_, _, cx| {
+                    cx.stop_propagation();
+                })
+                .on_click(move |_, window, cx| delete(window, cx))
+        }))
         .into_any_element()
 }
 

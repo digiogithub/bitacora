@@ -155,6 +155,21 @@ pub enum Op {
         /// Graph-relative path of the file.
         path: GraphPath,
     },
+    /// Creates a new attachment (a pasted or dropped file) at the next flush, atomically. The
+    /// file never replaces an existing one (the name carries a timestamp and an index).
+    ImportAsset {
+        /// Graph-relative path (`assets/x.png`).
+        path: GraphPath,
+        /// File content.
+        bytes: std::sync::Arc<[u8]>,
+    },
+    /// Undo of [`Op::ImportAsset`]: cancels the pending create, or recycles the written file.
+    DropAsset {
+        /// Graph-relative path.
+        path: GraphPath,
+        /// The content, to import it again on redo.
+        bytes: std::sync::Arc<[u8]>,
+    },
     /// Undo of [`Op::DeleteAsset`]: cancels the pending recycle, or moves the recycled copy back.
     RestoreAsset {
         /// Graph-relative path of the file.
@@ -362,6 +377,20 @@ impl Op {
                 ws.queue_delete(path.clone(), None);
                 Ok(())
             }
+            Self::ImportAsset { path, bytes } => {
+                if ws.page_for_path(path).is_some() {
+                    return Err(OpError::Invalid("an attachment cannot replace a page file"));
+                }
+                ws.unqueue_delete(path);
+                ws.queue_create(path.clone(), bytes.clone());
+                Ok(())
+            }
+            Self::DropAsset { path, .. } => {
+                if !ws.unqueue_create(path) {
+                    ws.queue_delete(path.clone(), None);
+                }
+                Ok(())
+            }
             Self::RestoreAsset { path } => {
                 if ws.pending_deletes().contains_key(path) {
                     ws.unqueue_delete(path);
@@ -483,6 +512,14 @@ impl Op {
                     restored: Some(p.clone()),
                 }
             }
+            Self::ImportAsset { path, bytes } => Self::DropAsset {
+                path: path.clone(),
+                bytes: bytes.clone(),
+            },
+            Self::DropAsset { path, bytes } => Self::ImportAsset {
+                path: path.clone(),
+                bytes: bytes.clone(),
+            },
             Self::DeleteAsset { path } => Self::RestoreAsset { path: path.clone() },
             Self::RestoreAsset { path } => Self::DeleteAsset { path: path.clone() },
             Self::RenamePage {

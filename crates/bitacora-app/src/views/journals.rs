@@ -205,6 +205,10 @@ impl JournalsView {
             return;
         };
         match event {
+            EditorEvent::DeleteAsset { link, block } => cx.emit(PageEvent::DeleteAsset {
+                link: link.clone(),
+                block: block.clone(),
+            }),
             EditorEvent::Leave { down, goal } => {
                 self.continue_in_neighbour(ix, *down, *goal, window, cx)
             }

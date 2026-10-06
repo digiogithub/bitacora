@@ -275,13 +275,13 @@ pub fn open_main_window<V: Render>(
 /// later, the real block editor). Kept explicit so the kit churn stays in this file.
 pub mod text_edit {
     pub use gpui_kit::{
-        AvailableSpace, ClipboardItem, CursorStyle, Element, ElementId, ElementInputHandler,
-        EntityInputHandler, Font, FontStyle, FontWeight, GlobalElementId, HighlightStyle,
-        InspectorElementId, InteractiveText, IntoElement, LayoutId, ListAlignment, ListOffset,
-        ListState, Modifiers, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, ObjectFit,
-        PaintQuad, Rgba, StrikethroughStyle, Style, StyledImage, StyledText, TextAlign, TextLayout,
-        TextRun, UTF16Selection, UnderlineStyle, WrappedLine, fill, hsla, img, list, relative,
-        rgba,
+        AvailableSpace, ClipboardEntry, ClipboardItem, CursorStyle, Element, ElementId,
+        ElementInputHandler, EntityInputHandler, ExternalPaths, Font, FontStyle, FontWeight,
+        GlobalElementId, HighlightStyle, Image, ImageFormat, InspectorElementId, InteractiveText,
+        IntoElement, LayoutId, ListAlignment, ListOffset, ListState, Modifiers, MouseButton,
+        MouseDownEvent, MouseMoveEvent, MouseUpEvent, ObjectFit, PaintQuad, Rgba,
+        StrikethroughStyle, Style, StyledImage, StyledText, TextAlign, TextLayout, TextRun,
+        UTF16Selection, UnderlineStyle, WrappedLine, fill, hsla, img, list, relative, rgba,
     };
 }
 

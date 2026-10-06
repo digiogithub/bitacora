@@ -71,6 +71,7 @@ actions!(
         EditSelected,
         ClearSelection,
         DeleteSelected,
+        DeleteAsset,
         // Autocomplete popup.
         AcceptCompletion,
         CompletionNext,

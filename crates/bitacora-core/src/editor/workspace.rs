@@ -61,6 +61,7 @@ pub struct Workspace {
     pub(crate) touched: BTreeSet<PageKey>,
     pending_deletes: BTreeMap<GraphPath, Option<Arc<[u8]>>>,
     pending_restores: BTreeSet<GraphPath>,
+    pending_creates: BTreeMap<GraphPath, Arc<[u8]>>,
     pending_edits: BTreeMap<GraphPath, PendingEdit>,
     pub(crate) next_tx: u64,
     pub(crate) conflicted: BTreeMap<PageKey, Arc<super::external::ConflictNotice>>,
@@ -206,6 +207,12 @@ impl Workspace {
         &self.pending_deletes
     }
 
+    /// Attachments that still have to be written (pasted or dropped files).
+    #[must_use]
+    pub fn pending_creates(&self) -> &BTreeMap<GraphPath, Arc<[u8]>> {
+        &self.pending_creates
+    }
+
     /// Files whose recycled copy has to be moved back (undo of an asset delete).
     #[must_use]
     pub fn pending_restores(&self) -> &BTreeSet<GraphPath> {
@@ -281,6 +288,19 @@ impl Workspace {
         self.touched.insert(from.clone());
         self.mark_touched(to);
         Ok(())
+    }
+
+    pub(crate) fn queue_create(&mut self, path: GraphPath, bytes: Arc<[u8]>) {
+        self.pending_creates.insert(path, bytes);
+    }
+
+    /// Cancels a pending create; `true` when there was one.
+    pub(crate) fn unqueue_create(&mut self, path: &GraphPath) -> bool {
+        self.pending_creates.remove(path).is_some()
+    }
+
+    pub(crate) fn finish_create(&mut self, path: &GraphPath) {
+        self.pending_creates.remove(path);
     }
 
     pub(crate) fn queue_restore(&mut self, path: GraphPath) {
