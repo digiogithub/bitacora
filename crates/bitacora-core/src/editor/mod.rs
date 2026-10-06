@@ -11,6 +11,7 @@ pub mod fsio;
 pub mod lifecycle;
 pub mod model;
 pub mod op;
+pub mod rename;
 pub mod tx;
 pub mod workspace;
 
@@ -22,5 +23,9 @@ pub use model::{
     text_hash, text_is_representable,
 };
 pub use op::{Op, OpError};
+pub use rename::{
+    CONFIG_PATH, MergeMode, PageFile, RefLookup, RenameError, RenamePlan, RenameReport,
+    RenameRequest,
+};
 pub use tx::{CoalesceKey, CommitError, CursorState, InvariantError, Transaction, TxId};
 pub use workspace::Workspace;

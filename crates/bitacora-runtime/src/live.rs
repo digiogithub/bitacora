@@ -267,6 +267,12 @@ impl Session {
         Ok(self.index.reader()?)
     }
 
+    /// Index-backed lookups for page renames (`RenameRequest::lookup`).
+    #[must_use]
+    pub fn ref_lookup(&self) -> std::sync::Arc<crate::IndexRefLookup> {
+        std::sync::Arc::new(crate::IndexRefLookup::new(self.index.read_api()))
+    }
+
     /// Stats of the reconcile run by [`Session::open`].
     #[must_use]
     pub fn open_stats(&self) -> Option<&ReconcileStats> {

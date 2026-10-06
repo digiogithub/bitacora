@@ -160,6 +160,28 @@ pub enum Op {
         /// Graph-relative path of the file.
         path: GraphPath,
     },
+    /// Gives a page a new key and title (the file is renamed by [`Op::RenameFile`]). With equal
+    /// keys only the title changes (case-only rename).
+    RenamePage {
+        /// Current key.
+        from: PageKey,
+        /// New key.
+        to: PageKey,
+        /// Expected current title.
+        title_from: String,
+        /// New title.
+        title_to: String,
+    },
+    /// Edits a non-page file (`logseq/config.edn`) from `before` to `after`. Written at the next
+    /// flush, only when the file still holds the content it had when first edited.
+    EditFile {
+        /// Graph-relative path.
+        path: GraphPath,
+        /// Expected current content.
+        before: Vec<u8>,
+        /// New content.
+        after: Vec<u8>,
+    },
     /// Renames the file of a page (the title is unchanged).
     RenameFile {
         /// Page.
@@ -348,6 +370,27 @@ impl Op {
                 }
                 Ok(())
             }
+            Self::RenamePage {
+                from,
+                to,
+                title_from,
+                title_to,
+            } => {
+                if ws.writable_page(from)?.title != *title_from {
+                    return stale("title differs from `title_from`");
+                }
+                ws.rekey_page(from, to, title_to)
+            }
+            Self::EditFile {
+                path,
+                before,
+                after,
+            } => {
+                if ws.page_for_path(path).is_some() {
+                    return Err(OpError::Invalid("a page file is edited through its page"));
+                }
+                ws.queue_edit(path, before, after)
+            }
             Self::RenameFile { page, from, to } => {
                 if ws.writable_page(page)?.path != *from {
                     return stale("path differs from `from`");
@@ -442,6 +485,26 @@ impl Op {
             }
             Self::DeleteAsset { path } => Self::RestoreAsset { path: path.clone() },
             Self::RestoreAsset { path } => Self::DeleteAsset { path: path.clone() },
+            Self::RenamePage {
+                from,
+                to,
+                title_from,
+                title_to,
+            } => Self::RenamePage {
+                from: to.clone(),
+                to: from.clone(),
+                title_from: title_to.clone(),
+                title_to: title_from.clone(),
+            },
+            Self::EditFile {
+                path,
+                before,
+                after,
+            } => Self::EditFile {
+                path: path.clone(),
+                before: after.clone(),
+                after: before.clone(),
+            },
             Self::RenameFile { page, from, to } => Self::RenameFile {
                 page: page.clone(),
                 from: to.clone(),

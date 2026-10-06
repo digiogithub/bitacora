@@ -265,6 +265,7 @@ impl Workspace {
                 }
             }
         }
+        self.flush_edits(store, now, &mut report);
         let keys = self.dirty_pages();
         for key in keys {
             if only.is_some_and(|o| !o.contains(&key)) {
@@ -274,6 +275,56 @@ impl Workspace {
         }
         report.warnings.extend(store.take_warnings());
         report
+    }
+
+    /// Writes the queued edits of non-page files (`logseq/config.edn`): only over the content the
+    /// edit started from, never over a file somebody else changed.
+    fn flush_edits(
+        &mut self,
+        store: &mut dyn FileStore,
+        now: SystemTime,
+        report: &mut FlushReport,
+    ) {
+        let edits: Vec<_> = self
+            .pending_edits()
+            .iter()
+            .map(|(p, e)| (p.clone(), e.clone()))
+            .collect();
+        for (path, e) in edits {
+            let key = PageKey::from_title(path.as_str());
+            let cur = match store.read(&path) {
+                Ok(c) => c,
+                Err(err) => {
+                    fail(report, &key, &path, err.to_string());
+                    continue;
+                }
+            };
+            if cur.as_deref() == Some(&e.content[..]) {
+                self.finish_edit(&path);
+            } else if cur.as_deref() == Some(&e.expected[..]) {
+                if backup::removes_text(&e.expected, &e.content) {
+                    match backup::write_backup(store, &path, &e.expected, now) {
+                        Ok(b) => report.backups.push(b),
+                        Err(err) => report
+                            .warnings
+                            .push(format!("backup of `{path}` failed: {err}")),
+                    }
+                }
+                match store.write(&path, &e.content) {
+                    Ok(()) => {
+                        self.finish_edit(&path);
+                        report.written.push(WrittenFile {
+                            page: None,
+                            path,
+                            hash: blake3::hash(&e.content),
+                        });
+                    }
+                    Err(err) => fail(report, &key, &path, err.to_string()),
+                }
+            } else {
+                report.conflicts.push(key);
+            }
+        }
     }
 
     fn flush_page(
@@ -327,10 +378,16 @@ impl Workspace {
             DiskState::Same(b) => b,
         };
 
+        // A case-only rename (`foo.md` -> `Foo.md`): on a case-insensitive file system both names
+        // are the same file, so the target "exists" and holds our own bytes.
+        let case_only = old_path.as_ref().is_some_and(|o| {
+            *o != path && o.as_str().to_lowercase() == path.as_str().to_lowercase()
+        });
         // A rename target that already exists is never overwritten.
         if old_path.as_ref().is_some_and(|o| *o != path) {
             match store.read(&path) {
                 Ok(None) => {}
+                Ok(Some(existing)) if case_only && Some(&existing) == current.as_ref() => {}
                 Ok(Some(_)) => {
                     report.conflicts.push(key.clone());
                     return;
@@ -353,7 +410,11 @@ impl Workspace {
                         .push(format!("backup of `{check_path}` failed: {e}")),
                 }
             }
-            if let Err(e) = store.write(&path, &bytes) {
+            let written = match &old_path {
+                Some(old) if case_only => write_case_rename(store, old, &path, &bytes),
+                _ => store.write(&path, &bytes),
+            };
+            if let Err(e) = written {
                 // Keep the new content somewhere safe and stay dirty.
                 match backup::write_backup(store, &path, &bytes, now) {
                     Ok(b) => report.backups.push(b),
@@ -365,7 +426,7 @@ impl Workspace {
                 return;
             }
         }
-        if let Some(old) = old_path.filter(|o| *o != path)
+        if let Some(old) = old_path.filter(|o| *o != path && !case_only)
             && let Err(e) = store.remove(&old)
         {
             report.failed.push((key.clone(), e.to_string()));
@@ -502,6 +563,23 @@ impl Workspace {
         }
         gone
     }
+}
+
+/// Moves `bytes` from `old` to `new`, which differ only in case. The data always exists under at
+/// least one name: a sibling temp file bridges the moment where `old` is removed (on a
+/// case-insensitive file system removing `old` removes `new` too).
+fn write_case_rename(
+    store: &mut dyn FileStore,
+    old: &GraphPath,
+    new: &GraphPath,
+    bytes: &[u8],
+) -> io::Result<()> {
+    let tmp = GraphPath::new(&format!("{}.bitacora-rename", old.as_str()))
+        .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e.to_string()))?;
+    store.write(&tmp, bytes)?;
+    store.remove(old)?;
+    store.write(new, bytes)?;
+    store.remove(&tmp)
 }
 
 fn merge_reports(into: &mut FlushReport, from: FlushReport) {

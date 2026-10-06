@@ -35,8 +35,8 @@ use uuid::Uuid;
 
 use crate::editor::TakeDisk;
 use crate::editor::{
-    BlockId, Cmd, CommitError, FileStore, FlushReport, Op, Transaction, TxId, Workspace,
-    WrittenFile,
+    BlockId, Cmd, CommitError, FileStore, FlushReport, Op, RenameError, RenameReport,
+    RenameRequest, Transaction, TxId, Workspace, WrittenFile,
 };
 use crate::graph::PageKey;
 use crate::graph_path::GraphPath;
@@ -92,6 +92,10 @@ pub enum Request {
         /// File content.
         bytes: Vec<u8>,
     },
+    /// Rename a page (or merge it into an existing one) with its file, namespace children,
+    /// references graph-wide and `config.edn` entries, as one undoable transaction
+    /// (BIT-US-0061, BIT-US-0082, BIT-US-0087).
+    RenamePage(Box<RenameRequest>),
     /// Write every dirty page now.
     Flush,
     /// Resolve a write conflict (BIT-US-0065/0066).
@@ -114,6 +118,8 @@ pub enum Request {
 pub enum Response {
     /// A transaction was committed.
     Committed(Transaction),
+    /// A page was renamed or merged; undo `report.tx` to revert.
+    Renamed(Box<RenameReport>),
     /// A page was loaded.
     Loaded,
     /// Dirty pages were written.
@@ -130,6 +136,9 @@ pub enum QueueError {
     /// The command was refused, an op failed or an invariant broke (nothing changed).
     #[error(transparent)]
     Commit(#[from] CommitError),
+    /// A rename was refused (nothing changed).
+    #[error(transparent)]
+    Rename(#[from] RenameError),
     /// The queue thread is gone.
     #[error("command queue is closed")]
     Closed,
@@ -671,6 +680,22 @@ impl CommandQueue {
         }
     }
 
+    /// Renames (or merges) a page, waiting for the report.
+    ///
+    /// # Errors
+    /// As [`CommandQueue::execute`]; [`QueueError::Rename`] when the rename is refused, e.g.
+    /// [`RenameError::TargetExists`] until the caller opts in to the merge.
+    pub fn rename_page(
+        &self,
+        source: Source,
+        req: RenameRequest,
+    ) -> Result<RenameReport, QueueError> {
+        match self.execute(source, Request::RenamePage(Box::new(req)))? {
+            Response::Renamed(r) => Ok(*r),
+            _ => Err(QueueError::Invalid("unexpected response".into())),
+        }
+    }
+
     /// Flushes dirty pages, waiting for the report.
     ///
     /// # Errors
@@ -899,7 +924,10 @@ impl Worker {
             } else if report.failed.iter().any(|(k, _)| *k == key) {
                 sched.failed(&key, now);
             } else if key.as_str() == DELETES_KEY {
-                if self.ws.pending_deletes().is_empty() && self.ws.pending_restores().is_empty() {
+                if self.ws.pending_deletes().is_empty()
+                    && self.ws.pending_restores().is_empty()
+                    && self.ws.pending_edits().is_empty()
+                {
                     sched.done(&key);
                 }
             } else if self.ws.page(&key).is_none_or(|p| !p.needs_write()) {
@@ -916,8 +944,9 @@ impl Worker {
 
     fn schedule(&mut self, pages: &[PageKey]) {
         let now = self.now();
-        let deletes =
-            !self.ws.pending_deletes().is_empty() || !self.ws.pending_restores().is_empty();
+        let deletes = !self.ws.pending_deletes().is_empty()
+            || !self.ws.pending_restores().is_empty()
+            || !self.ws.pending_edits().is_empty();
         let Some(sched) = self.sched.as_mut() else {
             return;
         };
@@ -936,6 +965,26 @@ impl Worker {
             Request::Commit { label, ops } => {
                 let tx = self.ws.commit(label, ops)?;
                 self.committed(source, tx)
+            }
+            Request::RenamePage(req) => {
+                let plan = self.ws.plan_rename(&*self.store, &req)?;
+                self.publish(&plan.loaded);
+                let tx = self.ws.commit("Rename page", plan.ops)?;
+                let tx = match self.committed(source, tx)? {
+                    Response::Committed(tx) => tx,
+                    other => return Ok(other),
+                };
+                Ok(Response::Renamed(Box::new(RenameReport {
+                    tx,
+                    renamed: plan.renamed,
+                    merged: plan.merged,
+                    rewritten_blocks: plan.rewritten_blocks,
+                    rewritten_pages: plan.rewritten_pages,
+                    skipped_read_only: plan.skipped_read_only,
+                    dropped_aliases: plan.dropped_aliases,
+                    config_updated: plan.config_updated,
+                    warnings: plan.warnings,
+                })))
             }
             Request::LoadPage {
                 key,

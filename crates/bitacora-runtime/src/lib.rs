@@ -19,11 +19,13 @@
 
 mod glue;
 mod live;
+mod rename_lookup;
 mod session;
 mod store;
 mod writer;
 
 pub use live::{DEFAULT_SHUTDOWN_BUDGET, Session, ShutdownReport};
+pub use rename_lookup::IndexRefLookup;
 pub use session::{EngineTune, McpOptions, RuntimeConfig, RuntimeError, RuntimeEvent, SyncOptions};
 pub use store::EchoStore;
 pub use writer::{DEFAULT_ACQUIRE_TIMEOUT, QueueGraphWriter};
