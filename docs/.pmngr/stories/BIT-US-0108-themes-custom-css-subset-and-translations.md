@@ -2,7 +2,7 @@
 id: BIT-US-0108
 type: story
 title: Themes, custom.css subset and translations
-status: backlog
+status: todo
 priority: medium
 parent: BIT-EP-0013
 milestone: BIT-M-0005
@@ -10,7 +10,7 @@ author: mcp
 labels: [ui, themes, i18n, bitacora-app]
 estimate: 5
 created: 2026-10-06T14:31:46Z
-updated: 2026-10-06T14:31:46Z
+updated: 2026-10-06T22:24:42Z
 ---
 
 ## Description

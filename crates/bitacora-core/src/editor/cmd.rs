@@ -253,6 +253,28 @@ pub enum Cmd {
         /// The files and the links that point at them.
         assets: Vec<NewAsset>,
     },
+    /// Insert the template `name` in place of the `/template` trigger text `trigger` of `target`
+    /// (BIT-US-0105): the trigger is removed and the expanded blocks are inserted after the
+    /// block (as its children when it has visible children), or replace it when nothing else is
+    /// left in it. One transaction.
+    InsertTemplate {
+        /// Block being edited.
+        target: BlockId,
+        /// Trigger text to remove (bytes of the block text).
+        trigger: Range<usize>,
+        /// Template name (`template:: name`).
+        name: String,
+        /// Values of the variables (`<% today %>` ...).
+        ctx: super::lifecycle::TemplateContext,
+    },
+    /// Alt-drop (BIT-US-0106): one new block holding `((uuid))` per dragged block, in order, at
+    /// `target`, adding the missing `id::` lines in the same transaction. Nothing is moved.
+    DropBlockRef {
+        /// The dragged blocks.
+        sources: Vec<BlockId>,
+        /// Where the reference blocks go.
+        target: Target,
+    },
     /// Give a block an `id::` (no-op when it has one); the id is generated unless given.
     EnsureUuid {
         /// Block.
@@ -417,6 +439,15 @@ pub fn plan_full(ws: &Workspace, cmd: &Cmd) -> Result<Planned, Refusal> {
             cursor,
             assets,
         } => super::clipboard::import_assets(ws, *target, cursor, assets),
+        Cmd::DropBlockRef { sources, target } => {
+            super::complete::drop_block_ref(ws, sources, *target)
+        }
+        Cmd::InsertTemplate {
+            target,
+            trigger,
+            name,
+            ctx,
+        } => super::clipboard::insert_template(ws, *target, trigger, name, ctx),
         Cmd::EnsureUuid { id, uuid } => {
             super::complete::ensure_uuid(ws, *id, *uuid).map(Into::into)
         }

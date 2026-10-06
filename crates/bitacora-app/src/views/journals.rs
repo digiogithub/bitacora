@@ -215,6 +215,7 @@ impl JournalsView {
                 self.continue_in_neighbour(ix, *down, *goal, window, cx)
             }
             EditorEvent::Entered(_) => {}
+            EditorEvent::Scroll(dy) => self.list_state.scroll_by(px(*dy)),
             EditorEvent::Row(_) | EditorEvent::Structure => {
                 self.list_state.remeasure_items(ix..ix + 1);
                 cx.notify();

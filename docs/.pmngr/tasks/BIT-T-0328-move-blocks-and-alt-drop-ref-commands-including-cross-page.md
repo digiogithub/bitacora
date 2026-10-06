@@ -2,7 +2,7 @@
 id: BIT-T-0328
 type: task
 title: Move-blocks and Alt-drop ref commands including cross-page transactions
-status: backlog
+status: done
 priority: medium
 parent: BIT-US-0106
 milestone: BIT-M-0005
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-core, editor]
 estimate: 3
 created: 2026-10-06T14:34:02Z
-updated: 2026-10-06T14:34:02Z
+updated: 2026-10-06T22:30:36Z
+closed: 2026-10-06T22:30:36Z
 ---
 
 ## Description

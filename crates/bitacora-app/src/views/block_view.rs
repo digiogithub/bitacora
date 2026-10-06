@@ -5,6 +5,7 @@ use std::path::{Component, Path, PathBuf};
 
 use rust_i18n::t;
 
+use crate::editor::dnd::{BlockDrag, DragPreview, indicator_left};
 use crate::editor::row::{RowEdit, TextHook};
 use crate::nav::OpenIn;
 use crate::render::highlight::TokenClass;
@@ -15,8 +16,8 @@ use crate::ui::text_edit::{
     StyledText, UnderlineStyle, hsla, img,
 };
 use crate::ui::{
-    AnyElement, App, FluentBuilder as _, Hsla, IconName, InteractiveElement as _, IntoElement,
-    ParentElement as _, SharedString, StatefulInteractiveElement as _, Styled as _,
+    AnyElement, App, AppContext as _, FluentBuilder as _, Hsla, IconName, InteractiveElement as _,
+    IntoElement, ParentElement as _, SharedString, StatefulInteractiveElement as _, Styled as _,
     StyledImage as _, Window, div, h_flex, icon, px, v_flex,
 };
 
@@ -668,6 +669,26 @@ pub fn render_block_row(
                 })
             },
         );
+    // Dragging the bullet moves the block (or the selection it belongs to; BIT-US-0106).
+    let bullet_slot = bullet_slot.when_some(edit.map(|e| e.drag.payload.clone()), |d, payload| {
+        d.on_drag(payload, |p: &BlockDrag, _, _, cx| {
+            cx.new(|_| DragPreview::new(p))
+        })
+    });
+    let drop_indicator = edit.and_then(|e| {
+        e.drag.zone.map(|zone| {
+            let line = div()
+                .absolute()
+                .left(indicator_left(zone, e.drag.depth))
+                .right(px(12.))
+                .h(px(2.))
+                .bg(theme.primary);
+            match zone {
+                crate::editor::dnd::DropZone::Before => line.top_0(),
+                _ => line.bottom_0(),
+            }
+        })
+    });
     let bubble = (row.ref_count > 0).then(|| {
         div()
             .id(("refcount", id))
@@ -696,6 +717,7 @@ pub fn render_block_row(
 
     h_flex()
         .id(("block", id))
+        .relative()
         .w_full()
         .items_start()
         .gap_1()
@@ -710,6 +732,18 @@ pub fn render_block_row(
                     drop(paths.paths(), window, cx);
                 },
             )
+        })
+        .when_some(edit.map(|e| e.drag.clone()), |d, drag| {
+            let on_move = drag.on_move.clone();
+            let on_drop = drag.on_drop.clone();
+            d.on_drag_move::<BlockDrag>(move |e, window, cx| {
+                let payload = e.drag(cx).clone();
+                on_move(&payload, e.event.position, e.bounds, window, cx);
+            })
+            .on_drop::<BlockDrag>(move |payload, window, cx| {
+                cx.stop_propagation();
+                on_drop(payload, window, cx);
+            })
         })
         .when_some(edit.map(|e| e.on_drag.clone()), |d, drag| {
             d.on_mouse_move(move |event, window, cx| {
@@ -730,6 +764,7 @@ pub fn render_block_row(
         .child(bullet_slot)
         .child(content)
         .children(bubble)
+        .children(drop_indicator)
         .children(edit.and_then(|e| e.on_delete_asset.clone()).map(|delete| {
             div()
                 .id(("delete-asset", id))

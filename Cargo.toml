@@ -83,6 +83,8 @@ notify-debouncer-full = "0.7"
 uuid = { version = "1.27", features = ["v4", "v5", "v7", "serde"] }
 rayon = "1.12"
 jiff = "0.2"
+# Only the calendar facade (crates/bitacora-app/src/ui) names it: GPUI Kit calendar dates are chrono values.
+chrono = { version = "0.4", default-features = false }
 nucleo = "0.5"
 nucleo-matcher = "0.3"
 directories = "6"

@@ -195,6 +195,32 @@ pub fn ensure_today(
     }
 }
 
+/// [`ensure_today`] with the journal template available: the page that holds the template named
+/// by `:default-templates {:journals "name"}` is loaded into core first (core only expands
+/// templates of loaded pages), so today's journal starts with it (BIT-US-0105).
+///
+/// # Errors
+/// As [`ensure_today`].
+pub fn ensure_today_templated(
+    queue: &CommandQueue,
+    handle: &GraphHandle,
+    config: &EffectiveConfig,
+    today: Date,
+) -> Result<Option<Opened>, OpsError> {
+    let name = config.default_journal_template().trim().to_owned();
+    if !name.is_empty()
+        && let Some((_, page)) = handle
+            .reader
+            .templates()
+            .unwrap_or_default()
+            .into_iter()
+            .find(|(n, _)| n.eq_ignore_ascii_case(&name))
+    {
+        crate::editor::ensure_loaded(queue, handle, config, &page);
+    }
+    ensure_today(queue, config, today)
+}
+
 /// Deletes the page titled `title`: its file moves to `logseq/.recycle/` (undoable through the
 /// recycle folder), and a `:favorites` entry for it is removed from `logseq/config.edn`.
 ///
@@ -562,6 +588,37 @@ mod tests {
             delete_asset(&f.queue(), &f.handle, "https://x/y.png", None),
             Err(OpsError::NotAnAsset(_))
         ));
+    }
+
+    #[test]
+    fn todays_journal_starts_with_the_default_template() {
+        let f = fixture(
+            &[(
+                "pages/Templates.md",
+                "- Daily\n  template:: daily\n  - Plan for <% today %>\n  - Notes\n",
+            )],
+            r#"{:default-templates {:journals "daily"}}"#,
+        );
+        let today = Date::new(2025, 3, 9).expect("date");
+        let config = f.session.as_ref().expect("session").config().clone();
+        let opened = ensure_today_templated(&f.queue(), &f.handle, &config, today)
+            .expect("ensure")
+            .expect("journals enabled");
+        let texts: Vec<String> = f
+            .queue()
+            .snapshot(opened.key())
+            .expect("snapshot")
+            .blocks
+            .iter()
+            .map(|b| b.text.clone())
+            .collect();
+        assert_eq!(texts, ["Plan for [[Mar 9th, 2025]]", "Notes"]);
+        // Still virtual: nothing is written until the user adds content.
+        let _ = f.queue().flush(Source::Ui).expect("flush");
+        assert_eq!(
+            std::fs::read_dir(f.root().join("journals")).map_or(0, Iterator::count),
+            0
+        );
     }
 
     #[test]

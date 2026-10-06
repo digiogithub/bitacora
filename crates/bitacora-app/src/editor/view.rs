@@ -31,11 +31,17 @@ use super::style::{Palette, TextMetrics, source_runs, style_runs};
 use super::text_ops::{range_from_utf16, range_to_utf16};
 use crate::data::GraphHandle;
 use crate::render::model::{BlockModel, Row, visible_rows};
+use crate::ui::calendar::CalendarState;
 use crate::ui::text_edit::{ClipboardItem, EntityInputHandler, UTF16Selection};
 use crate::ui::{
     App, Bounds, Context, Entity, EventEmitter, FocusHandle, Focusable, Level, Pixels, Render,
     Subscription, Window, div, notify, px,
 };
+
+mod dnd;
+mod slash;
+
+pub use slash::Clock;
 
 /// Idle time after which the edit buffer is committed.
 pub const FLUSH_DELAY: Duration = Duration::from_millis(500);
@@ -78,6 +84,9 @@ pub enum EditorEvent {
     Row(usize),
     /// The row got the caret: scroll it into view.
     Entered(usize),
+    /// A block drag is near the top (negative) or bottom edge: scroll the page by this many
+    /// pixels.
+    Scroll(f32),
     /// The user asked to delete the file behind an asset link of a block (the host confirms).
     DeleteAsset {
         /// The link target as written in the block (`../assets/x.png`).
@@ -150,6 +159,15 @@ pub struct OutlineEditor {
     blink_enabled: bool,
     flush_epoch: usize,
     completion: Option<CompletionState>,
+    /// Where a dragged block would land (row block and zone), while dragging over this page.
+    drop_hint: Option<(BlockId, super::dnd::DropZone)>,
+    /// Auto-scroll step while dragging near an edge of the viewport (0 = none).
+    scroll_dir: f32,
+    scroll_task: Option<crate::ui::Task<()>>,
+    /// The open calendar (`/date picker`, `/scheduled`, `/deadline`; BIT-US-0105).
+    picker: Option<slash::DatePick>,
+    /// Local date and time (replaced in tests).
+    clock: Clock,
     /// The trigger the user dismissed with Esc (it stays closed until the text leaves it).
     dismissed: Option<usize>,
     _subscriptions: Vec<Subscription>,
@@ -190,6 +208,8 @@ impl OutlineEditor {
         cx: &mut Context<Self>,
     ) -> Self {
         let focus_handle = cx.focus_handle();
+        let weak = cx.weak_entity();
+        dnd::EditorRegistry::register(cx, weak);
         let subscriptions = vec![
             cx.on_blur(&focus_handle, window, |this, _, cx| this.on_blur(cx)),
             cx.observe_window_activation(window, |this, window, cx| {
@@ -225,6 +245,11 @@ impl OutlineEditor {
             blink_enabled: blink,
             flush_epoch: 0,
             completion: None,
+            picker: None,
+            drop_hint: None,
+            scroll_dir: 0.,
+            scroll_task: None,
+            clock: slash::system_clock(),
             dismissed: None,
             _subscriptions: subscriptions,
         }
@@ -390,7 +415,17 @@ impl OutlineEditor {
 
     /// Whether a completion popup is open (key context).
     pub fn completion_open(&self) -> bool {
-        self.completion.is_some()
+        self.completion.is_some() || self.picker.is_some()
+    }
+
+    /// The calendar state while a date is being picked.
+    pub fn picker_state(&self) -> Option<&Entity<CalendarState>> {
+        self.picker.as_ref().map(|p| &p.state)
+    }
+
+    /// The day highlighted in the open calendar.
+    pub fn picker_day(&self) -> Option<bitacora_core::date::Date> {
+        self.picker.as_ref().map(|p| p.day)
     }
 
     /// The open completion popup.
@@ -418,7 +453,9 @@ impl OutlineEditor {
     /// The key context of the focused outline.
     pub fn key_context_name(&self) -> &'static str {
         if self.edit.is_some() {
-            if self.completion.is_some() {
+            if self.picker.is_some() {
+                "Outliner BlockEditor Autocomplete DatePicker"
+            } else if self.completion.is_some() {
                 "Outliner BlockEditor Autocomplete"
             } else {
                 "Outliner BlockEditor"
@@ -659,7 +696,8 @@ impl OutlineEditor {
     }
 
     fn on_blur(&mut self, cx: &mut Context<Self>) {
-        if self.edit.is_some() {
+        // Clicking the calendar moves the focus into it; the block stays in edit mode.
+        if self.edit.is_some() && self.picker.is_none() {
             self.exit_edit(cx);
         }
     }
@@ -670,6 +708,7 @@ impl OutlineEditor {
         let Some(e) = self.edit.take() else { return };
         self.publish_editing(None, cx);
         self.completion = None;
+        self.picker = None;
         self.dismissed = None;
         self.reload_outline();
         if let Some(r) = self.rebuild_row_model(e.id) {
@@ -748,6 +787,7 @@ impl OutlineEditor {
         });
         self.sel = Selection::default();
         self.completion = None;
+        self.picker = None;
         self.dismissed = None;
         self.last_layout = None;
         self.publish_editing(Some(id), cx);
@@ -1177,11 +1217,7 @@ impl OutlineEditor {
                 ed.update(cx, |this, cx| this.toggle_row(r, window, cx));
             })
         };
-        let popup = this.completion().map(|c| super::element::PopupData {
-            labels: c.items.iter().map(Item::label).collect(),
-            selected: c.selected,
-            x: this.caret_x(),
-        });
+        let popup = this.popup_data();
         let element = editing.then(|| {
             let ed = ed.clone();
             let popup = popup.clone();
@@ -1213,6 +1249,7 @@ impl OutlineEditor {
             on_checkbox,
             on_bullet,
             on_toggle,
+            drag: Self::row_drag(editor, r, id, cx),
         })
     }
 
@@ -1275,6 +1312,7 @@ impl OutlineEditor {
         f(&mut e.buf);
         e.goal_x = None;
         let id = e.id;
+        self.picker = None;
         self.schedule_flush(cx);
         self.restart_blink(cx);
         self.update_completion();
@@ -1772,7 +1810,7 @@ impl OutlineEditor {
     }
 
     fn on_exit_edit(&mut self, _: &actions::ExitEdit, window: &mut Window, cx: &mut Context<Self>) {
-        if self.completion.is_some() {
+        if self.completion.is_some() || self.picker.is_some() {
             self.close_completion(cx);
             return;
         }
@@ -2314,6 +2352,10 @@ impl OutlineEditor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.picker.is_some() {
+            self.accept_picker(window, cx);
+            return;
+        }
         let selected = self.completion.as_ref().map_or(0, |c| c.selected);
         self.accept_completion(selected, window, cx);
     }
@@ -2330,6 +2372,8 @@ impl OutlineEditor {
         let cursor = e.buf.cursor();
         let range = c.trigger.replace_range(cursor);
         match item {
+            Item::Command(cmd) => self.run_command(cmd, range, window, cx),
+            Item::Template { name } => self.insert_template(&name, range, window, cx),
             Item::Page { title, .. } => {
                 let text = completion::page_text(&c.trigger, &title);
                 let to = range.start + text.len();
@@ -2400,6 +2444,10 @@ impl OutlineEditor {
         _: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.picker.is_some() {
+            self.move_picker(7, cx);
+            return;
+        }
         if let Some(c) = &mut self.completion {
             c.selected = (c.selected + 1) % c.items.len();
             cx.notify();
@@ -2412,6 +2460,10 @@ impl OutlineEditor {
         _: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.picker.is_some() {
+            self.move_picker(-7, cx);
+            return;
+        }
         if let Some(c) = &mut self.completion {
             c.selected = (c.selected + c.items.len() - 1) % c.items.len();
             cx.notify();
@@ -2428,6 +2480,12 @@ impl OutlineEditor {
     }
 
     fn close_completion(&mut self, cx: &mut Context<Self>) {
+        if self.picker.take().is_some() {
+            if let Some(r) = self.edit.as_ref().and_then(|e| self.row_of(e.id)) {
+                cx.emit(EditorEvent::Row(r));
+            }
+            cx.notify();
+        }
         if let Some(c) = self.completion.take() {
             self.dismissed = Some(c.trigger.start());
             if let Some(r) = self.edit.as_ref().and_then(|e| self.row_of(e.id)) {
@@ -2779,6 +2837,8 @@ pub fn attach<E: crate::ui::InteractiveElement>(
         actions::CompletionNext => on_completion_next,
         actions::CompletionPrevious => on_completion_previous,
         actions::DismissCompletion => on_dismiss_completion,
+        actions::PickerPreviousDay => on_picker_previous,
+        actions::PickerNextDay => on_picker_next,
     );
     element
 }

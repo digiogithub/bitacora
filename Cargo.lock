@@ -796,6 +796,7 @@ dependencies = [
  "bitacora-sync",
  "bitacora-testkit",
  "bitacora-watch",
+ "chrono",
  "clap",
  "directories",
  "gpui-kit",

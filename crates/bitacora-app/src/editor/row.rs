@@ -4,8 +4,9 @@
 
 use std::rc::Rc;
 
+use super::dnd::{BlockDrag, DropZone};
 use crate::ui::theme::Theme;
-use crate::ui::{AnyElement, App, Window};
+use crate::ui::{AnyElement, App, Bounds, Pixels, Point, Window};
 
 /// Callback with window access.
 pub type Hook = Rc<dyn Fn(&mut Window, &mut App)>;
@@ -16,6 +17,28 @@ pub type TextHook = Rc<dyn Fn(usize, bool, &mut Window, &mut App)>;
 
 /// Files dropped on a row.
 pub type DropHook = Rc<dyn Fn(&[std::path::PathBuf], &mut Window, &mut App)>;
+
+/// The pointer moved while dragging blocks: payload, pointer, bounds of the row.
+pub type DragMoveHook =
+    Rc<dyn Fn(&BlockDrag, Point<Pixels>, Bounds<Pixels>, &mut Window, &mut App)>;
+
+/// Dragged blocks were released on the row.
+pub type DragDropHook = Rc<dyn Fn(&BlockDrag, &mut Window, &mut App)>;
+
+/// Block drag and drop of one row (BIT-US-0106).
+#[derive(Clone)]
+pub struct RowDrag {
+    /// What dragging this row's bullet carries.
+    pub payload: BlockDrag,
+    /// The drop indicator to draw on this row.
+    pub zone: Option<DropZone>,
+    /// Depth of the row (places the indicator).
+    pub depth: usize,
+    /// Pointer moved over the row during a drag.
+    pub on_move: DragMoveHook,
+    /// Blocks were dropped on the row.
+    pub on_drop: DragDropHook,
+}
 
 /// Builds an element with the active theme.
 pub type Build = Rc<dyn Fn(&Theme) -> AnyElement>;
@@ -43,6 +66,17 @@ pub struct RowEdit {
     pub on_bullet: Hook,
     /// Click on the fold arrow.
     pub on_toggle: Hook,
+    /// Block drag and drop.
+    pub drag: RowDrag,
+}
+
+impl std::fmt::Debug for RowDrag {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RowDrag")
+            .field("payload", &self.payload)
+            .field("zone", &self.zone)
+            .finish_non_exhaustive()
+    }
 }
 
 impl std::fmt::Debug for RowEdit {

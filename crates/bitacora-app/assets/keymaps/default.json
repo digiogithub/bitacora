@@ -159,6 +159,13 @@
     }
   },
   {
+    "context": "DatePicker",
+    "bindings": {
+      "left": "outliner::PickerPreviousDay",
+      "right": "outliner::PickerNextDay"
+    }
+  },
+  {
     "bindings": {
       "secondary-q": "bitacora::Quit"
     }

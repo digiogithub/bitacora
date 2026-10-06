@@ -77,6 +77,38 @@ pub mod theme {
     pub use gpui_kit::component::theme::{Theme, ThemeConfig, ThemeMode, ThemeRegistry};
 }
 
+/// The base calendar (date picking in the block editor, BIT-US-0105).
+pub mod calendar {
+    use chrono::{Datelike as _, NaiveDate};
+
+    pub use gpui_kit::base::{
+        Calendar, CalendarEvent, CalendarItem, CalendarItemKind, CalendarItemState, CalendarState,
+        Date as CalendarDate,
+    };
+
+    /// The calendar value of a year/month/day.
+    #[must_use]
+    pub fn date_value(year: i32, month: u32, day: u32) -> Option<CalendarDate> {
+        NaiveDate::from_ymd_opt(year, month, day).map(CalendarDate::from)
+    }
+
+    /// Year, month and day of a single selected value.
+    #[must_use]
+    pub fn ymd(date: &CalendarDate) -> Option<(i32, u32, u32)> {
+        let d = date.start()?;
+        Some((d.year(), d.month(), d.day()))
+    }
+
+    /// Activates a day as a click would (tests and the keyboard path).
+    pub fn activate(
+        state: &mut CalendarState,
+        (y, m, d): (i32, u32, u32),
+        cx: &mut gpui_kit::Context<CalendarState>,
+    ) -> bool {
+        NaiveDate::from_ymd_opt(y, m, d).is_some_and(|day| state.activate_date(day, cx))
+    }
+}
+
 /// Dock area and panels.
 pub mod dock {
     pub use gpui_kit::component::dock::{
@@ -309,6 +341,11 @@ pub mod text_edit {
         StrikethroughStyle, Style, StyledImage, StyledText, TextAlign, TextLayout, TextRun,
         UTF16Selection, UnderlineStyle, WrappedLine, fill, hsla, img, list, relative, rgba,
     };
+}
+
+/// Drag and drop of blocks (BIT-US-0106).
+pub mod drag {
+    pub use gpui_kit::DragMoveEvent;
 }
 
 /// Command palette (search and actions palettes).

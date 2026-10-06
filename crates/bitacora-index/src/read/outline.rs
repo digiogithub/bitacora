@@ -204,6 +204,25 @@ impl IndexReader {
         Ok(rows)
     }
 
+    /// The templates of the graph: `(name, title of the page holding it)`, sorted by name
+    /// (`template:: name` on a block; BIT-US-0105).
+    pub fn templates(&self) -> Result<Vec<(String, String)>, Error> {
+        let conn = self.conn()?;
+        let mut st = conn.prepare_cached(
+            "SELECT bp.raw_value, p.original_name FROM block_properties bp \
+             JOIN blocks b ON b.id = bp.block_id JOIN pages p ON p.id = b.page_id \
+             WHERE bp.key = 'template' ORDER BY lower(bp.raw_value), p.original_name",
+        )?;
+        let rows = st
+            .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(rows
+            .into_iter()
+            .map(|(n, p)| (n.trim().to_owned(), p))
+            .filter(|(n, _)| !n.is_empty())
+            .collect())
+    }
+
     /// One block by UUID.
     pub fn block(&self, uuid: &str) -> Result<Option<BlockRow>, Error> {
         let conn = self.conn()?;

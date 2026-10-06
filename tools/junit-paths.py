@@ -5,7 +5,8 @@ report so `gintrack spec ingest` can map tests to `path#symbol` trace refs.
 nextest names unit tests `<module path>::<test>` with classname `<crate>` and integration tests
 `<test>` with classname `<crate>::<binary>`. We resolve:
 
-  unit test  `edit::state::tests::x`  -> crates/<crate>/src/edit/state.rs (or .../state/mod.rs),
+  unit test  `edit::state::tests::x`  -> crates/<crate>/src/edit/state/tests.rs if that file exists, else
+             crates/<crate>/src/edit/state.rs (or .../state/mod.rs); longest existing module path wins,
              symbol rewritten to the bare name `x` (bin targets `<crate>::bin/<name>` and `xtask` too)
   integration `<crate>::roundtrip`    -> crates/<crate>/tests/roundtrip.rs
 
@@ -25,10 +26,9 @@ def crate_dir(root, crate):
 
 def unit_file(root, crate, name):
     parts = name.split("::")
-    if "tests" in parts:
-        parts = parts[: parts.index("tests")]
-    else:
-        parts = parts[:-1]
+    # Drop the test name; keep every module segment so out-of-line test modules
+    # (`foo/tests.rs`, `foo/tests/x.rs`, `views/x_tests.rs`) win over their parent file.
+    parts = parts[:-1]
     base = os.path.join(crate_dir(root, crate), "src")
     while parts:
         for cand in (

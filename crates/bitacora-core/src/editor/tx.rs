@@ -231,6 +231,9 @@ fn cursor_before(ws: &Workspace, cmd: &Cmd) -> Option<CursorState> {
         Cmd::EditText { id, range, .. } => at(*id, range.clone()),
         Cmd::PasteText { target, cursor, .. } => at(*target, cursor.clone()),
         Cmd::InsertBlockRef { target, range, .. } => at(*target, range.clone()),
+        Cmd::InsertTemplate {
+            target, trigger, ..
+        } => at(*target, trigger.clone()),
         Cmd::MergeWithPrevious { id } | Cmd::OutdentEmptyLast { id } => at(*id, 0..0),
         Cmd::MergeNext { id } => {
             let end = ws.block(*id).map_or(0, |b| b.text.len());

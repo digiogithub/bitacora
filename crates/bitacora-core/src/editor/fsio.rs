@@ -58,6 +58,27 @@ fn rename_unsupported(e: &io::Error) -> bool {
     // EPERM, ENOSYS, EOPNOTSUPP
 }
 
+/// `rename` that, on Windows, retries briefly when the target is transiently locked (a virus
+/// scanner, the search indexer or another reader holding it without `FILE_SHARE_DELETE` makes
+/// `MoveFileExW` fail with "access denied"). Giving up at the first refusal would drop to the
+/// non-atomic in-place rewrite, which concurrent readers can observe half-written.
+fn rename_replacing(from: &Path, to: &Path) -> io::Result<()> {
+    #[cfg(windows)]
+    {
+        let mut delay = std::time::Duration::from_millis(5);
+        for _ in 0..8 {
+            match std::fs::rename(from, to) {
+                Err(e) if e.kind() == io::ErrorKind::PermissionDenied => {
+                    std::thread::sleep(delay);
+                    delay *= 2;
+                }
+                other => return other,
+            }
+        }
+    }
+    std::fs::rename(from, to)
+}
+
 /// Atomically replaces (or creates) `target` with `bytes`, creating missing parent directories.
 /// Permissions of an existing target are kept.
 ///
@@ -82,7 +103,7 @@ pub fn atomic_write(target: &Path, bytes: &[u8]) -> io::Result<WriteMode> {
         let _ = std::fs::remove_file(&tmp);
         return Err(e);
     }
-    match std::fs::rename(&tmp, target) {
+    match rename_replacing(&tmp, target) {
         Ok(()) => {
             sync_dir(dir);
             Ok(WriteMode::Atomic)
@@ -110,7 +131,7 @@ fn move_file(from: &Path, to: &Path) -> io::Result<()> {
     if let Some(dir) = to.parent() {
         std::fs::create_dir_all(dir)?;
     }
-    match std::fs::rename(from, to) {
+    match rename_replacing(from, to) {
         Ok(()) => {
             if let Some(d) = from.parent() {
                 sync_dir(d);

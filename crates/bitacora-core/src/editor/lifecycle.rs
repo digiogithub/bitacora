@@ -14,6 +14,7 @@
 use bitacora_config::{EffectiveConfig, NameFormat, PreferredFormat};
 use bitacora_markdown::edit::properties::{get_property, remove_property};
 
+use super::clipboard::ClipBlock;
 use super::flush::FileStore;
 use super::model::{BlockId, Page, Subtree};
 use super::workspace::Workspace;
@@ -252,7 +253,7 @@ impl Workspace {
         };
         let roots = match template {
             Some(blocks) if !blocks.is_empty() => {
-                let vars = TemplateVars::new(date, cfg, &jp.title);
+                let vars = TemplateContext::new(date, "", cfg, &jp.title);
                 blocks
                     .into_iter()
                     .map(|b| expand_subtree(b, &vars))
@@ -337,16 +338,27 @@ impl Workspace {
     }
 }
 
-/// Dynamic template variables, expanded when a template is inserted.
-struct TemplateVars {
-    today: String,
-    yesterday: String,
-    tomorrow: String,
-    current: String,
+/// Dynamic template variables, expanded when a template is inserted (`<% today %>`,
+/// `<% yesterday %>`, `<% tomorrow %>`, `<% time %>`, `<% current page %>` and `<% [[Page]] %>`;
+/// BIT-US-0105). An unknown variable is left as written.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TemplateContext {
+    /// `[[Journal title]]` of today.
+    pub today: String,
+    /// `[[Journal title]]` of yesterday.
+    pub yesterday: String,
+    /// `[[Journal title]]` of tomorrow.
+    pub tomorrow: String,
+    /// `[[Title]]` of the page the template goes into.
+    pub current: String,
+    /// Local time of day as `HH:mm`; empty when unknown (`<% time %>` then stays as written).
+    pub time: String,
 }
 
-impl TemplateVars {
-    fn new(date: Date, cfg: &EffectiveConfig, title: &str) -> Self {
+impl TemplateContext {
+    /// Variables for `date` (today) and the page titled `title`; `time` is `HH:mm` or empty.
+    #[must_use]
+    pub fn new(date: Date, time: &str, cfg: &EffectiveConfig, title: &str) -> Self {
         let name = |d: Option<Date>| {
             d.map_or_else(String::new, |d| {
                 format!("[[{}]]", journal_page(d, cfg).title)
@@ -357,21 +369,28 @@ impl TemplateVars {
             yesterday: name(date.add_days(-1)),
             tomorrow: name(date.add_days(1)),
             current: format!("[[{title}]]"),
+            time: time.to_owned(),
         }
     }
 
-    fn expand(&self, text: &str) -> String {
+    /// Expands the variables of `text`.
+    #[must_use]
+    pub fn expand(&self, text: &str) -> String {
         let mut out = String::with_capacity(text.len());
         let mut rest = text;
         while let Some(i) = rest.find("<%") {
             let Some(j) = rest[i..].find("%>") else { break };
             out.push_str(&rest[..i]);
-            let var = rest[i + 2..i + j].trim().to_lowercase();
+            let raw = rest[i + 2..i + j].trim();
+            let var = raw.to_lowercase();
             let value = match var.as_str() {
-                "today" => Some(&self.today),
-                "yesterday" => Some(&self.yesterday),
-                "tomorrow" => Some(&self.tomorrow),
-                "current page" => Some(&self.current),
+                "today" => Some(self.today.as_str()),
+                "yesterday" => Some(self.yesterday.as_str()),
+                "tomorrow" => Some(self.tomorrow.as_str()),
+                "current page" => Some(self.current.as_str()),
+                "time" => Some(self.time.as_str()),
+                // `<% [[Page]] %>` inserts a reference to that page.
+                _ if raw.len() > 4 && raw.starts_with("[[") && raw.ends_with("]]") => Some(raw),
                 _ => None,
             };
             match value {
@@ -383,9 +402,45 @@ impl TemplateVars {
         out.push_str(rest);
         out
     }
+
+    fn expand_clip(&self, st: &Subtree) -> ClipBlock {
+        ClipBlock {
+            text: self.expand(&st.text),
+            children: st.children.iter().map(|c| self.expand_clip(c)).collect(),
+        }
+    }
 }
 
-fn expand_subtree(mut st: Subtree, vars: &TemplateVars) -> Subtree {
+impl Workspace {
+    /// The template named `name` expanded with `ctx`, as detached trees ready to insert
+    /// (`None` when no loaded page carries it).
+    #[must_use]
+    pub fn template_blocks(&self, name: &str, ctx: &TemplateContext) -> Option<Vec<ClipBlock>> {
+        let found = self.find_template(name)?;
+        Some(found.iter().map(|s| ctx.expand_clip(s)).collect())
+    }
+
+    /// Names of the templates on the loaded pages (`template:: name`), sorted, no duplicates.
+    #[must_use]
+    pub fn template_names(&self) -> Vec<String> {
+        let mut names: Vec<String> = self
+            .pages()
+            .flat_map(|p| {
+                p.dfs()
+                    .into_iter()
+                    .filter_map(|id| get_property(&p.block(id)?.text, "template"))
+                    .map(|t| t.trim().to_owned())
+                    .collect::<Vec<_>>()
+            })
+            .filter(|t| !t.is_empty())
+            .collect();
+        names.sort_by_key(|n| n.to_lowercase());
+        names.dedup_by(|a, b| a.eq_ignore_ascii_case(b));
+        names
+    }
+}
+
+fn expand_subtree(mut st: Subtree, vars: &TemplateContext) -> Subtree {
     st.text = vars.expand(&st.text);
     st.children = st
         .children
@@ -441,10 +496,15 @@ mod tests {
     #[test]
     fn variables_expand() {
         let c = cfg("{}");
-        let v = TemplateVars::new(Date::new(2025, 11, 14).expect("d"), &c, "Nov 14th, 2025");
+        let v = TemplateContext::new(
+            Date::new(2025, 11, 14).expect("d"),
+            "09:05",
+            &c,
+            "Nov 14th, 2025",
+        );
         assert_eq!(
-            v.expand("<% today %> and <% Yesterday %> <% unknown %> <%"),
-            "[[Nov 14th, 2025]] and [[Nov 13th, 2025]] <% unknown %> <%"
+            v.expand("<% today %> and <% Yesterday %> <% unknown %> <% time %> <% [[Foo]] %> <%"),
+            "[[Nov 14th, 2025]] and [[Nov 13th, 2025]] <% unknown %> 09:05 [[Foo]] <%"
         );
     }
 

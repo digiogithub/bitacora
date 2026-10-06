@@ -13,8 +13,8 @@ use std::ops::Range;
 use bitacora_markdown::edit::identity::ensure_block_id;
 use uuid::Uuid;
 
-use super::cmd::{Cmd, Planned, Refusal, check_writable, set_text};
-use super::model::BlockId;
+use super::cmd::{Cmd, Planned, Refusal, Target, check_writable, set_text};
+use super::model::{BlockId, Subtree};
 use super::op::Op;
 use super::tx::{CommitError, CursorState, Transaction};
 use super::workspace::Workspace;
@@ -277,6 +277,58 @@ pub(super) fn ensure_uuid(
     let u = uuid.unwrap_or_else(|| fresh_uuid(ws));
     let (text, _) = ensure_block_id(&b.text, u, false).map_err(|_| Refusal::NothingApplicable)?;
     Ok(vec![set_text(ws, id, text)?])
+}
+
+/// Alt-drop: ensures every source has an `id::` and adds one `((uuid))` block each at `target`.
+pub(super) fn drop_block_ref(
+    ws: &Workspace,
+    sources: &[BlockId],
+    target: Target,
+) -> Result<Planned, Refusal> {
+    if sources.is_empty() {
+        return Err(Refusal::EmptySelection);
+    }
+    let anchor = match target {
+        Target::Before(t) | Target::After(t) | Target::FirstChild(t) | Target::LastChild(t) => t,
+    };
+    let apos = ws
+        .position_of(anchor)
+        .ok_or(Refusal::UnknownBlock(anchor))?;
+    check_writable(ws, &apos.page)?;
+    let (parent, index) = match target {
+        Target::Before(_) => (apos.parent, apos.index),
+        Target::After(_) => (apos.parent, apos.index + 1),
+        Target::FirstChild(_) => (Some(anchor), 0),
+        Target::LastChild(_) => (
+            Some(anchor),
+            ws.block(anchor).map_or(0, |b| b.children.len()),
+        ),
+    };
+    let mut ops = Vec::new();
+    let mut refs = Vec::new();
+    for source in sources {
+        let src = ws.block(*source).ok_or(Refusal::UnknownBlock(*source))?;
+        let uuid = if let Some(u) = src.uuid {
+            u
+        } else {
+            let u = fresh_uuid(ws);
+            ops.extend(ensure_uuid(ws, *source, Some(u))?);
+            u
+        };
+        refs.push(block_ref_text(uuid));
+    }
+    for (k, text) in refs.into_iter().enumerate() {
+        ops.push(Op::InsertSubtree {
+            page: apos.page.clone(),
+            parent,
+            index: index + k,
+            subtree: Subtree::new(ws.alloc_id(), text),
+        });
+    }
+    Ok(Planned {
+        ops,
+        cursor_after: None,
+    })
 }
 
 pub(super) fn insert_block_ref(
