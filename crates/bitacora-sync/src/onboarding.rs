@@ -223,7 +223,7 @@ fn ensure_remote(git_dir: &Path, name: &str, url: &str) -> Result<()> {
     Ok(())
 }
 
-fn set_upstream(git_dir: &Path, remote: &str, branch: &str) -> Result<()> {
+pub(crate) fn set_upstream(git_dir: &Path, remote: &str, branch: &str) -> Result<()> {
     repo_setup::update_config(git_dir, |file| {
         file.set_raw_value_by("branch", branch, "remote", remote)
             .map_err(cfg_err)?;
@@ -317,7 +317,7 @@ pub fn enable_sync(
     })
 }
 
-fn is_nothing_to_commit(e: &GitError) -> bool {
+pub(crate) fn is_nothing_to_commit(e: &GitError) -> bool {
     matches!(e, GitError::Other { stderr } if stderr.contains("nothing to commit")
         || stderr.contains("nothing added to commit")
         || stderr.contains("no changes added"))

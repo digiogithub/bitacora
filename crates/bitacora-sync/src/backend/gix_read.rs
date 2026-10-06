@@ -3,7 +3,7 @@
 
 use std::collections::BTreeMap;
 
-use super::{DirtyKind, DirtyPath, GitError, Oid, RepoStatus, Result, UnmergedEntry};
+use super::{CommitInfo, DirtyKind, DirtyPath, GitError, Oid, RepoStatus, Result, UnmergedEntry};
 
 pub(super) fn to_gix(oid: &Oid) -> Result<gix::ObjectId> {
     gix::ObjectId::from_hex(oid.as_hex().as_bytes()).map_err(GitError::other)
@@ -49,6 +49,30 @@ pub(super) fn read_blob(
     }
     let object = entry.object().map_err(GitError::other)?;
     Ok(Some(object.detach().data))
+}
+
+pub(super) fn resolve_ref(repo: &gix::Repository, name: &str) -> Result<Option<Oid>> {
+    match repo.try_find_reference(name) {
+        Ok(Some(mut r)) => match r.peel_to_id() {
+            Ok(id) => Ok(Some(from_gix(id.detach()))),
+            Err(_) => Ok(None),
+        },
+        Ok(None) => Ok(None),
+        Err(e) => Err(GitError::other(e)),
+    }
+}
+
+pub(super) fn commit_info(repo: &gix::Repository, id: &Oid) -> Result<CommitInfo> {
+    let commit = repo.find_commit(to_gix(id)?).map_err(GitError::other)?;
+    let decoded = commit.decode().map_err(GitError::other)?;
+    let committer_time = decoded.committer().map_err(GitError::other)?.seconds();
+    Ok(CommitInfo {
+        id: id.clone(),
+        tree: from_gix(commit.tree_id().map_err(GitError::other)?.detach()),
+        parents: commit.parent_ids().map(|p| from_gix(p.detach())).collect(),
+        committer_time,
+        message: String::from_utf8_lossy(decoded.message).into_owned(),
+    })
 }
 
 pub(super) fn status(repo: &gix::Repository) -> Result<RepoStatus> {

@@ -10,9 +10,9 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use super::{
-    ActiveBackend, CommitMessage, CommitOpts, DirtyKind, DirtyPath, FetchOutcome, GitBackend,
-    GitError, Oid, PushOutcome, RepoStatus, Result, TreeChange, TreeEdit, UnmergedEntry,
-    check_ref_arg, classify_failure,
+    ActiveBackend, CommitInfo, CommitMessage, CommitOpts, DirtyKind, DirtyPath, FetchOutcome,
+    GitBackend, GitError, Oid, PushOutcome, RepoStatus, Result, TreeChange, TreeEdit,
+    UnmergedEntry, check_ref_arg, classify_failure,
 };
 
 const NULL_OID: &str = "0000000000000000000000000000000000000000";
@@ -481,6 +481,45 @@ impl GitBackend for CliBackend {
             dirty,
             unmerged,
         })
+    }
+
+    fn resolve_ref(&self, name: &str) -> Result<Option<Oid>> {
+        self.rev_parse(name)
+    }
+
+    fn commit_info(&self, commit: &Oid) -> Result<CommitInfo> {
+        let out = self.local(&[
+            "log",
+            "-1",
+            "--format=%H%x00%T%x00%P%x00%ct%x00%B",
+            commit.as_hex(),
+        ])?;
+        let text = String::from_utf8_lossy(&out.stdout).into_owned();
+        let mut parts = text.splitn(5, '\0');
+        let id = Oid::from_hex(parts.next().unwrap_or_default())?;
+        let tree = Oid::from_hex(parts.next().unwrap_or_default())?;
+        let parents = parts
+            .next()
+            .unwrap_or_default()
+            .split_whitespace()
+            .map(Oid::from_hex)
+            .collect::<Result<Vec<_>>>()?;
+        let committer_time = parts.next().unwrap_or_default().trim().parse().unwrap_or(0);
+        let message = parts.next().unwrap_or_default().trim_end().to_string() + "\n";
+        Ok(CommitInfo {
+            id,
+            tree,
+            parents,
+            committer_time,
+            message,
+        })
+    }
+
+    fn reset_index(&self, commit: &Oid) -> Result<()> {
+        self.local(&["read-tree", commit.as_hex()])?;
+        // Refresh stat data so the next `status` does not rehash every file.
+        let _ = self.local(&["update-index", "-q", "--refresh"]);
+        Ok(())
     }
 
     fn kind(&self) -> ActiveBackend {

@@ -49,6 +49,12 @@ impl Oid {
     pub fn as_hex(&self) -> &str {
         &self.0
     }
+
+    /// The well-known id of the empty tree; git resolves it without the object being stored, so
+    /// it serves as the "base" of unrelated histories.
+    pub fn empty_tree() -> Self {
+        Self("4b825dc642cb6eb9a060e54bf8d69288fbee4904".to_string())
+    }
 }
 
 impl fmt::Display for Oid {
@@ -163,6 +169,8 @@ pub fn classify_failure(stderr: &str) -> GitError {
         "failed to connect",
         "temporary failure in name resolution",
         "timed out after",
+        "does not appear to be a git repository",
+        "is a valid git directory",
     ]) {
         GitError::Network(stderr.trim().to_string())
     } else if has(&[
@@ -372,6 +380,21 @@ pub struct RepoStatus {
     pub unmerged: Vec<UnmergedEntry>,
 }
 
+/// Metadata of one commit.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CommitInfo {
+    /// The commit id.
+    pub id: Oid,
+    /// Its root tree.
+    pub tree: Oid,
+    /// Parent commits, first parent first.
+    pub parents: Vec<Oid>,
+    /// Committer time in seconds since the Unix epoch.
+    pub committer_time: i64,
+    /// Full commit message.
+    pub message: String,
+}
+
 /// Git operations the sync engine needs.
 pub trait GitBackend: Send + Sync {
     /// Fetches `branch` from `remote` into `refs/remotes/<remote>/<branch>` (pruning, no tags).
@@ -395,6 +418,13 @@ pub trait GitBackend: Send + Sync {
     fn update_ref(&self, name: &str, new: &Oid, expected_old: Option<&Oid>) -> Result<()>;
     /// Work-tree and index status.
     fn status(&self) -> Result<RepoStatus>;
+    /// Resolves a fully qualified ref (or `HEAD`) to a commit id; `None` when it does not exist.
+    fn resolve_ref(&self, name: &str) -> Result<Option<Oid>>;
+    /// Reads commit metadata.
+    fn commit_info(&self, commit: &Oid) -> Result<CommitInfo>;
+    /// Makes the index match the tree of `commit` without touching the work tree. Used after the
+    /// branch ref moved (fast-forward, merge commit) once the work tree was updated.
+    fn reset_index(&self, commit: &Oid) -> Result<()>;
     /// Which backend this is.
     fn kind(&self) -> ActiveBackend;
 }
