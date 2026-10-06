@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>es.digio.bitacora</id>
+  <name>Bitacora</name>
+  <summary>Outliner for Logseq-compatible Markdown graphs</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <developer id="es.digio">
+    <name>Digio</name>
+  </developer>
+  <description>
+    <p>
+      Bitacora is a fast desktop outliner that reads and writes Logseq Markdown graphs without
+      changing the files you did not touch. It indexes your graph for instant search, syncs it
+      with git and can serve it to AI assistants over a local MCP endpoint.
+    </p>
+    <ul>
+      <li>Fully compatible with Logseq file graphs (pages, journals, properties, assets)</li>
+      <li>Block outliner with undo and a local full-text index</li>
+      <li>Git sync with block-aware merging of concurrent edits</li>
+      <li>Optional MCP server bound to localhost, with audited and undoable writes</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">es.digio.bitacora.desktop</launchable>
+  <url type="homepage">https://github.com/digio-es/bitacora</url>
+  <url type="bugtracker">https://github.com/digio-es/bitacora/issues</url>
+  <categories>
+    <category>Office</category>
+    <category>Utility</category>
+  </categories>
+  <provides>
+    <binary>bitacora</binary>
+  </provides>
+  <content_rating type="oars-1.1"/>
+  <requires>
+    <display_length compare="ge">768</display_length>
+  </requires>
+  <releases>
+    <release version="0.1.0" date="2026-10-06"/>
+  </releases>
+</component>

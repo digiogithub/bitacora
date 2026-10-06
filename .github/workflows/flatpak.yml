@@ -1,0 +1,49 @@
+name: flatpak
+
+# Flatpak bundle (BIT-US-0112): generates offline cargo sources from Cargo.lock, validates the
+# AppStream metainfo and desktop file, and builds the bundle with flatpak-builder.
+# Reusable (called by release.yml on tags) and runnable by hand.
+on:
+  workflow_call:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/flatpak.yml"
+      - "packaging/flatpak/**"
+
+permissions:
+  contents: read
+
+jobs:
+  flatpak:
+    runs-on: ubuntu-24.04
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:freedesktop-24.08
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate metadata
+        run: |
+          dnf install -y appstream desktop-file-utils python3-pip || true
+          desktop-file-validate packaging/flatpak/es.digio.bitacora.desktop
+          appstreamcli validate --no-net packaging/flatpak/es.digio.bitacora.metainfo.xml
+
+      - name: Generate offline cargo sources
+        run: |
+          pip3 install aiohttp tomlkit
+          curl -fsSL https://raw.githubusercontent.com/flatpak/flatpak-builder-tools/master/cargo/flatpak-cargo-generator.py -o flatpak-cargo-generator.py
+          python3 flatpak-cargo-generator.py Cargo.lock -o packaging/flatpak/cargo-sources.json
+
+      - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          bundle: bitacora.flatpak
+          manifest-path: packaging/flatpak/es.digio.bitacora.yml
+          cache-key: flatpak-builder-${{ github.sha }}
+          upload-artifact: false
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flatpak
+          path: bitacora.flatpak
+          if-no-files-found: error
