@@ -93,6 +93,7 @@ enum Job {
     EndBulk(Reply<()>),
     RecordVersions(Reply<()>),
     SetMeta(String, String, Reply<()>),
+    SetConfigHash(String, Reply<()>),
     Flush(Reply<()>),
     Renormalize(Reply<()>),
     SetSubstring(bool, Reply<bool>),
@@ -216,6 +217,12 @@ impl IndexWriter {
         self.submit(Job::RecordVersions).wait()
     }
 
+    /// Change the config hash [`IndexWriter::record_versions`] persists (config hot reload).
+    pub fn set_config_hash(&self, hash: &str) -> Result<(), Error> {
+        self.submit(|r| Job::SetConfigHash(hash.to_owned(), r))
+            .wait()
+    }
+
     /// Set a `meta` key.
     pub fn set_meta(&self, key: &str, value: &str) -> Result<(), Error> {
         self.submit(|r| Job::SetMeta(key.to_owned(), value.to_owned(), r))
@@ -329,6 +336,10 @@ impl Writer {
                 }
                 Job::RecordVersions(reply) => {
                     let _ = reply.send(self.conn.record_versions());
+                }
+                Job::SetConfigHash(hash, reply) => {
+                    self.conn.set_config_hash(hash);
+                    let _ = reply.send(Ok(()));
                 }
                 Job::SetMeta(k, v, reply) => {
                     let r = self

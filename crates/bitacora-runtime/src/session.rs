@@ -20,13 +20,14 @@ use std::path::PathBuf;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex, PoisonError};
 
-use bitacora_config::global_config_path;
-use bitacora_core::editor::ExternalOutcome;
+use crate::glue::journal_template_text;
+use bitacora_config::{EffectiveConfig, global_config_path};
+use bitacora_core::editor::{EditorSettings, ExternalOutcome};
 use bitacora_core::graph::PageKey;
 use bitacora_core::graph_path::GraphPath;
 use bitacora_core::queue::{CommandQueue, QueueError, QueueEvent, Request, Response, Source};
 use bitacora_core::write_queue::DebounceConfig;
-use bitacora_index::{FsChange, Indexer, ReconcileStats};
+use bitacora_index::{FsChange, Indexer, ReaderPool, RebuildKind, ReconcileStats};
 use bitacora_mcp::McpConfig;
 use bitacora_sync::GitDetection;
 use bitacora_sync::engine::{EngineConfig, Timing};
@@ -214,8 +215,23 @@ pub enum RuntimeEvent {
         /// Graph-relative path.
         path: String,
     },
-    /// `logseq/config.edn` changed (the config is not hot-reloaded by the runtime yet).
+    /// `logseq/config.edn` changed on disk. Always followed by [`RuntimeEvent::ConfigReloaded`]
+    /// or [`RuntimeEvent::ConfigReloadFailed`].
     ConfigChanged,
+    /// The effective config was reloaded and applied to core (editor settings), the watcher's
+    /// hidden rules and the index; [`Session::current_config`] returns it. The UI should refresh
+    /// whatever it derived from the config (view settings, journal formats, file name format).
+    ConfigReloaded {
+        /// The new effective config.
+        config: Arc<EffectiveConfig>,
+        /// The change affects what the parser produces: the index was fully rebuilt.
+        reindexed: bool,
+    },
+    /// `logseq/config.edn` is not valid EDN (or unreadable): the previous config stays active.
+    ConfigReloadFailed {
+        /// First diagnostic.
+        message: String,
+    },
     /// A full reconcile ran after the watcher lost events.
     Reconciled(ReconcileStats),
     /// A file could not be indexed.
@@ -251,6 +267,8 @@ impl Events {
 pub(crate) enum Job {
     Queue(QueueEvent),
     Watch(WatchEvent),
+    /// Rebuild the whole index; the result goes back through the channel.
+    Reindex(Sender<Result<ReconcileStats, bitacora_index::Error>>),
     Stop,
 }
 
@@ -259,9 +277,20 @@ fn is_page_file(rel: &str) -> bool {
     lower.ends_with(".md") || lower.ends_with(".markdown") || lower.ends_with(".org")
 }
 
+/// The effective config shared by the session, the watcher's hidden rule and the pump; replaced
+/// as a whole on reload.
+pub(crate) type SharedConfig = Arc<std::sync::RwLock<Arc<EffectiveConfig>>>;
+
+pub(crate) fn current(c: &SharedConfig) -> Arc<EffectiveConfig> {
+    Arc::clone(&c.read().unwrap_or_else(PoisonError::into_inner))
+}
+
 /// Applies queue and watcher events to the index and, for external changes, back to core.
 pub(crate) struct Pump {
     pub(crate) root: PathBuf,
+    pub(crate) config: SharedConfig,
+    pub(crate) global_config: Option<PathBuf>,
+    pub(crate) readers: ReaderPool,
     pub(crate) indexer: Arc<Indexer>,
     pub(crate) queue: CommandQueue,
     pub(crate) events: Events,
@@ -273,6 +302,9 @@ impl Pump {
             match job {
                 Job::Queue(ev) => self.queue_event(&ev),
                 Job::Watch(ev) => self.watch_event(ev),
+                Job::Reindex(reply) => {
+                    let _ = reply.send(self.indexer.reindex());
+                }
                 Job::Stop => break,
             }
         }
@@ -361,7 +393,13 @@ impl Pump {
         if !is_page_file(&f.rel_path) {
             if f.rel_path == "logseq/config.edn" {
                 self.events.emit(&RuntimeEvent::ConfigChanged);
+                self.reload_config();
             }
+            return;
+        }
+        if self.is_template_only_journal(&path, f) {
+            // A journal Logseq (or another tool) just created with the default template: nothing
+            // the user wrote (BIT-SP-0002.R17), so neither the index nor core react to it.
             return;
         }
         match &f.kind {
@@ -388,6 +426,83 @@ impl Pump {
                 self.external_upsert(&path, f);
             }
         }
+    }
+
+    /// An upserted, not loaded journal file whose trimmed content equals the configured default
+    /// journal template.
+    fn is_template_only_journal(&self, path: &GraphPath, f: &FileEvent) -> bool {
+        if !matches!(f.kind, FileEventKind::Upserted) {
+            return false;
+        }
+        let cfg = current(&self.config);
+        let prefix = format!("{}/", cfg.journals_directory());
+        if !path.as_str().starts_with(&prefix) {
+            return false;
+        }
+        let Some(bytes) = f.bytes.as_ref() else {
+            return false;
+        };
+        let Some(template) = journal_template_text(&cfg, &self.readers) else {
+            return false;
+        };
+        if self.loaded_page(path).is_some() {
+            return false;
+        }
+        let norm = |s: &str| {
+            s.trim()
+                .lines()
+                .map(str::trim_end)
+                .collect::<Vec<_>>()
+                .join("\n")
+        };
+        norm(&String::from_utf8_lossy(bytes)) == norm(&template)
+    }
+
+    /// Re-reads the effective config and applies it everywhere the runtime owns state: core's
+    /// editor settings, the index (config hash, full reparse when it changed) and, through the
+    /// shared handle, the watcher's hidden rule. An invalid config keeps the previous one.
+    fn reload_config(&self) {
+        let old = current(&self.config);
+        let new = EffectiveConfig::load(&self.root, self.global_config.as_deref());
+        if new.diagnostics().len() > old.diagnostics().len()
+            && let Some(d) = new.diagnostics().last()
+        {
+            self.events.emit(&RuntimeEvent::ConfigReloadFailed {
+                message: d.to_string(),
+            });
+            return;
+        }
+        if new == *old {
+            self.events.emit(&RuntimeEvent::ConfigReloaded {
+                config: old,
+                reindexed: false,
+            });
+            return;
+        }
+        let new = Arc::new(new);
+        *self.config.write().unwrap_or_else(PoisonError::into_inner) = Arc::clone(&new);
+        if let Err(e) = self
+            .queue
+            .set_settings(Source::External, EditorSettings::from_config(&new))
+        {
+            tracing::warn!(error = %e, "editor settings could not be updated");
+        }
+        let mut reindexed = false;
+        match self.indexer.set_config((*new).clone()) {
+            Ok(RebuildKind::None) => {}
+            Ok(_) => match self.indexer.reconcile() {
+                Ok(stats) => {
+                    reindexed = true;
+                    self.events.emit(&RuntimeEvent::Reconciled(stats));
+                }
+                Err(e) => self.index_error("logseq/config.edn", &e),
+            },
+            Err(e) => self.index_error("logseq/config.edn", &e),
+        }
+        self.events.emit(&RuntimeEvent::ConfigReloaded {
+            config: new,
+            reindexed,
+        });
     }
 
     fn external_upsert(&self, path: &GraphPath, f: &FileEvent) {
