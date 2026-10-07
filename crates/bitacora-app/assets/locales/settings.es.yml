@@ -18,7 +18,93 @@ settings:
     graph: Grafo
     app: Aplicación
   pando:
-    placeholder: Los ajustes de Pando aparecerán aquí.
+    status: Estado
+    status_off: Desactivado
+    status_consent: Falta el consentimiento
+    status_connected: Conectado
+    status_unavailable: No disponible
+    status_starting: Iniciando
+    status_pending: Aún sin conexión
+    connection: Conexión
+    enabled: Usar Pando
+    enabled_help: Conecta Bitacora con Pando para la búsqueda semántica y los agentes. Desactivado por defecto; no se envía nada hasta que des tu consentimiento para un grafo.
+    mode: Modo
+    mode_help: Gestionado arranca un servidor Pando por grafo. Externo se conecta a uno que ejecutas tú. Desactivado apaga la integración.
+    mode_managed: Gestionado
+    mode_external: Externo
+    mode_off: Desactivado
+    rest_url: URL REST
+    agui_url: URL del agente (AG-UI)
+    endpoints_apply: Aplicar direcciones
+    endpoints_help: Guarda las dos URL. Los servidores remotos necesitan "Permitir servidores remotos" y https.
+    allow_remote: Permitir servidores remotos
+    allow_remote_help: Permite que las URL apunten a otra máquina. Deben usar https.
+    rest_token: Token REST
+    agui_token: Token del agente
+    token_placeholder: Pega un token
+    token_save: Guardar
+    token_clear: Quitar
+    token_saved: Token guardado en el llavero del sistema.
+    token_cleared: Token eliminado.
+    token_keychain: Guardado en el llavero del sistema.
+    token_env: "Tomado de la variable de entorno %{var}."
+    token_none: Sin token.
+    test: Probar conexión
+    test_button: Probar
+    test_help: Comprueba que el servidor responde e indica su versión.
+    testing: Contactando con el servidor...
+    test_ok: "Conectado. Pando %{version}."
+    test_old: "Conectado, pero Pando %{version} es anterior al mínimo %{min}. Actualiza Pando."
+    test_failed: "No se pudo conectar: %{error}"
+    managed: Instancia gestionada
+    managed_idle: No iniciada en esta sesión.
+    managed_stopped: Detenida.
+    managed_starting: Iniciando.
+    managed_ready: En marcha.
+    managed_restarting: Reiniciando.
+    managed_failed: Fallida
+    restart: Reiniciar
+    restarting: Reiniciando la instancia gestionada...
+    open_log: Abrir registro
+    binary: Programa Pando
+    binary_help: Ruta del ejecutable pando; vacío lo busca en el PATH.
+    kb: Base de conocimiento
+    kb_shared: "Compartida con tu propio Pando: la configuración global de Pando guarda la base de conocimiento en %{dir}."
+    kb_private: "Privada: la instancia gestionada usa su propia base de datos. Para compartirla con tu propio Pando, define un Data Directory absoluto en tu configuración global de Pando."
+    features: Funciones
+    feature_semantic: Búsqueda semántica
+    feature_semantic_help: Indexa tus bloques en la base de conocimiento de Pando para encontrar notas relacionadas por significado.
+    feature_chat: Chat con el asistente
+    feature_chat_help: Conversa con los agentes de Pando desde el panel derecho.
+    feature_bridge: Dejar que los agentes lean este grafo
+    feature_bridge_help: Da a los agentes de Pando un token de solo lectura para el servidor MCP de Bitacora.
+    graph: Este grafo
+    consent: Consentimiento
+    consent_given: "Aceptaste el %{date}."
+    consent_given_undated: Aceptaste.
+    consent_missing: No se envía nada de este grafo a Pando hasta que aceptes.
+    grant: Revisar y aceptar...
+    revoke: Revocar consentimiento
+    revoke_purge: Revocar y eliminar mis datos
+    agent_writes: Permitir que los agentes editen este grafo
+    agent_writes_help: Desactivado por defecto. Si se activa, los agentes de Pando pueden escribir por MCP; cada escritura queda auditada y se puede deshacer. Se aplica al reabrir el grafo.
+    exclusions: No enviar nunca
+    exclusions_help: Páginas, espacios de nombres, carpetas (con /) o #etiquetas. Las páginas con private:: true nunca se envían. Pulsa una entrada para quitarla.
+    exclusion_placeholder: "Página, espacio de nombres, carpeta/ o #etiqueta"
+    exclusion_empty: Escribe un nombre de página, una carpeta o una #etiqueta.
+    exclusion_remove: quitar
+    activity: Actividad
+    sync: Sincronización semántica
+    sync_counts: "%{synced} documentos en Pando, %{pending} en espera."
+    sync_none: No está en marcha.
+    refresh: Actualizar
+    target_managed: un servidor Pando que Bitacora arranca en este equipo
+    consent_title: "¿Enviar las notas de este grafo a Pando?"
+    consent_body: "Los bloques indexados de este grafo se envían a %{target} y se guardan en la base de conocimiento compartida de Pando, la memoria de los agentes. Cualquier agente o cliente de Pando que busque en esa base puede leerlos, no solo Bitacora. Las páginas con private:: true y tus exclusiones nunca se envían. Los agentes no pueden editar tus notas salvo que lo actives aparte. Puedes revocarlo cuando quieras y eliminar lo enviado."
+    revoke_title: "¿Revocar el consentimiento?"
+    revoke_body: Bitacora deja de enviar y los documentos ya enviados se eliminan de Pando.
+    purge_title: "¿Revocar el consentimiento y eliminar tus datos?"
+    purge_body: Bitacora deja de enviar y borra todos los documentos de este grafo de la base de conocimiento de Pando.
   mode:
     reindex: Reconstruye el índice
     restart: Requiere reiniciar

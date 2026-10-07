@@ -18,7 +18,93 @@ settings:
     graph: Graph
     app: App
   pando:
-    placeholder: Pando settings will appear here.
+    status: Status
+    status_off: Off
+    status_consent: Consent needed
+    status_connected: Connected
+    status_unavailable: Unavailable
+    status_starting: Starting
+    status_pending: Not connected yet
+    connection: Connection
+    enabled: Use Pando
+    enabled_help: Connects Bitacora to Pando for semantic search and agents. Off by default; nothing is sent until you consent for a graph.
+    mode: Mode
+    mode_help: Managed starts a Pando server for each graph. External connects to one you run. Off disables the integration.
+    mode_managed: Managed
+    mode_external: External
+    mode_off: Off
+    rest_url: REST URL
+    agui_url: Agent (AG-UI) URL
+    endpoints_apply: Apply endpoints
+    endpoints_help: Saves both URLs. Remote servers need "Allow remote servers" and https.
+    allow_remote: Allow remote servers
+    allow_remote_help: Lets the URLs point to another machine. They must use https.
+    rest_token: REST token
+    agui_token: Agent token
+    token_placeholder: Paste a token
+    token_save: Save
+    token_clear: Remove
+    token_saved: Token saved in the system keychain.
+    token_cleared: Token removed.
+    token_keychain: Stored in the system keychain.
+    token_env: "Taken from the environment variable %{var}."
+    token_none: No token set.
+    test: Test connection
+    test_button: Test
+    test_help: Checks that the server answers and reports its version.
+    testing: Contacting the server...
+    test_ok: "Connected. Pando %{version}."
+    test_old: "Connected, but Pando %{version} is older than the minimum %{min}. Update Pando."
+    test_failed: "Could not connect: %{error}"
+    managed: Managed instance
+    managed_idle: Not started in this session.
+    managed_stopped: Stopped.
+    managed_starting: Starting.
+    managed_ready: Running.
+    managed_restarting: Restarting.
+    managed_failed: Failed
+    restart: Restart
+    restarting: Restarting the managed instance...
+    open_log: Open log
+    binary: Pando program
+    binary_help: Path of the pando executable; empty looks it up on PATH.
+    kb: Knowledge base
+    kb_shared: "Shared with your own Pando: the global Pando configuration stores the knowledge base in %{dir}."
+    kb_private: "Private: the managed instance keeps its own database. To share the knowledge base with your own Pando, set an absolute Data Directory in your global Pando configuration."
+    features: Features
+    feature_semantic: Semantic search
+    feature_semantic_help: Indexes your blocks in Pando's knowledge base to find related notes by meaning.
+    feature_chat: Assistant chat
+    feature_chat_help: Chat with Pando agents from the right panel.
+    feature_bridge: Let agents read this graph
+    feature_bridge_help: Gives Pando agents a read-only token for Bitacora's MCP server.
+    graph: This graph
+    consent: Consent
+    consent_given: "You agreed on %{date}."
+    consent_given_undated: You agreed.
+    consent_missing: Nothing from this graph is sent to Pando until you agree.
+    grant: Review and agree...
+    revoke: Revoke consent
+    revoke_purge: Revoke and remove my data
+    agent_writes: Let agents edit this graph
+    agent_writes_help: Off by default. When on, Pando agents may write through MCP; every write is audited and undoable. Applies when the graph is reopened.
+    exclusions: Never send
+    exclusions_help: Pages, namespaces, folders (with /) or #tags. Pages with private:: true are never sent. Click an entry to remove it.
+    exclusion_placeholder: "Page, namespace, folder/ or #tag"
+    exclusion_empty: Type a page name, a folder or a #tag.
+    exclusion_remove: remove
+    activity: Activity
+    sync: Semantic sync
+    sync_counts: "%{synced} documents in Pando, %{pending} waiting."
+    sync_none: Not running.
+    refresh: Refresh
+    target_managed: a Pando server that Bitacora starts on this computer
+    consent_title: Send this graph's notes to Pando?
+    consent_body: "Indexed blocks of this graph are sent to %{target} and stored in Pando's shared knowledge base, the agent memory. Any Pando agent or client that searches that knowledge base can read them, not only Bitacora. Pages marked private:: true and your exclusions are never sent. Agents cannot edit your notes unless you turn that on separately. You can revoke this at any time and remove what was sent."
+    revoke_title: Revoke consent?
+    revoke_body: Bitacora stops sending and the documents already sent are removed from Pando.
+    purge_title: Revoke consent and remove your data?
+    purge_body: Bitacora stops sending and deletes every document of this graph from Pando's knowledge base.
   mode:
     reindex: Rebuilds the index
     restart: Restart required

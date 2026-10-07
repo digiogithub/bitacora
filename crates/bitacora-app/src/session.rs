@@ -174,6 +174,9 @@ pub struct SessionOptions {
     pub mcp: crate::settings::McpSettings,
     /// Drop the trigram block index right after opening (`search.substring = false`).
     pub disable_substring: bool,
+    /// Machine-local `pando.json`; `None` leaves the Pando integration off. The session builds
+    /// its `PandoOptions` from it at open (consent, mode, endpoints, features).
+    pub pando_settings_path: Option<PathBuf>,
 }
 
 enum Control {
@@ -333,6 +336,13 @@ fn runtime_config(
             token_path: token_path.clone(),
             secrets: options.mcp_secrets.clone(),
         });
+    }
+    if let Some(path) = &options.pando_settings_path {
+        match bitacora_runtime::pando_options_from_file(path, root) {
+            Ok(opts) => cfg.pando = opts,
+            // A broken settings file never keeps a graph closed.
+            Err(e) => tracing::warn!("Pando settings ignored: {e}"),
+        }
     }
     cfg
 }
@@ -619,6 +629,45 @@ mod tests {
             gate: None,
             ..SessionOptions::default()
         }
+    }
+
+    #[test]
+    fn the_session_builds_pando_options_from_the_settings_file() {
+        let g = graph();
+        let data = tempfile::tempdir().expect("data");
+        let mut opts = options(&data);
+        // No file configured, a missing file and a disabled integration all leave Pando off.
+        assert!(
+            runtime_config(g.path(), &opts, false, false)
+                .pando
+                .is_none()
+        );
+        let file = data.path().join("pando.json");
+        opts.pando_settings_path = Some(file.clone());
+        assert!(
+            runtime_config(g.path(), &opts, false, false)
+                .pando
+                .is_none()
+        );
+        // A broken file never keeps the graph closed.
+        std::fs::write(&file, "{ nope").expect("write");
+        assert!(
+            runtime_config(g.path(), &opts, false, false)
+                .pando
+                .is_none()
+        );
+        let mut settings = bitacora_config::PandoSettings {
+            enabled: true,
+            ..Default::default()
+        };
+        settings.save(&file).expect("save");
+        let cfg = runtime_config(g.path(), &opts, false, false);
+        let pando = cfg.pando.expect("pando options");
+        assert!(pando.settings.enabled);
+        assert_eq!(pando.graph, g.path());
+        // The consent key the settings page writes is the graph path as the session sees it.
+        settings.grant_consent(&g.path().to_string_lossy(), 1);
+        assert!(settings.has_consent(&pando.graph_key()));
     }
 
     #[test]

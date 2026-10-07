@@ -37,7 +37,10 @@ pub use bitacora_pando::semantic::{
     HybridHit, HybridOptions, HybridResults, HybridTarget, SemanticState, Unavailable,
 };
 pub use bitacora_pando::{
-    PandoCredentials, PandoEvent, PandoOptions, PandoService, PandoStatus, Supervisor,
+    ConnectionReport, KbSharing, ManagedState, ManagedStatus, MemoryBackend as PandoMemoryBackend,
+    PandoCredentials, PandoEvent, PandoOptions, PandoService, PandoStatus,
+    SecretBackend as PandoSecretBackend, Supervisor, TokenKind, TokenSource, kb_sharing,
+    test_connection,
 };
 pub use live::{DEFAULT_SHUTDOWN_BUDGET, Session, ShutdownReport};
 pub use pando_settings::{

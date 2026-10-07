@@ -114,6 +114,8 @@ pub struct WorkspaceConfig {
     pub keymap_file: Option<PathBuf>,
     /// Keychain for MCP token secrets (`None`: the token file holds them).
     pub mcp_secrets: Option<Arc<dyn bitacora_mcp::SecretBackend>>,
+    /// Machine-local Pando settings (`pando.json`); `None` leaves Pando off (tests).
+    pub pando_settings_path: Option<PathBuf>,
 }
 
 mod top_bar;
@@ -445,6 +447,7 @@ impl Workspace {
                 mcp_secrets: self.config.mcp_secrets.clone(),
                 mcp: app_settings.mcp.clone(),
                 disable_substring: !app_settings.search.substring,
+                pando_settings_path: self.config.pando_settings_path.clone(),
             },
         );
         let (session, events) = match started {
@@ -962,6 +965,7 @@ impl Workspace {
                     s.set_mcp_endpoint(link.mcp_endpoint.clone(), cx)
                 });
                 self.refresh_settings(window, cx);
+                self.refresh_agent_configured(cx);
                 for pane in self.panes(cx) {
                     let link = link.clone();
                     pane.update(cx, |main, cx| main.set_session_link(link, window, cx));
@@ -1713,6 +1717,16 @@ impl Workspace {
         self.close_graph(window, cx);
     }
 
+    /// Tells the Agent tab whether Pando is configured and consented for the open graph.
+    fn refresh_agent_configured(&mut self, cx: &mut Context<Self>) {
+        let configured = crate::views::settings::agent_configured_for(
+            self.config.pando_settings_path.as_deref(),
+            self.graph_root.as_deref(),
+        );
+        self.panel
+            .update(cx, |panel, cx| panel.set_agent_configured(configured, cx));
+    }
+
     /// The settings view of the workspace.
     pub fn settings(&self) -> &Entity<SettingsView> {
         &self.settings
@@ -1727,6 +1741,7 @@ impl Workspace {
             session: self.session_handle.clone(),
             global_config: self.config.global_config.clone(),
             keymap_file: self.config.keymap_file.clone(),
+            pando_file: self.config.pando_settings_path.clone(),
             tokens: None,
             policy: None,
         };
@@ -1772,6 +1787,13 @@ impl Workspace {
             SettingsEvent::ReopenGraph => {
                 close(self, cx);
                 self.restart_session(window, cx);
+            }
+            SettingsEvent::PandoChanged { reopen } => {
+                self.refresh_agent_configured(cx);
+                if *reopen {
+                    close(self, cx);
+                    self.restart_session(window, cx);
+                }
             }
             SettingsEvent::FavoritesChanged(favorites) => {
                 let favorites = favorites.clone();

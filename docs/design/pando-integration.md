@@ -25,6 +25,10 @@ bitacora-core / bitacora-index (types and read API, as sync stories need them) /
 
 URL policy (`validate_pando_url`): `http`/`https` only, no credentials in the URL, loopback (`localhost`, `127.0.0.0/8`, `::1`) always allowed; anything else needs `allow_remote` **and** `https`. Managed endpoints are always loopback regardless of `allow_remote`.
 
+### 2.1 Settings page and consent (BIT-US-0137, BIT-US-0138)
+
+Settings window > Pando (`views/settings/pando.rs`) edits this file: status chip, mode, URLs, keychain tokens (never shown, only their source), Test connection (`bitacora_pando::test_connection`: version and minimum check), the managed instance (state, Restart, Open log, and whether it shares the user's KB, from `kb_sharing`), feature switches, and per graph the consent dialog, the `agent_writes` switch and the exclusions editor (page, namespace, `folder/` or `#tag`). Saving writes only `pando.json`. Changes that alter how the session starts reopen the graph; exclusions and revoked consent go to the running session through `Session::apply_pando_consent` (semantic `ContentPolicy` plus the `pando` token's `ReadExclusions`; revoke uses `ContentPolicy::denying_all()` and may purge). `SessionOptions::pando_settings_path` makes the app build `PandoOptions` with `pando_options_from_file` at every open, and the Agent tab is marked configured when Pando is active, chat is on and the graph is consented.
+
 ## 3. Credentials
 
 `bitacora_pando::PandoCredentials`: tokens are never in the settings file. Per kind (`Rest`, `Agui`) the order is environment (`BITACORA_PANDO_REST_TOKEN`, `BITACORA_PANDO_AGUI_TOKEN`) then OS keychain (service `bitacora`, accounts `pando/rest`, `pando/agui`; feature `keyring-store`, on by default). The environment value is never written back. `pando::Token` and all option structs have redacted `Debug`; a test captures TRACE logs and asserts the secret never appears.

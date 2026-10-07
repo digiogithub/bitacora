@@ -417,6 +417,34 @@ impl Session {
         self.semantic.as_ref()
     }
 
+    /// Applies the consent and exclusions of `settings` for this graph without reopening it:
+    /// the semantic content policy (documents that became ineligible are deleted from Pando) and
+    /// the read exclusions of the `pando` MCP token. With `purge`, every document of this graph
+    /// is also removed from Pando (revoked consent, "remove my data"). Revoked consent stops the
+    /// sync because the policy then excludes everything.
+    pub fn apply_pando_consent(&self, settings: &bitacora_config::PandoSettings, purge: bool) {
+        let key = self.root.to_string_lossy().into_owned();
+        let consent = settings.consent(&key);
+        if let Some(worker) = self.semantic.as_ref() {
+            // Nothing may leave the machine without consent.
+            let policy = if consent.granted {
+                bitacora_pando::semantic::ContentPolicy::from_consent(&consent)
+            } else {
+                bitacora_pando::semantic::ContentPolicy::denying_all()
+            };
+            worker.set_policy(policy);
+            if purge {
+                worker.purge();
+            }
+        }
+        if let Some(server) = self.mcp.as_ref() {
+            server.set_read_exclusions(
+                bitacora_mcp::PANDO_TOKEN_NAME,
+                Some(bitacora_mcp::ReadExclusions::new(&consent.exclusions)),
+            );
+        }
+    }
+
     /// Current Pando status (`Off` when the integration was not configured).
     #[must_use]
     pub fn pando_status(&self) -> PandoStatus {

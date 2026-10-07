@@ -59,6 +59,9 @@ pub struct ContentPolicy {
     pub include_journals: bool,
     /// Property that marks a page or block as private (`private:: true`); empty disables it.
     pub privacy_property: String,
+    /// Nothing is eligible (consent revoked): documents already sent are deleted by the next
+    /// reconcile and none is sent.
+    pub deny_all: bool,
 }
 
 impl Default for ContentPolicy {
@@ -68,6 +71,7 @@ impl Default for ContentPolicy {
             exclusions: Vec::new(),
             include_journals: true,
             privacy_property: "private".to_owned(),
+            deny_all: false,
         }
     }
 }
@@ -78,6 +82,15 @@ impl ContentPolicy {
     pub fn from_consent(consent: &GraphConsent) -> Self {
         Self {
             exclusions: consent.exclusions.clone(),
+            ..Self::default()
+        }
+    }
+
+    /// A policy that lets nothing through (the graph has no consent).
+    #[must_use]
+    pub fn denying_all() -> Self {
+        Self {
+            deny_all: true,
             ..Self::default()
         }
     }
@@ -319,6 +332,9 @@ pub fn map_block(
     block: &SemanticBlock,
     policy: &ContentPolicy,
 ) -> Result<SemanticDoc, Skip> {
+    if policy.deny_all {
+        return Err(Skip::Excluded);
+    }
     if block.is_pre_block {
         return Err(Skip::PreBlock);
     }
@@ -491,6 +507,18 @@ mod tests {
     fn text_with_assets_is_kept_whole() {
         let d = map("Lunch by the sea with friends ![photo](../assets/photo_1.png)").expect("doc");
         assert!(d.text.contains("![photo](../assets/photo_1.png)"));
+    }
+
+    #[test]
+    fn a_denying_policy_lets_nothing_through() {
+        assert_eq!(
+            map_block(
+                &graph(),
+                &block("Book the ferry to the island"),
+                &ContentPolicy::denying_all()
+            ),
+            Err(Skip::Excluded)
+        );
     }
 
     #[test]

@@ -255,6 +255,7 @@ fn open_workspace(
         system_credentials: true,
         keymap_file: Some(dirs.keymap_file()),
         mcp_secrets: bitacora_mcp::os_keychain(),
+        pando_settings_path: bitacora_runtime::default_pando_settings_path(),
     };
     let options = crate::views::title_bar::main_window_options(
         args.window_title(),

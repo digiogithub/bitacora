@@ -188,3 +188,50 @@ fn hybrid_search_is_lexical_only_without_consent_or_without_pando() {
     assert!(seen.lock().unwrap().is_empty());
     s.shutdown(Duration::from_secs(5));
 }
+
+/// Settings of `graph` with consent and the given exclusions (what the settings page saves).
+fn consent_settings(graph: &Path, granted: bool, exclusions: &[&str]) -> PandoSettings {
+    let canonical = std::fs::canonicalize(graph).unwrap();
+    let key = canonical.to_string_lossy().into_owned();
+    let mut s = PandoSettings::default();
+    s.grant_consent(&key, 1);
+    if !granted {
+        s.revoke_consent(&key);
+    }
+    s.graphs.entry(key).or_default().exclusions =
+        exclusions.iter().map(|e| (*e).to_owned()).collect();
+    s
+}
+
+#[test]
+fn exclusions_and_revoked_consent_reach_the_running_session() {
+    let dir = tempfile::tempdir().unwrap();
+    let graph = common::graph_with(
+        dir.path(),
+        &[("pages/a.md", PAGE), ("pages/secret.md", PAGE)],
+    );
+    let (url, seen) = mock_pando();
+    let mut cfg = common::config(&graph, &dir.path().join("data"));
+    cfg.pando = Some(opts(&graph, &url, true));
+    let s = Session::open(cfg).unwrap();
+    common::wait_for("four blocks synced", Duration::from_secs(20), || {
+        s.semantic_status()
+            .filter(|st| st.synced == 4 && st.pending == 0)
+    });
+
+    // An exclusion added while running removes that page's documents.
+    s.apply_pando_consent(&consent_settings(&graph, true, &["secret"]), false);
+    common::wait_for("secret page removed", Duration::from_secs(20), || {
+        s.semantic_status()
+            .filter(|st| st.synced == 2 && st.pending == 0)
+    });
+    assert!(seen.lock().unwrap().iter().any(|l| l.starts_with("DELETE")));
+
+    // Revoking consent stops transmission and removes what was sent.
+    s.apply_pando_consent(&consent_settings(&graph, false, &["secret"]), true);
+    common::wait_for("everything removed", Duration::from_secs(20), || {
+        s.semantic_status()
+            .filter(|st| st.synced == 0 && st.pending == 0)
+    });
+    s.shutdown(Duration::from_secs(5));
+}
