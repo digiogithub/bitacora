@@ -11,8 +11,14 @@ settings:
     search: Búsqueda e índice
     sync: Sincronización
     agents: Agentes
+    pando: Pando
     appearance: Apariencia
     keymap: Atajos
+  group:
+    graph: Grafo
+    app: Aplicación
+  pando:
+    placeholder: Los ajustes de Pando aparecerán aquí.
   mode:
     reindex: Reconstruye el índice
     restart: Requiere reiniciar

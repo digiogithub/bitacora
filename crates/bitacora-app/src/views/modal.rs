@@ -1,86 +1,119 @@
 //! Shared pieces of the sync overlays: the scrim + card frame, small labelled rows and the
 //! word-level diff used by the conflict resolver and the page history.
+//!
+//! The frame follows the popover surface of the design system (`raised`, `line` border,
+//! `radius_popover`, `shadow_lg`), styled from the `BitacoraTheme` global at render time.
 
-use crate::ui::text_edit::MouseButton;
-use crate::ui::theme::Theme;
+use crate::ui::text_edit::{MouseButton, hsla};
+use crate::ui::theme::{ActiveBitacoraTheme as _, BitacoraTheme, Theme, TypeStyleExt as _};
 use crate::ui::{
-    AnyElement, App, InteractiveElement as _, IntoElement, ParentElement as _,
+    AnyElement, App, InteractiveElement as _, IntoElement, ParentElement as _, RenderOnce,
     StatefulInteractiveElement as _, Styled as _, Window, div, h_flex, px, v_flex,
 };
+
+/// Opacity of the black scrim behind a dialog. The design system has no scrim token.
+const SCRIM_ALPHA: f32 = 0.4;
+
+/// An element built from the design theme at render time, so the helpers below keep their
+/// `theme`-only signatures while styling from the design tokens.
+#[derive(IntoElement)]
+struct Themed(Box<dyn FnOnce(&BitacoraTheme) -> AnyElement>);
+
+impl RenderOnce for Themed {
+    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
+        (self.0)(cx.bitacora())
+    }
+}
+
+fn themed(build: impl FnOnce(&BitacoraTheme) -> AnyElement + 'static) -> AnyElement {
+    Themed(Box::new(build)).into_any_element()
+}
 
 /// A dimmed full-window layer with a centred card; `on_dismiss` runs for a click outside the
 /// card. The card swallows its own clicks.
 pub fn modal(
     id: &'static str,
-    theme: &Theme,
+    _theme: &Theme,
     width: f32,
     on_dismiss: impl Fn(&mut Window, &mut App) + 'static,
     content: impl IntoElement,
 ) -> AnyElement {
-    div()
-        .id(id)
-        .absolute()
-        .inset_0()
-        .flex()
-        .justify_center()
-        .items_center()
-        .bg(theme.foreground.opacity(0.28))
-        .on_mouse_down(MouseButton::Left, move |_, window, cx| {
-            on_dismiss(window, cx);
-        })
-        .child(
-            v_flex()
-                .id((id, 1usize))
-                .role(crate::ui::a11y::Role::Dialog)
-                .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                .w(px(width))
-                .max_w_full()
-                .max_h_full()
-                .bg(theme.background)
-                .text_color(theme.foreground)
-                .border_1()
-                .border_color(theme.border)
-                .rounded(px(8.))
-                .shadow_lg()
-                .child(content),
-        )
-        .into_any_element()
+    let content = content.into_any_element();
+    themed(move |t| {
+        div()
+            .id(id)
+            .absolute()
+            .inset_0()
+            .flex()
+            .justify_center()
+            .items_center()
+            .bg(hsla(0., 0., 0., SCRIM_ALPHA))
+            .on_mouse_down(MouseButton::Left, move |_, window, cx| {
+                on_dismiss(window, cx);
+            })
+            .child(
+                v_flex()
+                    .id((id, 1usize))
+                    .role(crate::ui::a11y::Role::Dialog)
+                    .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                    .w(px(width))
+                    .max_w_full()
+                    .max_h_full()
+                    .bg(t.colors.raised)
+                    .text_color(t.colors.text)
+                    .type_style(&t.type_scale.ui)
+                    .border_1()
+                    .border_color(t.colors.line)
+                    .rounded(t.metrics.radius_popover)
+                    .shadow_lg()
+                    .overflow_hidden()
+                    .child(content),
+            )
+            .into_any_element()
+    })
 }
 
 /// A muted caption above a value, used for the labelled rows of the panels.
-pub fn labelled(theme: &Theme, label: String, value: impl IntoElement) -> AnyElement {
-    v_flex()
-        .gap_0p5()
-        .child(
-            div()
-                .text_xs()
-                .text_color(theme.muted_foreground)
-                .child(label),
-        )
-        .child(div().text_sm().child(value))
-        .into_any_element()
+pub fn labelled(_theme: &Theme, label: String, value: impl IntoElement) -> AnyElement {
+    let value = value.into_any_element();
+    themed(move |t| {
+        v_flex()
+            .gap_0p5()
+            .child(
+                div()
+                    .type_style(&t.type_scale.caption)
+                    .text_color(t.colors.muted)
+                    .child(label),
+            )
+            .child(div().type_style(&t.type_scale.ui_small).child(value))
+            .into_any_element()
+    })
 }
 
 /// Title bar of a card.
-pub fn title_bar(theme: &Theme, title: String, trailing: impl IntoElement) -> AnyElement {
-    h_flex()
-        .px_4()
-        .py_3()
-        .gap_2()
-        .items_center()
-        .border_b_1()
-        .border_color(theme.border)
-        .child(
-            div()
-                .id("dialog-title")
-                .role(crate::ui::a11y::Role::Heading)
-                .aria_label(title.clone())
-                .flex_1()
-                .text_lg()
-                .child(title),
-        )
-        .child(trailing)
-        .into_any_element()
+pub fn title_bar(_theme: &Theme, title: String, trailing: impl IntoElement) -> AnyElement {
+    let trailing = trailing.into_any_element();
+    themed(move |t| {
+        h_flex()
+            .px(t.metrics.space[5])
+            .py(t.metrics.space[4])
+            .gap_2()
+            .items_center()
+            .border_b_1()
+            .border_color(t.colors.line)
+            .child(
+                div()
+                    .id("dialog-title")
+                    .role(crate::ui::a11y::Role::Heading)
+                    .aria_label(title.clone())
+                    .flex_1()
+                    .type_style(&t.type_scale.h3_block)
+                    .text_color(t.colors.text)
+                    .child(title),
+            )
+            .child(trailing)
+            .into_any_element()
+    })
 }
 
 /// One piece of a word-level diff.

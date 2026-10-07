@@ -16,6 +16,7 @@ use crate::ui::text_edit::{
     InspectorElementId, IntoElement, LayoutId, MouseButton, MouseDownEvent, MouseMoveEvent,
     MouseUpEvent, Style, TextAlign, fill, relative,
 };
+use crate::ui::theme::{BitacoraTheme, TypeStyleExt as _};
 use crate::ui::{
     ActiveTheme as _, AnyElement, App, Bounds, Entity, FluentBuilder as _, InteractiveElement as _,
     ParentElement as _, Pixels, SharedString, Sizable as _, Styled as _, Window, div, h_flex,
@@ -280,6 +281,7 @@ fn calendar_view(
 fn completion_popup(
     editor: &Entity<OutlineEditor>,
     theme: &crate::ui::theme::Theme,
+    design: &BitacoraTheme,
     data: Option<PopupData>,
 ) -> Option<AnyElement> {
     let PopupData {
@@ -297,11 +299,11 @@ fn completion_popup(
             .mt_1()
             .p_2()
             .w(px(240.))
-            .rounded(px(6.))
+            .rounded(design.metrics.radius_popover)
             .border_1()
-            .border_color(theme.border)
-            .bg(theme.background)
-            .shadow_md()
+            .border_color(design.colors.line)
+            .bg(design.colors.raised)
+            .shadow_lg()
             .child(calendar_view(&state, theme));
         return Some(
             crate::ui::deferred(panel)
@@ -317,11 +319,11 @@ fn completion_popup(
         .w(px(360.))
         .max_h(px(240.))
         .overflow_hidden()
-        .rounded(px(6.))
+        .rounded(design.metrics.radius_popover)
         .border_1()
-        .border_color(theme.border)
-        .bg(theme.background)
-        .shadow_md()
+        .border_color(design.colors.line)
+        .bg(design.colors.raised)
+        .shadow_lg()
         .py_1();
     for (ix, label) in items.into_iter().enumerate() {
         let ed = editor.clone();
@@ -329,12 +331,15 @@ fn completion_popup(
         list = list.child(
             div()
                 .id(("completion", ix))
-                .px_2()
-                .py(px(2.))
-                .text_sm()
+                .mx(design.metrics.space[1])
+                .px(design.metrics.space[2])
+                .py(px(3.))
+                .rounded(design.metrics.radius_control)
+                .type_style(&design.type_scale.ui_small)
+                .text_color(design.colors.text)
                 .truncate()
                 .cursor_pointer()
-                .when(ix == selected, |d| d.bg(theme.selection))
+                .when(ix == selected, |d| d.bg(design.colors.accent_bg))
                 .child(label)
                 .on_mouse_down(MouseButton::Left, move |_, window, cx| {
                     cx.stop_propagation();
@@ -354,9 +359,10 @@ fn completion_popup(
 pub fn edit_content(
     editor: Entity<OutlineEditor>,
     theme: &crate::ui::theme::Theme,
+    design: &BitacoraTheme,
     popup: Option<PopupData>,
 ) -> AnyElement {
-    let popup = completion_popup(&editor, theme, popup);
+    let popup = completion_popup(&editor, theme, design, popup);
     let down = editor.clone();
     let moved = editor.clone();
     let up = editor.clone();

@@ -11,8 +11,14 @@ settings:
     search: Search & index
     sync: Sync
     agents: Agents
+    pando: Pando
     appearance: Appearance
     keymap: Keymap
+  group:
+    graph: Graph
+    app: App
+  pando:
+    placeholder: Pando settings will appear here.
   mode:
     reindex: Rebuilds the index
     restart: Restart required

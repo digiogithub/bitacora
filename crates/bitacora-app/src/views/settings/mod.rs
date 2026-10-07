@@ -39,13 +39,16 @@ use crate::settings::AppSettings;
 use crate::sync_prefs::SyncPrefs;
 use crate::ui::button::{Button, ButtonVariants as _};
 use crate::ui::input::{Input, InputEvent, InputState};
+use crate::ui::text_edit::FontWeight;
+use crate::ui::theme::{ActiveBitacoraTheme as _, TypeStyleExt as _};
 use crate::ui::{
     ActiveTheme as _, AnyElement, App, AppContext as _, ClickEvent, Confirmation, Context, Entity,
     EventEmitter, FluentBuilder as _, FocusHandle, Focusable, IconName, InteractiveElement as _,
-    IntoElement, KeyDownEvent, Level, ParentElement as _, Render, Selectable as _, Sizable as _,
+    IntoElement, KeyDownEvent, Level, ParentElement as _, Render, Sizable as _,
     StatefulInteractiveElement as _, Styled as _, Subscription, Window, div, h_flex, notify,
     v_flex,
 };
+use crate::views::kit::{Glyph, Overline, glyph};
 use crate::views::modal::{modal, title_bar};
 
 /// A section of the settings.
@@ -61,6 +64,8 @@ pub enum Section {
     Sync,
     /// MCP server: tokens, toggles, protected pages.
     Agents,
+    /// Pando (AI): slot reserved for BIT-US-0137, which fills it in.
+    Pando,
     /// Theme and font size.
     Appearance,
     /// Keyboard shortcuts.
@@ -69,14 +74,28 @@ pub enum Section {
 
 impl Section {
     /// Every section in display order.
-    pub const ALL: [Self; 7] = [
+    pub const ALL: [Self; 8] = [
         Self::General,
         Self::Editor,
         Self::Search,
         Self::Sync,
         Self::Agents,
+        Self::Pando,
         Self::Appearance,
         Self::Keymap,
+    ];
+
+    /// The navigation groups: a localisation key for the group label and its sections. A new
+    /// section is one enum variant plus an entry here and an arm in `render`.
+    pub const GROUPS: [(&'static str, &'static [Self]); 2] = [
+        (
+            "settings.group.graph",
+            &[Self::General, Self::Editor, Self::Search, Self::Sync],
+        ),
+        (
+            "settings.group.app",
+            &[Self::Agents, Self::Pando, Self::Appearance, Self::Keymap],
+        ),
     ];
 
     /// Localised title.
@@ -87,21 +106,23 @@ impl Section {
             Self::Search => t!("settings.section.search"),
             Self::Sync => t!("settings.section.sync"),
             Self::Agents => t!("settings.section.agents"),
+            Self::Pando => t!("settings.section.pando"),
             Self::Appearance => t!("settings.section.appearance"),
             Self::Keymap => t!("settings.section.keymap"),
         }
         .to_string()
     }
 
-    fn icon(self) -> IconName {
+    fn icon(self) -> Glyph {
         match self {
-            Self::General => IconName::Settings,
-            Self::Editor => IconName::File,
-            Self::Search => IconName::Search,
-            Self::Sync => IconName::RefreshCw,
-            Self::Agents => IconName::Bot,
-            Self::Appearance => IconName::Palette,
-            Self::Keymap => IconName::Asterisk,
+            Self::General => Glyph::Settings,
+            Self::Editor => Glyph::File,
+            Self::Search => Glyph::Search,
+            Self::Sync => Glyph::Globe,
+            Self::Agents => Glyph::Network,
+            Self::Pando => Glyph::Sparkle,
+            Self::Appearance => Glyph::Sun,
+            Self::Keymap => Glyph::Pin,
         }
     }
 }
@@ -992,6 +1013,18 @@ pub(crate) fn field(
         .into_any_element()
 }
 
+impl SettingsView {
+    /// The Pando section: only the slot for now, BIT-US-0137 renders its settings here.
+    fn render_pando(&self, theme: &crate::ui::theme::Theme) -> AnyElement {
+        div()
+            .id("settings-pando")
+            .text_sm()
+            .text_color(theme.muted_foreground)
+            .child(t!("settings.pando.placeholder").to_string())
+            .into_any_element()
+    }
+}
+
 impl Render for SettingsView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         if !self.open {
@@ -1005,27 +1038,64 @@ impl Render for SettingsView {
         let dismiss = this.clone();
         let close = this.clone();
 
-        let nav = v_flex()
+        let design = cx.bitacora().clone();
+        let mut nav = v_flex()
             .id("settings-nav")
             .h_full()
-            .w(crate::ui::px(180.))
+            .w(design.metrics.sidebar_left)
             .flex_shrink_0()
-            .gap_1()
-            .p_2()
+            .gap(design.metrics.space[1])
+            .p(design.metrics.space[3])
+            .bg(design.colors.side)
             .border_r_1()
-            .border_color(theme.border)
-            .children(Section::ALL.into_iter().map(|section| {
+            .border_color(design.colors.line);
+        for (group, sections) in Section::GROUPS {
+            nav = nav.child(
+                div()
+                    .px(design.metrics.space[3])
+                    .pt(design.metrics.space[3])
+                    .pb(design.metrics.space[1])
+                    .child(Overline::new(t!(group).to_string())),
+            );
+            for section in sections.iter().copied() {
                 let this = this.clone();
-                Button::new(("settings-section", section as usize))
-                    .ghost()
-                    .small()
-                    .w_full()
-                    .justify_start()
-                    .icon(section.icon())
-                    .label(section.title())
-                    .selected(self.section == section)
-                    .on_click(move |_, _, cx| this.update(cx, |s, cx| s.select(section, cx)))
-            }));
+                let selected = self.section == section;
+                let fg = if selected {
+                    design.colors.text
+                } else {
+                    design.colors.text_2
+                };
+                let hover = design.colors.hover;
+                nav = nav.child(
+                    h_flex()
+                        .id(("settings-section", section as usize))
+                        .h(design.metrics.nav_item)
+                        .px(design.metrics.space[3])
+                        .gap(design.metrics.space[3])
+                        .items_center()
+                        .rounded(design.metrics.radius_control)
+                        .cursor_pointer()
+                        .type_style(&design.type_scale.ui_small)
+                        .text_color(fg)
+                        .when(selected, |d| {
+                            d.bg(design.colors.hover).font_weight(FontWeight::SEMIBOLD)
+                        })
+                        .hover(move |d| d.bg(hover))
+                        .child(glyph(
+                            section.icon(),
+                            design.metrics.icon_sm,
+                            if section == Section::Pando {
+                                design.colors.ai
+                            } else {
+                                fg
+                            },
+                            cx,
+                        ))
+                        .child(section.title())
+                        .on_click(move |_, _, cx| this.update(cx, |s, cx| s.select(section, cx))),
+                );
+            }
+        }
 
         let content = match self.section {
             Section::General => self.render_general(&theme, cx),
@@ -1033,6 +1103,7 @@ impl Render for SettingsView {
             Section::Search => self.render_search(&theme, cx),
             Section::Sync => self.render_sync(&theme, cx),
             Section::Agents => self.render_agents(&theme, cx),
+            Section::Pando => self.render_pando(&theme),
             Section::Appearance => self.render_appearance(&theme, cx),
             Section::Keymap => self.render_keymap(&theme, cx),
         };
@@ -1059,7 +1130,13 @@ impl Render for SettingsView {
             .min_w_0()
             .min_h_0()
             .overflow_hidden()
-            .child(div().px_4().pt_3().text_lg().child(self.section.title()))
+            .child(
+                div()
+                    .px(design.metrics.space[5])
+                    .pt(design.metrics.space[4])
+                    .type_style(&design.type_scale.h2_block)
+                    .child(self.section.title()),
+            )
             .children(message)
             .child(
                 v_flex()
