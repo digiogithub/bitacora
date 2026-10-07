@@ -2,7 +2,7 @@
 id: BIT-T-0396
 type: task
 title: Move dock tabs into the title bar with design tab style
-status: backlog
+status: in_review
 priority: high
 parent: BIT-US-0122
 milestone: BIT-M-0006
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, ui, dock]
 estimate: 5
 created: 2026-10-07T09:13:45Z
-updated: 2026-10-07T09:13:45Z
+updated: 2026-10-07T11:19:45Z
+started: 2026-10-07T11:19:41Z
 ---
 
 ## Description
