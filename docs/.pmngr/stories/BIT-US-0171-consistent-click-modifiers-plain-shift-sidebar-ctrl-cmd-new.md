@@ -2,13 +2,13 @@
 id: BIT-US-0171
 type: story
 title: "Consistent click modifiers: plain, Shift (sidebar), Ctrl/Cmd (new tab)"
-status: in_progress
+status: in_review
 parent: BIT-EP-0017
 milestone: BIT-M-0006
 author: mcp
 labels: [v2, ui, bitacora-app]
 created: 2026-10-07T19:26:03Z
-updated: 2026-10-07T19:26:03Z
+updated: 2026-10-07T19:27:46Z
 started: 2026-10-07T19:26:03Z
 ---
 
