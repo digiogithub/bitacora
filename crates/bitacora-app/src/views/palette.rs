@@ -120,6 +120,8 @@ pub enum PaletteCommand {
     PageHistory,
     /// Open the list of what MCP agents did, with undo.
     AgentActivity,
+    /// Attach the selected blocks (or the page) to the assistant chat.
+    AskAboutSelection,
     /// Open the visual conflict resolver.
     ResolveConflicts,
     /// Open a graph from a git remote (clone).
@@ -136,7 +138,7 @@ pub enum PaletteCommand {
 
 impl PaletteCommand {
     /// Every command, in palette order.
-    pub const ALL: [Self; 23] = [
+    pub const ALL: [Self; 24] = [
         Self::GoJournals,
         Self::GoAllPages,
         Self::GoGraph,
@@ -153,6 +155,7 @@ impl PaletteCommand {
         Self::SyncSettings,
         Self::PageHistory,
         Self::AgentActivity,
+        Self::AskAboutSelection,
         Self::ResolveConflicts,
         Self::CloneGraph,
         Self::SwitchGraph,
@@ -183,6 +186,7 @@ impl PaletteCommand {
             Self::OpenSettings => t!("settings.cmd_open"),
             Self::PageHistory => t!("palette.cmd_page_history"),
             Self::AgentActivity => t!("palette.cmd_agent_activity"),
+            Self::AskAboutSelection => t!("palette.cmd_ask_selection"),
             Self::ResolveConflicts => t!("palette.cmd_conflicts"),
             Self::CloneGraph => t!("palette.cmd_clone"),
             Self::OpenGraph => t!("palette.cmd_open_graph"),
@@ -210,6 +214,7 @@ impl PaletteCommand {
             Self::SyncSettings | Self::OpenSettings => IconName::Settings,
             Self::PageHistory => IconName::Undo2,
             Self::AgentActivity => IconName::Bot,
+            Self::AskAboutSelection => IconName::Bot,
             Self::ResolveConflicts => IconName::TriangleAlert,
             Self::CloneGraph => IconName::FolderOpen,
             Self::CheckForUpdates => IconName::LoaderCircle,

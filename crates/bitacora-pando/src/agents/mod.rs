@@ -33,12 +33,13 @@ pub use approvals::{
 };
 pub use cache::{ReviewCache, WallClock};
 pub use chat::{
-    ApprovalCard, CHAT_PROFILE, CardKind, CardState, ChatConfig, ChatDeps, ChatEvent, ChatHandle,
-    ChatMessage, ChatModel, ChatSession, RunEnd, WRITER_PROFILE,
+    AgentState, ApprovalCard, CHAT_PROFILE, CardKind, CardState, CardView, ChatConfig, ChatDeps,
+    ChatEvent, ChatHandle, ChatMessage, ChatModel, ChatSession, RunEnd, SubAgent, ToolCallView,
+    WRITER_PROFILE,
 };
 pub use edits::{
-    AppliedEdit, AuditSink, EditApplier, EditError, EditOp, Place, Preview, Proposal,
-    QueueEditApplier, validate,
+    AppliedEdit, AuditSink, EditApplier, EditError, EditOp, IndexedBlock, PageResolver, Place,
+    Preview, PreviewOp, Proposal, QueueEditApplier, validate,
 };
 pub use guard::{AttachedBlock, ContentGuard};
 pub use lookup::{BlockInfo, BlockLookup};

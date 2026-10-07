@@ -506,6 +506,26 @@ impl Session {
         ),
         RuntimeError,
     > {
+        self.start_chat_with(config, host, None)
+    }
+
+    /// [`Session::start_chat`] with a `resolver` that lets `propose_edit` load pages on demand
+    /// and address blocks without a persisted `id::` (the app provides it).
+    ///
+    /// # Errors
+    /// As [`Session::start_chat`].
+    pub fn start_chat_with(
+        &self,
+        config: bitacora_pando::agents::ChatConfig,
+        host: Arc<dyn bitacora_pando::agents::FrontendHost>,
+        resolver: Option<Arc<dyn bitacora_pando::agents::PageResolver>>,
+    ) -> Result<
+        (
+            bitacora_pando::agents::ChatHandle,
+            Receiver<bitacora_pando::agents::ChatEvent>,
+        ),
+        RuntimeError,
+    > {
         if !self.agent.as_ref().is_some_and(|a| a.read().chat_enabled) {
             return Err(RuntimeError::Agent("the chat feature is off".into()));
         }
@@ -518,7 +538,11 @@ impl Session {
         let mut deps = bitacora_pando::agents::ChatDeps::new(agui, self.agent_guard());
         deps.host = host;
         if config.propose_edit {
-            deps.applier = Some(Arc::new(self.agent_edit_applier()));
+            let mut applier = self.agent_edit_applier();
+            if let Some(r) = resolver {
+                applier = applier.with_resolver(r);
+            }
+            deps.applier = Some(Arc::new(applier));
         }
         deps.config = config;
         deps.activity = self.pando.as_ref().map(PandoService::sink);

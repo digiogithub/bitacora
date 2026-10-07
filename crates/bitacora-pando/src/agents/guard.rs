@@ -92,6 +92,52 @@ impl ContentGuard {
         !private
     }
 
+    /// Builds the [`AttachedBlock`]s of one page (or a selection of its blocks) from what the
+    /// editor holds: the page-properties `preamble` (tags and the privacy property are read from
+    /// it) and the `(uuid, text)` of each block. Nothing is filtered here; pass the result to
+    /// [`ContentGuard::filter`] or `ChatHandle::send`.
+    #[must_use]
+    pub fn page_blocks(
+        &self,
+        page: &str,
+        file_path: &str,
+        preamble: Option<&str>,
+        blocks: &[(Option<String>, String)],
+    ) -> Vec<AttachedBlock> {
+        let tags = preamble
+            .and_then(|p| get_property(p, "tags"))
+            .map(|v| {
+                v.split(',')
+                    .map(|t| {
+                        t.trim()
+                            .trim_start_matches('#')
+                            .trim_start_matches("[[")
+                            .trim_end_matches("]]")
+                            .trim()
+                            .to_owned()
+                    })
+                    .filter(|t| !t.is_empty())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let key = self.policy.privacy_property.trim();
+        let page_private = !key.is_empty()
+            && preamble
+                .and_then(|p| get_property(p, key))
+                .is_some_and(|v| v.trim().eq_ignore_ascii_case("true"));
+        blocks
+            .iter()
+            .map(|(uuid, text)| AttachedBlock {
+                page: page.to_owned(),
+                file_path: file_path.to_owned(),
+                tags: Vec::clone(&tags),
+                uuid: uuid.clone(),
+                text: text.clone(),
+                page_private,
+            })
+            .collect()
+    }
+
     /// The blocks that pass, capped at [`MAX_CONTEXT_BLOCKS`], with long text truncated.
     #[must_use]
     pub fn filter(&self, blocks: &[AttachedBlock]) -> Vec<AttachedBlock> {
@@ -180,6 +226,19 @@ mod tests {
         assert_eq!(entries.len(), 1, "{entries:?}");
         assert_eq!(entries[0].value, "keep");
         assert!(entries[0].description.contains("[[Open]]"));
+    }
+
+    #[test]
+    fn page_blocks_read_tags_and_privacy_from_the_preamble() {
+        let g = ContentGuard::from_consent(&consent(true, &["secrets"]));
+        let blocks = vec![(Some("u".to_owned()), "text".to_owned())];
+        let tagged = g.page_blocks("N", "pages/n.md", Some("tags:: [[Secrets]], #x"), &blocks);
+        assert_eq!(tagged[0].tags, ["Secrets", "x"]);
+        assert!(g.filter(&tagged).is_empty());
+        let private = g.page_blocks("N", "pages/n.md", Some("private:: true"), &blocks);
+        assert!(private[0].page_private && g.filter(&private).is_empty());
+        let open = g.page_blocks("N", "pages/n.md", None, &blocks);
+        assert_eq!(g.filter(&open).len(), 1);
     }
 
     #[test]

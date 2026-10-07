@@ -75,6 +75,7 @@ palette:
   cmd_sync_settings: Sync settings...
   cmd_page_history: Page history...
   cmd_agent_activity: Agent activity...
+  cmd_ask_selection: Ask Pando about the selection
   cmd_conflicts: Resolve sync conflicts...
   cmd_clone: Open graph from a remote...
   cmd_open_graph: Open graph...
@@ -471,3 +472,55 @@ tasks:
   empty: No open tasks match.
   err_page: "Cannot open the page %{page}."
   err_moved: The task changed on disk; reload and try again.
+chat:
+  placeholder: Ask about your notes...
+  empty_hint: Attach a page or a selection to focus the answer. Only what you attach is sent with your question.
+  model_unknown: Pando
+  sub_agents: "%{count} sub-agents"
+  threads: Threads
+  threads_loading: Loading threads...
+  threads_empty: No conversations yet.
+  threads_unavailable: Pando is not connected.
+  thread_untitled: Conversation
+  thread_delete_failed: The thread could not be deleted.
+  working: Working...
+  stopped: Stopped
+  reasoning: Reasoning
+  tool_input: Input
+  tool_output: Output
+  no_graph: Open a graph and connect Pando in Settings to chat.
+  no_events: The chat could not start its event reader.
+  unavailable: "Chat unavailable: %{reason}"
+  context: "Context:"
+  add_page: "+ Page"
+  add_selection: "+ Selection"
+  ctx_no_page: Open a page first.
+  ctx_no_selection: Select some blocks first.
+  mode_read: Read-only
+  mode_edit: Can propose edits
+  apply: Apply
+  allow: Allow
+  deny: Deny
+  skip: Skip
+  auto_deny: "Denied automatically after %{seconds} s without an answer"
+  perm_title: Permission request
+  perm_explicit: Needs your explicit approval.
+  question_title: The assistant asks
+  diff_more: "... %{count} more lines"
+  op_insert: Insert
+  op_update: Update
+  op_move: Move
+  op_delete: Delete
+  op_property: Property
+  edit_applying: Approved, applying...
+  edit_applied: "Applied %{count} block(s) on [[%{page}]]. Ctrl+Z undoes it."
+  edit_failed: "Not applied: %{error}"
+  answered: Answered
+  denied_user: Denied
+  denied_timeout: Denied, no answer in time
+  denied_panel: Denied, the panel was closed
+  denied_thread: Denied, the conversation changed
+  denied_graph: Denied, the graph changed
+  denied_quit: Denied, the app quit
+  denied_cancelled: Denied, the run was stopped
+  denied_expired: Denied, the request expired
