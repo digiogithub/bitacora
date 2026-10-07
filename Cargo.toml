@@ -47,6 +47,8 @@ bitacora-sync = { path = "crates/bitacora-sync" }
 bitacora-mcp = { path = "crates/bitacora-mcp" }
 bitacora-runtime = { path = "crates/bitacora-runtime" }
 bitacora-testkit = { path = "crates/bitacora-testkit" }
+# Generic Pando SDK; depends on no bitacora crate (ADR-027)
+pando-rs = { path = "crates/pando-rs" }
 
 # UI (only bitacora-app may use it; ADR-001)
 gpui-kit = { version = "=0.7.1" }
@@ -59,6 +61,8 @@ schemars = "1"
 subtle = "2.6"
 getrandom = "0.3"
 async-channel = "2.5"
+# pando-rs HTTP client (rustls only, no native-tls); already in the lock via gix
+reqwest = { version = "0.13", default-features = false, features = ["json", "query", "rustls"] }
 
 # Storage
 rusqlite = { version = "0.40", features = ["bundled", "functions", "hooks", "backup"] }
