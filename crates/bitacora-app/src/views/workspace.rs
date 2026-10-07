@@ -46,6 +46,7 @@ use crate::views::history::{HistoryEvent, HistoryView};
 use crate::views::main_view::{MainEvent, MainView};
 use crate::views::page_view::PageView;
 use crate::views::palette::{Palette, PaletteCommand, PaletteEvent};
+use crate::views::pando_activity::{PandoActivityEvent, PandoActivityView};
 use crate::views::panels::{HubEvent, PaneHub, PanelKind, PlaceholderPanel, SharedHub};
 use crate::views::picker::{GraphPicker, PickerEvent};
 use crate::views::responsive::Breakpoint;
@@ -119,6 +120,7 @@ pub struct WorkspaceConfig {
     pub pando_settings_path: Option<PathBuf>,
 }
 
+mod pando_ui;
 mod top_bar;
 
 /// The root view of the main window.
@@ -142,6 +144,8 @@ pub struct Workspace {
     settings: Entity<SettingsView>,
     history: Entity<HistoryView>,
     activity: Entity<AgentActivityView>,
+    pando_activity: Entity<PandoActivityView>,
+    pando_ui: pando_ui::PandoUi,
     conflicts: Entity<ConflictsView>,
     disk_banner: Entity<DiskConflictBanner>,
     disk_diff: Entity<DiskDiffView>,
@@ -200,6 +204,7 @@ impl Workspace {
         let settings = cx.new(|cx| SettingsView::new(window, cx));
         let history = cx.new(|_| HistoryView::new());
         let activity = cx.new(|_| AgentActivityView::new());
+        let pando_activity = cx.new(|_| PandoActivityView::new());
         let conflicts = cx.new(|cx| ConflictsView::new(window, cx));
         let disk_banner = cx.new(|_| DiskConflictBanner::new());
         let disk_diff = cx.new(|_| DiskDiffView::new());
@@ -236,6 +241,17 @@ impl Workspace {
                 AgentActivityEvent::OpenBlock(uuid) => {
                     this.activity.update(cx, |a, cx| a.close(cx));
                     this.navigate(Route::Block(uuid.clone()), cx);
+                }
+            },
+        ));
+        subscriptions.push(cx.subscribe_in(
+            &pando_activity,
+            window,
+            |this, _, event: &PandoActivityEvent, window, cx| match event {
+                PandoActivityEvent::Closed => window.focus(&this.focus, cx),
+                PandoActivityEvent::OpenAgentWrites => {
+                    this.pando_activity.update(cx, |a, cx| a.close(cx));
+                    this.open_agent_activity(window, cx);
                 }
             },
         ));
@@ -286,6 +302,8 @@ impl Workspace {
             settings,
             history,
             activity,
+            pando_activity,
+            pando_ui: pando_ui::PandoUi::default(),
             conflicts,
             disk_banner,
             disk_diff,
@@ -975,6 +993,7 @@ impl Workspace {
                 self.refresh_agent_configured(cx);
                 self.panel
                     .update(cx, |panel, cx| panel.set_hybrid(link.hybrid.clone(), cx));
+                self.refresh_pando_ui(cx);
                 for pane in self.panes(cx) {
                     let link = link.clone();
                     pane.update(cx, |main, cx| main.set_session_link(link, window, cx));
@@ -1194,6 +1213,7 @@ impl Workspace {
                     self.navigate(Route::Page(title), cx);
                 }
             }
+            SidebarEvent::OpenPando => self.set_pando_popover(true, cx),
             SidebarEvent::GoToDate => self
                 .palette
                 .update(cx, |palette, cx| palette.open_commands(window, cx)),
@@ -1799,6 +1819,7 @@ impl Workspace {
             }
             SettingsEvent::PandoChanged { reopen } => {
                 self.refresh_agent_configured(cx);
+                self.refresh_pando_ui(cx);
                 if *reopen {
                     close(self, cx);
                     self.restart_session(window, cx);
@@ -2054,6 +2075,10 @@ impl Workspace {
             self.sync_dialog.update(cx, |d, cx| d.close(window, cx));
         } else if self.conflicts.read(cx).is_open() {
             self.conflicts.update(cx, |c, cx| c.close(cx));
+        } else if self.pando_popover_open() {
+            self.set_pando_popover(false, cx);
+        } else if self.pando_activity.read(cx).is_open() {
+            self.pando_activity.update(cx, |a, cx| a.close(cx));
         } else if self.activity.read(cx).is_open() {
             self.activity.update(cx, |a, cx| a.close(cx));
         } else if self.history.read(cx).is_open() {
@@ -2510,6 +2535,7 @@ impl Render for Workspace {
             .child(self.settings.clone())
             .child(self.history.clone())
             .child(self.activity.clone())
+            .child(self.pando_activity.clone())
             .child(self.conflicts.clone())
             .child(self.disk_diff.clone())
             .child(self.sync_dialog.clone())
@@ -3314,6 +3340,69 @@ mod tests {
         assert!(cx.debug_bounds("menu-close-graph").is_some());
         click_bar(cx, "menu-close-graph");
         assert!(!ws.read_with(cx, |w, _| w.app_menu_open));
+    }
+
+    #[gpui_test]
+    fn pando_control_opens_a_status_popover_and_degrades_when_off(cx: &mut TestAppContext) {
+        use crate::views::pando_status::PandoState;
+        setup(cx);
+        let (ws, cx) = open(cx, None);
+        ws.update(cx, |w, cx| {
+            w.picker_visible = false;
+            cx.notify();
+        });
+        cx.run_until_parked();
+        // Pando was never set up: the control says so and the popover guides to the setup.
+        assert_eq!(
+            ws.read_with(cx, |w, _| w.pando_state()),
+            PandoState::NotConfigured
+        );
+        assert!(cx.debug_bounds("top-pando").is_some());
+        assert!(cx.debug_bounds("pando-popover-detail").is_none());
+        click_bar(cx, "top-pando");
+        assert!(ws.read_with(cx, |w, _| w.pando_popover_open()));
+        assert!(cx.debug_bounds("pando-popover-detail").is_some());
+        assert!(
+            cx.debug_bounds("pando-popover-degraded").is_some(),
+            "the popover says what is unavailable"
+        );
+        // The sparkle keeps opening the assistant, not the popover.
+        ws.update(cx, |w, cx| w.set_pando_popover(false, cx));
+        cx.run_until_parked();
+        assert!(cx.debug_bounds("pando-popover-detail").is_none());
+        // An unreachable server is reported without blocking anything else.
+        ws.update(cx, |w, cx| {
+            w.pando_ui.settings.enabled = true;
+            w.pando_ui.consented = true;
+            w.apply_pando_live(
+                bitacora_runtime::PandoStatus::Unavailable {
+                    reason: "refused".into(),
+                },
+                None,
+                cx,
+            );
+        });
+        cx.run_until_parked();
+        assert_eq!(
+            ws.read_with(cx, |w, _| w.pando_state()),
+            PandoState::Unreachable
+        );
+        let sidebar = ws.read_with(cx, |w, _| w.sidebar.clone());
+        assert_eq!(
+            sidebar.read_with(cx, |s, _| s.pando_state()),
+            PandoState::Unreachable
+        );
+        assert!(cx.debug_bounds("sidebar-pando").is_some());
+        // Escape closes the popover first.
+        ws.update(cx, |w, cx| w.set_pando_popover(true, cx));
+        ws.update_in(cx, |w, window, cx| {
+            assert!(w.close_topmost_overlay(window, cx));
+        });
+        assert!(!ws.read_with(cx, |w, _| w.pando_popover_open()));
+        // The sidebar footer opens it.
+        sidebar.update(cx, |_, cx| cx.emit(SidebarEvent::OpenPando));
+        cx.run_until_parked();
+        assert!(ws.read_with(cx, |w, _| w.pando_popover_open()));
     }
 }
 

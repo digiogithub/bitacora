@@ -1,0 +1,59 @@
+pando_status:
+  name: Pando
+  state:
+    disabled: Off
+    not_configured: Not set up
+    connecting: Connecting
+    ok: Connected
+    unauthorized: Unauthorized
+    unreachable: Unreachable
+    too_old: Update needed
+  detail:
+    disabled: Pando is switched off. Everything else keeps working.
+    not_configured: Set up Pando to get semantic search and the assistant.
+    connecting: Contacting Pando...
+    ok: "Pando %{version}"
+    unauthorized: Pando rejected the token. Check it in the settings.
+    unreachable: Pando is not answering. Bitacora keeps retrying with a growing delay.
+    too_old: "Pando %{version} is older than the minimum %{min}. Update Pando."
+  degraded:
+    disabled: Search uses keywords only.
+    not_configured: Search uses keywords only.
+    connecting: Semantic search and the assistant start once Pando answers.
+    unauthorized: Semantic search and the assistant are paused. Search uses keywords only; editing, sync and MCP are not affected.
+    unreachable: Semantic search and the assistant are unavailable. Search uses keywords only; editing, sync and MCP are not affected.
+    too_old: Semantic search and the assistant are paused until Pando is updated. Search uses keywords only; editing, sync and MCP are not affected.
+  popover:
+    graph_features: For this graph
+    open_settings: Open Pando settings
+    set_up: Set up Pando
+    activity: Activity log
+    agent_writes: Agent writes
+    sync_counts: "%{synced} synced, %{pending} waiting"
+    sync_none: Semantic sync is not running.
+  footer: "Pando · %{state}"
+  log:
+    title: Pando activity
+    local_note: Stored on this machine only. It lists counts and ids, never page text.
+    empty: Nothing yet.
+    clear: Clear
+    close: Close
+    cleared: Activity log cleared.
+    agent_writes: Agent writes...
+    filter_all: All
+    filter_sync: Sync
+    filter_agent: Agent
+    filter_mcp: MCP
+    filter_status: Status
+    sync_upserted: "Sent %{count} blocks"
+    sync_deleted: "Removed %{count} blocks"
+    status: "Status: %{status}"
+    run_started: Agent run started
+    run_finished: Agent run finished
+    run_failed: Agent run failed
+    run_cancelled: Agent run cancelled
+    approval_approved: Edit approved
+    approval_denied: Edit denied
+    edit_applied: "Edit applied to %{count} blocks"
+    mcp_call: "MCP call %{tool}: %{result}"
+    ids: "Blocks: %{ids}"

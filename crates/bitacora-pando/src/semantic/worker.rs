@@ -32,6 +32,7 @@ use super::doc::ContentPolicy;
 use super::doc::SemanticDoc;
 use super::ledger::{Ledger, Op, OutboxEntry, StateEntry};
 use super::source::{DocSource, SharedPolicy};
+use crate::activity::{ActivityEntry, ActivityKind};
 use crate::events::{EventSink, PandoEvent, SyncProgress};
 use crate::service::PandoService;
 
@@ -569,15 +570,23 @@ impl OutboxSender {
                 set.spawn(async move {
                     let r = this.send_one(&kb, &entry, &off).await;
                     drop(permit);
-                    r
+                    (r, entry.op, entry.block_uuid)
                 });
             }
+            let mut upserted = Vec::new();
+            let mut deleted = Vec::new();
             while let Some(r) = set.join_next().await {
-                if r.is_ok_and(|ok| ok) {
+                if let Ok((true, op, uuid)) = r {
                     done += 1;
+                    match op {
+                        Op::Upsert => upserted.push(uuid),
+                        Op::Delete => deleted.push(uuid),
+                    }
                     self.progress(done, total);
                 }
             }
+            self.batch_done("upserted", upserted);
+            self.batch_done("deleted", deleted);
         }
         if offline.load(Ordering::SeqCst) {
             // Postpone the whole outbox, with growing delays while the outage lasts.
@@ -588,6 +597,17 @@ impl OutboxSender {
         }
         if total.is_some() {
             self.progress(done, total);
+        }
+    }
+
+    /// Logs an acknowledged batch by count and (capped) block uuids, never by content.
+    fn batch_done(&self, what: &str, ids: Vec<String>) {
+        if ids.is_empty() {
+            return;
+        }
+        if let Some(s) = &self.sink {
+            let n = u64::try_from(ids.len()).unwrap_or(u64::MAX);
+            s.record(ActivityEntry::new(ActivityKind::Sync, what, n, ids));
         }
     }
 

@@ -44,6 +44,13 @@ Settings window > Pando (`views/settings/pando.rs`) edits this file: status chip
 
 Events (`PandoEvent`: `Status`, `SyncProgress`, `Run`) go to `std::sync::mpsc` receivers from `Session::pando_events()` (first message is the current status). `PandoService::sink()` lets the sync and chat stories publish progress and run events; `client()`, `endpoints()` and `handle()` give them the REST client, AG-UI URL/token and the runtime to spawn on.
 
+### Status machine, degradation and activity log (BIT-US-0140)
+
+`PandoStatus` also has `Unauthorized` (the server rejected the token) and `TooOld { version, min }` (below `DEFAULT_MIN_VERSION`). The probe loop backs off while the server is down (`probe_delay`: the interval doubles per consecutive failure up to 8x, i.e. two minutes by default) and returns to the base interval after one success. The app derives the user-facing `PandoState` (`views::pando_status`: Disabled / NotConfigured / Connecting / Ok / Unauthorized / Unreachable / TooOld) from the settings, the graph consent and the polled live status (every 3 s through `SessionHandle::run`); it feeds the sidebar footer row, the top-bar "Pando" control with its popover (status chip, what is degraded, per-graph feature switches, link to the settings, activity log) and the settings chip. Anything but `Ok` degrades gracefully: semantic search returns lexical results only, the assistant is paused, and editing, sync and MCP never depend on Pando (`pando_status.degraded.*` strings say so).
+
+The **activity log** is a machine-local, bounded (500 entries, compacted at 600), clearable JSONL file `pando-activity.jsonl` next to `pando.json` (`bitacora_pando::ActivityLog`; never inside the graph). `EventSink::set_log` attaches it: status changes and `PandoEvent::Activity` entries are written when emitted. Writers: the semantic worker (one `Sync` entry per acknowledged batch: count plus up to 20 block uuids, `upserted` / `deleted`) and chat sessions (`ChatDeps::activity`: run started / finished / failed / cancelled, approvals, applied edits). It stores counts, uuids and run ids only, never block text or titles. The viewer (`views::pando_activity`) merges the file with the MCP audit entries made with the `pando` token and filters by sync / agent / MCP / status; "Agent writes..." opens the existing agent activity dialog (undo).
+
+
 Shutdown: `Session::shutdown` stops Pando first (it reads core and the index), then sync, core, watcher, index, MCP. `PandoService::stop(budget)` signals the probe, calls `Supervisor::stop` when managed mode started one, and shuts the runtime down within the budget.
 
 ## 5. Managed mode

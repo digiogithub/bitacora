@@ -160,6 +160,10 @@ fn describe(status: &PandoStatus) -> String {
         PandoStatus::ConsentRequired => "consent required".into(),
         PandoStatus::Starting => "starting".into(),
         PandoStatus::Connected { version } => format!("connected (Pando {version})"),
+        PandoStatus::Unauthorized => "unauthorized (the token was rejected)".into(),
+        PandoStatus::TooOld { version, min } => {
+            format!("too old (Pando {version}, minimum {min})")
+        }
         PandoStatus::Unavailable { reason } => format!("unavailable: {reason}"),
     }
 }
@@ -186,6 +190,8 @@ fn wait_connected(session: &Session, budget: Duration) -> PandoStatus {
             PandoStatus::Connected { .. }
                 | PandoStatus::Off
                 | PandoStatus::ConsentRequired
+                | PandoStatus::Unauthorized
+                | PandoStatus::TooOld { .. }
                 | PandoStatus::Unavailable { .. }
         );
         if settled || Instant::now() >= end {

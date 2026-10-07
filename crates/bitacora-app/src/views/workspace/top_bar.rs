@@ -117,6 +117,10 @@ pub fn tab_label(route: &Route) -> (String, Glyph) {
 
 /// Swallows the press so a click on a bar control never starts a window drag.
 fn no_drag(el: impl IntoElement) -> AnyElement {
+    no_drag_inner(el)
+}
+
+fn no_drag_inner(el: impl IntoElement) -> AnyElement {
     div()
         .flex_shrink_0()
         .on_mouse_down(MouseButton::Left, |_, window, cx| {
@@ -294,6 +298,8 @@ impl Workspace {
                 )
                 // PDF export has no backend yet: shown disabled until it lands.
                 .child(IconButton::new("top-pdf", Glyph::Printer).disabled(true))
+                // Connection status and quick settings of Pando (BIT-T-0429).
+                .child(no_drag_inner(self.pando_control(cx)))
                 // The assistant lives in the right panel's Agent tab.
                 .child(
                     IconButton::new("top-ai", Glyph::Sparkle).on_click(

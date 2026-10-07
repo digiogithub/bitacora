@@ -16,9 +16,11 @@ use pando::{PandoClient, PandoConfig, Token};
 use parking_lot::Mutex;
 use tokio::sync::watch;
 
+use crate::activity::ActivityLog;
+use crate::connection::version_at_least;
 use crate::credentials::{PandoCredentials, TokenKind};
 use crate::events::{EventSink, PandoEvent, PandoStatus};
-use crate::managed::ManagedStatus;
+use crate::managed::{DEFAULT_MIN_VERSION, ManagedStatus};
 use crate::supervisor::{McpAccess, Supervisor};
 
 /// Default delay between health probes.
@@ -40,6 +42,8 @@ pub struct PandoOptions {
     /// How agents reach Bitacora's MCP server (managed mode registers it as
     /// `[MCPServers.bitacora]`; ADR-031). `None` registers nothing.
     pub mcp: Option<McpAccess>,
+    /// Machine-local activity log (BIT-SP-0009.R7); `None` keeps no log.
+    pub activity: Option<ActivityLog>,
 }
 
 impl std::fmt::Debug for PandoOptions {
@@ -63,6 +67,7 @@ impl PandoOptions {
             supervisor: None,
             probe_interval: DEFAULT_PROBE_INTERVAL,
             mcp: None,
+            activity: None,
         }
     }
 
@@ -211,6 +216,9 @@ impl PandoService {
             endpoints: Mutex::new(None),
             events: EventSink::default(),
         });
+        if let Some(log) = opts.activity.clone() {
+            shared.events.set_log(log);
+        }
         let (stop_tx, stop_rx) = watch::channel(false);
         let mut svc = Self {
             shared: Arc::clone(&shared),
@@ -393,14 +401,29 @@ async fn run(
         }
     };
     let managed = opts.settings.mode == PandoMode::Managed;
+    let mut failures: u32 = 0;
     loop {
         match client.info().await {
-            Ok(info) => shared.set_status(PandoStatus::Connected {
-                version: info.version,
-            }),
+            Ok(info) => {
+                failures = 0;
+                if version_at_least(&info.version, DEFAULT_MIN_VERSION) {
+                    shared.set_status(PandoStatus::Connected {
+                        version: info.version,
+                    });
+                } else {
+                    shared.set_status(PandoStatus::TooOld {
+                        version: info.version,
+                        min: DEFAULT_MIN_VERSION.to_owned(),
+                    });
+                }
+            }
             Err(e) => {
-                shared.set_status(PandoStatus::Unavailable {
-                    reason: e.to_string(),
+                failures = failures.saturating_add(1);
+                shared.set_status(match e {
+                    pando::Error::Unauthorized => PandoStatus::Unauthorized,
+                    e => PandoStatus::Unavailable {
+                        reason: e.to_string(),
+                    },
                 });
                 // A managed instance that was restarted may listen elsewhere with a new token:
                 // ask the supervisor again and switch clients when the endpoint changed.
@@ -417,10 +440,17 @@ async fn run(
             }
         }
         tokio::select! {
-            () = tokio::time::sleep(opts.probe_interval) => {}
+            () = tokio::time::sleep(probe_delay(opts.probe_interval, failures)) => {}
             _ = stop.changed() => return,
         }
     }
+}
+
+/// Delay before the next health probe: `base` while healthy, doubling per consecutive failure up
+/// to eight times `base` (two minutes with the default interval).
+#[must_use]
+pub fn probe_delay(base: Duration, failures: u32) -> Duration {
+    base.saturating_mul(1u32 << failures.min(3))
 }
 
 /// Builds the client for `endpoints` and publishes both.
@@ -496,6 +526,7 @@ mod tests {
             supervisor: None,
             probe_interval: Duration::from_millis(50),
             mcp: None,
+            activity: None,
         }
     }
 
@@ -512,6 +543,15 @@ mod tests {
             }
         }
         None
+    }
+
+    #[test]
+    fn probe_backs_off_and_resets() {
+        let b = Duration::from_secs(15);
+        assert_eq!(probe_delay(b, 0), b);
+        assert_eq!(probe_delay(b, 1), b * 2);
+        assert_eq!(probe_delay(b, 3), b * 8);
+        assert_eq!(probe_delay(b, 50), b * 8);
     }
 
     #[test]

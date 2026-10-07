@@ -521,6 +521,7 @@ impl Session {
             deps.applier = Some(Arc::new(self.agent_edit_applier()));
         }
         deps.config = config;
+        deps.activity = self.pando.as_ref().map(PandoService::sink);
         Ok(bitacora_pando::agents::ChatSession::spawn(&handle, deps))
     }
 
