@@ -120,14 +120,9 @@ fn start(cx: &mut App, args: &Args, dirs: &AppDirs, services: Services) -> anyho
     let keymap_report = keymap::load_with_user_report(cx, user_keymap.as_deref())?;
     tracing::debug!(bindings = keymap_report.bound, "keymap loaded");
     cx.on_action(|_: &Quit, cx| cx.quit());
-    ui::set_app_menu(
+    crate::menus::install(
         cx,
-        "Bitacora",
-        (
-            &rust_i18n::t!("settings.cmd_open"),
-            crate::actions::OpenSettings,
-        ),
-        (&rust_i18n::t!("app.quit"), Quit),
+        crate::recent::RecentGraphs::load(&dirs.recent_graphs_file()).graphs(),
     );
     register_panels(cx);
     // Closing the last window ends the app unless "keep running in background" is on; Quit
@@ -292,6 +287,11 @@ fn open_workspace(
     handle.update(cx, |_, window, cx| {
         if let Some(graph) = args.graph.clone() {
             workspace.update(cx, |ws, cx| ws.open_graph(graph, window, cx));
+        } else {
+            // No `--graph`: reopen the last graph, or fall back to the picker (BIT-US-0165).
+            workspace.update(cx, |ws, cx| {
+                ws.open_startup_graph(window, cx);
+            });
         }
         workspace.focus_handle(cx).focus(window, cx);
     })?;

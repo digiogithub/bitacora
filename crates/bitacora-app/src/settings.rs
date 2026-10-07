@@ -21,7 +21,7 @@ pub enum ThemePreference {
 }
 
 /// Persisted application settings.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct AppSettings {
     /// Light / dark / system.
@@ -45,6 +45,27 @@ pub struct AppSettings {
     /// Reduce motion: no caret blinking, spinners and transitions are drawn static
     /// (BIT-T-0338). Off by default; GPUI cannot read the operating system preference.
     pub reduce_motion: bool,
+    /// Reopen the most recent graph at startup instead of showing the picker (BIT-US-0165).
+    /// On by default.
+    pub reopen_last_graph: bool,
+}
+
+impl Default for AppSettings {
+    fn default() -> Self {
+        Self {
+            mode: ThemePreference::default(),
+            light_theme: None,
+            dark_theme: None,
+            keep_running_in_background: false,
+            updates: crate::update::UpdateSettings::default(),
+            font_size: None,
+            search: SearchSettings::default(),
+            mcp: McpSettings::default(),
+            language: None,
+            reduce_motion: false,
+            reopen_last_graph: true,
+        }
+    }
 }
 
 /// Smallest and largest UI font size the settings accept.
@@ -203,11 +224,14 @@ mod tests {
             },
             language: Some("es".into()),
             reduce_motion: true,
+            reopen_last_graph: false,
         };
         settings.save(&path).expect("save");
         assert_eq!(AppSettings::load(&path), settings);
         std::fs::write(&path, br#"{"mode":"light"}"#).expect("write");
         assert_eq!(AppSettings::load(&path).mode, ThemePreference::Light);
+        // A file written before the setting existed still reopens the last graph.
+        assert!(AppSettings::load(&path).reopen_last_graph);
     }
 
     #[test]

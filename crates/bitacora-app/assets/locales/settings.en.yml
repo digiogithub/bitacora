@@ -53,6 +53,8 @@ settings:
     favorite_placeholder: Page name
     background: Keep running in the background
     background_help: Closing the last window keeps the app and the MCP server running.
+    reopen: Reopen the last graph on startup
+    reopen_help: Open the most recent graph when Bitacora starts instead of asking for a folder.
     updates: Check for updates
     updates_help: Look for a new release once a day.
   editor:

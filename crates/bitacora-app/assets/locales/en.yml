@@ -56,6 +56,8 @@ palette:
   cmd_agent_activity: Agent activity...
   cmd_conflicts: Resolve sync conflicts...
   cmd_clone: Open graph from a remote...
+  cmd_open_graph: Open graph...
+  cmd_close_graph: Close graph
 panel:
   page_host:
     title: Page
@@ -104,6 +106,12 @@ refs:
   filters_none: No pages to filter by
   filters_active: Filtered
   filters_clear: Clear filters
+menu:
+  graph: Graph
+  open_graph: Open graph...
+  open_recent: Open recent
+  close_graph: Close graph
+  last_graph_missing: "Cannot open the last graph: %{path} no longer exists"
 picker:
   title: Open a graph
   subtitle: Pick a Logseq graph folder to start browsing it.

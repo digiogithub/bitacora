@@ -119,11 +119,15 @@ pub enum PaletteCommand {
     CheckForUpdates,
     /// Open the settings (BIT-US-0107).
     OpenSettings,
+    /// Choose a graph folder to open (BIT-US-0165).
+    OpenGraph,
+    /// Close the open graph and show the picker (BIT-US-0165).
+    CloseGraph,
 }
 
 impl PaletteCommand {
     /// Every command, in palette order.
-    pub const ALL: [Self; 19] = [
+    pub const ALL: [Self; 21] = [
         Self::GoJournals,
         Self::GoAllPages,
         Self::GoBack,
@@ -143,6 +147,8 @@ impl PaletteCommand {
         Self::SwitchGraph,
         Self::CheckForUpdates,
         Self::OpenSettings,
+        Self::OpenGraph,
+        Self::CloseGraph,
     ];
 
     /// The label shown (and matched against the query).
@@ -166,6 +172,8 @@ impl PaletteCommand {
             Self::AgentActivity => t!("palette.cmd_agent_activity"),
             Self::ResolveConflicts => t!("palette.cmd_conflicts"),
             Self::CloneGraph => t!("palette.cmd_clone"),
+            Self::OpenGraph => t!("palette.cmd_open_graph"),
+            Self::CloseGraph => t!("palette.cmd_close_graph"),
             Self::CheckForUpdates => t!("update.check_updates"),
         }
         .to_string()
@@ -180,7 +188,7 @@ impl PaletteCommand {
             Self::ToggleLeftSidebar | Self::ToggleRightSidebar => IconName::PanelLeft,
             Self::ToggleTheme => IconName::Sun,
             Self::Reindex => IconName::LoaderCircle,
-            Self::SwitchGraph => IconName::Folder,
+            Self::SwitchGraph | Self::OpenGraph | Self::CloseGraph => IconName::Folder,
             Self::DeletePage => IconName::Close,
             Self::RenamePage => IconName::Replace,
             Self::SyncNow => IconName::RefreshCw,

@@ -467,14 +467,7 @@ impl Workspace {
         });
         self.refresh_sync_panel(cx);
         self.recents.touch(&path);
-        if let Some(file) = &self.config.recent_file
-            && let Err(err) = self.recents.save(file)
-        {
-            tracing::warn!("cannot save the recent graphs: {err}");
-        }
-        let recent_list = self.recents.graphs().to_vec();
-        self.picker
-            .update(cx, |picker, cx| picker.set_recents(recent_list, cx));
+        self.persist_recents(cx);
         self.sidebar.update(cx, |sidebar, cx| {
             sidebar.set_graph_name(Some(name.clone()), cx)
         });
@@ -496,6 +489,77 @@ impl Workspace {
         for pane in self.panes(cx) {
             pane.update(cx, |main, cx| main.clear_graph(cx));
         }
+        cx.notify();
+    }
+
+    /// Saves the recent graphs list and refreshes the picker and the application menus.
+    fn persist_recents(&mut self, cx: &mut Context<Self>) {
+        if let Some(file) = &self.config.recent_file
+            && let Err(err) = self.recents.save(file)
+        {
+            tracing::warn!("cannot save the recent graphs: {err}");
+        }
+        let recent_list = self.recents.graphs().to_vec();
+        crate::menus::install(cx, &recent_list);
+        self.picker
+            .update(cx, |picker, cx| picker.set_recents(recent_list, cx));
+    }
+
+    /// Startup behaviour (BIT-US-0165): reopens the most recent graph unless the user turned
+    /// "reopen last graph" off. A recent graph whose folder is gone is reported and pruned and the
+    /// picker stays visible. Returns whether a graph is being opened.
+    pub fn open_startup_graph(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
+        let reopen = crate::theme::try_settings(cx).is_none_or(|s| s.reopen_last_graph);
+        if !reopen {
+            return false;
+        }
+        let Some(last) = self.recents.graphs().first().cloned() else {
+            return false;
+        };
+        if !last.exists() {
+            notify(
+                window,
+                cx,
+                Level::Warning,
+                t!(
+                    "menu.last_graph_missing",
+                    path = last.path.display().to_string()
+                )
+                .to_string(),
+            );
+            self.recents.remove(&last.path);
+            self.persist_recents(cx);
+            return false;
+        }
+        self.open_graph(last.path, window, cx);
+        true
+    }
+
+    /// Shows the native folder dialog; the chosen folder is opened (BIT-US-0165).
+    pub fn open_graph_dialog(&mut self, cx: &mut Context<Self>) {
+        self.picker.update(cx, |picker, cx| picker.browse(cx));
+    }
+
+    /// Opens the `ix`-th (0-based) recent graph.
+    pub fn open_recent(&mut self, ix: usize, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(graph) = self.recents.graphs().get(ix).cloned() {
+            self.open_graph(graph.path, window, cx);
+        }
+    }
+
+    /// Closes the open graph and shows the picker.
+    pub fn close_graph(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.graph_root.is_none() && self.session.is_none() {
+            self.picker_visible = true;
+            cx.notify();
+            return;
+        }
+        self.save_now(cx);
+        self.close_session(cx);
+        self.picker_visible = true;
+        self.sidebar
+            .update(cx, |sidebar, cx| sidebar.set_graph_name(None, cx));
+        window.set_window_title("Bitacora");
         cx.notify();
     }
 
@@ -1063,11 +1127,7 @@ impl Workspace {
             PickerEvent::CloneFromRemote => self.open_clone_dialog(window, cx),
             PickerEvent::Forget(path) => {
                 self.recents.remove(path);
-                if let Some(file) = &self.config.recent_file
-                    && let Err(err) = self.recents.save(file)
-                {
-                    tracing::warn!("cannot save the recent graphs: {err}");
-                }
+                self.persist_recents(cx);
             }
         }
     }
@@ -1277,6 +1337,8 @@ impl Workspace {
                 self.picker_visible = true;
                 cx.notify();
             }
+            PaletteCommand::OpenGraph => self.open_graph_dialog(cx),
+            PaletteCommand::CloseGraph => self.close_graph(window, cx),
             PaletteCommand::SyncNow => self.sync_now(window, cx),
             PaletteCommand::SyncSettings => self.open_sync_panel(cx),
             PaletteCommand::OpenSettings => self.open_settings(None, window, cx),
@@ -1558,6 +1620,24 @@ impl Workspace {
         cx: &mut Context<Self>,
     ) {
         self.open_settings(None, window, cx);
+    }
+
+    fn open_graph_action(
+        &mut self,
+        _: &crate::actions::OpenGraph,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.open_graph_dialog(cx);
+    }
+
+    fn close_graph_action(
+        &mut self,
+        _: &crate::actions::CloseGraph,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.close_graph(window, cx);
     }
 
     /// The settings view of the workspace.
@@ -2197,6 +2277,58 @@ impl Render for Workspace {
             .id("workspace")
             .key_context("Workspace")
             .track_focus(&self.focus)
+            .on_action(cx.listener(Self::open_graph_action))
+            .on_action(cx.listener(Self::close_graph_action))
+            .on_action(
+                cx.listener(|this, _: &crate::actions::OpenRecentGraph1, window, cx| {
+                    this.open_recent(0, window, cx);
+                }),
+            )
+            .on_action(
+                cx.listener(|this, _: &crate::actions::OpenRecentGraph2, window, cx| {
+                    this.open_recent(1, window, cx);
+                }),
+            )
+            .on_action(
+                cx.listener(|this, _: &crate::actions::OpenRecentGraph3, window, cx| {
+                    this.open_recent(2, window, cx);
+                }),
+            )
+            .on_action(
+                cx.listener(|this, _: &crate::actions::OpenRecentGraph4, window, cx| {
+                    this.open_recent(3, window, cx);
+                }),
+            )
+            .on_action(
+                cx.listener(|this, _: &crate::actions::OpenRecentGraph5, window, cx| {
+                    this.open_recent(4, window, cx);
+                }),
+            )
+            .on_action(
+                cx.listener(|this, _: &crate::actions::OpenRecentGraph6, window, cx| {
+                    this.open_recent(5, window, cx);
+                }),
+            )
+            .on_action(
+                cx.listener(|this, _: &crate::actions::OpenRecentGraph7, window, cx| {
+                    this.open_recent(6, window, cx);
+                }),
+            )
+            .on_action(
+                cx.listener(|this, _: &crate::actions::OpenRecentGraph8, window, cx| {
+                    this.open_recent(7, window, cx);
+                }),
+            )
+            .on_action(
+                cx.listener(|this, _: &crate::actions::OpenRecentGraph9, window, cx| {
+                    this.open_recent(8, window, cx);
+                }),
+            )
+            .on_action(
+                cx.listener(|this, _: &crate::actions::OpenRecentGraph10, window, cx| {
+                    this.open_recent(9, window, cx);
+                }),
+            )
             .on_action(cx.listener(Self::toggle_left))
             .on_action(cx.listener(Self::toggle_right))
             .on_action(cx.listener(Self::toggle_theme))
@@ -2363,6 +2495,123 @@ mod tests {
         let dock = ws.read_with(cx, |w, _| w.dock().clone());
         assert!(dock.read_with(cx, |d, _| d.has_dock(DockPlacement::Right)));
         assert!(!dock.read_with(cx, |d, _| d.is_dock_open(DockPlacement::Right)));
+    }
+
+    /// Lets the session thread finish indexing so tearing the test down does not race it.
+    fn settle(ws: &Entity<Workspace>, cx: &mut VisualTestContext) {
+        cx.executor().allow_parking();
+        let bar = ws.read_with(cx, |w, _| w.status_bar().clone());
+        for _ in 0..200 {
+            cx.run_until_parked();
+            if bar.read_with(cx, |b, _| b.slot(Slot::Index)) == SlotState::Idle {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+    }
+
+    fn workspace_with_recents(
+        cx: &mut TestAppContext,
+        recent_file: PathBuf,
+        data: PathBuf,
+    ) -> (Entity<Workspace>, &mut VisualTestContext) {
+        cx.add_window_view(|window, cx| {
+            Workspace::new(
+                WorkspaceConfig {
+                    index_data_dir: Some(data),
+                    recent_file: Some(recent_file),
+                    initial_page: Some("Home".into()),
+                    ..WorkspaceConfig::default()
+                },
+                window,
+                cx,
+            )
+        })
+    }
+
+    #[gpui_test]
+    fn startup_reopens_the_last_graph_without_the_picker(cx: &mut TestAppContext) {
+        setup(cx);
+        let data = tempfile::tempdir().expect("data");
+        let recent_file = data.path().join("recent.json");
+        let g = graph();
+        let mut recents = crate::recent::RecentGraphs::default();
+        recents.touch(g.path());
+        recents.save(&recent_file).expect("save recents");
+        let (ws, cx) = workspace_with_recents(cx, recent_file, data.path().to_path_buf());
+        assert!(ws.read_with(cx, |w, _| w.picker_visible()));
+        let opened = ws.update_in(cx, |w, window, cx| w.open_startup_graph(window, cx));
+        assert!(opened);
+        assert!(!ws.read_with(cx, |w, _| w.picker_visible()));
+        settle(&ws, cx);
+        assert_eq!(
+            ws.read_with(cx, |w, _| w.graph_root().map(std::path::Path::to_path_buf)),
+            g.path().canonicalize().ok()
+        );
+        drop(ws);
+        cx.run_until_parked();
+    }
+
+    #[gpui_test]
+    fn startup_with_a_missing_last_graph_shows_the_picker_and_prunes(cx: &mut TestAppContext) {
+        setup(cx);
+        let data = tempfile::tempdir().expect("data");
+        let recent_file = data.path().join("recent.json");
+        let mut recents = crate::recent::RecentGraphs::default();
+        recents.touch(&data.path().join("gone"));
+        recents.save(&recent_file).expect("save recents");
+        let (ws, cx) = workspace_with_recents(cx, recent_file.clone(), data.path().to_path_buf());
+        let opened = ws.update_in(cx, |w, window, cx| w.open_startup_graph(window, cx));
+        assert!(!opened);
+        assert!(ws.read_with(cx, |w, _| w.picker_visible()));
+        assert!(ws.read_with(cx, |w, _| w.graph_root().is_none()));
+        assert!(
+            crate::recent::RecentGraphs::load(&recent_file)
+                .graphs()
+                .is_empty()
+        );
+    }
+
+    #[gpui_test]
+    fn startup_without_recents_or_with_the_setting_off_shows_the_picker(cx: &mut TestAppContext) {
+        setup(cx);
+        let data = tempfile::tempdir().expect("data");
+        let recent_file = data.path().join("recent.json");
+        let (ws, cx) = workspace_with_recents(cx, recent_file.clone(), data.path().to_path_buf());
+        assert!(!ws.update_in(cx, |w, window, cx| w.open_startup_graph(window, cx)));
+        drop(ws);
+        let g = graph();
+        let mut recents = crate::recent::RecentGraphs::default();
+        recents.touch(g.path());
+        recents.save(&recent_file).expect("save recents");
+        cx.update(|_, cx| {
+            theme::edit_settings(cx, None, |s| s.reopen_last_graph = false);
+        });
+        let (ws, cx) = workspace_with_recents(cx, recent_file, data.path().to_path_buf());
+        assert!(!ws.update_in(cx, |w, window, cx| w.open_startup_graph(window, cx)));
+        assert!(ws.read_with(cx, |w, _| w.picker_visible()));
+    }
+
+    #[gpui_test]
+    fn graph_menu_actions_open_recent_and_close(cx: &mut TestAppContext) {
+        setup(cx);
+        let data = tempfile::tempdir().expect("data");
+        let recent_file = data.path().join("recent.json");
+        let g = graph();
+        let mut recents = crate::recent::RecentGraphs::default();
+        recents.touch(g.path());
+        recents.save(&recent_file).expect("save recents");
+        let (ws, cx) = workspace_with_recents(cx, recent_file, data.path().to_path_buf());
+        ws.update_in(cx, |w, window, cx| w.focus_handle(cx).focus(window, cx));
+        cx.dispatch_action(crate::actions::OpenRecentGraph1);
+        assert!(!ws.read_with(cx, |w, _| w.picker_visible()));
+        assert!(ws.read_with(cx, |w, _| w.graph_root().is_some()));
+        settle(&ws, cx);
+        cx.dispatch_action(crate::actions::CloseGraph);
+        assert!(ws.read_with(cx, |w, _| w.picker_visible()));
+        assert!(ws.read_with(cx, |w, _| w.graph_root().is_none()));
+        drop(ws);
+        cx.run_until_parked();
     }
 
     fn graph() -> tempfile::TempDir {

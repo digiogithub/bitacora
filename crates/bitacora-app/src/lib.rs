@@ -32,6 +32,7 @@ pub mod instance;
 pub mod keymap;
 pub mod layout;
 pub mod logging;
+pub mod menus;
 pub mod nav;
 pub mod paths;
 pub mod perf;

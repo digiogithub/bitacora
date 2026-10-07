@@ -53,6 +53,8 @@ settings:
     favorite_placeholder: Nombre de la página
     background: Seguir ejecutándose en segundo plano
     background_help: Al cerrar la última ventana, la aplicación y el servidor MCP siguen funcionando.
+    reopen: Reabrir el último grafo al iniciar
+    reopen_help: Abre el grafo más reciente al iniciar en lugar de pedir una carpeta.
     updates: Buscar actualizaciones
     updates_help: Busca una versión nueva una vez al día.
   editor:
