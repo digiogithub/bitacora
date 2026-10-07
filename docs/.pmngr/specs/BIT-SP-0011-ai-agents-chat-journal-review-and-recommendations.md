@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [ai, pando, agui, v2]
 created: 2026-10-07T09:08:04Z
-updated: 2026-10-07T11:03:02Z
+updated: 2026-10-07T12:26:06Z
 requirements:
   R1:
     status: backlog
@@ -15,14 +15,39 @@ requirements:
         - crates/bitacora-mcp/src/exclusion.rs
         - crates/bitacora-mcp/src/tokens.rs#TokenStore::ensure_token
         - crates/bitacora-runtime/src/live.rs#provision_pando_mcp
+        - crates/bitacora-app/src/views/chat/host.rs#attached_blocks
+        - crates/bitacora-pando/src/agents/guard.rs#ContentGuard
       tests:
         - crates/bitacora-mcp/tests/pando_token.rs
         - crates/bitacora-runtime/tests/pando.rs
         - crates/bitacora-mcp/src/tokens.rs#ensure_token_is_idempotent_follows_scopes_and_reminted_when_the_secret_is_lost
+        - crates/bitacora-app/src/views/chat/host.rs#only_attached_items_become_context_and_the_guard_filters_them
+        - crates/bitacora-pando/tests/agents_chat.rs#attached_context_is_guarded_and_exact
   R2:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-pando/src/agents/edits.rs#QueueEditApplier
+        - crates/bitacora-app/src/views/chat/mod.rs#ChatView
+        - crates/bitacora-app/src/views/chat/render.rs
+        - crates/bitacora-app/src/views/chat/diff.rs
+      tests:
+        - crates/bitacora-app/src/views/chat/tests.rs#propose_edit_loads_the_page_and_addresses_blocks_without_id
+        - crates/bitacora-app/src/views/chat/tests.rs#closing_denies_pending_approval_cards_with_the_reason
+        - crates/bitacora-pando/tests/agents_chat.rs
   R3:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-app/src/views/chat/mod.rs#ChatView
+        - crates/bitacora-app/src/views/chat/render.rs
+        - crates/bitacora-app/src/views/chat/markdown.rs
+        - crates/bitacora-pando/src/agents/chat.rs#ChatModel
+      tests:
+        - crates/bitacora-app/src/views/chat/tests.rs#streamed_events_fold_into_the_transcript_and_render
+        - crates/bitacora-app/src/views/chat/markdown.rs
+        - crates/bitacora-app/src/views/chat/tools.rs
+        - crates/bitacora-pando/tests/agents_chat.rs#cancel_posts_to_the_run_and_marks_the_message_cancelled
   R4:
     status: backlog
   R5:

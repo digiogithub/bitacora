@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [pando, security, privacy, v2]
 created: 2026-10-07T09:08:04Z
-updated: 2026-10-07T12:02:54Z
+updated: 2026-10-07T12:25:28Z
 requirements:
   R1:
     status: backlog
@@ -33,6 +33,15 @@ requirements:
         - crates/bitacora-pando/src/service.rs#invalid_or_remote_urls_are_unavailable_without_connecting
   R4:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-pando/src/service.rs#probe_delay
+        - crates/bitacora-app/src/views/pando_status.rs#PandoState
+        - crates/bitacora-app/src/views/workspace/pando_ui.rs
+      tests:
+        - crates/bitacora-app/src/views/pando_status.rs
+        - crates/bitacora-app/src/views/workspace.rs#pando_control_opens_a_status_popover_and_degrades_when_off
+        - crates/bitacora-pando/src/service.rs#probe_backs_off_and_resets
   R5:
     status: backlog
     trace:
@@ -52,6 +61,13 @@ requirements:
       tests: [crates/bitacora-app/src/views/settings/tests/pando_ui.rs]
   R7:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-pando/src/activity.rs
+        - crates/bitacora-app/src/views/pando_activity.rs
+      tests:
+        - crates/bitacora-pando/src/activity.rs
+        - crates/bitacora-app/src/views/pando_activity.rs
 ---
 
 ## Purpose

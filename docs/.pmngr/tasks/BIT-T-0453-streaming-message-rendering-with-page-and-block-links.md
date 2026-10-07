@@ -2,7 +2,7 @@
 id: BIT-T-0453
 type: task
 title: Streaming message rendering with page and block links
-status: in_progress
+status: done
 priority: high
 parent: BIT-US-0147
 milestone: BIT-M-0008
@@ -10,8 +10,9 @@ author: mcp
 labels: [v2, ai, bitacora-app]
 estimate: 3
 created: 2026-10-07T09:19:06Z
-updated: 2026-10-07T12:17:20Z
+updated: 2026-10-07T12:25:52Z
 started: 2026-10-07T12:17:20Z
+closed: 2026-10-07T12:25:52Z
 ---
 
 ## Description

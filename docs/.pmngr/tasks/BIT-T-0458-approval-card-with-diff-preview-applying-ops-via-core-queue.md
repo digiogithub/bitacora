@@ -2,7 +2,7 @@
 id: BIT-T-0458
 type: task
 title: Approval card with diff preview applying Ops via core queue
-status: in_progress
+status: in_review
 priority: high
 parent: BIT-US-0149
 milestone: BIT-M-0008
@@ -10,7 +10,7 @@ author: mcp
 labels: [v2, ai, bitacora-app, security]
 estimate: 3
 created: 2026-10-07T09:19:06Z
-updated: 2026-10-07T12:17:21Z
+updated: 2026-10-07T12:25:52Z
 started: 2026-10-07T12:17:21Z
 ---
 

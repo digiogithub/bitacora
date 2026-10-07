@@ -2,7 +2,7 @@
 id: BIT-T-0460
 type: task
 title: Context chips and Ask-about-selection command
-status: in_progress
+status: done
 priority: medium
 parent: BIT-US-0150
 milestone: BIT-M-0008
@@ -10,8 +10,9 @@ author: mcp
 labels: [v2, ai, bitacora-app, privacy]
 estimate: 3
 created: 2026-10-07T09:19:06Z
-updated: 2026-10-07T12:17:21Z
+updated: 2026-10-07T12:25:52Z
 started: 2026-10-07T12:17:21Z
+closed: 2026-10-07T12:25:52Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-T-0429
 type: task
 title: Top-bar AI/Pando button and quick settings popover
-status: in_progress
+status: done
 priority: medium
 parent: BIT-US-0137
 milestone: BIT-M-0007
@@ -10,8 +10,9 @@ author: mcp
 labels: [v2, settings, bitacora-app]
 estimate: 2
 created: 2026-10-07T09:16:33Z
-updated: 2026-10-07T12:17:48Z
+updated: 2026-10-07T12:25:49Z
 started: 2026-10-07T12:17:48Z
+closed: 2026-10-07T12:25:49Z
 ---
 
 ## Description
