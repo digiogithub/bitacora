@@ -68,6 +68,8 @@ pub struct RowEdit {
     pub on_toggle: Hook,
     /// Block drag and drop.
     pub drag: RowDrag,
+    /// Click on a `SCHEDULED` / `DEADLINE` chip opens the date picker (BIT-US-0167).
+    pub planning: Option<crate::views::planning::PlanningActions>,
 }
 
 impl std::fmt::Debug for RowDrag {

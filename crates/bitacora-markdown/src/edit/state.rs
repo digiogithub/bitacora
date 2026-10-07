@@ -209,6 +209,117 @@ pub fn set_deadline(content: &str, ts: Option<&Timestamp>) -> String {
     set_planning(content, "DEADLINE:", ts)
 }
 
+/// Locates the planning line holding `keyword` among the title's planning lines: returns
+/// `(line_index, keyword_offset_in_line)`.
+fn planning_line(content: &str, keyword: &str) -> Option<(usize, usize)> {
+    content
+        .split('\n')
+        .enumerate()
+        .skip(1)
+        .take(title_block_len(content).saturating_sub(1))
+        .find_map(|(i, l)| {
+            if !is_planning_line(l, None) {
+                return None;
+            }
+            l.find(keyword).map(|at| (i, at))
+        })
+}
+
+/// Byte range of the timestamp that follows `keyword` at `at` in `line`, brackets included.
+fn timestamp_range(line: &str, at: usize, keyword: &str) -> Option<(usize, usize)> {
+    let base = at + keyword.len();
+    let rest = line.get(base..)?;
+    let open = rest.find(['<', '['])?;
+    if !rest[..open].trim().is_empty() {
+        return None;
+    }
+    let close_ch = if rest[open..].starts_with('<') {
+        '>'
+    } else {
+        ']'
+    };
+    let close = rest[open..].find(close_ch)? + open;
+    Some((base + open, base + close + 1))
+}
+
+/// Moves the date of an existing `SCHEDULED:` / `DEADLINE:` line to `year-month-day`, rewriting
+/// only the `YYYY-MM-DD Ddd` part: repeaters (`.+1d`), times, the bracket kind and the rest of
+/// the line stay byte for byte. Without such a line (or with an unreadable timestamp) a plain
+/// timestamp is written like [`set_scheduled`] / [`set_deadline`] would.
+#[must_use]
+pub fn move_planning_date(content: &str, keyword: &str, year: u32, month: u32, day: u32) -> String {
+    let fresh = Timestamp {
+        active: true,
+        year,
+        month,
+        day,
+        time: None,
+        repeater: None,
+    };
+    let fallback = || set_planning(content, keyword, Some(&fresh));
+    let Some((idx, at)) = planning_line(content, keyword) else {
+        return fallback();
+    };
+    let line = content.split('\n').nth(idx).unwrap_or_default();
+    let Some((open, close)) = timestamp_range(line, at, keyword) else {
+        return fallback();
+    };
+    let inner = &line[open + 1..close - 1];
+    let bytes = inner.as_bytes();
+    let date_ok = bytes.len() >= 10
+        && bytes[..10].iter().enumerate().all(|(i, b)| {
+            if i == 4 || i == 7 {
+                *b == b'-'
+            } else {
+                b.is_ascii_digit()
+            }
+        });
+    if !date_ok {
+        return fallback();
+    }
+    // Optional weekday word after the date.
+    let wd_len = inner[10..].strip_prefix(' ').map_or(0, |r| {
+        let w: usize = r
+            .chars()
+            .take_while(|c| c.is_alphabetic())
+            .map(char::len_utf8)
+            .sum();
+        if w > 0 { 1 + w } else { 0 }
+    });
+    let y = i32::try_from(year).unwrap_or(0);
+    let new_date = format!(
+        "{year:04}-{month:02}-{day:02} {}",
+        weekday_name(y, month, day)
+    );
+    let mut out = String::with_capacity(line.len() + 4);
+    out.push_str(&line[..=open]);
+    out.push_str(&new_date);
+    out.push_str(&inner[10 + wd_len..]);
+    out.push_str(&line[close - 1..]);
+    replace_line(content, idx, &out)
+}
+
+/// Removes the `SCHEDULED:` / `DEADLINE:` entry. A line that holds only that entry disappears;
+/// when another planning entry shares the line only this entry's text is cut.
+#[must_use]
+pub fn clear_planning(content: &str, keyword: &str) -> String {
+    let Some((idx, at)) = planning_line(content, keyword) else {
+        return content.to_owned();
+    };
+    let line = content.split('\n').nth(idx).unwrap_or_default();
+    let Some((_, close)) = timestamp_range(line, at, keyword) else {
+        return remove_line(content, idx);
+    };
+    let tail = line[close..].trim_start_matches(' ');
+    let mut cut = String::from(&line[..at]);
+    cut.push_str(tail);
+    if cut.trim().is_empty() {
+        remove_line(content, idx)
+    } else {
+        replace_line(content, idx, cut.trim_end())
+    }
+}
+
 /// Finds `(open_line, end_line)` of the first `:LOGBOOK:` drawer outside fences.
 fn find_logbook(content: &str) -> Option<(usize, usize)> {
     let mut in_fence = false;

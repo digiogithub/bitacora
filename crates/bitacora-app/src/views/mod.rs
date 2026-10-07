@@ -24,6 +24,7 @@ pub mod pando_activity;
 pub mod pando_status;
 pub mod panels;
 pub mod picker;
+pub mod planning;
 pub mod related;
 pub mod responsive;
 pub mod right_panel;

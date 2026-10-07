@@ -532,3 +532,9 @@ migrate:
   custom_themes: "%{count} archivo(s) de tema propio en tu carpeta de temas ya no se cargan y se dejaron intactos; los archivos de esquema de color volverán después de 2.0."
   layout_reset: "La disposición de la ventana se restableció para el nuevo diseño."
   settings_unreadable: "No se pudo leer settings.json; se usan los valores por defecto y el archivo se guardó como settings.json.1x.bak."
+
+planning:
+  change_date: "Cambiar la fecha"
+  remove: "Quitar la fecha"
+  scheduled: Programada
+  deadline: "Fecha límite"
