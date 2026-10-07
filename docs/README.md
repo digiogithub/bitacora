@@ -29,4 +29,8 @@ Start with [[architecture]].
 | [[git-sync-merge]] | Sync loop, git backend, block-aware 3-way merge, conflict UI |
 | [[mcp-server]] | MCP over Streamable HTTP: tools, resources, security |
 
+## User guide
+
+See [[docs/user/README|user guide]]: [[whats-new-2.0]], [[upgrade-from-1x]], [[ui-tour]], [[graph-view-guide]], [[pando-setup]], [[ai-features]]. Release: [[release-process]], [[release-checklist-2.0]].
+
 Backlog: gintrack project `BIT` (`.pmngr/`).
