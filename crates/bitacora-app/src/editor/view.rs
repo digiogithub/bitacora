@@ -1868,6 +1868,11 @@ impl OutlineEditor {
             self.edit_buffer(cx, BlockBuffer::ime_unmark);
             return;
         }
+        if self.caret_in_region() {
+            // Inside a code fence or `#+BEGIN_X` region Enter adds a line (BIT-US-0169).
+            self.edit_buffer(cx, |b| b.insert("\n"));
+            return;
+        }
         let (Some(id), Some(cursor)) = (self.editing(), self.full_selection()) else {
             return;
         };
@@ -1928,8 +1933,19 @@ impl OutlineEditor {
         }
     }
 
+    /// Whether the caret is inside a code fence or `#+BEGIN_X` region of the edited block.
+    fn caret_in_region(&self) -> bool {
+        self.edit.as_ref().is_some_and(|e| {
+            crate::editor::regions::in_region(e.buf.text(), e.buf.selection().start)
+        })
+    }
+
     fn on_indent(&mut self, _: &actions::Indent, window: &mut Window, cx: &mut Context<Self>) {
         if self.marked() {
+            return;
+        }
+        if self.caret_in_region() {
+            self.edit_buffer(cx, |b| b.insert(crate::editor::regions::INDENT));
             return;
         }
         self.structural("Indent", |ids| Cmd::Indent { ids }, window, cx);
@@ -1937,6 +1953,17 @@ impl OutlineEditor {
 
     fn on_outdent(&mut self, _: &actions::Outdent, window: &mut Window, cx: &mut Context<Self>) {
         if self.marked() {
+            return;
+        }
+        if self.caret_in_region() {
+            self.edit_buffer(cx, |b| {
+                let cursor = b.cursor();
+                let from = crate::editor::regions::line_start(b.text(), cursor);
+                let width = crate::editor::regions::dedent_width(b.text(), cursor);
+                if width > 0 {
+                    b.delete_range(from..from + width);
+                }
+            });
             return;
         }
         self.structural("Outdent", |ids| Cmd::Outdent { ids }, window, cx);

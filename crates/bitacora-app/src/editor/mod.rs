@@ -19,6 +19,7 @@ pub mod element;
 pub mod html;
 pub mod layout;
 pub mod outline;
+pub mod regions;
 pub mod row;
 pub mod style;
 pub mod text_ops;

@@ -118,6 +118,13 @@ page:
   namespace_children: Pages in this namespace
   logbook: "LOGBOOK (%{count} entries)"
   logbook_total: "LOGBOOK (%{count} entries, %{total})"
+  copy_code: Copy code
+  callout_note: Note
+  callout_tip: Tip
+  callout_important: Important
+  callout_caution: Caution
+  callout_warning: Warning
+  callout_pinned: Pinned
 journals:
   today_badge: Today
   today_empty: Nothing written today yet
