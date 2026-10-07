@@ -510,6 +510,9 @@ pub struct Row {
     pub uuid: Option<String>,
     /// View-only collapse override (`None`: follow `collapsed::`). Never persisted.
     pub view_collapsed: Option<bool>,
+    /// Raw block text from the index (rows read from files or core have none). It identifies
+    /// the block when the view edits it in place (`views::remote_edit`).
+    pub content: Option<String>,
     /// How many blocks reference this block.
     pub ref_count: usize,
     /// The referencing blocks once the bubble was opened; `None` while closed.

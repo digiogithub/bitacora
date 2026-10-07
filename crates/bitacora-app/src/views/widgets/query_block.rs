@@ -25,6 +25,7 @@ use crate::ui::{
     StatefulInteractiveElement as _, Styled as _, Task, Window, div, h_flex, icon, v_flex,
 };
 use crate::views::block_view::{Action, Nav, RowActions, render_block_row, text_element_owned};
+use crate::views::remote_edit::RemoteEditors;
 
 /// Pause after the last index event before a visible query runs again.
 pub const REFRESH_DEBOUNCE: Duration = Duration::from_millis(300);
@@ -159,6 +160,8 @@ pub struct QueryBlock {
     debounce: Option<Task<()>>,
     stale: bool,
     last_drawn: Option<Instant>,
+    /// Editors of the source pages of the result blocks (click to edit in place).
+    remote: RemoteEditors<QueryBlock>,
 }
 
 impl std::fmt::Debug for QueryBlock {
@@ -197,9 +200,50 @@ impl QueryBlock {
             debounce: None,
             stale: false,
             last_drawn: None,
+            remote: RemoteEditors::new(|v| &mut v.remote, None),
         };
         this.run(cx);
         this
+    }
+
+    /// The editor of source page `page`, once a click created it (tests).
+    #[cfg(test)]
+    pub(crate) fn editor(
+        &self,
+        page: &str,
+    ) -> Option<crate::ui::Entity<crate::editor::OutlineEditor>> {
+        self.remote.editor(page).cloned()
+    }
+
+    /// What a click on the text of result block `i` does (tests).
+    #[cfg(test)]
+    pub(crate) fn click_result(&mut self, i: usize, window: &mut Window, cx: &mut Context<Self>) {
+        let State::Ready(loaded) = &self.state else {
+            return;
+        };
+        let (Some(row), Some(group)) = (
+            loaded.rows.get(i),
+            loaded.groups.iter().find(|g| g.rows.contains(&i)),
+        ) else {
+            return;
+        };
+        if let Some(target) = crate::views::remote_edit::BlockRef::of_row(&group.page, row) {
+            self.remote.activate(&target, usize::MAX, false, window, cx);
+        }
+    }
+
+    /// The block being edited changed on disk: the result editors look at it.
+    pub fn on_editing_conflict(
+        &mut self,
+        conflict: &bitacora_core::editor::EditingConflict,
+        cx: &mut Context<Self>,
+    ) {
+        self.remote.on_editing_conflict(conflict, cx);
+    }
+
+    /// Connects the result rows to the live session so they can be edited in place.
+    pub fn set_link(&mut self, link: Option<crate::session::SessionLink>) {
+        self.remote.configure(link, Some(self.handle.clone()));
     }
 
     /// Updates what the host knows; the query runs again when the query or graph changed.
@@ -510,15 +554,19 @@ impl QueryBlock {
             .into_any_element()
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn render_list(
-        &self,
+        &mut self,
         eid: u64,
         loaded: &Loaded,
         theme: &crate::ui::theme::Theme,
         bt: &crate::ui::theme::BitacoraTheme,
         root: Option<&std::path::Path>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
     ) -> AnyElement {
         let nav = self.nav.clone();
+        let this = cx.entity();
         let mut col = v_flex().gap_1().px_2().pb_2();
         match &loaded.output.body {
             Body::Blocks(_) => {
@@ -555,15 +603,33 @@ impl QueryBlock {
                                     .child(trail.join(" \u{203a} ")),
                             );
                         }
-                        let actions = RowActions::nav_only(nav.clone());
-                        col = col.child(render_block_row(
+                        // A click on the text edits the block in its own page.
+                        let remote =
+                            self.remote
+                                .prepare(&this, &group.page, row, None, None, window, cx);
+                        let editing = remote.as_ref().is_some_and(|rr| rr.editing);
+                        let (edit, activate, shown) = match remote {
+                            Some(rr) => (rr.edit, rr.activate, Some(rr.row)),
+                            None => (None, None, None),
+                        };
+                        let actions = RowActions {
+                            edit,
+                            activate,
+                            ..RowActions::nav_only(nav.clone())
+                        };
+                        let el = render_block_row(
                             crate::views::widgets::element_id(eid, 10_000 + i),
-                            row,
+                            shown.as_ref().unwrap_or(row),
                             root,
                             theme,
                             bt,
                             &actions,
-                        ));
+                        );
+                        col = col.child(if editing {
+                            self.remote.wrap(&group.page, el, cx)
+                        } else {
+                            el
+                        });
                     }
                 }
             }
@@ -742,7 +808,7 @@ fn chip(
 }
 
 impl Render for QueryBlock {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.last_drawn = Some(Instant::now());
         if self.stale && self.task.is_none() {
             self.run(cx);
@@ -812,8 +878,15 @@ impl Render for QueryBlock {
                         frame = frame.child(self.render_table(eid, &table, &theme, cx));
                     }
                 } else {
-                    frame =
-                        frame.child(self.render_list(eid, &loaded, &theme, &bt, root.as_deref()));
+                    frame = frame.child(self.render_list(
+                        eid,
+                        &loaded,
+                        &theme,
+                        &bt,
+                        root.as_deref(),
+                        window,
+                        cx,
+                    ));
                 }
             }
         }

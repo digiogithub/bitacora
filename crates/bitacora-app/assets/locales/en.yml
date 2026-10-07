@@ -471,6 +471,7 @@ tasks:
   overdue_tag: overdue
   no_date: no date
   in_page: "in %{page}"
+  open_block: open
   empty: No open tasks match.
   err_page: "Cannot open the page %{page}."
   err_moved: The task changed on disk; reload and try again.

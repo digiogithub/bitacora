@@ -1045,11 +1045,17 @@ impl Workspace {
                 self.refresh_agent_configured(cx);
                 self.panel
                     .update(cx, |panel, cx| panel.set_hybrid(link.hybrid.clone(), cx));
+                self.panel.update(cx, |panel, cx| {
+                    panel.set_session_link(Some(link.clone()), cx)
+                });
                 self.refresh_pando_ui(cx);
                 for pane in self.panes(cx) {
                     let link = link.clone();
                     pane.update(cx, |main, cx| main.set_session_link(link, window, cx));
                 }
+                self.stack.update(cx, |stack, cx| {
+                    stack.set_session_link(Some(link.clone()), cx)
+                });
                 self.start_day_clock(cx);
             }
             SessionEvent::Notice(notice) => {
@@ -1086,6 +1092,11 @@ impl Workspace {
                 for pane in self.panes(cx) {
                     pane.update(cx, |main, cx| main.on_editing_conflict(&conflict, cx));
                 }
+                self.stack
+                    .update(cx, |stack, cx| stack.on_editing_conflict(&conflict, cx));
+                crate::views::widgets::on_editing_conflict(&conflict, cx);
+                self.panel
+                    .update(cx, |panel, cx| panel.on_editing_conflict(&conflict, cx));
             }
             SessionEvent::DiskConflictCleared(key) => {
                 self.disk_banner.update(cx, |b, cx| b.clear(&key, cx));

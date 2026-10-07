@@ -471,6 +471,7 @@ tasks:
   overdue_tag: vencida
   no_date: sin fecha
   in_page: "en %{page}"
+  open_block: abrir
   empty: Ninguna tarea abierta coincide.
   err_page: "No se puede abrir la página %{page}."
   err_moved: La tarea cambió en disco; recarga e inténtalo de nuevo.

@@ -510,6 +510,7 @@ impl EmbedBlock {
                 focus: None,
                 edit,
                 widgets,
+                activate: None,
             };
             col = col.child(render_block_row(
                 element_id(eid, 5_000 + r),
