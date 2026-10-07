@@ -353,3 +353,211 @@ fn right_sidebar_local_graph_follows_the_page_and_click_navigates(cx: &mut TestA
         vec![StackEvent::Navigate(NavTarget::Page("Gamma".into()))]
     );
 }
+
+// ---- settings panel and export (BIT-US-0158, BIT-US-0160) -------------------------------------
+
+use bitacora_config::{GraphForce, GraphToggle};
+use bitacora_runtime::{RuntimeConfig, Session};
+
+use crate::data::{GraphHandle, ViewSettings};
+use crate::graph_view::export::Format;
+
+const CONFIG: &str = "{;; my graph\n :meta/version 1 ;; keep\n :favorites [\"A\"]}\n";
+
+/// A graph on disk with a live session (its queue is the single writer of `config.edn`).
+struct Live {
+    graph: tempfile::TempDir,
+    _data: tempfile::TempDir,
+    session: Session,
+    handle: GraphHandle,
+}
+
+fn live() -> Live {
+    let graph = tempfile::tempdir().expect("graph");
+    let data = tempfile::tempdir().expect("data");
+    let root = graph.path();
+    std::fs::create_dir_all(root.join("logseq")).expect("logseq");
+    std::fs::write(root.join("logseq/config.edn"), CONFIG).expect("config");
+    for (path, content) in [
+        ("pages/Alpha.md", "- see [[Beta]]\n"),
+        ("pages/Beta.md", "- b\n"),
+        ("pages/Alphabet.md", "- [[Beta]]\n"),
+        ("pages/Lonely.md", "- alone\n"),
+        ("journals/2024_01_01.md", "- day [[Beta]]\n"),
+    ] {
+        let file = root.join(path);
+        std::fs::create_dir_all(file.parent().expect("parent")).expect("dirs");
+        std::fs::write(file, content).expect("write");
+    }
+    let mut cfg = RuntimeConfig::new(root);
+    cfg.data_dir = Some(data.path().to_path_buf());
+    cfg.global_config = Some(data.path().join("no-global.edn"));
+    cfg.watch = None;
+    cfg.debounce = None;
+    let session = Session::open(cfg).expect("session");
+    let handle = GraphHandle {
+        reader: session.read_api(),
+        root: session.root().to_path_buf(),
+        settings: std::sync::Arc::new(ViewSettings::from_config(session.config())),
+    };
+    Live {
+        graph,
+        _data: data,
+        session,
+        handle,
+    }
+}
+
+fn open_live<'a>(
+    cx: &'a mut TestAppContext,
+    l: &Live,
+) -> (Entity<GraphView>, &'a mut VisualTestContext) {
+    let (view, cx) = cx.add_window_view(|_, _| GraphView::new(GraphMode::Global));
+    view.update(cx, |v, cx| {
+        v.set_queue(Some(l.session.queue().clone()));
+        v.show(l.handle.clone(), cx);
+    });
+    wait_loaded(cx, &view);
+    (view, cx)
+}
+
+fn wait_saved(cx: &mut VisualTestContext, view: &Entity<GraphView>) {
+    for _ in 0..400 {
+        cx.run_until_parked();
+        if !view.read_with(cx, |v, _| v.is_saving()) {
+            return;
+        }
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    panic!("the settings were not saved");
+}
+
+fn config_text(l: &Live) -> String {
+    std::fs::read_to_string(l.graph.path().join("logseq/config.edn")).expect("config")
+}
+
+#[gpui_test]
+fn toggling_journals_reloads_the_graph_and_persists_the_key(cx: &mut TestAppContext) {
+    setup(cx);
+    let l = live();
+    let (view, cx) = open_live(cx, &l);
+    assert_eq!(names(&view, cx), ["Alpha", "Alphabet", "Beta", "Lonely"]);
+    view.update(cx, |v, cx| v.toggle_pref(GraphToggle::Journals, true, cx));
+    wait_saved(cx, &view);
+    for _ in 0..400 {
+        cx.run_until_parked();
+        if names(&view, cx).len() == 5 {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    assert_eq!(names(&view, cx).len(), 5, "the journal page is shown");
+    let text = config_text(&l);
+    assert!(text.contains(":graph/settings {:journal? true}"), "{text}");
+    // Everything else in the file is untouched.
+    assert!(text.contains(";; my graph\n :meta/version 1 ;; keep\n :favorites [\"A\"]"));
+    // The saved value is what a fresh read of the config gives.
+    let cfg = bitacora_config::EffectiveConfig::from_texts(None, Some(&text));
+    assert!(cfg.graph_view_settings().journals);
+}
+
+#[gpui_test]
+fn force_steps_persist_and_reset_removes_the_map(cx: &mut TestAppContext) {
+    setup(cx);
+    let l = live();
+    let (view, cx) = open_live(cx, &l);
+    settle(cx, &view);
+    view.update(cx, |v, cx| v.step_force(GraphForce::LinkDist, 1, cx));
+    view.update(cx, |v, cx| v.step_force(GraphForce::ChargeStrength, 1, cx));
+    wait_saved(cx, &view);
+    let text = config_text(&l);
+    assert!(text.contains(":link-dist 80"), "{text}");
+    assert!(text.contains(":charge-strength -500"), "{text}");
+    assert_eq!(view.read_with(cx, |v, _| v.prefs().link_dist), 80.0);
+    settle(cx, &view);
+    view.update(cx, |v, cx| v.reset_forces(cx));
+    wait_saved(cx, &view);
+    let text = config_text(&l);
+    assert!(!text.contains("forcesettings"), "{text}");
+    assert!(text.contains(";; my graph"));
+    assert_eq!(view.read_with(cx, |v, _| v.prefs().link_dist), 70.0);
+}
+
+#[gpui_test]
+fn saved_settings_are_applied_when_the_graph_opens(cx: &mut TestAppContext) {
+    setup(cx);
+    let l = live();
+    let text = "{:graph/settings {:journal? true :orphan-pages? false}\n :graph/forcesettings {:link-dist 120}}\n";
+    let cfg = bitacora_config::EffectiveConfig::from_texts(None, Some(text));
+    let mut handle = l.handle.clone();
+    handle.settings = std::sync::Arc::new(ViewSettings::from_config(&cfg));
+    let (view, cx) = cx.add_window_view(|_, _| GraphView::new(GraphMode::Global));
+    view.update(cx, |v, cx| v.show(handle, cx));
+    wait_loaded(cx, &view);
+    assert!(view.read_with(cx, |v, _| v.prefs().journals && !v.prefs().orphan_pages));
+    assert_eq!(view.read_with(cx, |v, _| v.prefs().link_dist), 120.0);
+    // Orphans are hidden: only pages with an edge remain, and the journal is in.
+    let found = names(&view, cx);
+    assert!(found.iter().all(|n| n != "Lonely"), "{found:?}");
+    assert!(found.len() == 4, "{found:?}");
+}
+
+#[gpui_test]
+fn label_search_marks_matching_pages_and_pause_is_tracked(cx: &mut TestAppContext) {
+    setup(cx);
+    let g = graph();
+    let (view, cx) = open(cx, GraphMode::Global, &g);
+    assert!(view.read_with(cx, |v, _| v.search_mask().is_none()));
+    view.update(cx, |v, cx| v.set_query(" ALP", cx));
+    let mask = view.read_with(cx, |v, _| v.search_mask()).expect("mask");
+    let lit: Vec<String> = view.read_with(cx, |v, _| {
+        v.model()
+            .nodes()
+            .iter()
+            .zip(&mask)
+            .filter(|(_, on)| **on)
+            .map(|(n, _)| n.name.clone())
+            .collect()
+    });
+    assert_eq!(lit, ["Alpha"]);
+    view.update(cx, |v, cx| v.set_query("", cx));
+    assert!(view.read_with(cx, |v, _| v.search_mask().is_none()));
+    view.update(cx, |v, cx| v.set_paused(true, cx));
+    assert!(view.read_with(cx, |v, _| v.is_paused()));
+}
+
+#[gpui_test]
+fn the_panel_toggles_and_renders(cx: &mut TestAppContext) {
+    use crate::ui::{ParentElement as _, Styled as _};
+    setup(cx);
+    let g = graph();
+    let (view, cx) = open(cx, GraphMode::Global, &g);
+    view.update(cx, |v, cx| v.toggle_panel(cx));
+    assert!(view.read_with(cx, |v, _| v.panel_open()));
+    cx.draw(
+        crate::ui::point(crate::ui::px(0.0), crate::ui::px(0.0)),
+        crate::ui::size(crate::ui::px(900.0), crate::ui::px(700.0)),
+        |_, _| crate::ui::div().size_full().child(view.clone()),
+    );
+    view.update(cx, |v, cx| v.toggle_panel(cx));
+    assert!(!view.read_with(cx, |v, _| v.panel_open()));
+}
+
+#[gpui_test]
+fn the_scene_and_both_formats_follow_the_visible_graph(cx: &mut TestAppContext) {
+    setup(cx);
+    let g = graph();
+    let (view, cx) = open(cx, GraphMode::Global, &g);
+    settle(cx, &view);
+    let scene = view.read_with(cx, |v, cx| v.scene(true, cx));
+    assert_eq!(scene.nodes.len(), 4);
+    assert_eq!(scene.edges.len(), 4);
+    let svg = String::from_utf8(Format::Svg.render(&scene).expect("svg")).expect("utf8");
+    assert_eq!(svg.matches("<circle").count(), 4);
+    assert_eq!(svg.matches("<line").count(), 4);
+    for name in ["Alpha", "Beta", "Gamma", "Delta"] {
+        assert!(svg.contains(&format!(">{name}</text>")), "{name}");
+    }
+    let png = Format::Png.render(&scene).expect("png");
+    assert_eq!(&png[..4], b"\x89PNG");
+}

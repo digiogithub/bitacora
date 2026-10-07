@@ -8,7 +8,9 @@
 use std::path::Path;
 use std::time::Duration;
 
-use bitacora_config::{ConfigEditor, Edn, EffectiveConfig, NameFormat, PreferredWorkflow};
+use bitacora_config::{
+    ConfigEditor, Edn, EffectiveConfig, GraphForce, GraphToggle, NameFormat, PreferredWorkflow,
+};
 use bitacora_core::date::{Date, DateFormat};
 use bitacora_core::queue::{CommandQueue, FileEdit};
 
@@ -49,6 +51,12 @@ pub enum GraphEdit {
     FavoriteAdd(String),
     /// Removes from `:favorites`.
     FavoriteRemove(String),
+    /// One key of `:graph/settings` (the graph view's filters, BIT-US-0158).
+    GraphToggle(GraphToggle, bool),
+    /// One key of `:graph/forcesettings`.
+    GraphForce(GraphForce, i64),
+    /// Removes `:graph/forcesettings`.
+    GraphForcesReset,
 }
 
 impl GraphEdit {
@@ -62,7 +70,10 @@ impl GraphEdit {
             Self::PreferredWorkflow(_)
             | Self::DefaultJournalTemplate(_)
             | Self::FavoriteAdd(_)
-            | Self::FavoriteRemove(_) => ApplyMode::Live,
+            | Self::FavoriteRemove(_)
+            | Self::GraphToggle(..)
+            | Self::GraphForce(..)
+            | Self::GraphForcesReset => ApplyMode::Live,
         }
     }
 
@@ -84,6 +95,7 @@ impl GraphEdit {
     ///
     /// # Errors
     /// [`bitacora_config::Error`] when the config text cannot be edited.
+    #[allow(clippy::cast_precision_loss)]
     pub fn apply(&self, editor: &mut ConfigEditor) -> Result<(), bitacora_config::Error> {
         match self {
             Self::NameFormat(NameFormat::TripleLowbar) => {
@@ -111,6 +123,9 @@ impl GraphEdit {
             }
             Self::FavoriteAdd(page) => editor.favorites_add(page.trim()),
             Self::FavoriteRemove(page) => editor.favorites_remove(page).map(|_| ()),
+            Self::GraphToggle(toggle, value) => editor.set_graph_toggle(*toggle, *value),
+            Self::GraphForce(force, value) => editor.set_graph_force(*force, *value as f64),
+            Self::GraphForcesReset => editor.reset_graph_forces().map(|_| ()),
         }
     }
 }

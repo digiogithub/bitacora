@@ -256,6 +256,8 @@ impl MainView {
     ) {
         self.tasks
             .update(cx, |t, cx| t.set_session_link(Some(link.clone()), cx));
+        self.graph
+            .update(cx, |g, _| g.set_queue(Some(link.queue.clone())));
         self.journals
             .update(cx, |j, cx| j.set_session_link(Some(link.clone()), cx));
         self.page

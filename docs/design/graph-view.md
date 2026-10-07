@@ -8,7 +8,7 @@ tags:
 ---
 # Graph view (renderer, interaction, local graph, incremental refresh)
 
-Implements BIT-US-0157 and BIT-US-0159 on top of ADR-034 ([[bitacora-v2-plan]] "Graph view", BIT-SP-0012.R2-R4 and R6). Data comes from `IndexReader::graph_data` / `local_graph_data`; layout from `bitacora-graph`.
+Implements BIT-US-0157, BIT-US-0158, BIT-US-0159 and BIT-US-0160 on top of ADR-034 ([[bitacora-v2-plan]] "Graph view", BIT-SP-0012.R2-R4 and R6). Data comes from `IndexReader::graph_data` / `local_graph_data`; layout from `bitacora-graph`.
 
 ## Modules (`bitacora-app`)
 - `src/graph_view/model.rs` (pure): `GraphModel::from_data(&GraphData)` (page ids -> layout indices, adjacency), `to_input()` (-> `bitacora_graph::GraphInput`), `within_hops(focus, n)` + `restrict(keep)` (focus filter, degrees recomputed), `carry_positions(old, old_positions, new)` (incremental refresh), `node_radius(degree) = 8 * max(1, cbrt(degree))`.
@@ -35,7 +35,18 @@ Index events debounce 400 ms then reload `GraphData` on a background thread. `ap
 ## Entry points and local graph
 Route `Route::Graph`, sidebar item (`Target::Graph`), palette command `GoGraph`, action `bitacora::GoGraph` bound to `g g`. The local graph is a card at the top of the right sidebar stack (`RightSidebar::set_local_page`, driven by `MainEvent::Visited`); it is the stand-in for the Context tab until the right-panel redesign story lands (move the `GraphView` entity into that tab).
 
+## Settings panel and persistence (BIT-US-0158)
+The toolbar's gear button toggles a floating panel (`src/views/graph_view/panel.rs`, kit `Card`, `Button`, `Segmented`, `Input`) in the global graph, with four collapsible sections: Nodes (page and link counts, journals / orphan / built-in / excluded toggles, pause simulation), Search (a label filter: matching pages stay bright, the rest dims through the same `lit` mask the hover uses), Forces (link distance, charge strength, charge range as stepper rows over Logseq's slider ranges 10..180 / -1000..1000 / 500..4000, "Reset forces") and Export.
+
+Keys are Logseq 0.10.x's (`components/page.cljs:577-700`, `handler/graph.cljs:84-125`): `:graph/settings {:journal? :orphan-pages? :builtin-pages? :excluded-pages?}` (defaults off / **on** / off / off; `:excluded-pages? true` *shows* pages with `exclude-from-graph-view:: true`, hence the new `GraphFilter::show_excluded`) and `:graph/forcesettings {:link-dist :charge-strength :charge-range}` (defaults 70 / -600 / 600, which are also our `ForceParams` defaults, so the values map one to one). Reading and writing live in `bitacora-config` (`graph_view.rs`: `GraphViewSettings`, `EffectiveConfig::graph_view_settings`, `ConfigEditor::{set_graph_toggle, set_graph_force, reset_graph_forces}`); a missing key or a value of the wrong type falls back to the default. "Reset forces" removes `:graph/forcesettings` (Logseq resets the values in memory only).
+
+Every change updates the view at once (a filter change reloads `GraphData`; a force change starts a new `Simulation` with the carried positions) and is written through the single writer: `GraphEdit::{GraphToggle, GraphForce, GraphForcesReset}` -> `edit_config` -> `CommandQueue` (comment-preserving splice, atomic, hash-checked). Writes are serialised (`pending` / `saving`): edits made while one is in flight go out as one batch afterwards. The view gets the queue from `MainView::set_session_link` and reads the saved settings once per graph in `show` (the handle only carries the config as it was at open time). None of the graph keys feed `config_hash`, so saving them never triggers a reindex. The local graph widget keeps the defaults.
+
+## Export (BIT-US-0160)
+`src/graph_view/export.rs` is GPUI-free: a `Scene` (nodes with position, radius, label and colour; edges; palette) built from the shown `GraphModel` and the current layout positions, so exports follow the active filters and focus. `Scene::to_svg` writes the SVG by hand (background rect, edge lines, circles, escaped `<text>` labels); `Scene::to_png` rasterises the same scene with `tiny-skia` 0.11.4 (already in the lockfile through gpui -> resvg, BSD-3-Clause, `cargo deny check` passes, no new crate) at 2x, shrunk so no side exceeds 8192 px. `tiny-skia` has no text shaping, so **the PNG has no labels** (the SVG does; the panel says so). The panel's buttons open the platform save dialog (`cx.prompt_for_new_path`), append the extension when missing and write atomically with `settings::write_atomic` on a background thread; the result or the error shows in the panel.
+
 ## Open questions / follow-ups
-- Settings panel and config.edn persistence (BIT-US-0158) and export (BIT-US-0160) plug into `GraphView::set_settings` and the paint data.
+- PNG labels would need a text rasteriser (`resvg` with its `text` feature plus a font database); not added because it pulls in `fontdb`/`rustybuzz`-class dependencies for little value.
+- The settings use stepper buttons instead of sliders: the kit has no slider yet.
 - Node ceiling: the 3k target is covered by culling and batched paths; 20k with LOD is not attempted.
 - Manual check on real hardware (smoothness at 3k nodes, idle CPU) is not covered by automated tests.
