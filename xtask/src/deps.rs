@@ -29,6 +29,12 @@ fn allowed_edges() -> BTreeMap<&'static str, BTreeSet<&'static str>> {
         "bitacora-sync",
         "bitacora-mcp",
     ]);
+    // ADR-034: `bitacora-graph` is a leaf layout engine; only the runtime and app may use it.
+    let with_graph = |base: &BTreeSet<&'static str>| {
+        let mut s = base.clone();
+        s.insert("bitacora-graph");
+        s
+    };
     let with_runtime = |base: &BTreeSet<&'static str>| {
         let mut s = base.clone();
         s.insert("bitacora-runtime");
@@ -62,8 +68,9 @@ fn allowed_edges() -> BTreeMap<&'static str, BTreeSet<&'static str>> {
             ]),
         ),
         // ADR-024: the headless session composing core+index+watch+sync+mcp; no UI.
-        ("bitacora-runtime", frontends.clone()),
-        ("bitacora-app", with_runtime(&frontends)),
+        ("bitacora-runtime", with_graph(&frontends)),
+        ("bitacora-graph", set(&[])),
+        ("bitacora-app", with_graph(&with_runtime(&frontends))),
         ("bitacora-cli", with_runtime(&frontends)),
         // Dev-only helpers: nothing may depend on it in [dependencies].
         ("bitacora-testkit", set(&[])),

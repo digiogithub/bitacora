@@ -96,7 +96,7 @@ jobs:
           cargo test --locked --no-fail-fast
           -p bitacora-markdown -p bitacora-config -p bitacora-core -p bitacora-watch
           -p bitacora-index -p bitacora-sync -p bitacora-mcp -p bitacora-cli
-          -p bitacora-merge -p bitacora-testkit -p xtask
+          -p bitacora-merge -p bitacora-graph -p bitacora-testkit -p xtask
       - name: Benchmarks compile
         run: cargo bench --no-run --locked -p bitacora-markdown
       - name: Guard - gpui-kit must not be in the test-core graph
