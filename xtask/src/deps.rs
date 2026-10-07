@@ -75,7 +75,12 @@ fn allowed_edges() -> BTreeMap<&'static str, BTreeSet<&'static str>> {
             ]),
         ),
         // ADR-024: the headless session composing core+index+watch+sync+mcp; no UI.
-        ("bitacora-runtime", with_pando(&with_graph(&frontends))),
+        // The runtime also names the generic SDK for re-exported AI types (ADR-027).
+        ("bitacora-runtime", {
+            let mut s = with_pando(&with_graph(&frontends));
+            s.insert("pando-rs");
+            s
+        }),
         ("bitacora-graph", set(&[])),
         // ADR-027: the generic SDK depends on no bitacora crate.
         ("pando-rs", set(&[])),
@@ -86,6 +91,7 @@ fn allowed_edges() -> BTreeMap<&'static str, BTreeSet<&'static str>> {
                 "bitacora-config",
                 "bitacora-core",
                 "bitacora-index",
+                "bitacora-markdown",
                 "pando-rs",
             ]),
         ),
