@@ -40,11 +40,11 @@ id_allocation:
   strategy: scan
   write_counters: true
   counters:
-    milestone: 5
-    epic: 14
-    spec: 7
-    story: 112
-    task: 376
+    milestone: 9
+    epic: 25
+    spec: 12
+    story: 163
+    task: 487
 priorities:
   - critical
   - high
