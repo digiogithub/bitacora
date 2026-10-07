@@ -95,6 +95,8 @@ pub struct Session {
     pando: Option<PandoService>,
     /// Semantic sync of the graph into Pando's KB (ADR-030); stops before the Pando service.
     semantic: Option<bitacora_pando::semantic::SemanticWorker>,
+    /// FTS5 + semantic search (BIT-US-0144); lexical only when Pando is off.
+    hybrid: Option<bitacora_pando::semantic::HybridSearch>,
     sync_watch: Option<SyncWatch>,
     recovery: Option<RecoveryReport>,
     events: Events,
@@ -268,6 +270,7 @@ impl Session {
             sync_options: cfg.sync.clone(),
             pando: None,
             semantic: None,
+            hybrid: None,
             sync_watch: None,
             recovery: None,
             events,
@@ -348,6 +351,15 @@ impl Session {
             }
             session.pando = Some(service);
         }
+        match bitacora_pando::semantic::HybridSearch::for_session(
+            session.pando.as_ref(),
+            session.semantic.as_ref().map(|w| w.policy()),
+            &root,
+            session.index.read_api(),
+        ) {
+            Ok(h) => session.hybrid = Some(h),
+            Err(e) => tracing::warn!(error = %e, "hybrid search unavailable"),
+        }
         Ok(session)
     }
 
@@ -361,6 +373,29 @@ impl Session {
     #[must_use]
     pub fn semantic_status(&self) -> Option<bitacora_pando::semantic::SemanticStatus> {
         self.semantic.as_ref().map(|w| w.status())
+    }
+
+    /// Hybrid search: FTS5 results fused (RRF) with Pando's semantic results, which are
+    /// re-resolved against the local index (stale, unknown and excluded hits are dropped).
+    /// Without Pando (off, no consent, unreachable, timeout) the answer is lexical only and
+    /// [`HybridResults::semantic`] says why.
+    ///
+    /// Blocks while waiting for Pando (at most `opts.timeout` plus a short margin): call it from
+    /// a background thread, never from the UI thread.
+    ///
+    /// # Errors
+    /// [`RuntimeError::Search`] when the local index cannot be searched.
+    pub fn hybrid_search(
+        &self,
+        query: &str,
+        opts: &bitacora_pando::semantic::HybridOptions,
+    ) -> Result<bitacora_pando::semantic::HybridResults, RuntimeError> {
+        let h = self
+            .hybrid
+            .as_ref()
+            .ok_or_else(|| RuntimeError::Search("hybrid search is not available".into()))?;
+        h.search(query, opts)
+            .map_err(|e| RuntimeError::Search(e.to_string()))
     }
 
     /// The semantic sync worker, to change exclusions, resync or purge (BIT-SP-0010.R6).

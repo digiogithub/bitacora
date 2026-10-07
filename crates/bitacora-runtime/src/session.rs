@@ -73,6 +73,9 @@ pub enum RuntimeError {
         /// Cause.
         source: std::io::Error,
     },
+    /// A search could not run.
+    #[error("search: {0}")]
+    Search(String),
     /// An invalid graph-relative path.
     #[error("invalid graph path `{0}`")]
     BadPath(String),

@@ -29,6 +29,8 @@ One eligible block = one document.
 * `graph_id` is `bitacora_index::graph_id(root)`: 16 hex chars of blake3 over the canonical absolute graph path. It is machine-local, deterministic (it survives index rebuilds and needs no state) and nothing is written into the graph. Moving the graph folder changes it; the old documents then stay in Pando until purged, which is acceptable for a machine-local integration.
 * The block uuid is `id::` when the file has one, otherwise the index uuid. The index keeps generated uuids across incremental reparses (uuid carry-over, ADR-006), so editing a block never changes its document id. A **full index rebuild** may assign new uuids to blocks without `id::`: the ledger then holds ids that are no longer eligible, the diff deletes them and sends the new ones. This costs one re-send of those blocks and is the price of never writing `id::` into user files just for indexing (rule 1).
 
+  Evaluated (BIT-US-0144): remapping old ids to new ones by content hash without re-embedding is **not possible** with Pando's generic API. It only offers upsert and delete keyed by `file_path`; there is no move or rename, and a new `file_path` is embedded from scratch. A ledger-side alias (keep sending under the old id while the block has a new uuid) would decouple the document id from the block uuid in the mapping, the hash, the worker and search re-resolution, and is ambiguous for blocks with identical text. Not worth it: only blocks without `id::` are affected, and only a *full* rebuild (index schema or parser version bump, corruption recovery) re-generates uuids, never an edit or a reconcile. The cost is one re-embedding of those blocks per rebuild; users who want zero churn can give blocks `id::` through Logseq's own block references.
+
 ### 1.2 Eligibility (BIT-SP-0010.R2)
 
 `ContentPolicy` (built from `GraphConsent` by `from_consent`):
@@ -71,6 +73,21 @@ An async task on the Pando service runtime. It wakes on new work (then waits `de
 
 `bitacora_pando::semantic::start_session` (called by `Session::open` after the service starts) returns `None` unless the integration is active with consent for the graph and the `semantic_search` feature is on, so nothing is read or sent otherwise. `Session::semantic()` / `semantic_status()` expose the worker (`set_policy`, `reconcile`, `purge`, `retry_now`, counts); shutdown stops it before the Pando service and leaves pending rows in the ledger for the next session.
 
+## 3. Hybrid search (BIT-US-0144)
+
+Code: `semantic/search.rs` (`HybridSearch`), runtime API `Session::hybrid_search(query, &HybridOptions) -> HybridResults`. The UI (BIT-US-0145) and MCP/CLI (BIT-US-0146) call this one entry point.
+
+1. **Lexical**: the local FTS5 pipeline (`IndexReader::search`, already fused internally) always runs.
+2. **Semantic**: in parallel, `KbClient::search` with `path_prefix = bitacora/<graph_id>/` (so other apps' and graphs' documents never match), at most 20 results, under `HybridOptions::timeout` (2.5 s default).
+3. **Local re-resolution**: Pando's answer is only a list of doc ids. Each id is parsed back to a block uuid and read from the index through the same `DocSource` the sync uses, with the *current* policy. A hit is dropped when its id is not ours, the block no longer exists, or the block is now excluded or ineligible (the server copy may lag behind a local edit or an exclusion change). The snippet and page title come from the local block, never from Pando's chunk text. A surviving hit whose `content_hash` differs from the local one is kept and flagged `stale`. Several chunks of one block count once.
+4. **Fusion**: Reciprocal Rank Fusion with `k = 60` (same constant as the lexical pipeline) over the lexical list and the semantic list, keyed by block uuid (pages by id). A block in both lists outranks single-list hits; lexical highlights are kept.
+
+### 3.1 Degradation
+
+`HybridResults::semantic` tells the caller what happened: `Used { candidates, dropped }` or `Unavailable(Disabled | Offline | Timeout | Failed(msg))`. `Disabled`: no worker (Pando off, no consent for the graph, or the `semantic_search` feature is off). `Offline`: the service is not `Connected` or Pando is unreachable (no request is made when the gate is closed). `Timeout`, `Failed`: slow or erroring Pando. In every case the lexical hits are returned unchanged and nothing is logged with content. `search` blocks, so call it from a background thread, not from the UI thread.
+
+Lexical results are *not* filtered by the exclusions: those only govern what leaves the machine, and the user's own local search keeps finding their own pages.
+
 ## Requirements
 
 - MUST NOT write `id::` or any other marker to user files for indexing.
@@ -78,6 +95,7 @@ An async task on the Pando service runtime. It wakes on new work (then waits `de
 - MUST keep the ledger outside the rebuildable index and the graph folder.
 - MUST NOT contact Pando for a graph without consent.
 - SHOULD use bounded concurrency and backoff; a Pando outage must not slow the editor.
+- MUST scope semantic search to the graph prefix and re-resolve every hit against the local index; MUST fall back to lexical results when Pando is unavailable.
 
 ## Open questions
 

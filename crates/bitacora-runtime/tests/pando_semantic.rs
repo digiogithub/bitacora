@@ -153,3 +153,38 @@ fn without_consent_nothing_is_read_or_sent() {
     assert!(seen.lock().unwrap().is_empty());
     s.shutdown(Duration::from_secs(5));
 }
+
+#[test]
+fn hybrid_search_is_lexical_only_without_consent_or_without_pando() {
+    use bitacora_runtime::{HybridOptions, SemanticState, Unavailable};
+    let dir = tempfile::tempdir().unwrap();
+    let graph = common::graph_with(dir.path(), &[("pages/a.md", PAGE)]);
+
+    // No Pando configured at all.
+    let s = Session::open(common::config(&graph, &dir.path().join("d1"))).unwrap();
+    let r = s
+        .hybrid_search("indexing", &HybridOptions::default())
+        .unwrap();
+    assert!(!r.hits.is_empty());
+    assert_eq!(
+        r.semantic,
+        SemanticState::Unavailable(Unavailable::Disabled)
+    );
+    s.shutdown(Duration::from_secs(5));
+
+    // Pando configured but no consent: still no semantic part, and nothing is sent.
+    let (url, seen) = mock_pando();
+    let mut cfg = common::config(&graph, &dir.path().join("d2"));
+    cfg.pando = Some(opts(&graph, &url, false));
+    let s = Session::open(cfg).unwrap();
+    let r = s
+        .hybrid_search("indexing", &HybridOptions::default())
+        .unwrap();
+    assert!(!r.hits.is_empty());
+    assert_eq!(
+        r.semantic,
+        SemanticState::Unavailable(Unavailable::Disabled)
+    );
+    assert!(seen.lock().unwrap().is_empty());
+    s.shutdown(Duration::from_secs(5));
+}
