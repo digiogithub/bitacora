@@ -2,7 +2,7 @@
 id: BIT-US-0129
 type: story
 title: pando-rs crate scaffolding and REST KB client
-status: backlog
+status: done
 priority: high
 parent: BIT-EP-0018
 milestone: BIT-M-0007
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, pando-repo, sdk, rust]
 estimate: 5
 created: 2026-10-07T09:14:29Z
-updated: 2026-10-07T09:54:52Z
+updated: 2026-10-07T10:11:31Z
+closed: 2026-10-07T10:11:31Z
 ---
 
 ## Description

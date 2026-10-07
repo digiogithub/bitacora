@@ -2,7 +2,7 @@
 id: BIT-T-0470
 type: task
 title: Global graph query with nodes, edges and degree
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0155
 milestone: BIT-M-0009
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, graph, bitacora-index]
 estimate: 3
 created: 2026-10-07T09:20:34Z
-updated: 2026-10-07T09:20:34Z
+updated: 2026-10-07T10:15:38Z
+closed: 2026-10-07T10:15:38Z
 ---
 
 ## Description

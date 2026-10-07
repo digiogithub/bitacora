@@ -2,7 +2,7 @@
 id: BIT-T-0408
 type: task
 title: "KbClient: upsert, delete, search, reindex"
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0129
 milestone: BIT-M-0007
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, pando-repo, sdk]
 estimate: 3
 created: 2026-10-07T09:15:16Z
-updated: 2026-10-07T09:54:52Z
+updated: 2026-10-07T10:11:31Z
+closed: 2026-10-07T10:11:31Z
 ---
 
 ## Description

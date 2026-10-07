@@ -2,7 +2,7 @@
 id: BIT-US-0155
 type: story
 title: Graph data read API in bitacora-index
-status: backlog
+status: done
 priority: high
 parent: BIT-EP-0024
 milestone: BIT-M-0009
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, graph, bitacora-index]
 estimate: 5
 created: 2026-10-07T09:19:45Z
-updated: 2026-10-07T09:19:45Z
+updated: 2026-10-07T10:15:46Z
+closed: 2026-10-07T10:15:46Z
 ---
 
 ## Description

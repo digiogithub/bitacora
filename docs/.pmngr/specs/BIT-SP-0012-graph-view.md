@@ -6,14 +6,25 @@ status: backlog
 author: mcp
 labels: [ui, graph, v2]
 created: 2026-10-07T09:08:04Z
-updated: 2026-10-07T09:09:54Z
+updated: 2026-10-07T10:15:47Z
 requirements:
   R1:
     status: backlog
+    trace:
+      code: [crates/bitacora-index/src/read/graph.rs]
+      tests: [crates/bitacora-index/tests/read_graph.rs]
   R2:
     status: backlog
+    trace:
+      code: [crates/bitacora-index/src/read/graph.rs]
+      tests: [crates/bitacora-index/tests/read_graph.rs]
   R3:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-graph/src/sim.rs
+        - crates/bitacora-graph/src/worker.rs
+      tests: [crates/bitacora-graph/tests/sim.rs]
   R4:
     status: backlog
   R5:

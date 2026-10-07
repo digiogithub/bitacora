@@ -2,7 +2,7 @@
 id: BIT-T-0472
 type: task
 title: Quadtree and Barnes-Hut many-body force
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0156
 milestone: BIT-M-0009
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, graph, bitacora-graph]
 estimate: 3
 created: 2026-10-07T09:20:34Z
-updated: 2026-10-07T09:20:34Z
+updated: 2026-10-07T10:15:46Z
+closed: 2026-10-07T10:15:46Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-US-0156
 type: story
 title: Force layout engine in bitacora-graph
-status: backlog
+status: done
 priority: high
 parent: BIT-EP-0024
 milestone: BIT-M-0009
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, graph, bitacora-graph]
 estimate: 8
 created: 2026-10-07T09:19:46Z
-updated: 2026-10-07T09:19:46Z
+updated: 2026-10-07T10:15:46Z
+closed: 2026-10-07T10:15:46Z
 ---
 
 ## Description
