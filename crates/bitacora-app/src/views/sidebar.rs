@@ -19,6 +19,8 @@ pub enum Target {
     Journals,
     /// All pages list.
     AllPages,
+    /// The graph view.
+    Graph,
     /// A favorite or recent page.
     Page(String),
     /// Graph switcher.
@@ -91,6 +93,7 @@ impl LeftSidebar {
         let active = match route {
             Some(Route::Journals) => Some(Target::Journals),
             Some(Route::AllPages) => Some(Target::AllPages),
+            Some(Route::Graph) => Some(Target::Graph),
             Some(Route::Page(name)) => Some(Target::Page(name.clone())),
             Some(Route::Block(_)) | None => None,
         };
@@ -166,6 +169,12 @@ impl Render for LeftSidebar {
                 t!("sidebar.all_pages").to_string(),
                 IconName::FileText,
                 Target::AllPages,
+                cx,
+            ))
+            .child(item(
+                t!("sidebar.graph_view").to_string(),
+                IconName::Network,
+                Target::Graph,
                 cx,
             ));
         let page_list = |names: &[String], icon: IconName, cx: &mut Context<Self>| {

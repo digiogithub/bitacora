@@ -27,6 +27,7 @@ pub mod events;
 pub mod fonts;
 pub mod graph_ops;
 pub mod graph_state;
+pub mod graph_view;
 pub mod i18n;
 pub mod instance;
 pub mod keymap;

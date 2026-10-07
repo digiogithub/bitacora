@@ -21,7 +21,8 @@
       "t l": "bitacora::ToggleLeftSidebar",
       "t r": "bitacora::ToggleRightSidebar",
       "g j": "bitacora::GoJournals",
-      "g a": "bitacora::GoAllPages"
+      "g a": "bitacora::GoAllPages",
+      "g g": "bitacora::GoGraph"
     }
   },
   {

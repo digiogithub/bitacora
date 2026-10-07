@@ -679,7 +679,9 @@ impl PageView {
                         Route::Block(uuid) => {
                             data::zoom_block(&handle, uuid).map(|load| (load, None))
                         }
-                        Route::Journals | Route::AllPages => Err("not a page".to_owned()),
+                        Route::Journals | Route::AllPages | Route::Graph => {
+                            Err("not a page".to_owned())
+                        }
                     }
                 })
                 .await;
@@ -1532,7 +1534,9 @@ impl PageView {
             let target = match &link.target {
                 Route::Page(name) => NavTarget::Page(name.clone()),
                 Route::Block(uuid) => NavTarget::Block(uuid.clone()),
-                Route::Journals | Route::AllPages => NavTarget::Page(link.label.clone()),
+                Route::Journals | Route::AllPages | Route::Graph => {
+                    NavTarget::Page(link.label.clone())
+                }
             };
             if n > 0 {
                 line = line.child(
@@ -1683,7 +1687,9 @@ impl PageView {
             let target = match &link.target {
                 Route::Page(name) => NavTarget::Page(name.clone()),
                 Route::Block(uuid) => NavTarget::Block(uuid.clone()),
-                Route::Journals | Route::AllPages => NavTarget::Page(link.label.clone()),
+                Route::Journals | Route::AllPages | Route::Graph => {
+                    NavTarget::Page(link.label.clone())
+                }
             };
             line = line.child(
                 div()

@@ -11,8 +11,8 @@ use bitacora_core::editor::DayRollover;
 use tokio::task::JoinError;
 
 use crate::actions::{
-    FocusRightSidebar, GoAllPages, GoBack, GoForward, GoJournals, OpenCommandPalette, OpenSearch,
-    Quit, ToggleLeftSidebar, ToggleRightSidebar, ToggleTheme,
+    FocusRightSidebar, GoAllPages, GoBack, GoForward, GoGraph, GoJournals, OpenCommandPalette,
+    OpenSearch, Quit, ToggleLeftSidebar, ToggleRightSidebar, ToggleTheme,
 };
 use crate::credentials::CredentialHub;
 use crate::data::{self, GraphHandle};
@@ -1147,6 +1147,7 @@ impl Workspace {
             }
             SidebarEvent::Navigate(Target::Journals) => self.navigate(Route::Journals, cx),
             SidebarEvent::Navigate(Target::AllPages) => self.navigate(Route::AllPages, cx),
+            SidebarEvent::Navigate(Target::Graph) => self.navigate(Route::Graph, cx),
             SidebarEvent::Navigate(Target::Page(name)) => {
                 self.navigate(Route::Page(name.clone()), cx);
             }
@@ -1198,6 +1199,12 @@ impl Workspace {
                 }
                 self.sidebar
                     .update(cx, |sidebar, cx| sidebar.set_current(Some(route), cx));
+                let local = match route {
+                    Route::Page(name) => Some(name.clone()),
+                    _ => None,
+                };
+                self.stack
+                    .update(cx, |stack, cx| stack.set_local_page(local, cx));
                 let key = match route {
                     Route::Page(name) => Some(PageKey::from_title(name)),
                     _ => None,
@@ -1305,6 +1312,7 @@ impl Workspace {
         match command {
             PaletteCommand::GoJournals => self.navigate(Route::Journals, cx),
             PaletteCommand::GoAllPages => self.navigate(Route::AllPages, cx),
+            PaletteCommand::GoGraph => self.navigate(Route::Graph, cx),
             PaletteCommand::GoBack => self.main.update(cx, |m, cx| m.go_back(cx)),
             PaletteCommand::GoForward => self.main.update(cx, |m, cx| m.go_forward(cx)),
             PaletteCommand::ToggleLeftSidebar => {
@@ -2041,6 +2049,10 @@ impl Workspace {
         self.navigate(Route::AllPages, cx);
     }
 
+    fn go_graph(&mut self, _: &GoGraph, _: &mut Window, cx: &mut Context<Self>) {
+        self.navigate(Route::Graph, cx);
+    }
+
     fn focus_right_sidebar(
         &mut self,
         _: &FocusRightSidebar,
@@ -2338,6 +2350,7 @@ impl Render for Workspace {
             .on_action(cx.listener(Self::open_command_palette))
             .on_action(cx.listener(Self::go_journals))
             .on_action(cx.listener(Self::go_all_pages))
+            .on_action(cx.listener(Self::go_graph))
             .on_action(cx.listener(Self::focus_right_sidebar))
             .on_action(cx.listener(Self::go_back))
             .on_action(cx.listener(Self::go_forward))

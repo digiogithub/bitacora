@@ -91,6 +91,27 @@ impl Simulation {
         }
     }
 
+    /// Like [`Simulation::new`], but nodes with `Some(position)` in `initial` start there (a
+    /// refresh that keeps surviving nodes in place, BIT-SP-0012.R6) and the layout starts at
+    /// `alpha` instead of fully hot. Missing entries keep the phyllotaxis start.
+    #[must_use]
+    pub fn with_positions(
+        input: &GraphInput,
+        params: ForceParams,
+        seed: u64,
+        initial: &[Option<[f32; 2]>],
+        alpha: f32,
+    ) -> Self {
+        let mut sim = Self::new(input, params, seed);
+        for (slot, start) in sim.pos.iter_mut().zip(initial) {
+            if let Some(at) = start {
+                *slot = *at;
+            }
+        }
+        sim.alpha = alpha.clamp(0.0, 1.0);
+        sim
+    }
+
     /// Number of nodes.
     #[must_use]
     pub fn len(&self) -> usize {

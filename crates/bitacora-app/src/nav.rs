@@ -13,6 +13,8 @@ pub enum Route {
     Block(String),
     /// The table of all pages.
     AllPages,
+    /// The graph view (BIT-US-0157).
+    Graph,
 }
 
 /// Where a click on a ref, tag, bullet or list entry opens its target (Shift+click opens the
