@@ -2,7 +2,7 @@
 id: BIT-T-0435
 type: task
 title: Pando status machine and UI status surfaces
-status: backlog
+status: in_progress
 priority: medium
 parent: BIT-US-0140
 milestone: BIT-M-0007
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, bitacora-pando, bitacora-app]
 estimate: 3
 created: 2026-10-07T09:16:34Z
-updated: 2026-10-07T09:16:34Z
+updated: 2026-10-07T12:17:48Z
+started: 2026-10-07T12:17:48Z
 ---
 
 ## Description

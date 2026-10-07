@@ -2,7 +2,7 @@
 id: BIT-US-0140
 type: story
 title: Pando connection status, graceful degradation and activity log
-status: backlog
+status: in_progress
 priority: medium
 parent: BIT-EP-0020
 milestone: BIT-M-0007
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, pando, bitacora-pando, bitacora-app]
 estimate: 5
 created: 2026-10-07T09:15:49Z
-updated: 2026-10-07T09:15:49Z
+updated: 2026-10-07T12:17:48Z
+started: 2026-10-07T12:17:48Z
 ---
 
 ## Description

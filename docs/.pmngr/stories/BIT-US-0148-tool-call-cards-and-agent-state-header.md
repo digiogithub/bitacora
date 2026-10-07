@@ -2,7 +2,7 @@
 id: BIT-US-0148
 type: story
 title: Tool-call cards and agent state header
-status: backlog
+status: in_progress
 priority: medium
 parent: BIT-EP-0022
 milestone: BIT-M-0008
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, ai, agui, bitacora-app]
 estimate: 5
 created: 2026-10-07T09:18:16Z
-updated: 2026-10-07T09:18:16Z
+updated: 2026-10-07T12:17:11Z
+started: 2026-10-07T12:17:11Z
 ---
 
 ## Description

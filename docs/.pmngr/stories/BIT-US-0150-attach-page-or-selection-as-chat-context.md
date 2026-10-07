@@ -2,7 +2,7 @@
 id: BIT-US-0150
 type: story
 title: Attach page or selection as chat context
-status: backlog
+status: in_progress
 priority: medium
 parent: BIT-EP-0022
 milestone: BIT-M-0008
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, ai, agui, privacy, bitacora-app]
 estimate: 3
 created: 2026-10-07T09:18:16Z
-updated: 2026-10-07T09:18:16Z
+updated: 2026-10-07T12:17:11Z
+started: 2026-10-07T12:17:11Z
 ---
 
 ## Description
