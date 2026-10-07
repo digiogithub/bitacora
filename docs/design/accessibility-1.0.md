@@ -52,3 +52,19 @@ GPUI builds an AccessKit tree only while assistive technology is connected. Anno
 **Still to do before 1.0 (manual, needs the three operating systems): validation with VoiceOver, Narrator or NVDA, and Orca.** None can run on the development host, so BIT-US-0109 stays `in_review` for this item only. Checklist for the tester: open a graph, read the journal feed, move through blocks with the arrows (each row should read its text, level and expanded state), fold and unfold, open the search palette, open Settings and change a switch, trigger a dialog and dismiss it with Esc.
 
 > v2 note: the Paper, Solarized and Midnight themes audited above were removed in v2 (BIT-US-0116); `contrast.rs` now checks the generated "Bitacora Dark/Light" themes.
+
+## 5. v2 shell: narrow windows (BIT-US-0128)
+
+Implemented in `views/responsive.rs` (`Breakpoint::for_width`) and `Workspace::render`.
+
+| Window width | Layout |
+|---|---|
+| >= 1170px (`RIGHT_PANEL_INLINE_MIN`) | 252px sidebar + reading column + 360px right panel inline |
+| 760..1170px | sidebar inline; the right panel does not fit and is closed when the window enters this range (`Ctrl/Cmd+Shift+B` reopens it, squeezing the reading column) |
+| < 760px (`SIDEBAR_INLINE_MIN`) | sidebar leaves the layout; `Ctrl/Cmd+B` shows it as an overlay above the reading column and a second press hides it; widening to 760px restores the inline sidebar |
+
+Limitations: the right panel is not yet a true overlay when reopened below 1170px (it takes space from the reading column); the closed state is not remembered when widening again. The design system has no explicit breakpoint spec, so the thresholds are derived from the token widths (252 + 760 + 2x24 + 360 = ~1170).
+
+Persisted layouts: `LAYOUT_VERSION` is 2 so saved docks (280px right dock) are discarded and the default 360px `RIGHT_DOCK_WIDTH` applies.
+
+Test: `views::workspace::tests::narrow_windows_close_the_right_panel_and_overlay_the_sidebar` (1400, 1000, 640px). Reduce-motion: the popover fade (`kit/popover.rs`) already skips animation via `fade_duration(cx.reduce_motion())`; no other animations exist in the shell. Contrast: `contrast.rs` still covers the generated Bitacora themes. A Tab-order test across title bar, sidebar and editor is not automated (GPUI Kit tab stops are not queryable in tests).
