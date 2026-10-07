@@ -15,12 +15,12 @@
 
 pub use gpui_kit::prelude::*;
 pub use gpui_kit::{
-    Action, Anchor, AnyElement, AnyView, AnyWindowHandle, App, AppContext, Application, AsyncApp,
-    Bounds, ClickEvent, Context, Entity, EntityId, EventEmitter, FocusHandle, Focusable, Global,
-    Hsla, KeyBinding, KeyBindingContextPredicate, KeyDownEvent, NoAction, PathPromptOptions,
-    Pixels, Point, Render, Rgba, SharedString, Size, StyledImage, Subscription, Task, TextSystem,
-    TitlebarOptions, WeakEntity, Window, WindowAppearance, WindowBounds, WindowOptions, deferred,
-    div, point, px, size,
+    Action, Anchor, Animation, AnimationExt, AnyElement, AnyView, AnyWindowHandle, App, AppContext,
+    Application, AsyncApp, Bounds, ClickEvent, Context, Div, ElementId, Entity, EntityId,
+    EventEmitter, FocusHandle, Focusable, Global, Hsla, KeyBinding, KeyBindingContextPredicate,
+    KeyDownEvent, KeyUpEvent, Keystroke, NoAction, PathPromptOptions, Pixels, Point, Render, Rgba,
+    SharedString, Size, StyledImage, Subscription, Task, TextSystem, TitlebarOptions, WeakEntity,
+    Window, WindowAppearance, WindowBounds, WindowOptions, deferred, div, point, px, size,
 };
 pub use gpui_kit::{rgb, rgba};
 
@@ -361,6 +361,22 @@ pub fn key_binding(
         None,
         &gpui_kit::DummyKeyboardMapper,
     )?)
+}
+
+/// Raw asset access for icons that need to be adjusted before they are painted.
+pub mod assets {
+    use gpui_kit::assets::AllAssets;
+    use gpui_kit::gpui::AssetSource as _;
+
+    /// The bytes of an embedded icon (`icons/<lucide-name>.svg`, the full Lucide catalog).
+    #[must_use]
+    pub fn icon_svg(path: &str) -> Option<Vec<u8>> {
+        AllAssets
+            .load(path)
+            .ok()
+            .flatten()
+            .map(std::borrow::Cow::into_owned)
+    }
 }
 
 /// Builds an icon element from a Lucide icon name.
