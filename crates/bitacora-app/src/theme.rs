@@ -145,13 +145,13 @@ pub fn css_report(cx: &App) -> (Vec<Diagnostic>, usize, Option<PathBuf>) {
     )
 }
 
-/// The block bullet colour requested by `custom.css` for the current mode, if any. Kept outside
-/// the GPUI `Theme` (which has no slot for it) so block rows can read it without an `App`.
-pub fn bullet_color() -> Option<Hsla> {
-    BULLET.lock().ok().and_then(|guard| *guard).map(hsla_of)
+/// The block bullet colour requested by `custom.css` for the current mode, if any (`None` when
+/// the bullet uses the design-system colour).
+pub fn bullet_color(cx: &App) -> Option<Hsla> {
+    let bt = cx.global::<BitacoraTheme>();
+    let base = BitacoraTheme::new(bt.mode).colors.bullet;
+    (bt.colors.bullet != base).then_some(bt.colors.bullet)
 }
-
-static BULLET: std::sync::Mutex<Option<Rgba8>> = std::sync::Mutex::new(None);
 
 fn hsla_of(c: Rgba8) -> Hsla {
     crate::ui::Rgba {
@@ -254,9 +254,10 @@ pub fn apply(cx: &mut App, window: Option<&mut Window>) {
         let dark = Theme::global(cx).is_dark();
         cx.global::<ThemeController>().css.parsed.effective(dark)
     };
-    if let Ok(mut bullet) = BULLET.lock() {
-        *bullet = overrides.bullet;
-    }
+    // The bullet colour has no slot in the kit `Theme`; it lives in this app's `BitacoraTheme`.
+    let base_bullet = BitacoraTheme::new(mode.into()).colors.bullet;
+    cx.global_mut::<BitacoraTheme>().colors.bullet =
+        overrides.bullet.map(hsla_of).unwrap_or(base_bullet);
     if !overrides.is_empty() {
         let font_free = settings.font_size.is_none();
         // `Theme::update` carries the colour edits into the component tokens too.
@@ -573,7 +574,7 @@ body { font-family: 'Fira Sans', sans-serif; font-size: 20px; }
             assert_eq!(rgb(theme.colors.link), [0xff, 0, 0]);
             assert_eq!(theme.font_family.as_ref(), "Fira Sans");
             assert_eq!(f32::from(theme.font_size), 20.0);
-            assert_eq!(bullet_color().map(rgb), Some([0, 0xff, 0]));
+            assert_eq!(bullet_color(cx).map(rgb), Some([0, 0xff, 0]));
             let (diagnostics, applied, path) = css_report(cx);
             assert!(applied >= 5 && path.is_some());
             assert!(
@@ -600,7 +601,7 @@ body { font-family: 'Fira Sans', sans-serif; font-size: 20px; }
             assert!(!check_css(cx), "unchanged file is not re-read");
             set_preference(cx, None, ThemePreference::Light);
             assert_eq!(rgb(Theme::global(cx).colors.background), [0x12, 0x34, 0x56]);
-            assert_eq!(bullet_color(), None);
+            assert_eq!(bullet_color(cx), None);
 
             // Closing the graph drops the overrides.
             set_graph_css(cx, None);

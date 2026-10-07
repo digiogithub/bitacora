@@ -778,7 +778,7 @@ pub fn render_block_row(
         .map(|e| e.on_toggle.clone())
         .or_else(|| actions.toggle.clone());
     let collapsed = row.is_collapsed();
-    let bullet_color = crate::theme::bullet_color().unwrap_or(bt.colors.bullet);
+    let bullet_color = bt.colors.bullet;
     let bullet_size = if row.depth == 0 {
         bt.metrics.bullet
     } else {
