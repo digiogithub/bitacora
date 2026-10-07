@@ -24,6 +24,7 @@ use crate::render::embed::{DEFAULT_MAX_DEPTH, Refusal};
 use crate::render::inline::NavTarget;
 use crate::render::model::{Row, toggle_row, visible_rows};
 use crate::render::widget::EmbedTarget;
+use crate::ui::theme::ActiveBitacoraTheme as _;
 use crate::ui::{
     ActiveTheme as _, AnyElement, App, AppContext as _, Context, Entity, FluentBuilder as _,
     IconName, InteractiveElement as _, IntoElement, ParentElement as _, Render,
@@ -461,6 +462,7 @@ impl EmbedBlock {
         theme: &crate::ui::theme::Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {
+        let bt = cx.bitacora().clone();
         let rows = self.rows(cx);
         let visible = visible_rows(&rows);
         let root = Some(self.host.handle.root.clone());
@@ -513,6 +515,7 @@ impl EmbedBlock {
                 &rows[r],
                 root.as_deref(),
                 theme,
+                &bt,
                 &actions,
             ));
         }

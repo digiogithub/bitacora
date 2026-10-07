@@ -16,11 +16,15 @@ use crate::ui::text_edit::{
     FontStyle, FontWeight, HighlightStyle, InteractiveText, ObjectFit, StrikethroughStyle,
     StyledText, UnderlineStyle, hsla, img,
 };
+use crate::ui::theme::{BitacoraTheme, TypeStyle, TypeStyleExt as _};
 use crate::ui::{
-    AnyElement, App, AppContext as _, FluentBuilder as _, Hsla, IconName, InteractiveElement as _,
-    IntoElement, ParentElement as _, SharedString, StatefulInteractiveElement as _, Styled as _,
-    StyledImage as _, Window, div, h_flex, icon, px, v_flex,
+    AnyElement, App, AppContext as _, Div, FluentBuilder as _, Hsla, IconName,
+    InteractiveElement as _, IntoElement, ParentElement as _, SharedString,
+    StatefulInteractiveElement as _, Styled as _, StyledImage as _, Window, div, h_flex, icon, px,
+    v_flex,
 };
+use crate::views::kit::{Chip, ChipTone, TaskMarker, marker_spec};
+use bitacora_markdown::tasks::head::Marker;
 
 /// Resolves an image `src` (`../assets/a.png`) to a file inside the graph. Remote URLs and
 /// paths that leave the graph folder give `None`.
@@ -69,8 +73,28 @@ pub fn resolve_asset(graph_root: &Path, src: &str) -> Option<PathBuf> {
 
 pub type Nav = std::rc::Rc<dyn Fn(NavTarget, OpenIn, &mut App)>;
 
-fn heading_size(level: u8) -> f32 {
-    [28., 24., 20., 18., 16., 15.][usize::from(level.clamp(1, 6)) - 1]
+/// Type style of a heading block: `h1`-`h3` follow the design-system block scale, deeper
+/// levels keep the body face at a descending size.
+fn heading_style(level: u8, bt: &BitacoraTheme) -> TypeStyle {
+    match level.clamp(1, 6) {
+        1 => bt.type_scale.h1_block.clone(),
+        2 => bt.type_scale.h2_block.clone(),
+        3 => bt.type_scale.h3_block.clone(),
+        n => TypeStyle {
+            size: px([0., 0., 0., 17., 16., 15.][usize::from(n) - 1]),
+            weight: FontWeight::BOLD,
+            ..bt.type_scale.body.clone()
+        },
+    }
+}
+
+/// Whether the marker of `block` mutes the rest of the block (DONE, CANCELED).
+fn marker_mutes(block: &BlockModel, bt: &BitacoraTheme) -> bool {
+    block
+        .marker
+        .as_ref()
+        .and_then(|m| Marker::from_word(&m.label))
+        .is_some_and(|m| marker_spec(m, bt).mutes_block())
 }
 
 /// Highlight styles for a layout. With `strike_all` the gaps are struck through too.
@@ -122,7 +146,11 @@ pub(crate) fn style_for(
     let mut style = HighlightStyle::default();
     match role {
         Role::Plain => {}
-        Role::PageRef | Role::Tag | Role::Link => style.color = Some(theme.info),
+        Role::PageRef | Role::Link => style.color = Some(theme.info),
+        Role::Tag => {
+            style.color = Some(theme.info);
+            style.background_color = Some(theme.info.opacity(0.13));
+        }
         Role::BlockRef => {
             style.color = Some(theme.foreground);
             style.background_color = Some(theme.muted);
@@ -300,7 +328,7 @@ pub(crate) fn code_element(
         .into_any_element()
 }
 
-fn checkbox(checked: bool, theme: &crate::ui::theme::Theme) -> AnyElement {
+fn checkbox(checked: bool, bt: &BitacoraTheme) -> AnyElement {
     div()
         .mt(px(3.))
         .size(px(14.))
@@ -308,16 +336,16 @@ fn checkbox(checked: bool, theme: &crate::ui::theme::Theme) -> AnyElement {
         .flex()
         .items_center()
         .justify_center()
-        .rounded(px(3.))
+        .rounded(bt.metrics.radius_chip)
         .border_1()
         .border_color(if checked {
-            theme.primary
+            bt.colors.accent
         } else {
-            theme.muted_foreground
+            bt.colors.line_2
         })
         .when(checked, |d| {
-            d.bg(theme.primary)
-                .text_color(theme.primary_foreground)
+            d.bg(bt.colors.accent)
+                .text_color(bt.colors.on_accent)
                 .child(icon(IconName::Check).size(px(10.)))
         })
         .into_any_element()
@@ -388,12 +416,14 @@ pub fn render_block_row(
     row: &Row,
     graph_root: Option<&Path>,
     theme: &crate::ui::theme::Theme,
+    bt: &BitacoraTheme,
     actions: &RowActions,
 ) -> AnyElement {
     let block: &BlockModel = &row.block;
     let finished = block.marker.as_ref().is_some_and(|m| m.finished);
+    let muted_block = marker_mutes(block, bt) || finished;
     let strike = block.is_cancelled();
-    let title_size = block.heading.map(heading_size);
+    let title_style = block.heading.map(|h| heading_style(h, bt));
     let dispatch = &actions.nav;
     let edit = actions.edit.as_ref();
     let on_text: Option<TextHook> = edit.map(|e| e.on_text.clone());
@@ -401,7 +431,7 @@ pub fn render_block_row(
     let mut title_line = h_flex().items_start().gap_2().flex_wrap();
     if let Some(marker) = &block.marker {
         if let Some(checked) = marker.checkbox {
-            let mut cb = checkbox(checked, theme);
+            let mut cb = checkbox(checked, bt);
             if let Some(e) = edit {
                 let hook = e.on_checkbox.clone();
                 cb = div()
@@ -417,33 +447,29 @@ pub fn render_block_row(
             title_line = title_line.child(cb);
         }
         if marker.show_label {
-            title_line = title_line.child(badge(
-                marker.label.clone(),
-                if marker.finished {
-                    theme.muted_foreground
-                } else {
-                    theme.info
-                },
-                theme,
-            ));
+            title_line = match Marker::from_word(&marker.label) {
+                Some(kind) => title_line.child(TaskMarker::new(kind)),
+                None => title_line.child(badge(marker.label.clone(), bt.colors.muted, theme)),
+            };
         }
     }
     if let Some(p) = block.priority {
-        let color = match p {
-            'A' => theme.danger,
-            'B' => theme.warning,
-            _ => theme.info,
+        let tone = match p {
+            'A' | 'B' => ChipTone::Accent,
+            _ => ChipTone::Neutral,
         };
-        title_line = title_line.child(badge(format!("[#{p}]"), color, theme));
+        title_line = title_line.child(Chip::new(format!("#{p}")).tone(tone).mono(true));
     }
     title_line = title_line.child(
         div()
             .flex_1()
             .min_w_0()
-            .when(finished, |d| d.text_color(theme.muted_foreground))
-            .when_some(title_size, |d, s| {
-                d.text_size(px(s)).font_weight(FontWeight::BOLD)
+            .text_color(if muted_block {
+                bt.colors.muted
+            } else {
+                bt.colors.text
             })
+            .type_style(title_style.as_ref().unwrap_or(&bt.type_scale.body))
             .child(text_element_owned(
                 ("title", id),
                 block.title.clone(),
@@ -607,10 +633,15 @@ pub fn render_block_row(
         .map(|e| e.on_toggle.clone())
         .or_else(|| actions.toggle.clone());
     let collapsed = row.is_collapsed();
-    let bullet_color = crate::theme::bullet_color().unwrap_or(theme.muted_foreground);
+    let bullet_color = crate::theme::bullet_color().unwrap_or(bt.colors.bullet);
+    let bullet_size = if row.depth == 0 {
+        bt.metrics.bullet
+    } else {
+        bt.metrics.bullet_child
+    };
     let bullet = div()
-        .mt(px(7.))
-        .size(px(6.))
+        .mt(px(8.))
+        .size(bullet_size)
         .flex_none()
         .rounded_full()
         .when(collapsed, |d| d.border_2().border_color(bullet_color))
@@ -753,6 +784,9 @@ pub fn render_block_row(
         .py(px(2.))
         .pl(px(8. + row.depth as f32 * 24.))
         .pr(px(12.))
+        .when(edit.is_some_and(|e| e.editing.is_some()), |d| {
+            d.bg(bt.colors.edit_bg).rounded(bt.metrics.radius_control)
+        })
         .when(edit.is_some_and(|e| e.selected), |d| d.bg(theme.selection))
         .when_some(edit.map(|e| e.on_drop.clone()), |d, drop| {
             d.on_drop(
@@ -789,6 +823,7 @@ pub fn render_block_row(
                 },
             )
         })
+        .children((0..row.depth).map(|k| guide_line(k, bt)))
         .child(toggle_slot)
         .child(bullet_slot)
         .child(content)
@@ -811,6 +846,20 @@ pub fn render_block_row(
                 .on_click(move |_, window, cx| delete(window, cx))
         }))
         .into_any_element()
+}
+
+/// The vertical guide line under the bullet of the ancestor at depth `level`, drawn in the
+/// row of one of its descendants (consecutive rows join into a continuous line).
+fn guide_line(level: usize, bt: &BitacoraTheme) -> Div {
+    // Centre of the bullet slot of the ancestor: row padding + toggle slot + gap + half slot.
+    let x = 8. + level as f32 * 24. + 14. + 4. + 6.;
+    div()
+        .absolute()
+        .top_0()
+        .bottom_0()
+        .left(px(x - 0.5))
+        .w(px(1.))
+        .bg(bt.colors.line)
 }
 
 /// A widget drawn as its source (no host view to run it): rows inside query results and
@@ -870,4 +919,26 @@ pub fn properties_table(
         );
     }
     table.into_any_element()
+}
+
+#[cfg(test)]
+mod look_tests {
+    use super::*;
+
+    #[test]
+    fn heading_levels_follow_the_block_scale() {
+        let bt = BitacoraTheme::new(crate::ui::theme::Mode::Dark);
+        assert_eq!(heading_style(1, &bt), bt.type_scale.h1_block);
+        assert_eq!(heading_style(3, &bt), bt.type_scale.h3_block);
+        assert!(heading_style(4, &bt).size > bt.type_scale.body.size);
+        assert!(heading_style(6, &bt).size < heading_style(4, &bt).size);
+    }
+
+    #[test]
+    fn guide_lines_sit_under_ancestor_bullets() {
+        // Ancestor bullets are one indent step apart, so the guides are too.
+        let bt = BitacoraTheme::new(crate::ui::theme::Mode::Light);
+        let _ = (guide_line(0, &bt), guide_line(2, &bt));
+        assert_eq!(bt.metrics.reading_max, px(760.));
+    }
 }

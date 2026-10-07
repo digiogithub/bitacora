@@ -95,6 +95,7 @@ page:
   logbook: "LOGBOOK (%{count} entradas)"
   logbook_total: "LOGBOOK (%{count} entradas, %{total})"
 journals:
+  today_badge: Hoy
   today_empty: Todavía no has escrito nada hoy
   more: Más bloques en la página...
 refs:
