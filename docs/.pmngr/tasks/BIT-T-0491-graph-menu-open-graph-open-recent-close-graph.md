@@ -2,7 +2,7 @@
 id: BIT-T-0491
 type: task
 title: "Graph menu: Open graph…, Open recent, Close graph"
-status: backlog
+status: in_review
 priority: high
 parent: BIT-US-0165
 milestone: BIT-M-0006
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, ux, bitacora-app]
 estimate: 1
 created: 2026-10-07T09:55:34Z
-updated: 2026-10-07T09:55:34Z
+updated: 2026-10-07T10:21:54Z
+started: 2026-10-07T10:21:50Z
 ---
 
 ## Description

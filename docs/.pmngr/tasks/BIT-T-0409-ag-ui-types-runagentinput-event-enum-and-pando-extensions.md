@@ -2,7 +2,7 @@
 id: BIT-T-0409
 type: task
 title: "AG-UI types: RunAgentInput, Event enum and Pando extensions"
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0130
 milestone: BIT-M-0007
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, pando-repo, sdk, agui]
 estimate: 3
 created: 2026-10-07T09:15:16Z
-updated: 2026-10-07T09:15:16Z
+updated: 2026-10-07T10:21:38Z
+closed: 2026-10-07T10:21:38Z
 ---
 
 ## Description

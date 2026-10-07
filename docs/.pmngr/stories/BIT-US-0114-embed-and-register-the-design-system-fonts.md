@@ -2,7 +2,7 @@
 id: BIT-US-0114
 type: story
 title: Embed and register the design system fonts
-status: backlog
+status: done
 priority: high
 parent: BIT-EP-0015
 milestone: BIT-M-0006
@@ -10,7 +10,9 @@ author: mcp
 labels: [v2, design-system, bitacora-app, fonts]
 estimate: 3
 created: 2026-10-07T09:11:26Z
-updated: 2026-10-07T09:11:26Z
+updated: 2026-10-07T10:21:51Z
+started: 2026-10-07T10:21:32Z
+closed: 2026-10-07T10:21:51Z
 ---
 
 ## Description

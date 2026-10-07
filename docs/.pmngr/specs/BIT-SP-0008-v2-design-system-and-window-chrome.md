@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [ui, design-system, v2]
 created: 2026-10-07T09:08:04Z
-updated: 2026-10-07T09:09:54Z
+updated: 2026-10-07T10:21:44Z
 requirements:
   R1:
     status: backlog
@@ -14,6 +14,11 @@ requirements:
     status: backlog
   R3:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-app/src/fonts.rs#register
+        - crates/bitacora-app/assets/fonts
+      tests: [crates/bitacora-app/src/fonts.rs#embedded_families_resolve]
   R4:
     status: backlog
   R5:

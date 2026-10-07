@@ -2,7 +2,7 @@
 id: BIT-T-0379
 type: task
 title: Embed font TTFs and register them at startup
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0114
 milestone: BIT-M-0006
@@ -10,7 +10,9 @@ author: mcp
 labels: [v2, fonts, bitacora-app]
 estimate: 2
 created: 2026-10-07T09:12:05Z
-updated: 2026-10-07T09:12:05Z
+updated: 2026-10-07T10:21:51Z
+started: 2026-10-07T10:21:32Z
+closed: 2026-10-07T10:21:51Z
 ---
 
 ## Description

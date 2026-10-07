@@ -2,7 +2,7 @@
 id: BIT-US-0130
 type: story
 title: "pando-rs AG-UI client: events, runs, threads and interrupts"
-status: backlog
+status: done
 priority: high
 parent: BIT-EP-0018
 milestone: BIT-M-0007
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, pando-repo, sdk, rust, agui]
 estimate: 8
 created: 2026-10-07T09:14:29Z
-updated: 2026-10-07T09:14:29Z
+updated: 2026-10-07T10:21:43Z
+closed: 2026-10-07T10:21:43Z
 ---
 
 ## Description

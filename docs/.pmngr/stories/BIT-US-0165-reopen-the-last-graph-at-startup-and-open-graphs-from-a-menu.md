@@ -2,7 +2,7 @@
 id: BIT-US-0165
 type: story
 title: Reopen the last graph at startup and open graphs from a menu
-status: backlog
+status: in_review
 priority: high
 parent: BIT-EP-0017
 milestone: BIT-M-0006
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, ux, bitacora-app]
 estimate: 3
 created: 2026-10-07T09:55:25Z
-updated: 2026-10-07T09:55:25Z
+updated: 2026-10-07T10:21:54Z
+started: 2026-10-07T10:21:50Z
 ---
 
 ## Description

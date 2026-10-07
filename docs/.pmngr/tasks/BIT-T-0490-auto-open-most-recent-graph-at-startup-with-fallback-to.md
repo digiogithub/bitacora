@@ -2,7 +2,7 @@
 id: BIT-T-0490
 type: task
 title: Auto-open most recent graph at startup with fallback to picker
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0165
 milestone: BIT-M-0006
@@ -10,7 +10,9 @@ author: mcp
 labels: [v2, ux, bitacora-app]
 estimate: 2
 created: 2026-10-07T09:55:34Z
-updated: 2026-10-07T09:55:34Z
+updated: 2026-10-07T10:21:58Z
+started: 2026-10-07T10:21:50Z
+closed: 2026-10-07T10:21:58Z
 ---
 
 ## Description

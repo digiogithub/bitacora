@@ -2,7 +2,7 @@
 id: BIT-T-0380
 type: task
 title: Font resolution test and user override compatibility
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0114
 milestone: BIT-M-0006
@@ -10,7 +10,9 @@ author: mcp
 labels: [v2, fonts, tests]
 estimate: 1
 created: 2026-10-07T09:12:05Z
-updated: 2026-10-07T09:12:05Z
+updated: 2026-10-07T10:21:51Z
+started: 2026-10-07T10:21:32Z
+closed: 2026-10-07T10:21:51Z
 ---
 
 ## Description
