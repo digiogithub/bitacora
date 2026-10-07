@@ -2,7 +2,7 @@
 id: BIT-T-0420
 type: task
 title: Verify AG-UI agents load external MCP servers and tool globs
-status: backlog
+status: cancelled
 priority: high
 parent: BIT-US-0134
 milestone: BIT-M-0007
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, pando-repo, agui, mcp]
 estimate: 2
 created: 2026-10-07T09:15:16Z
-updated: 2026-10-07T09:15:16Z
+updated: 2026-10-07T09:53:35Z
+closed: 2026-10-07T09:53:35Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-T-0419
 type: task
 title: API version, capability flags and REST contract docs
-status: backlog
+status: cancelled
 priority: medium
 parent: BIT-US-0133
 milestone: BIT-M-0007
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, pando-repo, api, docs]
 estimate: 1
 created: 2026-10-07T09:15:16Z
-updated: 2026-10-07T09:15:16Z
+updated: 2026-10-07T09:53:35Z
+closed: 2026-10-07T09:53:35Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-T-0416
 type: task
 title: Content-hash skip on upsert and index-only documents
-status: backlog
+status: cancelled
 priority: high
 parent: BIT-US-0132
 milestone: BIT-M-0007
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, pando-repo, kb]
 estimate: 3
 created: 2026-10-07T09:15:16Z
-updated: 2026-10-07T09:15:16Z
+updated: 2026-10-07T09:53:35Z
+closed: 2026-10-07T09:53:35Z
 ---
 
 ## Description

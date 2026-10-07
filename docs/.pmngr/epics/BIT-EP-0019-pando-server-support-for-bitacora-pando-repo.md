@@ -2,13 +2,14 @@
 id: BIT-EP-0019
 type: epic
 title: Pando server support for Bitacora (Pando repo)
-status: backlog
+status: cancelled
 priority: high
 milestone: BIT-M-0007
 author: mcp
 labels: [v2, pando, pando-repo]
 created: 2026-10-07T09:10:26Z
-updated: 2026-10-07T09:10:26Z
+updated: 2026-10-07T09:53:36Z
+closed: 2026-10-07T09:53:36Z
 ---
 
 ## Description

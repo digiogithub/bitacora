@@ -10,11 +10,16 @@ author: mcp
 labels: [v2, bitacora-pando]
 estimate: 2
 created: 2026-10-07T09:17:36Z
-updated: 2026-10-07T09:17:36Z
+updated: 2026-10-07T09:54:52Z
 ---
 
 ## Description
-On enable/start: diff local eligible blocks against `semantic_state` (and the remote prefix listing when available) to enqueue missing upserts and orphan deletes; throttle initial indexing of large graphs; journals policy setting (all / last N months).
+On enable or start, diff the local eligible blocks against the ledger:
+- enqueue upserts for missing or changed blocks;
+- enqueue deletes for ledger entries whose block is gone or now excluded.
+
+Initial indexing of large graphs is throttled. A journals policy setting chooses all journals or the last N months.
 
 ## Acceptance Criteria
-- Restart with no changes sends nothing; large-preset initial index measured and recorded.
+- A restart with no changes sends nothing.
+- The time for the initial index of the large preset is measured and recorded.

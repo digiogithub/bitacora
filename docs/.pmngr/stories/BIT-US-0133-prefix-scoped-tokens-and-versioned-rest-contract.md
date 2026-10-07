@@ -2,7 +2,7 @@
 id: BIT-US-0133
 type: story
 title: Prefix-scoped tokens and versioned REST contract
-status: backlog
+status: cancelled
 priority: medium
 parent: BIT-EP-0019
 milestone: BIT-M-0007
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, pando-repo, security, api]
 estimate: 3
 created: 2026-10-07T09:14:29Z
-updated: 2026-10-07T09:14:29Z
+updated: 2026-10-07T09:53:36Z
+closed: 2026-10-07T09:53:36Z
 ---
 
 ## Description

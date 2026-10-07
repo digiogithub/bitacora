@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [search, pando, index, v2]
 created: 2026-10-07T09:08:04Z
-updated: 2026-10-07T09:09:54Z
+updated: 2026-10-07T09:55:09Z
 requirements:
   R1:
     status: backlog
@@ -32,17 +32,17 @@ Document model, change detection, sync worker and outbox, search merge, UI and M
 
 ### BIT-SP-0010.R1 — Block-level semantic documents keyed by block uuid
 
-The system SHALL index each eligible block as one Pando KB document with id `bitacora/<graph_id>/<block-uuid>`, where `graph_id` is a stable id stored in the index `meta` table. The document text SHALL be the page title, the parent-block breadcrumb and the block content; metadata SHALL include graph, page, page path, block uuid, journal day (if any), tags, marker and content hash. Page renames SHALL NOT require re-embedding blocks whose content did not change.
+The system SHALL index each eligible block as one document in Pando's shared KB, with id `bitacora/<graph_id>/<block-uuid>`, using only Pando's generic REST KB API. `graph_id` is a stable machine-local id for the graph. The document text SHALL be the page title, the parent-block breadcrumb and the block content. The metadata SHALL include graph, page, page path, block uuid, journal day (if any), tags, marker and content hash. A page rename SHALL NOT re-send blocks whose embedded text did not change: their document id is uuid-based and the page title is updated by re-sending only those affected.
 
 #### Scenario: Document identity
 - GIVEN block `6522…` on page "Project X" in graph G
 - WHEN it is indexed
 - THEN Pando holds a document `bitacora/G/6522…` whose text starts with "Project X" and the breadcrumb
 
-#### Scenario: Rename without re-embedding
-- GIVEN page "A" with 10 indexed blocks
-- WHEN the page is renamed to "B"
-- THEN at most the metadata of those 10 documents is updated and no block whose content hash is unchanged is re-sent for embedding (once Pando supports hash skip)
+#### Scenario: Unchanged block not re-sent
+- GIVEN a synced block whose content hash and breadcrumb are unchanged
+- WHEN the graph is reindexed locally or the app restarts
+- THEN no upsert for that block is sent
 
 ### BIT-SP-0010.R2 — Exclusion rules for semantic indexing
 

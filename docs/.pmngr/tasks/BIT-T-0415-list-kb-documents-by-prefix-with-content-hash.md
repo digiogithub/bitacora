@@ -2,7 +2,7 @@
 id: BIT-T-0415
 type: task
 title: List KB documents by prefix with content hash
-status: backlog
+status: cancelled
 priority: high
 parent: BIT-US-0132
 milestone: BIT-M-0007
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, pando-repo, kb]
 estimate: 2
 created: 2026-10-07T09:15:16Z
-updated: 2026-10-07T09:15:16Z
+updated: 2026-10-07T09:53:21Z
+closed: 2026-10-07T09:53:21Z
 ---
 
 ## Description

@@ -66,19 +66,24 @@ Status: backlog generated 2026-10-07 (milestones BIT-M-0006..0009). Continues [[
 
 - **D1 (ADR-027) SDK placement — hybrid.** Generic async Rust client `pando-rs` lives in the Pando repo at `sdk/rust/` (REST KB API + AG-UI client: typed events incl. Pando extensions, SSE, `/info`, threads, frontend-tool interrupt/resume, HITL helper), next to the other SDKs and versioned with the server. Bitacora gets a thin adapter crate `bitacora-pando` holding product logic (profiles, frontend tools, consent, approval mapping, semantic sync). Until `pando-rs` is on crates.io, Bitacora pins it as a git dependency by rev. Evaluate `ag-ui-core` (0.1, single maintainer) only as a type source.
 - **D2 (ADR-028) Crate placement.** `bitacora-pando` depends on `bitacora-config`, `bitacora-core` (types), `bitacora-index` and `pando-rs`; `bitacora-runtime` depends on it. Async (tokio) lives in `bitacora-pando`/runtime; `bitacora-core` stays sync. New edge: `index ← pando ← runtime`.
-- **D3 (ADR-029) Pando is an opt-in, rebuildable cache.** Off by default, per-graph consent, loopback-only unless `allowRemote`, token in OS keychain, settings machine-local (never in the graph or git, cf. ADR-019).
-- **D4 (ADR-030) Semantic documents are block-level, keyed by block uuid** (`bitacora/<graph_id>/<block-uuid>`), text = page title + breadcrumb + block content; driven by `IndexWriter` events with a SQLite outbox; hits re-resolved against the local index; hybrid ranking by RRF with FTS5.
+- **D3 (ADR-029) Pando is opt-in, managed by default, on the shared KB.** Off by default, per-graph consent, loopback-only unless `allowRemote`, token in OS keychain, settings machine-local (never in the graph or git, cf. ADR-019). Default mode **managed** (as git-in-track ADR-039): Bitacora supervises `pando serve` from a per-graph cache instance dir with a generated `.pando.toml` (AG-UI, Bitacora profiles/personas, `MCPServers.bitacora`) merged over the user's global Pando config; modes `external`/`off` remain. Semantic documents live in Pando's **shared KB** (agent memory), so the consent dialog says any Pando agent can see indexed blocks.
+- **D3b Pando stays generic.** Bitacora uses only Pando's existing generic APIs; nothing Bitacora-specific is implemented in Pando. Only the generic `pando-rs` SDK is added to the Pando repo. The former "Pando server support" epic (BIT-EP-0019) is cancelled.
+- **D4 (ADR-030) Semantic documents are block-level, keyed by block uuid** (`bitacora/<graph_id>/<block-uuid>`), text = page title + breadcrumb + block content; driven by `IndexWriter` events with a machine-local sync ledger + outbox (outside the rebuildable index; source of truth for what exists remotely, so no remote listing, batch, hash-skip or delete-by-prefix endpoints are needed); per-document REST upsert/delete with bounded concurrency; hits re-resolved against the local index; hybrid ranking by RRF with FTS5.
 - **D5 (ADR-031) Agents read the graph through Bitacora's MCP server** with a dedicated Read-only `pando` token, plus user-attached AG-UI context. Writes only through the frontend tool `propose_edit` (diff card, applied via the core Op queue, audited, undoable) or HITL-approved MCP writes; unanswered approvals are denied.
-- **D6 (ADR-032) Design tokens pipeline.** Vendor `tokens.json` + generator + contrast check; generate palette into `crates/bitacora-app/src/ui/theme/`; embed fonts; bundled "Bitacora Dark/Light" kit themes generated from tokens; old "Paper" kept as optional theme.
+- **D6 (ADR-032) Design tokens pipeline.** Vendor `tokens.json` + generator + contrast check; generate palette into `crates/bitacora-app/src/ui/theme/`; embed fonts; bundled "Bitacora Dark/Light" kit themes generated from tokens; the 1.x "Paper" theme is removed. Custom colour schemes from a config file come after 2.0 (BIT-US-0164).
 - **D7 (ADR-033) Client-side decorations** with a custom 52px `AppTitleBar`; fall back gracefully when the platform forces Server decorations.
 - **D8 (ADR-034) Graph layout in-house** in a new GPUI-free crate `bitacora-graph` (Barnes-Hut force simulation, Logseq-equivalent parameters), data from a new `bitacora-index` read API; settings in config.edn `:graph/settings` / `:graph/forcesettings` via the core Op path.
 
-## Open questions (owner)
+## Owner decisions (2026-10-07)
 
-1. Should Bitacora start/supervise `pando agui-serve` (git-in-track "managed" mode) or only connect to a running Pando?
-2. Dedicated Pando instance/KB for graph content vs the shared agent-memory KB (privacy: graph notes would leak into agent context).
-3. Ship semantic search with client-side workarounds or wait for the Pando server changes (list, hash skip, batch, delete-by-prefix, no-mirror)?
-4. Where journal reviews are stored: app cache only, or optionally written to a page after approval.
-5. Keep "Paper" theme and custom.css precedence over new tokens?
-6. Which OSes get manual frameless verification for 2.0?
-7. Graph node ceiling (5k vs 20k with LOD); PNG export via `tiny-skia` or SVG only first.
+1. Managed Pando mode like git-in-track (BIT-US-0141, now high priority; BIT-T-0437, 0488, 0489).
+2. Shared KB in the agent memory (consent text updated in BIT-US-0138; managed instance must not override the KB store — spike BIT-T-0489).
+3. Semantic search ships with client-side solutions on Pando's current API. Verified: REST upsert writes no mirror file (`internal/api/handlers_remembrances_kb.go`), and KB directory sync only deletes documents with `source_path` metadata (`internal/rag/kb/sync.go`), so REST-only documents are safe. Pando-side items cancelled (BIT-EP-0019, US-0132..0134, T-0415..0422).
+4. Journal reviews only in a machine-local cache.
+5. Paper theme dropped (BIT-T-0384 cancelled); colour-scheme files later (BIT-US-0164).
+6. Reopen last graph at startup + graph menu (BIT-US-0165, T-0490, T-0491).
+
+## Open questions
+
+1. Which OSes get manual frameless verification for 2.0?
+2. Graph node ceiling (5k vs 20k with LOD); PNG export via `tiny-skia` or SVG only first.
