@@ -363,7 +363,14 @@ impl Session {
             &root,
             session.index.read_api(),
         ) {
-            Ok(h) => session.hybrid = Some(h),
+            Ok(h) => {
+                if let Some(server) = session.mcp.as_ref() {
+                    server.set_semantic_provider(Some(Arc::new(
+                        crate::mcp_semantic::HybridProvider(h.clone()),
+                    )));
+                }
+                session.hybrid = Some(h);
+            }
             Err(e) => tracing::warn!(error = %e, "hybrid search unavailable"),
         }
         Ok(session)

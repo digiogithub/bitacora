@@ -27,6 +27,8 @@ pub(crate) enum Code {
     InvalidContent,
     RateLimited,
     ProtectedPage,
+    SemanticDisabled,
+    SemanticUnavailable,
 }
 
 impl Code {
@@ -45,6 +47,8 @@ impl Code {
             Self::InvalidContent => "INVALID_CONTENT",
             Self::RateLimited => "RATE_LIMITED",
             Self::ProtectedPage => "PROTECTED_PAGE",
+            Self::SemanticDisabled => "SEMANTIC_DISABLED",
+            Self::SemanticUnavailable => "SEMANTIC_UNAVAILABLE",
         }
     }
 }

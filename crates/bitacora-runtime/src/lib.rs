@@ -24,6 +24,8 @@ pub mod crash;
 mod glue;
 pub mod instance;
 mod live;
+mod mcp_semantic;
+pub mod pando_settings;
 mod rename_lookup;
 mod restore;
 mod session;
@@ -38,6 +40,9 @@ pub use bitacora_pando::{
     PandoCredentials, PandoEvent, PandoOptions, PandoService, PandoStatus, Supervisor,
 };
 pub use live::{DEFAULT_SHUTDOWN_BUDGET, Session, ShutdownReport};
+pub use pando_settings::{
+    PANDO_SETTINGS_FILE, default_pando_settings_path, load_pando_settings, pando_options_from_file,
+};
 pub use rename_lookup::IndexRefLookup;
 pub use restore::RestoreReport;
 pub use session::{EngineTune, McpOptions, RuntimeConfig, RuntimeError, RuntimeEvent, SyncOptions};

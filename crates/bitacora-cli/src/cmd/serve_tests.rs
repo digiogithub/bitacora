@@ -79,6 +79,7 @@ fn serve_answers_real_queries_over_http() {
         sync: false,
         branch: "main".into(),
         device: None,
+        pando_settings: Some(std::path::PathBuf::from("/nonexistent/pando.json")),
     })
     .expect("start serve");
     let addr = running
@@ -196,6 +197,7 @@ fn tools_and_api_status(allow_writes: bool, allow_deletes: bool, api: bool) -> (
         sync: false,
         branch: "main".into(),
         device: None,
+        pando_settings: Some(std::path::PathBuf::from("/nonexistent/pando.json")),
     })
     .expect("start serve");
     let addr = running

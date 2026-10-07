@@ -197,6 +197,7 @@ impl McpServer {
                 .unwrap_or_else(|| Arc::new(OpenGate)),
             audit: Arc::clone(&audit),
             exclusions: parking_lot::RwLock::default(),
+            semantic: parking_lot::RwLock::default(),
         });
         let exclusions_handle = Arc::clone(&services);
         if !config.bind.is_loopback() {
@@ -293,6 +294,12 @@ impl McpServer {
             Some(r) => map.insert(name.to_owned(), Arc::new(r)),
             None => map.remove(name),
         };
+    }
+
+    /// Installs (or removes) the semantic candidate source behind `semantic_search` and
+    /// `related_blocks`. Without one those tools answer `SEMANTIC_DISABLED`.
+    pub fn set_semantic_provider(&self, provider: Option<Arc<dyn crate::SemanticProvider>>) {
+        *self.services.semantic.write() = provider;
     }
 
     /// The live write policy (toggles, protected namespaces).
