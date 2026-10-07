@@ -20,6 +20,7 @@
 //!   changes) follow it; `Session::reindex` rebuilds the index without reopening;
 //! * [`Session::shutdown`] stops everything in order within a time budget.
 
+mod agents;
 pub mod crash;
 mod glue;
 pub mod instance;

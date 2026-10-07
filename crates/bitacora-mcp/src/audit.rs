@@ -141,6 +141,24 @@ pub(crate) struct CallInfo {
     pub wrote: bool,
 }
 
+/// A graph write an agent made outside the MCP tools: an approved `propose_edit` of the chat
+/// panel (BIT-SP-0011.R2). It is audited and undoable exactly like an MCP write.
+#[derive(Debug)]
+pub struct AgentWrite {
+    /// Who wrote (shown as the client), e.g. `bitacora-chat`.
+    pub client: String,
+    /// Tool name, e.g. `propose_edit`.
+    pub tool: String,
+    /// Short summary (the card title); truncated, never note content beyond that.
+    pub summary: String,
+    /// Block uuids touched.
+    pub affected: Vec<String>,
+    /// Page titles touched.
+    pub pages: Vec<String>,
+    /// The committed core transactions, in order.
+    pub txs: Vec<Transaction>,
+}
+
 /// What undoing a call needs.
 #[derive(Debug, Clone)]
 pub(crate) struct UndoData {
@@ -311,6 +329,36 @@ impl AuditLog {
         self.append(&mut g, &rec);
         push_record(&mut g, rec);
         id
+    }
+
+    /// Records an approved agent edit made through the app (not through an MCP tool call) and
+    /// returns its id; [`McpServer::undo_audit_entry`](crate::McpServer::undo_audit_entry) undoes
+    /// it like any other write. `queue` supplies the page fingerprint undo checks.
+    pub fn record_agent_write(
+        &self,
+        queue: &bitacora_core::queue::CommandQueue,
+        w: AgentWrite,
+    ) -> String {
+        let summary: String = w.summary.chars().take(80).collect();
+        let hash = blake3::hash(summary.as_bytes()).to_hex().to_string();
+        let info = CallInfo {
+            affected: w.affected,
+            pages: w.pages,
+            fingerprint: crate::bridge::fingerprint_of(queue, &w.txs),
+            txs: w.txs,
+            wrote: true,
+        };
+        self.record_call(
+            CallBase {
+                token: Some("pando-agui".to_owned()),
+                client: Some(w.client),
+                tool: w.tool,
+                args_hash: hash[..16].to_owned(),
+                args: summary,
+            },
+            info,
+            "ok",
+        )
     }
 
     /// Records a request rejected by the token check.

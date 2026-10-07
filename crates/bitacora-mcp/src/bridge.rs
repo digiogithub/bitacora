@@ -483,10 +483,7 @@ impl QueueBridge {
 
     /// Current version of every page the transactions touched.
     fn fingerprint(&self, txs: &[Transaction]) -> Vec<(PageKey, Option<u64>)> {
-        let keys: BTreeSet<&PageKey> = txs.iter().flat_map(|t| t.pages.iter()).collect();
-        keys.into_iter()
-            .map(|k| (k.clone(), self.queue.snapshot(k).map(|s| page_hash(&s))))
-            .collect()
+        fingerprint_of(&self.queue, txs)
     }
 
     // -------------------------------------------------------------- pages and blocks lookup
@@ -1301,6 +1298,17 @@ impl QueueBridge {
             Err(e) => Err(UndoError::Failed(e.to_string())),
         }
     }
+}
+
+/// Current content hash of every page the transactions touched (the undo fingerprint).
+pub(crate) fn fingerprint_of(
+    queue: &CommandQueue,
+    txs: &[Transaction],
+) -> Vec<(PageKey, Option<u64>)> {
+    let keys: BTreeSet<&PageKey> = txs.iter().flat_map(|t| t.pages.iter()).collect();
+    keys.into_iter()
+        .map(|k| (k.clone(), queue.snapshot(k).map(|s| page_hash(&s))))
+        .collect()
 }
 
 /// Content hash of a page snapshot (structure and text); unlike `PageSnapshot::version` it does

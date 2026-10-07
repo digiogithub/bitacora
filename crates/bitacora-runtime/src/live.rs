@@ -97,6 +97,8 @@ pub struct Session {
     semantic: Option<bitacora_pando::semantic::SemanticWorker>,
     /// FTS5 + semantic search (BIT-US-0144); lexical only when Pando is off.
     hybrid: Option<bitacora_pando::semantic::HybridSearch>,
+    /// Consent and feature switches the AI agents obey (BIT-SP-0011); `None` without Pando.
+    agent: Option<crate::agents::AgentContext>,
     sync_watch: Option<SyncWatch>,
     recovery: Option<RecoveryReport>,
     events: Events,
@@ -271,6 +273,7 @@ impl Session {
             pando: None,
             semantic: None,
             hybrid: None,
+            agent: None,
             sync_watch: None,
             recovery: None,
             events,
@@ -341,6 +344,7 @@ impl Session {
             if p.supervisor.is_none() && p.settings.mode == bitacora_config::PandoMode::Managed {
                 p.supervisor = default_supervisor(&p.settings);
             }
+            session.agent = Some(crate::agents::AgentContext::from_options(&p));
             let service = PandoService::start(p.clone());
             // Semantic search is optional: a failure is logged and never stops the open.
             if let Some(ix) = session.indexer.as_ref() {
@@ -415,6 +419,113 @@ impl Session {
     #[must_use]
     pub fn semantic(&self) -> Option<&bitacora_pando::semantic::SemanticWorker> {
         self.semantic.as_ref()
+    }
+
+    // ---- AI agents (BIT-SP-0011) -------------------------------------------------------------
+
+    /// Consent and exclusions as a gate for everything sent to an agent. Follows the semantic
+    /// worker's live exclusions when it runs; without consent nothing passes.
+    #[must_use]
+    pub fn agent_guard(&self) -> bitacora_pando::agents::ContentGuard {
+        crate::agents::guard(
+            self.agent.as_ref(),
+            self.semantic.as_ref().map(|w| w.policy()),
+        )
+    }
+
+    /// AG-UI client of the connected Pando, `None` unless it is connected.
+    #[must_use]
+    pub fn agui_client(&self) -> Option<pando::agui::AguiClient> {
+        crate::agents::agui_client(self.pando.as_ref())
+    }
+
+    /// Applier of approved agent edits: commits through this session's command queue (source
+    /// `Agent`), records each edit in the agent audit log (when the MCP server runs) and is
+    /// undone with [`Session::undo_agent_entry`].
+    #[must_use]
+    pub fn agent_edit_applier(&self) -> bitacora_pando::agents::QueueEditApplier {
+        crate::agents::edit_applier(&self.queue, self.mcp.as_ref())
+    }
+
+    /// Dependencies for a journal review run ([`bitacora_pando::agents::run_review`]) with the
+    /// machine-local review cache. Run it on [`PandoService::handle`] or any tokio runtime.
+    ///
+    /// # Errors
+    /// [`RuntimeError::Agent`] when agents are unavailable.
+    pub fn review_deps(&self) -> Result<bitacora_pando::agents::ReviewDeps, RuntimeError> {
+        let agui = self.require_agents()?;
+        let mut deps = bitacora_pando::agents::ReviewDeps::new(
+            agui,
+            Arc::new(self.index.read_api()),
+            self.agent_guard(),
+            self.index.location().graph_id().to_owned(),
+        );
+        deps.cache = Some(bitacora_pando::agents::ReviewCache::new(
+            self.index.location().dir(),
+        ));
+        Ok(deps)
+    }
+
+    /// Dependencies for a recommendation run ([`bitacora_pando::agents::run_recommend`]).
+    ///
+    /// # Errors
+    /// [`RuntimeError::Agent`] when agents are unavailable.
+    pub fn recommend_deps(&self) -> Result<bitacora_pando::agents::RecommendDeps, RuntimeError> {
+        let agui = self.require_agents()?;
+        Ok(bitacora_pando::agents::RecommendDeps::new(
+            agui,
+            Arc::new(self.index.read_api()),
+            self.agent_guard(),
+        ))
+    }
+
+    /// Starts a chat session on the Pando service's runtime. The returned handle sends messages,
+    /// answers approval cards and cancels; the receiver delivers
+    /// [`bitacora_pando::agents::ChatEvent`]s (fold them with `ChatModel`). `host` is the app's
+    /// `open_page` / `get_selection` implementation. Use `ChatConfig::writer()` to allow
+    /// `propose_edit`.
+    ///
+    /// # Errors
+    /// [`RuntimeError::Agent`] when the integration is off, not connected, the chat feature is
+    /// off or the graph has not consented.
+    pub fn start_chat(
+        &self,
+        config: bitacora_pando::agents::ChatConfig,
+        host: Arc<dyn bitacora_pando::agents::FrontendHost>,
+    ) -> Result<
+        (
+            bitacora_pando::agents::ChatHandle,
+            Receiver<bitacora_pando::agents::ChatEvent>,
+        ),
+        RuntimeError,
+    > {
+        if !self.agent.as_ref().is_some_and(|a| a.chat_enabled) {
+            return Err(RuntimeError::Agent("the chat feature is off".into()));
+        }
+        let agui = self.require_agents()?;
+        let handle = self
+            .pando
+            .as_ref()
+            .and_then(PandoService::handle)
+            .ok_or_else(|| RuntimeError::Agent("the Pando runtime is not running".into()))?;
+        let mut deps = bitacora_pando::agents::ChatDeps::new(agui, self.agent_guard());
+        deps.host = host;
+        if config.propose_edit {
+            deps.applier = Some(Arc::new(self.agent_edit_applier()));
+        }
+        deps.config = config;
+        Ok(bitacora_pando::agents::ChatSession::spawn(&handle, deps))
+    }
+
+    fn require_agents(&self) -> Result<pando::agui::AguiClient, RuntimeError> {
+        let err = |m: &str| RuntimeError::Agent(m.to_owned());
+        if !self.agent.as_ref().is_some_and(|a| a.consent.granted) {
+            return Err(err("this graph has not consented to agent access"));
+        }
+        if !matches!(self.pando_status(), PandoStatus::Connected { .. }) {
+            return Err(err("Pando is not connected"));
+        }
+        self.agui_client().ok_or_else(|| err("no AG-UI endpoint"))
     }
 
     /// Current Pando status (`Off` when the integration was not configured).

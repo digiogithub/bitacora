@@ -1,0 +1,1141 @@
+//! The chat session: an AG-UI run loop bridged to a channel the app consumes (BIT-T-0452).
+//!
+//! [`ChatSession::spawn`] starts one task on the service's tokio runtime that owns a
+//! [`pando::agui::Thread`]. The app talks to it through the cloneable [`ChatHandle`] (send a
+//! message, answer a card, cancel, close) and reads [`ChatEvent`]s from a plain
+//! `std::sync::mpsc::Receiver`, which fits GPUI's poll-from-a-task style. [`ChatModel`] folds the
+//! events into the message list a view renders (text, tool calls, approval cards), so the GPUI
+//! entity stays thin.
+//!
+//! Interrupts end a run with `RUN_FINISHED{outcome:"interrupt"}`; the session then answers them
+//! one at a time and resumes the thread:
+//!
+//! - frontend tools `open_page` / `get_selection` run on the [`FrontendHost`] immediately;
+//! - `propose_edit` becomes an approval card; only an explicit approval reaches the
+//!   [`EditApplier`] (a `bitacora-core` queue transaction, audited, undoable);
+//! - Pando permission prompts and `AskUserQuestion` become cards too.
+//!
+//! Every card fails closed ([`super::approvals`]): a timeout, [`ChatHandle::cancel`],
+//! [`ChatHandle::close`] (panel close, thread or graph switch, quit) or a dropped handle resolves
+//! it as denied, and the run is cancelled on the server so the parked prompt is released.
+
+use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
+use std::sync::mpsc::{self, Receiver, Sender};
+use std::time::Duration;
+
+use pando::agui::hitl::{PermissionRequest, QuestionRequest};
+use pando::agui::{AguiClient, Event, Interrupt, Message, MessageContent, Thread, ThreadRun};
+use serde_json::{Value, json};
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
+
+use super::approvals::{
+    ApprovalKind, Clock, DEFAULT_APPROVAL_TIMEOUT, Decision, DenyReason, PendingApprovals,
+    Resolution, SystemClock,
+};
+use super::edits::{EditApplier, EditError, Preview, Proposal};
+use super::guard::{AttachedBlock, ContentGuard};
+use super::tools::{
+    FrontendHost, GET_SELECTION_TOOL, NoHost, OPEN_PAGE_TOOL, PROPOSE_EDIT_TOOL, run_get_selection,
+    tool_set,
+};
+
+/// Profile the chat panel talks to (see the managed `.pando.toml`).
+pub const CHAT_PROFILE: &str = "bitacora-chat";
+/// Profile that may call `propose_edit`.
+pub const WRITER_PROFILE: &str = "bitacora-writer";
+
+/// How long to keep reading a cancelled run's stream before giving up on it.
+const CANCEL_DRAIN: Duration = Duration::from_secs(3);
+
+/// What an approval card asks.
+#[derive(Debug, Clone, PartialEq)]
+pub enum CardKind {
+    /// A Pando permission prompt.
+    Permission(PermissionRequest),
+    /// A `propose_edit` diff.
+    Edit(Preview),
+    /// An `AskUserQuestion`.
+    Question(QuestionRequest),
+}
+
+/// A card waiting for the user.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ApprovalCard {
+    /// Tool call id; pass it to [`ChatHandle::decide`].
+    pub id: String,
+    /// What is asked.
+    pub kind: CardKind,
+    /// Seconds until the card is denied on its own.
+    pub timeout_secs: u64,
+}
+
+/// How a run ended.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RunEnd {
+    /// The agent answered.
+    Finished,
+    /// The run failed (a [`ChatEvent::Error`] precedes this).
+    Failed,
+    /// The user (or the app) cancelled it.
+    Cancelled,
+}
+
+/// Everything the app receives from a chat session.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ChatEvent {
+    /// The server transcript of a resumed thread.
+    History(Vec<Message>),
+    /// A run (or a resumed segment) started.
+    RunStarted {
+        /// Run id.
+        run_id: String,
+    },
+    /// An assistant message opened.
+    MessageStart {
+        /// Message id.
+        message_id: String,
+    },
+    /// A chunk of assistant text.
+    TextDelta {
+        /// Message id.
+        message_id: String,
+        /// Text.
+        delta: String,
+    },
+    /// An assistant message closed.
+    MessageEnd {
+        /// Message id.
+        message_id: String,
+    },
+    /// A chunk of reasoning text.
+    ReasoningDelta {
+        /// Message id.
+        message_id: String,
+        /// Text.
+        delta: String,
+    },
+    /// A tool call opened.
+    ToolCallStart {
+        /// Call id.
+        call_id: String,
+        /// Tool name.
+        name: String,
+    },
+    /// A chunk of a tool call's arguments.
+    ToolCallArgs {
+        /// Call id.
+        call_id: String,
+        /// Arguments delta.
+        delta: String,
+    },
+    /// A tool call's arguments are complete.
+    ToolCallEnd {
+        /// Call id.
+        call_id: String,
+    },
+    /// A tool call's result.
+    ToolCallResult {
+        /// Call id.
+        call_id: String,
+        /// Result text.
+        content: String,
+    },
+    /// A `pando.*` custom signal.
+    Custom {
+        /// Name.
+        name: String,
+        /// Value.
+        value: Value,
+    },
+    /// A card needs an answer.
+    ApprovalRequested(ApprovalCard),
+    /// A card was resolved (answered, timed out, cancelled, ...).
+    ApprovalResolved {
+        /// Call id.
+        id: String,
+        /// Approved (always `false` for anything but an explicit approval).
+        approved: bool,
+        /// Why it was denied, when it was.
+        reason: Option<DenyReason>,
+    },
+    /// A `propose_edit` call was refused before any card (invalid, stale, page not loaded).
+    EditRejected {
+        /// Call id.
+        call_id: String,
+        /// Machine code (see [`EditError::code`]).
+        code: String,
+        /// Message.
+        message: String,
+    },
+    /// An approved proposal was applied.
+    EditApplied {
+        /// Call id.
+        call_id: String,
+        /// Audit entry id, when the audit log recorded it.
+        audit_id: Option<String>,
+        /// Page title.
+        page: String,
+        /// Touched block uuids.
+        affected: Vec<String>,
+    },
+    /// An approved proposal could not be applied (nothing was written).
+    EditFailed {
+        /// Call id.
+        call_id: String,
+        /// Machine code.
+        code: String,
+        /// Message.
+        message: String,
+    },
+    /// Something went wrong; `fatal` ends the session.
+    Error {
+        /// Safe to show.
+        message: String,
+        /// The session ended.
+        fatal: bool,
+    },
+    /// The turn ended.
+    RunFinished(RunEnd),
+    /// The session ended (after a close, or when the handle was dropped).
+    Closed(DenyReason),
+}
+
+/// Configuration of a session.
+#[derive(Debug, Clone)]
+pub struct ChatConfig {
+    /// Pando agent profile (route name).
+    pub profile: String,
+    /// Declare `propose_edit`.
+    pub propose_edit: bool,
+    /// Time a card waits for an answer.
+    pub approval_timeout: Duration,
+    /// Reattach to this existing thread and load its history.
+    pub resume_thread: Option<String>,
+}
+
+impl Default for ChatConfig {
+    fn default() -> Self {
+        Self {
+            profile: CHAT_PROFILE.to_owned(),
+            propose_edit: false,
+            approval_timeout: DEFAULT_APPROVAL_TIMEOUT,
+            resume_thread: None,
+        }
+    }
+}
+
+impl ChatConfig {
+    /// The writer profile with `propose_edit` declared.
+    #[must_use]
+    pub fn writer() -> Self {
+        Self {
+            profile: WRITER_PROFILE.to_owned(),
+            propose_edit: true,
+            ..Self::default()
+        }
+    }
+}
+
+/// What a session needs from the app.
+#[derive(Clone)]
+pub struct ChatDeps {
+    /// The AG-UI client (from `PandoClient::agui`).
+    pub agui: AguiClient,
+    /// Session configuration.
+    pub config: ChatConfig,
+    /// The UI seam for `open_page` / `get_selection`.
+    pub host: Arc<dyn FrontendHost>,
+    /// Applies approved proposals; `None` rejects every `propose_edit`.
+    pub applier: Option<Arc<dyn EditApplier>>,
+    /// Consent and exclusions for attached context and selections.
+    pub guard: ContentGuard,
+    /// Time source for approval deadlines.
+    pub clock: Arc<dyn Clock>,
+}
+
+impl std::fmt::Debug for ChatDeps {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ChatDeps").finish_non_exhaustive()
+    }
+}
+
+impl ChatDeps {
+    /// Dependencies with no UI host, no applier and the real clock.
+    #[must_use]
+    pub fn new(agui: AguiClient, guard: ContentGuard) -> Self {
+        Self {
+            agui,
+            config: ChatConfig::default(),
+            host: Arc::new(NoHost),
+            applier: None,
+            guard,
+            clock: Arc::new(SystemClock::default()),
+        }
+    }
+}
+
+enum Command {
+    Send {
+        text: String,
+        context: Vec<AttachedBlock>,
+    },
+    Decide {
+        id: String,
+        decision: Decision,
+    },
+    Abort {
+        reason: DenyReason,
+        end: bool,
+    },
+}
+
+/// The app's end of a session. Cheap to clone; dropping every clone closes the session as if the
+/// panel had been closed.
+#[derive(Clone)]
+pub struct ChatHandle {
+    tx: UnboundedSender<Command>,
+    thread_id: String,
+}
+
+impl std::fmt::Debug for ChatHandle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ChatHandle")
+            .field("thread_id", &self.thread_id)
+            .finish_non_exhaustive()
+    }
+}
+
+impl ChatHandle {
+    /// The thread id (stable across turns; use it to resume later).
+    #[must_use]
+    pub fn thread_id(&self) -> &str {
+        &self.thread_id
+    }
+
+    /// Sends a user message. `context` is the blocks the user attached; it goes through the
+    /// [`ContentGuard`] and is the only graph content sent besides what the agent reads over MCP.
+    /// `false` when the session ended.
+    pub fn send(&self, text: impl Into<String>, context: Vec<AttachedBlock>) -> bool {
+        self.tx
+            .send(Command::Send {
+                text: text.into(),
+                context,
+            })
+            .is_ok()
+    }
+
+    /// Answers a card.
+    pub fn decide(&self, id: impl Into<String>, decision: Decision) -> bool {
+        self.tx
+            .send(Command::Decide {
+                id: id.into(),
+                decision,
+            })
+            .is_ok()
+    }
+
+    /// Approves a permission or edit card.
+    pub fn approve(&self, id: impl Into<String>) -> bool {
+        self.decide(id, Decision::Approve)
+    }
+
+    /// Denies a card.
+    pub fn deny(&self, id: impl Into<String>) -> bool {
+        self.decide(id, Decision::Deny)
+    }
+
+    /// Stops the running turn (`POST /runs/{thread}/cancel`); pending cards are denied. The
+    /// session stays usable.
+    pub fn cancel(&self) -> bool {
+        self.tx
+            .send(Command::Abort {
+                reason: DenyReason::Cancelled,
+                end: false,
+            })
+            .is_ok()
+    }
+
+    /// Ends the session: pending cards are denied for `reason` (panel close, thread switch, graph
+    /// switch or quit) and the run is cancelled.
+    pub fn close(&self, reason: DenyReason) -> bool {
+        self.tx.send(Command::Abort { reason, end: true }).is_ok()
+    }
+}
+
+/// Entry point.
+#[derive(Debug)]
+pub struct ChatSession;
+
+impl ChatSession {
+    /// Starts a session on `runtime` and returns the handle and the event receiver.
+    #[must_use]
+    pub fn spawn(
+        runtime: &tokio::runtime::Handle,
+        deps: ChatDeps,
+    ) -> (ChatHandle, Receiver<ChatEvent>) {
+        let (cmd_tx, cmd_rx) = unbounded_channel();
+        let (ev_tx, ev_rx) = mpsc::channel();
+        let mut thread = match &deps.config.resume_thread {
+            Some(id) => Thread::with_id(deps.agui.clone(), id.clone()),
+            None => Thread::new(deps.agui.clone()),
+        }
+        .with_agent(deps.config.profile.clone())
+        .with_tools(tool_set(deps.config.propose_edit));
+        let thread_id = thread.thread_id().to_owned();
+        let resume = deps.config.resume_thread.is_some();
+        runtime.spawn(async move {
+            let mut ctx = Ctx::new(deps, cmd_rx, ev_tx, thread_id_of(&thread));
+            if resume {
+                match thread.load_history().await {
+                    Ok(true) => ctx.emit(ChatEvent::History(thread.messages.clone())),
+                    Ok(false) => {}
+                    Err(e) => ctx.emit(ChatEvent::Error {
+                        message: format!("could not load the thread: {e}"),
+                        fatal: false,
+                    }),
+                }
+            }
+            ctx.main_loop(&mut thread).await;
+        });
+        (
+            ChatHandle {
+                tx: cmd_tx,
+                thread_id,
+            },
+            ev_rx,
+        )
+    }
+}
+
+fn thread_id_of(t: &Thread) -> String {
+    t.thread_id().to_owned()
+}
+
+enum Prep {
+    Edit(Proposal),
+    Rejected(EditError),
+    Permission,
+    Question,
+    Immediate,
+}
+
+enum End {
+    Finished,
+    Interrupted,
+    Error(String),
+    Aborted,
+}
+
+struct Ctx {
+    deps: ChatDeps,
+    cmd_rx: UnboundedReceiver<Command>,
+    events: Sender<ChatEvent>,
+    thread_id: String,
+    book: PendingApprovals,
+    prepared: HashMap<String, Prep>,
+    announced: HashSet<String>,
+    /// Set by a cancel/close/dropped handle; ends the current turn.
+    abort: Option<(DenyReason, bool)>,
+    /// The command channel closed (the handle was dropped); never poll it again.
+    cmd_closed: bool,
+    /// The server-side cancel of the current turn was already sent.
+    cancel_sent: bool,
+}
+
+impl Ctx {
+    fn new(
+        deps: ChatDeps,
+        cmd_rx: UnboundedReceiver<Command>,
+        events: Sender<ChatEvent>,
+        thread_id: String,
+    ) -> Self {
+        let book = PendingApprovals::new(deps.config.approval_timeout);
+        Self {
+            deps,
+            cmd_rx,
+            events,
+            thread_id,
+            book,
+            prepared: HashMap::new(),
+            announced: HashSet::new(),
+            abort: None,
+            cmd_closed: false,
+            cancel_sent: false,
+        }
+    }
+
+    async fn cancel_remote(&mut self) {
+        if !self.cancel_sent {
+            self.cancel_sent = true;
+            let _ = self.deps.agui.cancel_run(&self.thread_id).await;
+        }
+    }
+
+    fn emit(&mut self, ev: ChatEvent) {
+        if self.events.send(ev).is_err() {
+            // Nobody is listening any more: same as closing the panel.
+            self.abort.get_or_insert((DenyReason::PanelClosed, true));
+        }
+    }
+
+    fn announce_resolved(&mut self, ids: &[String]) {
+        for id in ids {
+            let (approved, reason) = match self.book.resolution(id) {
+                Some(Resolution::Approved) => (true, None),
+                Some(Resolution::Denied(r)) => (false, Some(*r)),
+                Some(Resolution::Answered(_)) => (true, None),
+                None => continue,
+            };
+            self.emit(ChatEvent::ApprovalResolved {
+                id: id.clone(),
+                approved,
+                reason,
+            });
+        }
+    }
+
+    async fn main_loop(&mut self, thread: &mut Thread) {
+        loop {
+            let cmd = self.cmd_rx.recv().await;
+            match cmd {
+                None => {
+                    self.close(DenyReason::PanelClosed).await;
+                    return;
+                }
+                Some(Command::Abort { reason, end: true }) => {
+                    self.close(reason).await;
+                    return;
+                }
+                Some(Command::Send { text, context }) => {
+                    thread.set_context(self.deps.guard.context_entries(&context));
+                    self.abort = None;
+                    self.cancel_sent = false;
+                    self.drive(thread, text).await;
+                    if let Some((reason, true)) = self.abort {
+                        self.close(reason).await;
+                        return;
+                    }
+                }
+                // Nothing is pending between turns.
+                Some(Command::Decide { .. } | Command::Abort { .. }) => {}
+            }
+        }
+    }
+
+    async fn close(&mut self, reason: DenyReason) {
+        let ids = self.book.deny_all(reason);
+        self.announce_resolved(&ids);
+        self.cancel_remote().await;
+        self.emit(ChatEvent::Closed(reason));
+    }
+
+    /// One user turn, including every interrupt resume it needs.
+    async fn drive(&mut self, thread: &mut Thread, text: String) {
+        let mut next: Option<(Option<String>, MessageContent)> = Some((None, text.into()));
+        while let Some((call, content)) = next.take() {
+            let end = match call {
+                None => match thread.send(content).await {
+                    Ok(run) => self.pump(run).await,
+                    Err(e) => End::Error(e.to_string()),
+                },
+                Some(id) => match thread.resume(&id, content).await {
+                    Ok(run) => self.pump(run).await,
+                    Err(e) => End::Error(format!("could not deliver the answer: {e}")),
+                },
+            };
+            match end {
+                End::Finished => {
+                    self.emit(ChatEvent::RunFinished(RunEnd::Finished));
+                    return;
+                }
+                End::Error(message) => {
+                    let ids = self.book.deny_all(DenyReason::ServerExpired);
+                    self.announce_resolved(&ids);
+                    self.emit(ChatEvent::Error {
+                        message,
+                        fatal: false,
+                    });
+                    self.emit(ChatEvent::RunFinished(RunEnd::Failed));
+                    return;
+                }
+                End::Aborted => {
+                    self.emit(ChatEvent::RunFinished(RunEnd::Cancelled));
+                    return;
+                }
+                End::Interrupted => match self.answer_next(thread).await {
+                    Some(step) => next = Some(step),
+                    None => {
+                        self.emit(ChatEvent::RunFinished(RunEnd::Cancelled));
+                        return;
+                    }
+                },
+            }
+        }
+    }
+
+    /// Reads a run to its end, forwarding events and serving commands.
+    async fn pump(&mut self, mut run: ThreadRun<'_>) -> End {
+        loop {
+            let aborted = self.abort.is_some();
+            let drain = async {
+                if aborted {
+                    tokio::time::timeout(CANCEL_DRAIN, run.next())
+                        .await
+                        .ok()
+                        .flatten()
+                } else {
+                    run.next().await
+                }
+            };
+            tokio::select! {
+                item = drain => {
+                    let Some(item) = item else {
+                        return if self.abort.is_some() { End::Aborted } else {
+                            End::Error("the stream ended before the run finished".into())
+                        };
+                    };
+                    match item {
+                        Ok(Event::RunFinished { outcome, .. }) => {
+                            if self.abort.is_some() {
+                                return End::Aborted;
+                            }
+                            return if outcome.as_deref() == Some(pando::agui::OUTCOME_INTERRUPT) {
+                                End::Interrupted
+                            } else {
+                                End::Finished
+                            };
+                        }
+                        Ok(Event::RunError { message, code }) => {
+                            if self.abort.is_some() || code.as_deref() == Some("cancelled") {
+                                return End::Aborted;
+                            }
+                            return End::Error(message);
+                        }
+                        Ok(ev) => self.forward(ev),
+                        Err(e) => {
+                            if self.abort.is_some() {
+                                return End::Aborted;
+                            }
+                            return End::Error(e.to_string());
+                        }
+                    }
+                }
+                cmd = self.cmd_rx.recv(), if !self.cmd_closed => {
+                    self.handle(cmd).await;
+                }
+            }
+        }
+    }
+
+    fn forward(&mut self, ev: Event) {
+        let out = match ev {
+            Event::RunStarted { run_id, .. } => ChatEvent::RunStarted { run_id },
+            Event::TextMessageStart { message_id, .. } => ChatEvent::MessageStart { message_id },
+            Event::TextMessageContent { message_id, delta } => {
+                ChatEvent::TextDelta { message_id, delta }
+            }
+            Event::TextMessageEnd { message_id } => ChatEvent::MessageEnd { message_id },
+            Event::ReasoningMessageContent { message_id, delta } => {
+                ChatEvent::ReasoningDelta { message_id, delta }
+            }
+            Event::ToolCallStart {
+                tool_call_id,
+                tool_call_name,
+                ..
+            } => ChatEvent::ToolCallStart {
+                call_id: tool_call_id,
+                name: tool_call_name,
+            },
+            Event::ToolCallArgs {
+                tool_call_id,
+                delta,
+            } => ChatEvent::ToolCallArgs {
+                call_id: tool_call_id,
+                delta,
+            },
+            Event::ToolCallEnd { tool_call_id } => ChatEvent::ToolCallEnd {
+                call_id: tool_call_id,
+            },
+            Event::ToolCallResult {
+                tool_call_id,
+                content,
+                ..
+            } => ChatEvent::ToolCallResult {
+                call_id: tool_call_id,
+                content,
+            },
+            Event::Custom { name, value } => ChatEvent::Custom { name, value },
+            _ => return,
+        };
+        self.emit(out);
+    }
+
+    /// Serves one command received while a turn is running or a card is waiting.
+    async fn handle(&mut self, cmd: Option<Command>) {
+        match cmd {
+            None => {
+                self.cmd_closed = true;
+                self.abort_turn(DenyReason::PanelClosed, true).await;
+            }
+            Some(Command::Abort { reason, end }) => self.abort_turn(reason, end).await,
+            Some(Command::Decide { id, decision }) => {
+                if self.book.decide(&id, decision) {
+                    self.announce_resolved(&[id]);
+                }
+            }
+            Some(Command::Send { .. }) => self.emit(ChatEvent::Error {
+                message: "a run is already in progress".into(),
+                fatal: false,
+            }),
+        }
+    }
+
+    async fn abort_turn(&mut self, reason: DenyReason, end: bool) {
+        let end = end || matches!(self.abort, Some((_, true)));
+        self.abort = Some((reason, end));
+        let ids = self.book.deny_all(reason);
+        self.announce_resolved(&ids);
+        self.cancel_remote().await;
+    }
+
+    /// Prepares and announces cards for every pending interrupt, then answers the first one.
+    async fn answer_next(&mut self, thread: &Thread) -> Option<(Option<String>, MessageContent)> {
+        let interrupts = thread.interrupts();
+        if interrupts.is_empty() {
+            return None;
+        }
+        for i in &interrupts {
+            self.prepare(i).await;
+        }
+        if self.abort.is_some() {
+            return None;
+        }
+        let first = interrupts.first()?;
+        let id = first.tool_call_id().to_owned();
+        let content = self.answer(first).await?;
+        self.prepared.remove(&id);
+        self.announced.remove(&id);
+        self.book.remove(&id);
+        Some((Some(id), content.into()))
+    }
+
+    async fn prepare(&mut self, i: &Interrupt) {
+        let id = i.tool_call_id().to_owned();
+        if !self.announced.insert(id.clone()) {
+            return;
+        }
+        let now = self.deps.clock.now();
+        let timeout_secs = self.deps.config.approval_timeout.as_secs();
+        match i {
+            Interrupt::Permission { request, .. } => {
+                self.book.register(&id, ApprovalKind::Permission, now);
+                self.prepared.insert(id.clone(), Prep::Permission);
+                self.emit(ChatEvent::ApprovalRequested(ApprovalCard {
+                    id,
+                    kind: CardKind::Permission(request.clone()),
+                    timeout_secs,
+                }));
+            }
+            Interrupt::Question { request, .. } => {
+                self.book.register(&id, ApprovalKind::Question, now);
+                self.prepared.insert(id.clone(), Prep::Question);
+                self.emit(ChatEvent::ApprovalRequested(ApprovalCard {
+                    id,
+                    kind: CardKind::Question(request.clone()),
+                    timeout_secs,
+                }));
+            }
+            Interrupt::FrontendTool(call) if call.name == PROPOSE_EDIT_TOOL => {
+                match self.prepare_edit(call.args.as_ref()).await {
+                    Ok((proposal, preview)) => {
+                        self.book.register(&id, ApprovalKind::ProposeEdit, now);
+                        self.prepared.insert(id.clone(), Prep::Edit(proposal));
+                        self.emit(ChatEvent::ApprovalRequested(ApprovalCard {
+                            id,
+                            kind: CardKind::Edit(preview),
+                            timeout_secs,
+                        }));
+                    }
+                    Err(e) => {
+                        self.emit(ChatEvent::EditRejected {
+                            call_id: id.clone(),
+                            code: e.code().to_owned(),
+                            message: e.to_string(),
+                        });
+                        self.prepared.insert(id, Prep::Rejected(e));
+                    }
+                }
+            }
+            Interrupt::FrontendTool(_) => {
+                self.prepared.insert(id, Prep::Immediate);
+            }
+            _ => {
+                self.prepared.insert(id, Prep::Immediate);
+            }
+        }
+    }
+
+    async fn prepare_edit(&self, args: Option<&Value>) -> Result<(Proposal, Preview), EditError> {
+        if !self.deps.config.propose_edit {
+            return Err(EditError::Refused(
+                "this agent profile cannot propose edits".into(),
+            ));
+        }
+        let args = args.ok_or_else(|| EditError::Invalid("arguments are not valid JSON".into()))?;
+        let proposal = Proposal::parse(args)?;
+        let applier = self
+            .deps
+            .applier
+            .clone()
+            .ok_or_else(|| EditError::Refused("editing is not available".into()))?;
+        let p = proposal.clone();
+        let preview = tokio::task::spawn_blocking(move || applier.preview(&p))
+            .await
+            .map_err(|e| EditError::Refused(e.to_string()))??;
+        Ok((proposal, preview))
+    }
+
+    /// The `tool` message content that answers `i`; `None` when the turn was aborted.
+    async fn answer(&mut self, i: &Interrupt) -> Option<String> {
+        let id = i.tool_call_id().to_owned();
+        match i {
+            Interrupt::Permission { .. } => {
+                let r = self.wait(&id).await?;
+                Some(r.hitl_payload())
+            }
+            Interrupt::Question { .. } => {
+                let r = self.wait(&id).await?;
+                Some(r.question_payload())
+            }
+            Interrupt::FrontendTool(call) => match call.name.as_str() {
+                OPEN_PAGE_TOOL => {
+                    let name = call
+                        .args
+                        .as_ref()
+                        .and_then(|a| a.get("name"))
+                        .and_then(Value::as_str)
+                        .unwrap_or_default()
+                        .to_owned();
+                    Some(tool_json(
+                        self.deps
+                            .host
+                            .open_page(&name)
+                            .map(|v| json!({"opened": v})),
+                    ))
+                }
+                GET_SELECTION_TOOL => Some(tool_json(run_get_selection(
+                    self.deps.host.as_ref(),
+                    &self.deps.guard,
+                ))),
+                PROPOSE_EDIT_TOOL => self.answer_edit(&id).await,
+                other => Some(tool_json(Err(format!("unknown tool `{other}`")))),
+            },
+            _ => Some(tool_json(Err("unsupported interrupt".into()))),
+        }
+    }
+
+    async fn answer_edit(&mut self, id: &str) -> Option<String> {
+        let proposal = match self.prepared.remove(id) {
+            Some(Prep::Rejected(e)) => {
+                return Some(
+                    json!({"approved": false, "applied": false,
+                           "error": {"code": e.code(), "message": e.to_string()}})
+                    .to_string(),
+                );
+            }
+            Some(Prep::Edit(p)) => p,
+            _ => {
+                return Some(tool_json(Err("the proposal is not available".into())));
+            }
+        };
+        let resolution = self.wait(id).await?;
+        match resolution {
+            Resolution::Approved => {}
+            Resolution::Denied(reason) => {
+                return Some(
+                    json!({"approved": false, "applied": false, "reason": reason.as_str()})
+                        .to_string(),
+                );
+            }
+            Resolution::Answered(_) => {
+                return Some(json!({"approved": false, "applied": false}).to_string());
+            }
+        }
+        let Some(applier) = self.deps.applier.clone() else {
+            return Some(
+                json!({"approved": true, "applied": false,
+                               "error": {"code": "refused", "message": "editing is not available"}})
+                .to_string(),
+            );
+        };
+        let p = proposal.clone();
+        let applied = tokio::task::spawn_blocking(move || applier.apply(&p)).await;
+        let result = match applied {
+            Ok(Ok(a)) => {
+                self.emit(ChatEvent::EditApplied {
+                    call_id: id.to_owned(),
+                    audit_id: a.audit_id.clone(),
+                    page: a.page.clone(),
+                    affected: a.affected.clone(),
+                });
+                json!({"approved": true, "applied": true, "affected": a.affected})
+            }
+            Ok(Err(e)) => {
+                self.emit(ChatEvent::EditFailed {
+                    call_id: id.to_owned(),
+                    code: e.code().to_owned(),
+                    message: e.to_string(),
+                });
+                json!({"approved": true, "applied": false,
+                       "error": {"code": e.code(), "message": e.to_string()}})
+            }
+            Err(e) => json!({"approved": true, "applied": false,
+                             "error": {"code": "refused", "message": e.to_string()}}),
+        };
+        Some(result.to_string())
+    }
+
+    /// Waits for the resolution of `id`: an answer, its deadline, or an abort (`None`).
+    async fn wait(&mut self, id: &str) -> Option<Resolution> {
+        loop {
+            // An abort wins over whatever was resolved: nothing is delivered after a close.
+            if self.abort.is_some() {
+                return None;
+            }
+            if let Some(r) = self.book.resolution(id) {
+                return Some(r.clone());
+            }
+            let now = self.deps.clock.now();
+            let expired = self.book.expire(now);
+            if !expired.is_empty() {
+                self.announce_resolved(&expired);
+                continue;
+            }
+            let wait = self
+                .book
+                .next_deadline()
+                .map_or(Duration::from_secs(1), |d| d.saturating_sub(now))
+                .max(Duration::from_millis(1));
+            tokio::select! {
+                cmd = self.cmd_rx.recv(), if !self.cmd_closed => self.handle(cmd).await,
+                () = tokio::time::sleep(wait) => {}
+            }
+        }
+    }
+}
+
+fn tool_json(r: Result<Value, String>) -> String {
+    match r {
+        Ok(v) => json!({"ok": true, "result": v}).to_string(),
+        Err(e) => json!({"ok": false, "error": e}).to_string(),
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// The message model a view renders.
+
+/// A tool call as the view shows it.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct ToolCallView {
+    /// Call id.
+    pub id: String,
+    /// Tool name.
+    pub name: String,
+    /// Arguments received so far.
+    pub args: String,
+    /// Result, once there is one.
+    pub result: Option<String>,
+}
+
+/// State of an approval card in the transcript.
+#[derive(Debug, Clone, PartialEq)]
+pub enum CardState {
+    /// Waiting for the user.
+    Pending,
+    /// Approved or answered.
+    Approved,
+    /// Denied; why.
+    Denied(Option<DenyReason>),
+}
+
+/// An approval card with its state.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CardView {
+    /// The request.
+    pub card: ApprovalCard,
+    /// Where it stands.
+    pub state: CardState,
+}
+
+/// One entry of the chat transcript.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct ChatMessage {
+    /// Message id.
+    pub id: String,
+    /// `user` or `assistant`.
+    pub role: String,
+    /// Text so far.
+    pub text: String,
+    /// Reasoning text so far.
+    pub reasoning: String,
+    /// Tool calls of this message.
+    pub tool_calls: Vec<ToolCallView>,
+    /// The turn that produced it was cancelled.
+    pub cancelled: bool,
+}
+
+/// The transcript a chat view renders, built from [`ChatEvent`]s. Applying an event touches only
+/// the message it belongs to, so a view can re-render just that one.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ChatModel {
+    /// Messages in order.
+    pub messages: Vec<ChatMessage>,
+    /// Approval cards in order.
+    pub cards: Vec<CardView>,
+    /// A turn is running.
+    pub running: bool,
+    /// Last error shown to the user.
+    pub error: Option<String>,
+    /// The session ended.
+    pub closed: bool,
+}
+
+impl ChatModel {
+    /// Records the user's message (the session does not echo it).
+    pub fn push_user(&mut self, text: &str) {
+        self.messages.push(ChatMessage {
+            id: format!("user-{}", self.messages.len()),
+            role: "user".into(),
+            text: text.to_owned(),
+            ..ChatMessage::default()
+        });
+        self.running = true;
+        self.error = None;
+    }
+
+    fn message(&mut self, id: &str) -> &mut ChatMessage {
+        let i = match self.messages.iter().position(|m| m.id == id) {
+            Some(i) => i,
+            None => {
+                self.messages.push(ChatMessage {
+                    id: id.to_owned(),
+                    role: "assistant".into(),
+                    ..ChatMessage::default()
+                });
+                self.messages.len() - 1
+            }
+        };
+        &mut self.messages[i]
+    }
+
+    fn call(&mut self, id: &str) -> Option<&mut ToolCallView> {
+        self.messages
+            .iter_mut()
+            .flat_map(|m| m.tool_calls.iter_mut())
+            .find(|c| c.id == id)
+    }
+
+    /// Folds one event into the model.
+    pub fn apply(&mut self, ev: &ChatEvent) {
+        match ev {
+            ChatEvent::History(msgs) => {
+                self.messages = msgs
+                    .iter()
+                    .filter(|m| m.role == "user" || m.role == "assistant")
+                    .map(|m| ChatMessage {
+                        id: m.id.clone(),
+                        role: m.role.clone(),
+                        text: match &m.content {
+                            MessageContent::Text(t) => t.clone(),
+                            MessageContent::Parts(_) => String::new(),
+                        },
+                        tool_calls: m
+                            .tool_calls
+                            .iter()
+                            .map(|c| ToolCallView {
+                                id: c.id.clone(),
+                                name: c.function.name.clone(),
+                                args: c.function.arguments.clone(),
+                                result: None,
+                            })
+                            .collect(),
+                        ..ChatMessage::default()
+                    })
+                    .collect();
+            }
+            ChatEvent::RunStarted { .. } => self.running = true,
+            ChatEvent::MessageStart { message_id } => {
+                self.message(message_id);
+            }
+            ChatEvent::TextDelta { message_id, delta } => {
+                self.message(message_id).text.push_str(delta);
+            }
+            ChatEvent::ReasoningDelta { message_id, delta } => {
+                self.message(message_id).reasoning.push_str(delta);
+            }
+            ChatEvent::ToolCallStart { call_id, name } => {
+                let target = match self.messages.last() {
+                    Some(m) if m.role == "assistant" => m.id.clone(),
+                    _ => format!("assistant-{}", self.messages.len()),
+                };
+                self.message(&target).tool_calls.push(ToolCallView {
+                    id: call_id.clone(),
+                    name: name.clone(),
+                    ..ToolCallView::default()
+                });
+            }
+            ChatEvent::ToolCallArgs { call_id, delta } => {
+                if let Some(c) = self.call(call_id) {
+                    c.args.push_str(delta);
+                }
+            }
+            ChatEvent::ToolCallResult { call_id, content } => {
+                if let Some(c) = self.call(call_id) {
+                    c.result = Some(content.clone());
+                }
+            }
+            ChatEvent::ApprovalRequested(card) => self.cards.push(CardView {
+                card: card.clone(),
+                state: CardState::Pending,
+            }),
+            ChatEvent::ApprovalResolved {
+                id,
+                approved,
+                reason,
+            } => {
+                if let Some(c) = self.cards.iter_mut().find(|c| c.card.id == *id) {
+                    c.state = if *approved {
+                        CardState::Approved
+                    } else {
+                        CardState::Denied(*reason)
+                    };
+                }
+            }
+            ChatEvent::EditRejected { message, .. } | ChatEvent::EditFailed { message, .. } => {
+                self.error = Some(message.clone());
+            }
+            ChatEvent::Error { message, .. } => self.error = Some(message.clone()),
+            ChatEvent::RunFinished(end) => {
+                self.running = false;
+                if *end == RunEnd::Cancelled
+                    && let Some(m) = self
+                        .messages
+                        .iter_mut()
+                        .rev()
+                        .find(|m| m.role == "assistant")
+                {
+                    m.cancelled = true;
+                }
+            }
+            ChatEvent::Closed(_) => {
+                self.running = false;
+                self.closed = true;
+            }
+            ChatEvent::MessageEnd { .. }
+            | ChatEvent::ToolCallEnd { .. }
+            | ChatEvent::Custom { .. }
+            | ChatEvent::EditApplied { .. } => {}
+        }
+    }
+}

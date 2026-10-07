@@ -7,7 +7,7 @@ tags:
 ---
 # Pando integration
 
-Design of how Bitacora talks to [Pando](https://github.com/digiogithub/pando) (semantic search over the graph, agent chat, agent memory). Plan: [[bitacora-v2-plan]] (D1-D3). Decisions: ADR-027 (generic `pando-rs` SDK), ADR-028 (crate placement), ADR-029 (opt-in, managed by default, machine-local settings), ADR-031 (agents read through a least-privilege MCP token; supervised managed Pando) in [[architecture]]. Pando is never changed for Bitacora: only its generic APIs are used.
+Design of how Bitacora talks to [Pando](https://github.com/digiogithub/pando) (semantic search over the graph, agent chat, agent memory). Plan: [[bitacora-v2-plan]] (D1-D3). Decisions: ADR-027 (generic `pando-rs` SDK), ADR-028 (crate placement), ADR-029 (opt-in, managed by default, machine-local settings), ADR-031 (agents read through a least-privilege MCP token; supervised managed Pando) in [[architecture]]. Pando is never changed for Bitacora: only its generic APIs are used. The AI agents backend (chat, approvals, journal review, recommender) is in [[ai-agents]].
 
 ## 1. Crates and dependency direction
 
