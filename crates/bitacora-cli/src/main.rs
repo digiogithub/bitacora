@@ -25,6 +25,8 @@ enum Command {
     Sync(cmd::sync::SyncArgs),
     /// Diagnose the environment and the graph.
     Doctor(cmd::doctor::DoctorArgs),
+    /// Semantic search through Pando: status, resync, purge, search.
+    Semantic(cmd::semantic::SemanticArgs),
     /// Replace this binary with the newest GitHub release (checksum-verified).
     SelfUpdate(cmd::self_update::SelfUpdateArgs),
 }
@@ -37,6 +39,7 @@ impl Command {
             Command::Reindex(_) => "reindex",
             Command::Sync(_) => "sync",
             Command::Doctor(_) => "doctor",
+            Command::Semantic(_) => "semantic",
             Command::SelfUpdate(_) => "self-update",
         }
     }
@@ -90,6 +93,14 @@ fn main() -> ExitCode {
                 }
             }
         }
+        Command::Semantic(args) => match cmd::semantic::run(&args) {
+            Ok(0) => ExitCode::SUCCESS,
+            Ok(code) => ExitCode::from(code),
+            Err(e) => {
+                eprintln!("bitacora-cli semantic: {e:#}");
+                ExitCode::FAILURE
+            }
+        },
         Command::SelfUpdate(args) => match cmd::self_update::run(&args) {
             Ok(o) => {
                 cmd::self_update::print(&o);
@@ -102,7 +113,7 @@ fn main() -> ExitCode {
         },
         Command::Doctor(args) => match cmd::doctor::run(&args) {
             Ok(report) => match cmd::doctor::print(&report, args.graph.json) {
-                Ok(()) if report.healthy() => ExitCode::SUCCESS,
+                Ok(()) if report.index.healthy() => ExitCode::SUCCESS,
                 Ok(()) => ExitCode::from(cmd::doctor::EXIT_UNHEALTHY),
                 Err(e) => {
                     eprintln!("bitacora-cli doctor: {e:#}");
@@ -138,6 +149,28 @@ mod tests {
                 .expect("parse serve");
         assert_eq!(cli.command.name(), "serve");
         assert!(Cli::try_parse_from(["bitacora-cli", "serve"]).is_err());
+    }
+
+    #[test]
+    fn parses_semantic_subcommands() {
+        for action in ["status", "resync", "purge"] {
+            let cli = Cli::try_parse_from(["bitacora-cli", "semantic", action, "--graph", "/g"])
+                .expect("parse");
+            assert_eq!(cli.command.name(), "semantic");
+        }
+        let cli = Cli::try_parse_from([
+            "bitacora-cli",
+            "semantic",
+            "search",
+            "--graph",
+            "/g",
+            "--limit",
+            "5",
+            "what did I decide",
+        ])
+        .expect("parse search");
+        assert_eq!(cli.command.name(), "semantic");
+        assert!(Cli::try_parse_from(["bitacora-cli", "semantic", "status"]).is_err());
     }
 
     #[test]

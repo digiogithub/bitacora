@@ -31,6 +31,7 @@ use crate::prompts;
 use crate::reader::GraphReader;
 use crate::render::{Code, ToolError, ToolOutput, ToolResult};
 use crate::resources::{self, Content};
+use crate::semantic::{RelatedBlocksArgs, SemanticProvider, SemanticSearchArgs};
 use crate::status::SyncStatusProvider;
 use crate::tokens::{Scope, TokenInfo};
 use crate::tools::{self, *};
@@ -49,6 +50,8 @@ pub(crate) struct Services {
     pub audit: Arc<AuditLog>,
     /// Read exclusions per token name (ADR-031); a token without an entry reads everything.
     pub exclusions: parking_lot::RwLock<HashMap<String, Arc<ReadExclusions>>>,
+    /// Source of semantic candidates (set once the Pando integration is up; BIT-SP-0010.R5).
+    pub semantic: parking_lot::RwLock<Option<Arc<dyn SemanticProvider>>>,
 }
 
 impl Services {
@@ -390,6 +393,42 @@ impl BitacoraMcp {
         Extension(parts): Parts,
     ) -> Result<CallToolResult, ErrorData> {
         self.run(&parts, move |r| tools::block_tree(r, a)).await
+    }
+
+    #[tool(
+        description = "Semantic (meaning-based) search over blocks through the Pando knowledge base. \
+                       Fails with SEMANTIC_DISABLED when the graph has no semantic search.",
+        annotations(read_only_hint = true, open_world_hint = false),
+        output_schema = schema_for_type::<crate::semantic::SemanticOut>()
+    )]
+    async fn semantic_search(
+        &self,
+        P(a): P<SemanticSearchArgs>,
+        Extension(parts): Parts,
+    ) -> Result<CallToolResult, ErrorData> {
+        let provider = self.svc.semantic.read().clone();
+        self.run(&parts, move |r| {
+            crate::semantic::semantic_search(r, provider, a)
+        })
+        .await
+    }
+
+    #[tool(
+        description = "Blocks semantically similar to a given block (by uuid). Fails with \
+                       SEMANTIC_DISABLED when the graph has no semantic search.",
+        annotations(read_only_hint = true, open_world_hint = false),
+        output_schema = schema_for_type::<crate::semantic::SemanticOut>()
+    )]
+    async fn related_blocks(
+        &self,
+        P(a): P<RelatedBlocksArgs>,
+        Extension(parts): Parts,
+    ) -> Result<CallToolResult, ErrorData> {
+        let provider = self.svc.semantic.read().clone();
+        self.run(&parts, move |r| {
+            crate::semantic::related_blocks(r, provider, a)
+        })
+        .await
     }
 
     #[tool(
@@ -763,6 +802,8 @@ fn resource_error(e: &ToolError) -> ErrorData {
         | Code::BlockInConflict
         | Code::InvalidContent
         | Code::RateLimited
+        | Code::SemanticDisabled
+        | Code::SemanticUnavailable
         | Code::ProtectedPage => {
             ErrorData::invalid_request(format!("{}: {}", e.code.as_str(), e.message), None)
         }

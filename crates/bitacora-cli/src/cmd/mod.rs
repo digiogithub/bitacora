@@ -3,6 +3,7 @@
 pub mod doctor;
 pub mod reindex;
 pub mod self_update;
+pub mod semantic;
 pub mod serve;
 #[cfg(test)]
 mod serve_tests;

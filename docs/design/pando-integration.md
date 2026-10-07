@@ -113,5 +113,5 @@ Findings, with Pando v1.2.11 source and an experiment on the real binary:
 ## Open questions
 
 - Settings page wiring of managed mode (status, Restart, Open log, shared-KB hint) and the app/cli hidden watchdog subcommand for macOS belong to the app stories.
-- Settings file location and the settings page wiring (`<config_dir>/pando.json` is proposed) belong to the app/UI stories.
+- Settings file: `<platform config dir>/pando.json` (`bitacora_runtime::default_pando_settings_path`, `pando_options_from_file`), read by `bitacora-cli serve`, `semantic` and `doctor` (BIT-US-0146); the settings page wiring belongs to the app/UI stories.
 - Whether consent should be re-asked when the Pando server identity changes (remote servers).

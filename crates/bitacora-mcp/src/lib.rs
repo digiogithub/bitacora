@@ -24,6 +24,7 @@ mod query;
 mod reader;
 mod render;
 mod resources;
+mod semantic;
 mod server;
 mod status;
 mod tokens;
@@ -40,6 +41,7 @@ pub use reader::{
     QueryRequest, ReaderError, ReaderErrorKind, ReaderResult, RefGroupInfo, RefItem, SearchItem,
     SearchKind, SearchQuery, StaticGraphReader, TaskQuery,
 };
+pub use semantic::{SemanticFailure, SemanticMatch, SemanticProvider};
 pub use server::{DEFAULT_PORT, McpConfig, McpServer, ServerParts};
 pub use status::{DisabledSync, SyncState, SyncStatus, SyncStatusProvider};
 #[cfg(feature = "keyring-store")]

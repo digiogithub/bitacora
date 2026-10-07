@@ -46,6 +46,9 @@ pub struct ServeArgs {
     /// Run the background git sync engine (auto-commit, periodic fetch/push).
     #[arg(long)]
     pub sync: bool,
+    /// Pando settings file for semantic sync (default: `pando.json` in the platform config dir).
+    #[arg(long)]
+    pub pando_settings: Option<PathBuf>,
     /// Branch to sync (with `--sync`).
     #[arg(long, default_value = "main")]
     pub branch: String,
@@ -117,6 +120,18 @@ pub fn start(args: ServeArgs) -> anyhow::Result<Running> {
             .unwrap_or_else(bitacora_sync::repo_setup::hostname);
         cfg.sync = Some(SyncOptions::new(device, args.branch));
     }
+    // The consent key is the canonical graph path.
+    let graph_key = args
+        .graph
+        .canonicalize()
+        .unwrap_or_else(|_| args.graph.clone());
+    cfg.pando = match super::semantic::pando_options(args.pando_settings.as_deref(), &graph_key) {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("warning: Pando disabled: {e:#}");
+            None
+        }
+    };
     eprintln!("Indexing {} ...", args.graph.display());
     let session = Session::open(cfg).context("opening the graph session")?;
     if let Some(stats) = session.open_stats() {
