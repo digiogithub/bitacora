@@ -64,6 +64,46 @@ pub struct Command {
     pub keys: &'static str,
 }
 
+impl Command {
+    /// The label in the interface language. `label` stays the English catalogue name (stable
+    /// for tests and as a filter alias); markers (`TODO`, ...) are keywords and never change.
+    #[must_use]
+    pub fn title(&self) -> String {
+        let key = match self.id {
+            CommandId::Marker(_) => return self.label.to_owned(),
+            CommandId::Heading(level) => {
+                return rust_i18n::t!("editor.cmd.heading", level = level).to_string();
+            }
+            CommandId::PageRef => "page_ref".to_owned(),
+            CommandId::BlockRef => "block_ref".to_owned(),
+            CommandId::PageEmbed => "page_embed".to_owned(),
+            CommandId::BlockEmbed => "block_embed".to_owned(),
+            CommandId::Query => "query".to_owned(),
+            CommandId::Today => "today".to_owned(),
+            CommandId::Tomorrow => "tomorrow".to_owned(),
+            CommandId::Yesterday => "yesterday".to_owned(),
+            CommandId::Time => "time".to_owned(),
+            CommandId::DatePicker => "date_picker".to_owned(),
+            CommandId::Scheduled => "scheduled".to_owned(),
+            CommandId::Deadline => "deadline".to_owned(),
+            CommandId::CodeBlock => "code_block".to_owned(),
+            CommandId::Link => "link".to_owned(),
+            CommandId::Image => "image".to_owned(),
+            CommandId::Upload => "upload".to_owned(),
+            CommandId::Template => "template".to_owned(),
+            CommandId::Block(name) => format!("block_{}", name.to_lowercase()),
+        };
+        let full = format!("editor.cmd.{key}");
+        let text = rust_i18n::t!(full.as_str()).to_string();
+        // A missing translation comes back as the key itself.
+        if text == full {
+            self.label.to_owned()
+        } else {
+            text
+        }
+    }
+}
+
 const fn c(id: CommandId, label: &'static str, keys: &'static str) -> Command {
     Command { id, label, keys }
 }
@@ -173,10 +213,12 @@ pub fn filter(menu: &[Command], query: &str) -> Vec<Command> {
         .enumerate()
         .filter_map(|(i, cmd)| {
             let label = fuzzy_score(query, cmd.label);
+            // The translated label matches as well, so Spanish users can type Spanish.
+            let title = fuzzy_score(query, &cmd.title());
             let keys = (!cmd.keys.is_empty())
                 .then(|| fuzzy_score(query, cmd.keys).map(|s| s - 100))
                 .flatten();
-            label.max(keys).map(|s| (s, i, *cmd))
+            label.max(title).max(keys).map(|s| (s, i, *cmd))
         })
         .collect();
     scored.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)));

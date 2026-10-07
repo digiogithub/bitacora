@@ -25,7 +25,7 @@ use super::buffer::BlockBuffer;
 use super::completion::{self, Item, Trigger};
 use super::html;
 use super::layout::BlockLayout;
-use super::outline::Outline;
+use super::outline::{Outline, Prebuilt};
 use super::row::RowEdit;
 use super::style::{Palette, TextMetrics, source_runs, style_runs};
 use super::text_ops::{range_from_utf16, range_to_utf16};
@@ -139,6 +139,8 @@ pub struct OutlineEditor {
     hidden: HiddenKeys,
     key: Option<PageKey>,
     outline: Option<Outline>,
+    /// The outline the current `rows` were built from (row reuse after local commands).
+    rows_outline: Option<Outline>,
     zoom: Option<BlockId>,
     rows: Vec<Row>,
     ids: Vec<BlockId>,
@@ -227,6 +229,7 @@ impl OutlineEditor {
             hidden,
             key: None,
             outline: None,
+            rows_outline: None,
             zoom: None,
             rows: Vec::new(),
             ids: Vec::new(),
@@ -481,11 +484,55 @@ impl OutlineEditor {
         self.refresh(cx);
     }
 
+    /// [`OutlineEditor::set_page`] with the rows already built (off the UI thread). Falls back
+    /// to a normal refresh when the page changed since the rows were built. Returns the rows
+    /// the host view should show.
+    pub fn set_page_prebuilt(
+        &mut self,
+        key: PageKey,
+        pre: Prebuilt,
+        cx: &mut Context<Self>,
+    ) -> Option<Vec<Row>> {
+        let _span = crate::perf::span("editor.set_page_prebuilt");
+        if self.key.as_ref() != Some(&key) {
+            self.exit_edit_silent();
+            self.sel = Selection::default();
+            self.zoom = None;
+            self.key = Some(key.clone());
+        }
+        let fresh = self
+            .queue
+            .snapshot(&key)
+            .is_some_and(|s| Arc_ptr_eq(pre.outline.snapshot(), &s));
+        if !fresh || self.zoom.is_some() || self.handle.is_none() || self.edit.is_some() {
+            tracing::debug!(target: "bitacora::perf", fresh, "prebuilt rows discarded");
+            // While typing, untouched blocks keep their rows (the rebuild would otherwise parse
+            // the whole page on every reload).
+            self.refresh_with(self.edit.is_some(), cx);
+            return None;
+        }
+        let Prebuilt {
+            outline,
+            rows,
+            ids,
+            host_rows,
+        } = pre;
+        self.rows_outline = Some(outline.clone());
+        self.outline = Some(outline);
+        self.rows = rows;
+        self.ids = ids;
+        self.visible = visible_rows(&self.rows);
+        cx.emit(EditorEvent::Structure);
+        cx.notify();
+        Some(host_rows)
+    }
+
     /// Forgets the page.
     pub fn clear(&mut self) {
         self.exit_edit_silent();
         self.key = None;
         self.outline = None;
+        self.rows_outline = None;
         self.rows.clear();
         self.ids.clear();
         self.visible.clear();
@@ -494,6 +541,10 @@ impl OutlineEditor {
 
     /// Reads the latest snapshot from core and rebuilds the rows.
     pub fn refresh(&mut self, cx: &mut Context<Self>) {
+        self.refresh_with(false, cx);
+    }
+
+    fn refresh_with(&mut self, reuse: bool, cx: &mut Context<Self>) {
         let Some(snap) = self.key.as_ref().and_then(|k| self.queue.snapshot(k)) else {
             return;
         };
@@ -505,23 +556,47 @@ impl OutlineEditor {
             return;
         }
         self.outline = Some(Outline::new(snap));
-        self.rebuild_rows(cx);
+        self.rebuild_rows_with(reuse, cx);
     }
 
     fn reload_outline(&mut self) {
+        let _span = crate::perf::span("editor.reload_outline");
         if let Some(snap) = self.key.as_ref().and_then(|k| self.queue.snapshot(k)) {
             self.outline = Some(Outline::new(snap));
         }
     }
 
+    /// Rebuilds every row from the current outline (index changes, zoom, first load).
     fn rebuild_rows(&mut self, cx: &mut Context<Self>) {
+        self.rebuild_rows_with(false, cx);
+    }
+
+    /// Rebuilds every row from scratch (tests compare it with the reusing path).
+    #[cfg(test)]
+    pub(crate) fn rebuild_all_rows_for_test(&mut self, cx: &mut Context<Self>) {
+        self.rebuild_rows(cx);
+    }
+
+    /// Rebuilds the rows after a local command: untouched blocks keep their parsed model.
+    fn rebuild_rows_after_command(&mut self, cx: &mut Context<Self>) {
+        self.rebuild_rows_with(true, cx);
+    }
+
+    fn rebuild_rows_with(&mut self, reuse: bool, cx: &mut Context<Self>) {
+        let _span = crate::perf::span("editor.rebuild_rows");
         let (Some(outline), Some(handle)) = (&self.outline, &self.handle) else {
             return;
         };
         if self.zoom.is_some_and(|z| outline.index_of(z).is_none()) {
             self.zoom = None;
         }
-        let (rows, ids) = outline.rows(self.zoom, handle, &self.props);
+        let prev = self
+            .rows_outline
+            .as_ref()
+            .filter(|_| reuse)
+            .map(|o| (o, std::mem::take(&mut self.rows), self.ids.as_slice()));
+        let (rows, ids) = outline.rows_reusing(self.zoom, handle, &self.props, prev);
+        self.rows_outline = Some(outline.clone());
         self.rows = rows;
         self.ids = ids;
         self.visible = visible_rows(&self.rows);
@@ -566,7 +641,8 @@ impl OutlineEditor {
     fn restart_blink(&mut self, cx: &mut Context<Self>) {
         self.caret_visible = true;
         self.blink_epoch += 1;
-        if !self.blink_enabled {
+        // A steady caret under "reduce motion" (BIT-T-0338).
+        if !self.blink_enabled || cx.reduce_motion() {
             return;
         }
         let epoch = self.blink_epoch;
@@ -671,6 +747,7 @@ impl OutlineEditor {
         let (range, inserted) = text_diff(&e.full, &new_full);
         let id = e.id;
         let old = std::mem::replace(&mut e.full, new_full);
+        let _span = crate::perf::span("editor.flush_blocking");
         let result = self.queue.run(
             Source::Ui,
             "Typing",
@@ -941,10 +1018,11 @@ impl OutlineEditor {
         cx: &mut Context<Self>,
     ) -> Option<bitacora_core::editor::Transaction> {
         self.flush(cx);
+        let _span = crate::perf::span("editor.run_blocking");
         match self.queue.run(Source::Ui, label, cmd) {
             Ok(tx) => {
                 self.reload_outline();
-                self.rebuild_rows(cx);
+                self.rebuild_rows_after_command(cx);
                 Some(tx)
             }
             Err(QueueError::Commit(CommitError::Refused(Refusal::NoChange))) => None,
@@ -1775,7 +1853,7 @@ impl OutlineEditor {
         ) {
             Ok(tx) => {
                 self.reload_outline();
-                self.rebuild_rows(cx);
+                self.rebuild_rows_after_command(cx);
                 self.after_command(
                     Some(id),
                     None,
@@ -1963,7 +2041,7 @@ impl OutlineEditor {
                 self.edit = None;
                 self.publish_editing(None, cx);
                 self.reload_outline();
-                self.rebuild_rows(cx);
+                self.rebuild_rows_after_command(cx);
                 match step.cursor {
                     Some(c) if self.row_of(c.block).is_some() => {
                         self.enter(c.block, Caret::Full(c.selection), window, cx);

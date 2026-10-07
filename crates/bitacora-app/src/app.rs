@@ -43,6 +43,10 @@ struct Services {
 /// Runs the application until the last window closes. Returns an error if startup
 /// or window creation fails.
 pub fn run(args: Args) -> anyhow::Result<()> {
+    crate::perf::init();
+    if args.perf_bench {
+        crate::perf::enable();
+    }
     if let Some(graph) = &args.graph
         && !graph.is_dir()
     {
@@ -56,7 +60,8 @@ pub fn run(args: Args) -> anyhow::Result<()> {
     tracing::info!(log_dir = %dirs.log_dir.display(), "app directories ready");
 
     // Smoke tests and the editor spike must not fight a real instance for the lock.
-    let single_instance = !(args.smoke_test || args.spike_editor || args.spike_bench);
+    let single_instance =
+        !(args.smoke_test || args.spike_editor || args.spike_bench || args.perf_bench);
     let mut instance_guard = None;
     let mut launches = None;
     let mut previous_crash_pid = None;
@@ -152,7 +157,8 @@ fn start(cx: &mut App, args: &Args, dirs: &AppDirs, services: Services) -> anyho
         return Ok(());
     }
 
-    let (handle, _workspace) = open_workspace(cx, args, dirs)?;
+    let (handle, workspace) = open_workspace(cx, args, dirs)?;
+    crate::perf::mark("window_opened");
 
     cx.on_app_quit(move |cx| {
         let session = cx
@@ -186,7 +192,11 @@ fn start(cx: &mut App, args: &Args, dirs: &AppDirs, services: Services) -> anyho
     crash::show_pending(handle, &services.crash, cx);
 
     let smoke = args.smoke_test;
+    let perf_bench = args.perf_bench;
     handle.update(cx, |_, window, cx| {
+        if perf_bench {
+            crate::perf::bench::start(workspace.clone(), window, cx);
+        }
         if !keymap_report.problems.is_empty() {
             ui::notify(
                 window,

@@ -40,6 +40,11 @@ pub struct Args {
     /// Run the spike benchmark, print `SPIKE_BENCH {json}` and exit.
     #[arg(long)]
     pub spike_bench: bool,
+
+    /// Drive the real workspace through the performance script (needs `--graph`), print
+    /// `PERF_BENCH {json}` and exit (BIT-T-0337).
+    #[arg(long)]
+    pub perf_bench: bool,
 }
 
 impl Args {

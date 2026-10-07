@@ -14,6 +14,43 @@ editor:
   keep_mine: Keep mine
   take_disk: Take disk
   new_page: "New page: %{title}"
+  date_unavailable: The date is not available.
+  no_templates: "No templates yet: add template:: name to a block."
+  drag_block: Block
+  cmd:
+    heading: "Heading %{level}"
+    page_ref: Page reference
+    block_ref: Block reference
+    page_embed: Page embed
+    block_embed: Block embed
+    query: Query
+    today: Today
+    tomorrow: Tomorrow
+    yesterday: Yesterday
+    time: Current time
+    date_picker: Date picker
+    scheduled: Scheduled
+    deadline: Deadline
+    code_block: Code block
+    link: Link
+    image: Image link
+    upload: Upload an asset
+    template: Template
+    block_quote: Quote
+    block_src: Source code
+    block_query: Query
+    block_note: Note
+    block_tip: Tip
+    block_important: Important
+    block_caution: Caution
+    block_pinned: Pinned
+    block_warning: Warning
+    block_example: Example
+    block_export: Export
+    block_verse: Verse
+    block_ascii: ASCII art
+    block_center: Center
+    block_comment: Comment
   refusal:
     unknown_block: That block no longer exists.
     no_change: Nothing to do.

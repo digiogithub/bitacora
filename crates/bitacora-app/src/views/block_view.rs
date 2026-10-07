@@ -11,6 +11,7 @@ use crate::nav::OpenIn;
 use crate::render::highlight::TokenClass;
 use crate::render::inline::{Emphasis, ImageRef, NavTarget, Role, TextLayout};
 use crate::render::model::{BlockModel, BodyItem, CodeBlock, PropertyRow, Row};
+use crate::ui::a11y;
 use crate::ui::text_edit::{
     FontStyle, FontWeight, HighlightStyle, InteractiveText, ObjectFit, StrikethroughStyle,
     StyledText, UnderlineStyle, hsla, img,
@@ -622,6 +623,15 @@ pub fn render_block_row(
         .justify_center()
         .pt(px(4.))
         .text_color(theme.muted_foreground)
+        .when(row.has_children && toggle_hook.is_some(), |d| {
+            d.role(a11y::Role::Button)
+                .aria_label(if collapsed {
+                    t!("a11y.expand_block")
+                } else {
+                    t!("a11y.collapse_block")
+                })
+                .aria_expanded(!collapsed)
+        })
         .when(row.has_children, |d| {
             d.child(
                 icon(if collapsed {
@@ -650,6 +660,11 @@ pub fn render_block_row(
         .when(
             bullet_uuid.is_some() || (toggle_hook.is_some() && row.has_children) || edit.is_some(),
             |d| {
+                let d = d.role(a11y::Role::Button).aria_label(if edit.is_some() {
+                    t!("a11y.zoom_block")
+                } else {
+                    t!("a11y.open_block")
+                });
                 let toggle = toggle_hook.clone().filter(|_| row.has_children);
                 let zoom = edit.map(|e| e.on_bullet.clone());
                 let nav = actions.nav.clone();
@@ -715,8 +730,22 @@ pub fn render_block_row(
             })
     });
 
+    let row_label = {
+        let text = row.block.title.text.trim();
+        if text.is_empty() {
+            t!("a11y.empty_block").to_string()
+        } else {
+            text.to_owned()
+        }
+    };
     h_flex()
         .id(("block", id))
+        .role(a11y::Role::TreeItem)
+        .aria_label(row_label)
+        .when(row.has_children, |d| d.aria_expanded(!collapsed))
+        .when_some(edit.map(|e| e.selected), |d, selected| {
+            d.aria_selected(selected)
+        })
         .relative()
         .w_full()
         .items_start()

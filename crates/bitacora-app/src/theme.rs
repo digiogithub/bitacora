@@ -292,6 +292,7 @@ pub fn apply(cx: &mut App, window: Option<&mut Window>) {
         },
     };
     Theme::change(mode, window, cx);
+    cx.set_reduce_motion(settings.reduce_motion);
     if let Some(size) = settings.font_size {
         let (min, max) = crate::settings::FONT_SIZE_RANGE;
         Theme::global_mut(cx).font_size = crate::ui::px(f32::from(size.clamp(min, max)));
@@ -524,6 +525,31 @@ mod tests {
             set_theme_name(cx, None, ThemeMode::Dark, "Mine Dark");
             assert!(Theme::global(cx).is_dark());
             assert_eq!(rgb(Theme::global(cx).colors.background), [0x10, 0x20, 0x30]);
+        });
+    }
+
+    #[gpui_test]
+    fn reduce_motion_follows_the_setting(cx: &mut TestAppContext) {
+        cx.update(|cx| {
+            crate::ui::init(cx);
+            install(cx, AppSettings::default(), None);
+            assert!(!cx.reduce_motion());
+            edit_settings(cx, None, |s| s.reduce_motion = true);
+            assert!(cx.reduce_motion());
+            edit_settings(cx, None, |s| s.reduce_motion = false);
+            assert!(!cx.reduce_motion());
+        });
+        // A saved setting is applied when the app starts.
+        cx.update(|cx| {
+            install(
+                cx,
+                AppSettings {
+                    reduce_motion: true,
+                    ..AppSettings::default()
+                },
+                None,
+            );
+            assert!(cx.reduce_motion());
         });
     }
 

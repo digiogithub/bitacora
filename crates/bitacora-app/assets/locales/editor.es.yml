@@ -14,6 +14,43 @@ editor:
   keep_mine: Quedarme con el mío
   take_disk: Tomar el del disco
   new_page: "Página nueva: %{title}"
+  date_unavailable: La fecha no está disponible.
+  no_templates: "Aún no hay plantillas: añade template:: nombre a un bloque."
+  drag_block: Bloque
+  cmd:
+    heading: "Encabezado %{level}"
+    page_ref: Referencia a página
+    block_ref: Referencia a bloque
+    page_embed: Incrustar página
+    block_embed: Incrustar bloque
+    query: Consulta
+    today: Hoy
+    tomorrow: Mañana
+    yesterday: Ayer
+    time: Hora actual
+    date_picker: Selector de fecha
+    scheduled: Programado
+    deadline: Fecha límite
+    code_block: Bloque de código
+    link: Enlace
+    image: Enlace de imagen
+    upload: Subir un recurso
+    template: Plantilla
+    block_quote: Cita
+    block_src: Código fuente
+    block_query: Consulta
+    block_note: Nota
+    block_tip: Consejo
+    block_important: Importante
+    block_caution: Precaución
+    block_pinned: Fijado
+    block_warning: Advertencia
+    block_example: Ejemplo
+    block_export: Exportar
+    block_verse: Verso
+    block_ascii: Arte ASCII
+    block_center: Centrado
+    block_comment: Comentario
   refusal:
     unknown_block: Ese bloque ya no existe.
     no_change: Nada que hacer.

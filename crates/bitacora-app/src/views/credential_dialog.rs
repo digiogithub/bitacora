@@ -151,6 +151,11 @@ impl CredentialDialog {
         cx.notify();
     }
 
+    /// Whether a credential request is on screen.
+    pub fn is_open(&self) -> bool {
+        !self.queue.is_empty()
+    }
+
     /// Cancels the shown request: the engine gets "no credential".
     pub fn cancel(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(request) = self.queue.pop_front() else {
@@ -291,6 +296,7 @@ mod tests {
             d.ask(second, window, cx);
         });
         assert_eq!(dialog.read_with(cx, |d, _| d.pending()), 2);
+        assert!(dialog.read_with(cx, |d, _| d.is_open()));
         // The known user name is prefilled; type the secret and accept.
         dialog.update_in(cx, |d, window, cx| {
             d.secret
@@ -314,5 +320,6 @@ mod tests {
         dialog.update_in(cx, |d, window, cx| d.cancel(window, cx));
         assert!(second_rx.recv().expect("answer").is_none());
         assert_eq!(dialog.read_with(cx, |d, _| d.pending()), 0);
+        assert!(!dialog.read_with(cx, |d, _| d.is_open()));
     }
 }

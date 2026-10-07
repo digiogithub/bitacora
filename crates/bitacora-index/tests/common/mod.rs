@@ -138,6 +138,26 @@ pub mod synth {
     }
 
     impl Spec {
+        /// About 540 000 blocks (the "large" preset of BIT-T-0336).
+        pub const fn large() -> Self {
+            Self {
+                pages: 8000,
+                journals: 2000,
+                blocks_per_page: 60,
+                seed: 13,
+            }
+        }
+
+        /// About 5 000 blocks (CI smoke tests).
+        pub const fn small() -> Self {
+            Self {
+                pages: 150,
+                journals: 100,
+                blocks_per_page: 30,
+                seed: 5,
+            }
+        }
+
         /// About 50 000 blocks.
         pub const fn fifty_k() -> Self {
             Self {
@@ -185,6 +205,53 @@ pub mod synth {
             block_text(rng, spec, &mut s, depth, n);
         }
         s
+    }
+
+    /// Write one page with `blocks` blocks (the "5,000-block page" of the UI benchmarks).
+    pub fn generate_big_page(root: &Path, title: &str, blocks: usize, seed: u64) {
+        let spec = Spec {
+            pages: 5000,
+            journals: 0,
+            blocks_per_page: blocks,
+            seed,
+        };
+        let text = body(&mut Lcg(seed), &spec, blocks);
+        super::write(root, &format!("pages/{title}.md"), &text);
+    }
+
+    /// Write one journal file per day for the last `days` days (today included) with `blocks`
+    /// blocks each, so the journals feed of the app has recent content.
+    pub fn generate_recent_journals(root: &Path, days: i64, blocks: usize, seed: u64) {
+        let spec = Spec {
+            pages: 5000,
+            journals: 0,
+            blocks_per_page: blocks,
+            seed,
+        };
+        let today = i64::try_from(
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_or(0, |d| d.as_secs() / 86_400),
+        )
+        .unwrap_or(0);
+        for back in 0..days {
+            let (y, m, d) = civil_from_days(today - back);
+            let text = body(&mut Lcg(seed + back as u64), &spec, blocks);
+            super::write(root, &format!("journals/{y}_{m:02}_{d:02}.md"), &text);
+        }
+    }
+
+    /// Days since 1970-01-01 to (year, month, day) in the proleptic Gregorian calendar.
+    fn civil_from_days(z: i64) -> (i64, i64, i64) {
+        let z = z + 719_468;
+        let era = z.div_euclid(146_097);
+        let doe = z.rem_euclid(146_097);
+        let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+        let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+        let mp = (5 * doy + 2) / 153;
+        let d = doy - (153 * mp + 2) / 5 + 1;
+        let m = if mp < 10 { mp + 3 } else { mp - 9 };
+        (yoe + era * 400 + i64::from(m <= 2), m, d)
     }
 
     /// Write the graph under `root`; returns the number of blocks written.

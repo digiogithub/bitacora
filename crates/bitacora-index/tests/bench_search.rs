@@ -97,3 +97,51 @@ fn search_latency_on_a_5000_page_graph() {
     );
     assert!(p95 < Duration::from_millis(50), "p95 {p95:?} >= 50 ms");
 }
+
+/// CI smoke of the benchmark above (BIT-SP-0003.R14): 1,000 pages / ~10k blocks, a relaxed
+/// bound that holds in debug builds on shared runners, and a check that every query answers.
+/// The real 50 ms p95 target is asserted by the ignored test on the 5,000-page graph.
+#[test]
+fn search_latency_smoke_on_a_1000_page_graph() {
+    let env = env();
+    let spec = synth::Spec {
+        pages: 1000,
+        journals: 50,
+        blocks_per_page: 10,
+        seed: 11,
+    };
+    synth::generate(&env.graph, &spec);
+    let index = env.open();
+    let ix = Indexer::start(
+        &index,
+        IndexerOptions::new(&env.graph, EffectiveConfig::default()),
+    )
+    .expect("indexer");
+    ix.reconcile().expect("reconcile");
+    ix.shutdown();
+
+    let reader = index.read_api();
+    let opts = SearchOptions::default();
+    for q in QUERIES {
+        reader.search(q, &opts).expect("warm-up");
+    }
+    let mut samples = Vec::new();
+    for _ in 0..5 {
+        for q in QUERIES {
+            let t = Instant::now();
+            let hits = reader.search(q, &opts).expect("search");
+            samples.push(t.elapsed());
+            std::hint::black_box(hits);
+        }
+    }
+    // A word that occurs in the generated text must find blocks.
+    assert!(!reader.search("roadmap", &opts).expect("search").is_empty());
+    samples.sort();
+    let p95 = percentile(&samples, 0.95);
+    let bound = if cfg!(debug_assertions) {
+        Duration::from_millis(500)
+    } else {
+        Duration::from_millis(50)
+    };
+    assert!(p95 < bound, "smoke p95 {p95:?} >= {bound:?}");
+}

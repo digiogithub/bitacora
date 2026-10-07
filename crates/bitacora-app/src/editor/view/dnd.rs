@@ -47,7 +47,7 @@ impl OutlineEditor {
             .and_then(|o| o.block(*ids.first().unwrap_or(&id)))
             .map(|b| b.text.lines().next().unwrap_or("").trim().to_owned())
             .filter(|t| !t.is_empty())
-            .unwrap_or_else(|| "Block".to_owned());
+            .unwrap_or_else(|| rust_i18n::t!("editor.drag_block").to_string());
         BlockDrag {
             ids,
             label: label.into(),

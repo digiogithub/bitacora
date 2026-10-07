@@ -101,6 +101,8 @@ pub enum PaletteCommand {
     SwitchGraph,
     /// Move the page on screen to `logseq/.recycle/` (asks first).
     DeletePage,
+    /// Rename the page on screen (keyboard route of the title click, BIT-T-0338).
+    RenamePage,
     /// Commit, fetch, merge and push now.
     SyncNow,
     /// Open the sync panel (status, backend, preferences).
@@ -121,7 +123,7 @@ pub enum PaletteCommand {
 
 impl PaletteCommand {
     /// Every command, in palette order.
-    pub const ALL: [Self; 18] = [
+    pub const ALL: [Self; 19] = [
         Self::GoJournals,
         Self::GoAllPages,
         Self::GoBack,
@@ -131,6 +133,7 @@ impl PaletteCommand {
         Self::ToggleTheme,
         Self::Reindex,
         Self::DeletePage,
+        Self::RenamePage,
         Self::SyncNow,
         Self::SyncSettings,
         Self::PageHistory,
@@ -155,6 +158,7 @@ impl PaletteCommand {
             Self::Reindex => t!("palette.cmd_reindex"),
             Self::SwitchGraph => t!("palette.cmd_switch_graph"),
             Self::DeletePage => t!("palette.cmd_delete_page"),
+            Self::RenamePage => t!("palette.cmd_rename_page"),
             Self::SyncNow => t!("palette.cmd_sync_now"),
             Self::SyncSettings => t!("palette.cmd_sync_settings"),
             Self::OpenSettings => t!("settings.cmd_open"),
@@ -178,6 +182,7 @@ impl PaletteCommand {
             Self::Reindex => IconName::LoaderCircle,
             Self::SwitchGraph => IconName::Folder,
             Self::DeletePage => IconName::Close,
+            Self::RenamePage => IconName::Replace,
             Self::SyncNow => IconName::RefreshCw,
             Self::SyncSettings | Self::OpenSettings => IconName::Settings,
             Self::PageHistory => IconName::Undo2,

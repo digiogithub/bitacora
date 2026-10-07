@@ -260,7 +260,7 @@ impl Item {
             } => title.clone(),
             Self::Page { title, .. } => rust_i18n::t!("editor.new_page", title = title).to_string(),
             Self::Block { page, text, .. } => format!("{text}  ({page})"),
-            Self::Command(c) => c.label.to_owned(),
+            Self::Command(c) => c.title(),
             Self::Template { name } => name.clone(),
         }
     }

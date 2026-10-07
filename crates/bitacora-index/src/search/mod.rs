@@ -6,6 +6,7 @@
 //! `LIKE` substring blocks; the lists are fused with Reciprocal Rank Fusion (`k = 60`).
 
 mod fuzzy;
+pub(crate) use fuzzy::TitleCache;
 mod query;
 mod snippet;
 
@@ -128,6 +129,16 @@ pub fn search(
     input: &str,
     opts: &SearchOptions,
 ) -> Result<Vec<SearchHit>, Error> {
+    search_cached(conn, input, opts, None)
+}
+
+/// [`search`] with the page titles of the fuzzy pass taken from `titles` when given.
+pub(crate) fn search_cached(
+    conn: &Connection,
+    input: &str,
+    opts: &SearchOptions,
+    titles: Option<&TitleCache>,
+) -> Result<Vec<SearchHit>, Error> {
     let q = ParsedQuery::parse(input, opts.remove_accents);
     if q.is_empty() || opts.limit == 0 {
         return Ok(Vec::new());
@@ -143,7 +154,7 @@ pub fn search(
         lists.push((
             1.0,
             Key::Page(0),
-            fuzzy::fuzzy_pages(conn, &plain, opts.scope, 50)?,
+            fuzzy::fuzzy_pages(conn, titles, &plain, opts.scope, 50)?,
         ));
     }
     let words = block_words(conn, &q, opts.scope, k)?;

@@ -42,6 +42,9 @@ pub struct AppSettings {
     pub mcp: McpSettings,
     /// UI language tag (`en`, `es`); `None` follows the operating system (BIT-T-0335).
     pub language: Option<String>,
+    /// Reduce motion: no caret blinking, spinners and transitions are drawn static
+    /// (BIT-T-0338). Off by default; GPUI cannot read the operating system preference.
+    pub reduce_motion: bool,
 }
 
 /// Smallest and largest UI font size the settings accept.
@@ -199,6 +202,7 @@ mod tests {
                 ..McpSettings::default()
             },
             language: Some("es".into()),
+            reduce_motion: true,
         };
         settings.save(&path).expect("save");
         assert_eq!(AppSettings::load(&path), settings);

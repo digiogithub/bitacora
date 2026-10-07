@@ -169,7 +169,7 @@ fn angle_commands_write_begin_end_blocks(cx: &mut TestAppContext) {
     let all = labels(&ed, cx);
     for want in [
         "Quote",
-        "Src",
+        "Source code",
         "Note",
         "Tip",
         "Important",

@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::AtomicU64;
 
 use parking_lot::{Condvar, Mutex};
 use rusqlite::{Connection, OpenFlags};
@@ -21,6 +22,10 @@ struct PoolInner {
     max: usize,
     state: Mutex<PoolState>,
     available: Condvar,
+    /// Bumped by the writer after every job; cached derived data is valid for one value.
+    generation: Arc<AtomicU64>,
+    /// Page titles for the fuzzy search pass (BIT-T-0336).
+    titles: crate::search::TitleCache,
 }
 
 #[derive(Debug, Default)]
@@ -33,14 +38,27 @@ struct PoolState {
 impl ReaderPool {
     /// Create an empty pool for the database at `path`, holding at most `max` (>= 1) connections.
     pub fn new(path: &Path, max: usize) -> Self {
+        let generation = Arc::new(AtomicU64::new(0));
         Self {
             inner: Arc::new(PoolInner {
                 path: path.to_owned(),
                 max: max.max(1),
                 state: Mutex::new(PoolState::default()),
                 available: Condvar::new(),
+                titles: crate::search::TitleCache::new(Arc::clone(&generation)),
+                generation,
             }),
         }
+    }
+
+    /// The counter the writer bumps after each job.
+    pub(crate) fn generation(&self) -> Arc<AtomicU64> {
+        Arc::clone(&self.inner.generation)
+    }
+
+    /// The shared page-title cache of the fuzzy search pass.
+    pub(crate) fn titles(&self) -> &crate::search::TitleCache {
+        &self.inner.titles
     }
 
     /// Check out a read-only connection, opening one if the pool is below its limit and

@@ -247,6 +247,7 @@ pub fn apply_live(cx: &mut App, new: Effective) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ui::testing::{TestAppContext, gpui_test};
 
     #[test]
     fn default_keymap_parses_and_names_every_baseline_action() {
@@ -265,6 +266,68 @@ mod tests {
         ] {
             assert!(actions.contains(&expected), "{expected} unbound");
         }
+    }
+
+    /// Actions that need no default binding, with the keyboard route they have instead.
+    const NO_DEFAULT_BINDING: &[(&str, &str)] = &[
+        // The palette lists the commands; these two open the palettes themselves (bound).
+        (
+            "bitacora::ClosePalette",
+            "bound to Escape in the Palette context",
+        ),
+        // Reached from the application menu / the Actions palette, not a key of their own.
+        (
+            "outliner::ShowCharacterPalette",
+            "platform character palette via the menu",
+        ),
+        (
+            "outliner::InsertNewline",
+            "Shift+Enter is bound in the BlockEditor context",
+        ),
+        (
+            "outliner::CopyEmbed",
+            "Actions palette and the block context",
+        ),
+        (
+            "outliner::DismissCompletion",
+            "Escape inside the autocomplete popup",
+        ),
+    ];
+
+    #[gpui_test]
+    fn every_action_is_reachable_from_the_keyboard(cx: &mut TestAppContext) {
+        // BIT-T-0338: no action may be mouse-only. Every action either has a default binding
+        // or an entry above naming the keyboard route it has instead.
+        let sections = parse(DEFAULT_KEYMAP).expect("default keymap parses");
+        let bound: std::collections::BTreeSet<&str> = sections
+            .iter()
+            .flat_map(|s| s.bindings.values().map(String::as_str))
+            .collect();
+        // Platform-specific word motion bindings are added in code (editor::actions).
+        let platform: std::collections::BTreeSet<String> =
+            crate::editor::actions::platform_bindings()
+                .into_iter()
+                .map(|(_, action, _)| action.to_owned())
+                .collect();
+        let all: Vec<String> = cx.update(|cx| {
+            cx.all_action_names()
+                .iter()
+                .filter(|n| n.starts_with("bitacora::") || n.starts_with("outliner::"))
+                .map(|n| (*n).to_owned())
+                .collect()
+        });
+        assert!(all.len() > 50, "the action registry looks empty: {all:?}");
+        let mut missing = Vec::new();
+        for name in &all {
+            let exempt = NO_DEFAULT_BINDING.iter().any(|(n, _)| n == name);
+            if !bound.contains(name.as_str()) && !platform.contains(name) && !exempt {
+                missing.push(name.clone());
+            }
+        }
+        assert!(
+            missing.is_empty(),
+            "actions with neither a default binding nor a documented keyboard route: {missing:?}"
+        );
     }
 
     #[test]

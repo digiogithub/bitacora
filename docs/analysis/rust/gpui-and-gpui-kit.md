@@ -133,7 +133,11 @@ From <https://github.com/zed-industries/awesome-gpui> (stars as of 2026-10): Lon
 - Documentation is thin: rustdoc plus examples plus reading Zed's source. The real reference is Zed's `editor` crate, which is GPL, so read it for ideas only.
 - Text: there is no built-in rich-text or contenteditable equivalent. Each multi-line editor is custom. Bidi/RTL support is limited.
 - Linux IME and HiDPI fractional scaling vary by compositor. Vulkan is needed on Linux.
-- Accessibility (AccessKit) is new, and component coverage is unknown.
+- Accessibility (AccessKit) is new. Findings for the pinned `gpui-pre 0.3.8` (checked 2026-10-07, BIT-T-0338):
+  - GPUI builds an AccessKit tree **only while assistive technology is connected** (`Window::is_a11y_active`); elements appear in it when they have an id and a role (`div().id(..).role(Role::Button).aria_label(..)`, plus `aria_expanded`, `aria_selected`, `aria_toggled`, `aria_description`, `aria_keyshortcuts`, `aria_active_descendant`). The `accesskit` types are re-exported as `gpui_kit::gpui::{Role, Toggled, Orientation}`; Bitacora uses them through `crate::ui::a11y`.
+  - GPUI Kit components already set roles (button, input/textarea, menus, list, table, checkbox, sidebar menu, command palette). Custom elements of Bitacora do not until annotated: outline rows (`TreeItem` with the block title, expanded and selected state), fold toggles and bullets (`Button` with a label) are annotated; the text of a block being edited and the drag handles are not exposed.
+  - Known gaps: no screen reader can be tested on this Linux host (no AT-SPI client), so roles and labels are asserted only by construction; text inside the custom block editor element is not a text-input node (the editor draws and handles IME itself), so screen readers do not read the caret or typed text; GPUI has no API to announce live changes (toasts) and no high-contrast or OS "reduce motion" detection. Reduced motion is therefore an in-app setting wired to `App::set_reduce_motion` (`AppSettings.reduce_motion`).
+  - Per-OS screen-reader validation (VoiceOver, Narrator/NVDA, Orca) is still to do before 1.0; see [[accessibility-1.0]].
 - Binaries are large (roughly 30–60 MB release builds before stripping or LTO) and full builds are long. Use `mold`, sccache and a split debug-info profile.
 
 ---

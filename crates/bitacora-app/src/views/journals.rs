@@ -140,6 +140,11 @@ impl JournalsView {
         cx.notify();
     }
 
+    /// The scroll state of the feed (benchmarks).
+    pub fn list_state(&self) -> &ListState {
+        &self.list_state
+    }
+
     /// The editor of day `day` (`yyyyMMdd`), if it was created.
     pub fn editor_for(&self, day: u32) -> Option<&crate::ui::Entity<OutlineEditor>> {
         self.editors.get(&day)
@@ -561,8 +566,19 @@ impl JournalsView {
         if ix + 3 >= self.entries.len() && self.has_more {
             self.load_more_days(cx);
         }
+        crate::perf::mark("journals_first_render");
         self.load_day(ix, cx);
-        self.ensure_editor(ix, window, cx);
+        if self
+            .entries
+            .get(ix)
+            .is_some_and(|e| e.state == DayState::Loaded)
+        {
+            crate::perf::mark("journals_first_day");
+        }
+        {
+            let _span = crate::perf::span("journals.ensure_editor");
+            self.ensure_editor(ix, window, cx);
+        }
         let theme = cx.theme().clone();
         let this = cx.entity();
         let nav: Nav = {

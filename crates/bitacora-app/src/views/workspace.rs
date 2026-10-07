@@ -302,6 +302,11 @@ impl Workspace {
         &self.picker
     }
 
+    /// The reader of the open graph, once the session delivered it.
+    pub fn graph_handle(&self) -> Option<&GraphHandle> {
+        self.handle.as_ref()
+    }
+
     /// The main area (journals feed and page view with history).
     pub fn main_view(&self) -> &Entity<MainView> {
         &self.main
@@ -924,6 +929,7 @@ impl Workspace {
                 self.disk_banner.update(cx, |b, cx| b.clear(&key, cx));
             }
             SessionEvent::Reader(handle) => {
+                crate::perf::mark("index_opened");
                 let initial = self
                     .config
                     .initial_page
@@ -956,6 +962,7 @@ impl Workspace {
                     .update(cx, |stack, cx| stack.on_index_event(&event, cx));
             }
             SessionEvent::Ready(summary) => {
+                crate::perf::mark("index_ready");
                 tracing::info!(
                     scanned = summary.scanned,
                     parsed = summary.parsed,
@@ -1256,6 +1263,14 @@ impl Workspace {
                 match page {
                     Some(name) => self.request_delete_page(name, window, cx),
                     None => notify(window, cx, Level::Info, t!("delete.not_a_page").to_string()),
+                }
+            }
+            PaletteCommand::RenamePage => {
+                let page = self.main.read(cx).page().clone();
+                if page.read(cx).can_rename() {
+                    page.update(cx, |p, cx| p.start_rename(window, cx));
+                } else {
+                    notify(window, cx, Level::Info, t!("delete.not_a_page").to_string());
                 }
             }
             PaletteCommand::SwitchGraph => {
@@ -1842,7 +1857,10 @@ impl Workspace {
 
     /// Closes the topmost sync overlay on Escape; `true` when one was open.
     fn close_topmost_overlay(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
-        if self.settings.read(cx).is_open() {
+        if self.credential_dialog.read(cx).is_open() {
+            // Escape declines the credential prompt, like its Cancel button.
+            self.credential_dialog.update(cx, |d, cx| d.cancel(window, cx));
+        } else if self.settings.read(cx).is_open() {
             // Escape first cancels a shortcut recording, then closes the settings.
             self.settings.update(cx, |s, cx| s.escape(cx));
         } else if self.disk_diff.read(cx).is_open() {
@@ -2207,6 +2225,7 @@ impl Render for Workspace {
             .child(self.disk_diff.clone())
             .child(self.sync_dialog.clone())
             .child(self.credential_dialog.clone())
+            .when(crate::perf::enabled(), |d| d.child(crate::perf::FrameEnd))
     }
 }
 

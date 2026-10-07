@@ -49,6 +49,7 @@ palette:
   cmd_reindex: Reindex graph
   cmd_switch_graph: Switch graph
   cmd_delete_page: Delete current page...
+  cmd_rename_page: Rename current page...
   cmd_sync_now: Sync now
   cmd_sync_settings: Sync settings...
   cmd_page_history: Page history...
@@ -359,3 +360,9 @@ update:
   ready: "Bitacora %{version} is ready to install"
   restart: Restart now
   apply_failed: "Could not apply the update: %{error}"
+a11y:
+  expand_block: Expand block
+  collapse_block: Collapse block
+  zoom_block: Zoom into block
+  open_block: Open block
+  empty_block: Empty block

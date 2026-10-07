@@ -221,15 +221,20 @@ pub(crate) fn group_hits(
     ))?;
     let mut by_page: HashMap<i64, Vec<RefHit>> = HashMap::new();
     for block in kept {
-        let breadcrumb = crumbs
-            .query_map([block.id], block_from_row)?
-            .map(|r| {
-                r.map(|a| Crumb {
-                    uuid: a.uuid,
-                    title: a.title,
+        // A top-level block has no ancestors: skip the query (most hits on a big graph).
+        let breadcrumb = if block.depth <= 1 {
+            Vec::new()
+        } else {
+            crumbs
+                .query_map([block.id], block_from_row)?
+                .map(|r| {
+                    r.map(|a| Crumb {
+                        uuid: a.uuid,
+                        title: a.title,
+                    })
                 })
-            })
-            .collect::<Result<_, _>>()?;
+                .collect::<Result<_, _>>()?
+        };
         by_page
             .entry(block.page_id)
             .or_default()

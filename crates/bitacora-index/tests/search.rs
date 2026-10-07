@@ -181,6 +181,25 @@ fn fuzzy_titles_match_subsequences() {
 }
 
 #[test]
+fn cached_fuzzy_titles_follow_writes() {
+    // The pooled reader keeps a title list between queries; every writer job refreshes it.
+    let (_e, index, w) = fixture();
+    let reader = index.read_api();
+    let o = SearchOptions::default();
+    let page_titles = |q: &str| titles(&reader.search(q, &o).expect("search"));
+    assert!(!page_titles("mtgnts").contains(&"page:Sprint Retro".to_owned()));
+    assert_eq!(page_titles("mtgnts")[0], "page:Meeting Notes");
+    w.replace_file(input("pages/Meeting Notes 2.md", "- later\n"))
+        .expect("replace");
+    w.replace_file(input("pages/Sprint Retro.md", "- retro\n"))
+        .expect("replace");
+    assert_eq!(page_titles("sprntrtr")[0], "page:Sprint Retro");
+    assert!(page_titles("mtgnts2").contains(&"page:Meeting Notes 2".to_owned()));
+    w.delete_file("pages/Sprint Retro.md").expect("delete");
+    assert!(!page_titles("sprntrtr").contains(&"page:Sprint Retro".to_owned()));
+}
+
+#[test]
 fn recent_journals_get_a_boost() {
     let (_e, index, _w) = fixture();
     let o = SearchOptions {

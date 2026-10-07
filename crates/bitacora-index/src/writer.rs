@@ -370,6 +370,8 @@ impl Writer {
                     let _ = reply.send(self.commit_bulk_batch());
                 }
             }
+            // Whatever the job did, readers must reload what they cached.
+            self.conn.bump_generation();
         }
         // Leaving with a bulk transaction open would lose it: commit what was written.
         if self.bulk.is_some() {

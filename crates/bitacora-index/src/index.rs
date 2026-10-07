@@ -160,6 +160,7 @@ impl Index {
             conn: Some(conn),
             slot: Arc::clone(&self.writer_slot),
             options: self.options.clone(),
+            generation: self.readers.generation(),
         })
     }
 }
@@ -170,9 +171,16 @@ pub struct WriteConnection {
     conn: Option<Connection>,
     slot: Arc<Mutex<Option<Connection>>>,
     options: OpenOptions,
+    generation: Arc<std::sync::atomic::AtomicU64>,
 }
 
 impl WriteConnection {
+    /// Tells the readers' caches that the database changed (called after every writer job).
+    pub(crate) fn bump_generation(&self) {
+        self.generation
+            .fetch_add(1, std::sync::atomic::Ordering::Release);
+    }
+
     /// Shared access to the connection.
     pub fn conn(&self) -> &Connection {
         match &self.conn {

@@ -343,6 +343,13 @@ pub mod text_edit {
     };
 }
 
+/// Accessibility roles and states (GPUI exposes them through AccessKit; BIT-T-0338). Elements
+/// need an id and a role to appear in the accessibility tree: `div().id(..).role(Role::Button)
+/// .aria_label(..)`.
+pub mod a11y {
+    pub use gpui_kit::gpui::{Orientation, Role, Toggled};
+}
+
 /// Drag and drop of blocks (BIT-US-0106).
 pub mod drag {
     pub use gpui_kit::DragMoveEvent;

@@ -373,7 +373,7 @@ impl IndexReader {
         opts: &crate::search::SearchOptions,
     ) -> Result<Vec<crate::search::SearchHit>, Error> {
         let conn = self.conn()?;
-        crate::search::search(&conn, input, opts)
+        crate::search::search_cached(&conn, input, opts, Some(self.pool.titles()))
     }
 
     /// Number of distinct blocks that reference each page (`pages.id` to count), for the

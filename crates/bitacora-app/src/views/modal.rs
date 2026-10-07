@@ -4,7 +4,8 @@
 use crate::ui::text_edit::MouseButton;
 use crate::ui::theme::Theme;
 use crate::ui::{
-    AnyElement, App, InteractiveElement as _, IntoElement, ParentElement as _, Styled as _, Window,
+    AnyElement, App, InteractiveElement as _, IntoElement, ParentElement as _,
+    StatefulInteractiveElement as _, Styled as _, Window,
     div, h_flex, px, v_flex,
 };
 
@@ -31,6 +32,7 @@ pub fn modal(
         .child(
             v_flex()
                 .id((id, 1usize))
+                .role(crate::ui::a11y::Role::Dialog)
                 .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
                 .w(px(width))
                 .max_w_full()
@@ -69,7 +71,15 @@ pub fn title_bar(theme: &Theme, title: String, trailing: impl IntoElement) -> An
         .items_center()
         .border_b_1()
         .border_color(theme.border)
-        .child(div().flex_1().text_lg().child(title))
+        .child(
+            div()
+                .id("dialog-title")
+                .role(crate::ui::a11y::Role::Heading)
+                .aria_label(title.clone())
+                .flex_1()
+                .text_lg()
+                .child(title),
+        )
         .child(trailing)
         .into_any_element()
 }

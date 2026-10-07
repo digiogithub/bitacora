@@ -78,6 +78,7 @@ enum State {
 
 /// Runs the query and prepares the rows (blocking: call from a background task).
 fn load(h: &GraphHandle, spec: &QuerySpec, scope: &Scope) -> Result<Loaded, Failure> {
+    let _span = crate::perf::span("query_block.load");
     let today = data::today_local().ok_or_else(|| Failure::Index("no local date".into()))?;
     let now = jiff::Timestamp::now().as_millisecond();
     let output = query::run(&h.reader, spec, scope, today, now)?;

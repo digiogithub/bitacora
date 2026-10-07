@@ -505,6 +505,18 @@ impl SettingsView {
                     })),
             ))
             .child(self.language_row(theme, &app, cx))
+            .child(row(
+                theme,
+                t!("settings.appearance.reduce_motion").to_string(),
+                Some(t!("settings.appearance.reduce_motion_help").to_string()),
+                Switch::new("settings-reduce-motion")
+                    .checked(app.reduce_motion)
+                    .on_click(cx.listener(|this, on: &bool, window, cx| {
+                        let on = *on;
+                        crate::theme::edit_settings(cx, Some(window), |s| s.reduce_motion = on);
+                        this.say(Level::Success, t!("settings.saved").to_string(), cx);
+                    })),
+            ))
             .child(self.user_themes_row(theme, cx))
             .child(self.custom_css_block(theme, cx))
             .into_any_element()

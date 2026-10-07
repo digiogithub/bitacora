@@ -123,7 +123,7 @@ impl OutlineEditor {
         let Some(e) = &self.edit else { return };
         let text = e.buf.text().to_owned();
         let Some(ctx) = self.command_context() else {
-            self.notice(window, cx, "The date is not available.");
+            self.notice(window, cx, rust_i18n::t!("editor.date_unavailable"));
             return;
         };
         match commands::apply(cmd.id, &text, &range, &ctx) {
@@ -173,11 +173,7 @@ impl OutlineEditor {
                         },
                         cx,
                     );
-                    self.notice(
-                        window,
-                        cx,
-                        "No templates yet: add template:: name to a block.",
-                    );
+                    self.notice(window, cx, rust_i18n::t!("editor.no_templates"));
                 }
             }
         }

@@ -1610,3 +1610,24 @@ fn a_real_click_on_an_empty_block_starts_editing(cx: &mut TestAppContext) {
     cx.simulate_input("typed");
     assert_eq!(buffer(&ed, cx).as_deref(), Some("typed"));
 }
+
+#[gpui_test]
+fn rows_after_a_command_equal_a_full_rebuild(cx: &mut TestAppContext) {
+    // Row reuse after local commands (BIT-T-0337) must be invisible: untouched blocks keep the
+    // model they had, touched ones are parsed again.
+    let env = Env::new(&[
+        (HOME, "- one [[Other]]\n- **two**\n  - three #tag\n- four\n"),
+        ("pages/Other.md", "- x\n"),
+    ]);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    edit(&ed, 1, Caret::End, cx);
+    cx.simulate_input(" more");
+    cx.simulate_keystrokes("tab");
+    flush(&ed, cx);
+    let reused = ed.read_with(cx, |e, _| e.rows().to_vec());
+    ed.update(cx, |e, cx| e.rebuild_all_rows_for_test(cx));
+    let fresh = ed.read_with(cx, |e, _| e.rows().to_vec());
+    assert_eq!(reused.len(), 4);
+    assert_eq!(reused, fresh);
+    assert_eq!(reused[1].depth, 1, "the second block was indented");
+}

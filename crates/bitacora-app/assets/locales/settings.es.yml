@@ -140,6 +140,8 @@ settings:
     font_reset: Tamaño de letra predeterminado
     font_reset_button: Restablecer
     language: Idioma
+    reduce_motion: Reducir movimiento
+    reduce_motion_help: Mantiene el cursor fijo y dibuja indicadores y transiciones sin movimiento.
     language_help: Se aplica al instante.
     language_system: Seguir el sistema
     user_themes: Tus temas

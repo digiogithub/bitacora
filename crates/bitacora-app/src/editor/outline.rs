@@ -11,6 +11,34 @@ use bitacora_markdown::properties::PropertyConfig;
 use crate::data::{GraphHandle, IndexResolver};
 use crate::render::model::{BlockModel, Row};
 
+/// The rows of a page built off the UI thread, ready to be adopted by the editor.
+#[derive(Debug)]
+pub struct Prebuilt {
+    /// The snapshot the rows were built from.
+    pub outline: Outline,
+    /// The editor's rows.
+    pub rows: Vec<Row>,
+    /// Block ids parallel to `rows`.
+    pub ids: Vec<BlockId>,
+    /// The host view's own copy of the rows.
+    pub host_rows: Vec<Row>,
+}
+
+impl Prebuilt {
+    /// Builds the rows of `snap` for the whole page.
+    pub fn build(snap: Arc<PageSnapshot>, handle: &GraphHandle) -> Self {
+        let outline = Outline::new(snap);
+        let (rows, ids) = outline.rows(None, handle, &handle.settings.props);
+        let host_rows = rows.clone();
+        Self {
+            outline,
+            rows,
+            ids,
+            host_rows,
+        }
+    }
+}
+
 /// A core page snapshot with lookups.
 #[derive(Debug, Clone)]
 pub struct Outline {
@@ -136,6 +164,27 @@ impl Outline {
         handle: &GraphHandle,
         cfg: &PropertyConfig,
     ) -> (Vec<Row>, Vec<BlockId>) {
+        self.rows_reusing(zoom, handle, cfg, None)
+    }
+
+    /// Like [`Outline::rows`], but a block whose text and uuid did not change since `prev` (the
+    /// outline, rows and ids of the last build; the rows are consumed) keeps its parsed model
+    /// and reference count:
+    /// after a local edit only the touched blocks are parsed again instead of the whole page.
+    /// Callers pass `None` when the index changed (links may resolve differently).
+    pub fn rows_reusing(
+        &self,
+        zoom: Option<BlockId>,
+        handle: &GraphHandle,
+        cfg: &PropertyConfig,
+        prev: Option<(&Outline, Vec<Row>, &[BlockId])>,
+    ) -> (Vec<Row>, Vec<BlockId>) {
+        let old_row: HashMap<BlockId, usize> = prev
+            .as_ref()
+            .map(|(_, _, ids)| ids.iter().enumerate().map(|(r, id)| (*id, r)).collect())
+            .unwrap_or_default();
+        let mut prev =
+            prev.map(|(old, rows, _)| (old, rows.into_iter().map(Some).collect::<Vec<_>>()));
         let (from, to) = match zoom.and_then(|z| self.index_of(z)) {
             Some(ix) => (ix, self.subtree_end(ix)),
             None => (0, self.snap.blocks.len()),
@@ -146,10 +195,26 @@ impl Outline {
         let mut ids = Vec::with_capacity(to - from);
         for ix in from..to {
             let b = &self.snap.blocks[ix];
-            let block = BlockModel::from_content(&b.text, cfg, &resolver);
-            let ref_count = match &b.uuid {
-                Some(u) => handle.reader.block_ref_count(&u.to_string()).unwrap_or(0),
-                None => 0,
+            let reused = prev.as_mut().and_then(|(old, old_rows)| {
+                let r = *old_row.get(&b.id)?;
+                let same = old
+                    .block(b.id)
+                    .is_some_and(|o| o.text == b.text && o.uuid == b.uuid);
+                if same {
+                    old_rows.get_mut(r)?.take()
+                } else {
+                    None
+                }
+            });
+            let (block, ref_count) = match reused {
+                Some(row) => (row.block, row.ref_count),
+                None => (
+                    BlockModel::from_content(&b.text, cfg, &resolver),
+                    match &b.uuid {
+                        Some(u) => handle.reader.block_ref_count(&u.to_string()).unwrap_or(0),
+                        None => 0,
+                    },
+                ),
             };
             rows.push(Row {
                 block_index: Some(ix),

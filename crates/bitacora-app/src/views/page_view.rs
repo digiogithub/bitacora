@@ -19,6 +19,7 @@ use rust_i18n::t;
 use crate::data::{
     self, CHUNK, FIRST_CHUNK, GraphHandle, Link, PageHeader, PageLoad, RefGroupModel, RefsLoad,
 };
+use crate::editor::outline::Prebuilt;
 use crate::editor::{self, EditorEvent, OutlineEditor};
 use crate::nav::{OpenIn, Route, Scroll};
 use crate::render::inline::{NavTarget, NoBlocks};
@@ -93,6 +94,9 @@ pub struct BlockFocusEvent {
 /// The user clicked a block marked as a sync conflict: open the resolver (BIT-US-0054).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConflictJumpEvent;
+
+/// A page that core holds: its key and, when it could be built in the background, the rows.
+type LiveRows = (PageKey, Option<Prebuilt>);
 
 /// What the view currently shows.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -388,6 +392,11 @@ impl PageView {
         self.editor.as_ref()
     }
 
+    /// The scroll state of the list (benchmarks and tests).
+    pub fn list_state(&self) -> &ListState {
+        &self.list_state
+    }
+
     /// Whether the rows shown are core's editable page.
     pub fn is_live(&self) -> bool {
         self.live
@@ -432,16 +441,32 @@ impl PageView {
     }
 
     /// Switches the rows to core's copy of the page `key`.
-    fn enter_live(&mut self, key: PageKey, handle: &GraphHandle, cx: &mut Context<Self>) {
+    fn enter_live(
+        &mut self,
+        key: PageKey,
+        pre: Option<Prebuilt>,
+        handle: &GraphHandle,
+        cx: &mut Context<Self>,
+    ) {
         let Some(ed) = self.editor.clone() else {
             return;
         };
+        let _span = crate::perf::span("page_view.enter_live");
         self.live = true;
-        ed.update(cx, |e, cx| {
+        let host_rows = ed.update(cx, |e, cx| {
             e.set_handle(handle.clone());
-            e.set_page(key, cx);
+            match pre {
+                Some(pre) => e.set_page_prebuilt(key, pre, cx),
+                None => {
+                    e.set_page(key, cx);
+                    None
+                }
+            }
         });
-        self.rows = ed.read(cx).rows().to_vec();
+        self.rows = match host_rows {
+            Some(rows) => rows,
+            None => ed.read(cx).rows().to_vec(),
+        };
         self.fetched = self.rows.len();
         self.has_more = false;
     }
@@ -606,11 +631,15 @@ impl PageView {
             HashMap::new()
         };
         let mut limit = FIRST_CHUNK;
-        if let Some(a) = anchor {
-            limit = limit.max(a.item_ix + CHUNK);
-        }
-        if reload {
-            limit = limit.max(self.fetched);
+        // A live page shows core's rows: the index only supplies the header (and a first chunk
+        // for the read-only fallback), so a reload never re-reads the whole page from SQLite.
+        if !self.live {
+            if let Some(a) = anchor {
+                limit = limit.max(a.item_ix + CHUNK);
+            }
+            if reload {
+                limit = limit.max(self.fetched);
+            }
         }
         if !reload {
             self.state = LoadState::Loading;
@@ -628,15 +657,22 @@ impl PageView {
             let result = cx
                 .background_executor()
                 .spawn(async move {
+                    let _span = crate::perf::span("page_view.load_background");
                     match &route {
                         Route::Page(name) => data::open_page(&handle, name, limit).map(|load| {
                             let live = link.as_ref().and_then(|l| {
-                                editor::ensure_loaded(
+                                let key = editor::ensure_loaded(
                                     &l.queue,
                                     &handle,
                                     &l.config,
                                     &load.header.title,
-                                )
+                                )?;
+                                // Build the rows here so the UI thread only adopts them.
+                                let pre = l
+                                    .queue
+                                    .snapshot(&key)
+                                    .map(|snap| Prebuilt::build(snap, &handle));
+                                Some((key, pre))
                             });
                             (load, live)
                         }),
@@ -657,11 +693,12 @@ impl PageView {
     fn finish_load(
         &mut self,
         generation: u64,
-        result: Result<(PageLoad, Option<PageKey>), String>,
+        result: Result<(PageLoad, Option<LiveRows>), String>,
         overrides: &HashMap<String, bool>,
         anchor: Option<Scroll>,
         cx: &mut Context<Self>,
     ) {
+        let _span = crate::perf::span("page_view.finish_load");
         if generation != self.generation {
             return;
         }
@@ -680,8 +717,8 @@ impl PageView {
                 self.has_more = load.has_more;
                 self.state = LoadState::Loaded;
                 self.live = false;
-                if let (Some(key), Some(handle)) = (live, self.handle.clone()) {
-                    self.enter_live(key, &handle, cx);
+                if let (Some((key, pre)), Some(handle)) = (live, self.handle.clone()) {
+                    self.enter_live(key, pre, &handle, cx);
                 }
                 if new_page {
                     self.linked = RefsSection {
@@ -692,12 +729,16 @@ impl PageView {
                     self.filters = RefFilters::default();
                     self.filter_candidates.clear();
                 }
-                self.items = self.build_items();
+                {
+                    let _span = crate::perf::span("page_view.build_items");
+                    self.items = self.build_items();
+                }
                 self.list_state.reset(self.items.len());
                 if let Some(a) = anchor {
                     self.restore_scroll(a);
                 }
                 cx.notify();
+                crate::perf::stamp("page_loaded");
                 if self.is_page_route() {
                     self.load_linked(new_page, cx);
                     if self.unlinked.expanded {
@@ -1133,6 +1174,7 @@ impl PageView {
     }
 
     fn render_item(&mut self, ix: usize, _: &mut Window, cx: &mut Context<Self>) -> AnyElement {
+        let _span = crate::perf::span("page_view.render_item");
         let Some(item) = self.items.get(ix).copied() else {
             return div().into_any_element();
         };
@@ -1664,6 +1706,7 @@ impl PageView {
 
 impl Render for PageView {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let _span = crate::perf::span("page_view.render");
         let theme = cx.theme().clone();
         let body: AnyElement = match &self.state {
             LoadState::Empty => centered(t!("panel.page_host.empty").to_string()),
