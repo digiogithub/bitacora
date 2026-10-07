@@ -2,7 +2,7 @@
 id: BIT-US-0161
 type: story
 title: v2 per-OS verification and performance pass
-status: backlog
+status: in_review
 priority: high
 parent: BIT-EP-0025
 milestone: BIT-M-0009
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, release, qa]
 estimate: 5
 created: 2026-10-07T09:19:46Z
-updated: 2026-10-07T09:19:46Z
+updated: 2026-10-07T13:43:47Z
+started: 2026-10-07T13:23:42Z
 ---
 
 ## Description
