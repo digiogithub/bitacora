@@ -4,7 +4,7 @@
 //! The query is read-only and fully derived from the index tables, so a rebuild from scratch
 //! yields the same [`GraphData`] as the incremental path.
 
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 
 use crate::Error;
 use crate::read::IndexReader;
@@ -118,15 +118,7 @@ impl IndexReader {
     #[allow(clippy::type_complexity)]
     fn load_graph(
         &self,
-    ) -> Result<
-        (
-            Vec<Raw>,
-            BTreeSet<GraphDataEdge>,
-            HashSet<i64>,
-            HashSet<i64>,
-        ),
-        Error,
-    > {
+    ) -> Result<(Vec<Raw>, Vec<GraphDataEdge>, HashSet<i64>, HashSet<i64>), Error> {
         let conn = self.conn()?;
         let mut raws = Vec::new();
         {
@@ -150,12 +142,14 @@ impl IndexReader {
                 raws.push(r?);
             }
         }
-        let mut edges = BTreeSet::new();
+        // A sorted, deduplicated `Vec` (built by one sort at the end) is several times faster
+        // than inserting hundreds of thousands of edges into a `BTreeSet`.
+        let mut edges: Vec<GraphDataEdge> = Vec::new();
         let mut tags = HashSet::new();
         let mut parents = HashSet::new();
         let mut add = |src: i64, dst: i64| {
             if src != dst {
-                edges.insert(GraphDataEdge { src, dst });
+                edges.push(GraphDataEdge { src, dst });
             }
         };
         let mut st = conn.prepare(&format!(
@@ -189,13 +183,15 @@ impl IndexReader {
             parents.insert(dst);
             add(src, dst);
         }
+        edges.sort_unstable();
+        edges.dedup();
         Ok((raws, edges, tags, parents))
     }
 }
 
 fn finish(
     raws: &[Raw],
-    all_edges: &BTreeSet<GraphDataEdge>,
+    all_edges: &[GraphDataEdge],
     tags: &HashSet<i64>,
     parents: &HashSet<i64>,
     filter: &GraphFilter,
@@ -219,7 +215,7 @@ fn finish(
         })
         .map(|p| (p.id, p))
         .collect();
-    let mut edges: BTreeSet<GraphDataEdge> = all_edges
+    let mut edges: Vec<GraphDataEdge> = all_edges
         .iter()
         .filter(|e| visible.contains_key(&e.src) && visible.contains_key(&e.dst))
         .copied()
@@ -257,8 +253,5 @@ fn finish(
             degree: degree.get(&p.id).copied().unwrap_or(0),
         })
         .collect();
-    GraphData {
-        nodes,
-        edges: edges.into_iter().collect(),
-    }
+    GraphData { nodes, edges }
 }

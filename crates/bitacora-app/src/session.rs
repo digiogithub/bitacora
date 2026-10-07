@@ -349,6 +349,19 @@ fn runtime_config(
     cfg
 }
 
+/// `Some(PortInUse)` when something already listens on the loopback `port` (0 = any free port).
+fn mcp_port_in_use(port: u16) -> Option<bitacora_mcp::Error> {
+    if port == 0 {
+        return None;
+    }
+    match std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port)) {
+        Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => {
+            Some(bitacora_mcp::Error::PortInUse(port))
+        }
+        _ => None,
+    }
+}
+
 /// Opens the session; a failing MCP endpoint (port in use, unwritable token file) must not
 /// keep the graph closed, so it is retried without it and reported.
 fn open(
@@ -358,6 +371,18 @@ fn open(
 ) -> Result<Session, RuntimeError> {
     let mut with_mcp = true;
     let mut with_sync = options.sync.is_some();
+    // A busy port is found before the session opens: a bind failure inside `Session::open`
+    // happens after the index is opened and makes the runtime tear everything down and open it
+    // a second time (about 200 ms on a warm 5k-page graph, BIT-US-0161).
+    if options.mcp_token_path.is_some()
+        && let Some(busy) = mcp_port_in_use(options.mcp.port)
+    {
+        tracing::warn!("MCP endpoint unavailable: {busy}");
+        let _ = tx.send_blocking(SessionEvent::Notice(SessionNotice::McpUnavailable(
+            busy.to_string(),
+        )));
+        with_mcp = false;
+    }
     loop {
         match Session::open(runtime_config(root, options, with_mcp, with_sync)) {
             Err(RuntimeError::Mcp(e)) if with_mcp => {
@@ -709,6 +734,19 @@ mod tests {
         // Without a setup the session runs without sync.
         opts.sync = None;
         assert!(runtime_config(g.path(), &opts, false, true).sync.is_none());
+    }
+
+    #[test]
+    fn a_busy_mcp_port_is_detected_before_the_session_opens() {
+        let listener = std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).unwrap();
+        let port = listener.local_addr().unwrap().port();
+        assert!(matches!(
+            mcp_port_in_use(port),
+            Some(bitacora_mcp::Error::PortInUse(p)) if p == port
+        ));
+        drop(listener);
+        assert!(mcp_port_in_use(port).is_none());
+        assert!(mcp_port_in_use(0).is_none());
     }
 
     #[test]

@@ -323,11 +323,7 @@ impl IndexReader {
             })?
             .collect::<Result<_, _>>()?;
         drop(st);
-        let mut blocks: Vec<BlockRow> = rows.iter().map(|(b, _)| b.clone()).collect();
-        load_properties(&conn, &mut blocks)?;
-        for ((slot, _), b) in rows.iter_mut().zip(blocks) {
-            *slot = b;
-        }
+        load_task_properties(&conn, &mut rows)?;
         Ok(rows
             .into_iter()
             .map(|(block, page_name)| TaskItem { block, page_name })
@@ -553,4 +549,34 @@ impl IndexReader {
             .map(|(id, n)| (id, usize::try_from(n).unwrap_or(0)))
             .collect())
     }
+}
+
+/// Fills `properties` of every row with a few `IN (...)` queries instead of one query per block
+/// (tens of thousands of open tasks make the per-block variant the dominant cost).
+fn load_task_properties(
+    conn: &rusqlite::Connection,
+    rows: &mut [(BlockRow, String)],
+) -> Result<(), Error> {
+    const CHUNK: usize = 500;
+    for chunk in rows.chunks_mut(CHUNK) {
+        let marks = vec!["?"; chunk.len()].join(",");
+        let mut st = conn.prepare(&format!(
+            "SELECT block_id, raw_key, raw_value FROM block_properties \
+             WHERE block_id IN ({marks}) ORDER BY block_id, pos"
+        ))?;
+        let ids = chunk.iter().map(|(b, _)| Value::Integer(b.id));
+        let at: std::collections::HashMap<i64, usize> = chunk
+            .iter()
+            .enumerate()
+            .map(|(i, (b, _))| (b.id, i))
+            .collect();
+        let mut found = st.query(params_from_iter(ids))?;
+        while let Some(r) = found.next()? {
+            let id: i64 = r.get(0)?;
+            if let Some(&i) = at.get(&id) {
+                chunk[i].0.properties.push((r.get(1)?, r.get(2)?));
+            }
+        }
+    }
+    Ok(())
 }

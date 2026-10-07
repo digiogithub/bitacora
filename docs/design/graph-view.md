@@ -48,5 +48,5 @@ Every change updates the view at once (a filter change reloads `GraphData`; a fo
 ## Open questions / follow-ups
 - PNG labels would need a text rasteriser (`resvg` with its `text` feature plus a font database); not added because it pulls in `fontdb`/`rustybuzz`-class dependencies for little value.
 - The settings use stepper buttons instead of sliders: the kit has no slider yet.
-- Node ceiling: the 3k target is covered by culling and batched paths; 20k with LOD is not attempted.
+- Node ceiling: the 3k target is covered by culling and batched paths; 20k with LOD is not attempted. Measured recommendation (owner's call): keep 5,000 nodes as the 2.0 ceiling; layout tick is 3.4 ms at 5k and 13.6 ms at 20k (see [[performance-v2]] section 2.4).
 - Manual check on real hardware (smoothness at 3k nodes, idle CPU) is not covered by automated tests.
