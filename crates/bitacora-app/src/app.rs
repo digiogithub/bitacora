@@ -109,6 +109,7 @@ fn keep_running_in_background(dirs: &AppDirs) -> bool {
 fn start(cx: &mut App, args: &Args, dirs: &AppDirs, services: Services) -> anyhow::Result<()> {
     let started = Instant::now();
     ui::init(cx);
+    crate::fonts::register(cx);
     tokio_bridge::init(cx).context("starting the tokio runtime")?;
     theme::install(
         cx,

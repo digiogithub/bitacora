@@ -18,7 +18,7 @@ pub use gpui_kit::{
     Action, Anchor, AnyElement, AnyView, AnyWindowHandle, App, AppContext, Application, AsyncApp,
     Bounds, ClickEvent, Context, Entity, EntityId, EventEmitter, FocusHandle, Focusable, Global,
     Hsla, KeyBinding, KeyBindingContextPredicate, KeyDownEvent, NoAction, PathPromptOptions,
-    Pixels, Point, Render, Rgba, SharedString, Size, StyledImage, Subscription, Task,
+    Pixels, Point, Render, Rgba, SharedString, Size, StyledImage, Subscription, Task, TextSystem,
     TitlebarOptions, WeakEntity, Window, WindowAppearance, WindowBounds, WindowOptions, deferred,
     div, point, px, size,
 };
@@ -383,6 +383,12 @@ pub mod testing {
     pub use gpui_kit::VisualTestContext;
     /// The GPUI test attribute (`#[ui::testing::gpui_test]`).
     pub use gpui_kit::test as gpui_test;
+
+    /// A [`gpui_kit::TextSystem`] backed by the real platform font stack (the
+    /// `TestAppContext` one has no fonts), for tests that resolve actual fonts.
+    pub fn platform_text_system() -> gpui_kit::TextSystem {
+        gpui_kit::TextSystem::new(gpui_kit::platform::current_platform(true).text_system())
+    }
 }
 
 #[cfg(test)]
