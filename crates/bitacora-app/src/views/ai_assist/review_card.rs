@@ -8,6 +8,7 @@
 //! never writes to the graph: the cache is machine-local and the tasks listed are only links to
 //! blocks that exist. Content hidden by the consent exclusions is dropped by the backend guard.
 
+use crate::views::dims;
 use bitacora_core::date::Date;
 use bitacora_runtime::ai::{ReviewRange, ReviewReport, run_review};
 use rust_i18n::t;
@@ -524,7 +525,7 @@ impl Render for ReviewCard {
         div()
             .id("journal-review-card")
             .flex_shrink_0()
-            .max_h(crate::ui::px(340.))
+            .max_h(dims::PX_340)
             .overflow_y_scroll()
             .px(bt.metrics.space[6])
             .pt(bt.metrics.space[5])

@@ -1,5 +1,6 @@
 //! Graph picker: "Open graph folder..." plus the list of recent graphs.
 
+use crate::views::dims;
 use std::path::PathBuf;
 
 use rust_i18n::t;
@@ -9,7 +10,7 @@ use crate::ui::button::{Button, ButtonVariants as _};
 use crate::ui::{
     ActiveTheme as _, ClickEvent, Context, Disableable as _, EventEmitter, IconName,
     InteractiveElement as _, IntoElement, ParentElement as _, PathPromptOptions, Render,
-    Sizable as _, Styled as _, Window, div, h_flex, px, v_flex,
+    Sizable as _, Styled as _, Window, div, h_flex, v_flex,
 };
 
 /// Events emitted by the picker.
@@ -146,11 +147,11 @@ impl Render for GraphPicker {
             .child(
                 v_flex()
                     .id("graph-picker")
-                    .w(px(560.))
+                    .w(dims::PX_560)
                     .gap_4()
                     .child(
                         div()
-                            .text_size(px(26.))
+                            .text_size(dims::PX_26)
                             .child(t!("picker.title").to_string()),
                     )
                     .child(

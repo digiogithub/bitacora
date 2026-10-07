@@ -9,7 +9,9 @@ values is the `BitacoraTheme` global (`cx.bitacora()`: `colors`, `type_scale`, `
 
 - Import from `crate::views::kit`; never hardcode a colour or a token-sized dimension in a view.
   The few design-doc literals that have no token (chip padding 7px, kbd padding 6px, tab `-1px`
-  overlap) are named constants in `inline.rs` / `tab.rs`.
+  overlap) are named constants in `inline.rs` / `tab.rs`. Other literals without a token are
+  named constants in `views/dims.rs`; the pipeline and the enforcing tests are described in
+  [[design-tokens]].
 - Every component is a `RenderOnce` builder with `Into<ElementId>` ids where it is interactive.
   Interactive components are focusable (tab stop, accent border only for keyboard focus,
   Enter/Space activate through GPUI's keyboard click) and expose

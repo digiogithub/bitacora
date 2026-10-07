@@ -4,6 +4,7 @@
 //! The stack is the content of the right dock panel; the [`Workspace`](super::workspace) owns it
 //! and persists [`RightSidebar::entries`] per graph.
 
+use crate::views::dims;
 use rust_i18n::t;
 
 use crate::actions::{
@@ -348,12 +349,12 @@ impl Render for RightSidebar {
             .size_full()
             .overflow_y_scroll()
             .gap_2()
-            .p(px(8.));
+            .p(dims::PX_8);
         if self.items.is_empty() {
             return stack
                 .child(
                     div()
-                        .p(px(8.))
+                        .p(dims::PX_8)
                         .text_sm()
                         .text_color(theme.muted_foreground)
                         .child(t!("right.empty_hint").to_string()),
@@ -367,8 +368,8 @@ impl Render for RightSidebar {
             let header = h_flex()
                 .items_center()
                 .gap_1()
-                .px(px(6.))
-                .py(px(4.))
+                .px(dims::PX_6)
+                .py(dims::PX_4)
                 .child(
                     Button::new(("stack-toggle", ix))
                         .ghost()
@@ -400,7 +401,7 @@ impl Render for RightSidebar {
                 .w_full()
                 .border_1()
                 .border_color(if selected { theme.ring } else { theme.border })
-                .rounded(px(6.))
+                .rounded(dims::PX_6)
                 .child(header);
             if !item.collapsed {
                 card = card.child(

@@ -31,7 +31,7 @@ type Dismiss = Rc<dyn Fn(&mut Window, &mut App)>;
 
 /// A raised, bordered, shadowed container with `radius_popover` corners.
 ///
-/// `PopoverShell::new("menu").width(px(280.)).on_dismiss(|_, cx| ...).child(...)`
+/// `PopoverShell::new("menu").width(dims::PX_280).on_dismiss(|_, cx| ...).child(...)`
 #[derive(IntoElement)]
 pub struct PopoverShell {
     id: ElementId,

@@ -6,6 +6,7 @@
 //! page" entry. Everything is operable with the keyboard: arrows move, Enter opens, Shift+Enter
 //! opens in the right sidebar, Tab cycles the scope, Esc clears and then closes.
 
+use crate::views::dims;
 use std::time::Duration;
 
 use bitacora_index::search::{Scope, SearchHit, SearchOptions, Snippet};
@@ -25,7 +26,7 @@ use crate::ui::{
     ActiveTheme as _, App, AppContext as _, Context, Disableable as _, Entity, EventEmitter,
     FocusHandle, Hsla, IconName, InteractiveElement as _, IntoElement, MenuCancel,
     ParentElement as _, Render, Selectable as _, SharedString, Sizable as _, Styled as _,
-    Subscription, Task, Window, div, h_flex, icon, px, v_flex,
+    Subscription, Task, Window, div, h_flex, icon, v_flex,
 };
 use crate::views::kit::{Chip, ChipTone, Glyph};
 
@@ -779,7 +780,7 @@ impl Palette {
                     );
                 }
                 v_flex()
-                    .gap(px(1.))
+                    .gap(dims::PX_1)
                     .child(Self::snippet_text(&snippet, accent))
                     .child(footer)
             })
@@ -905,7 +906,7 @@ impl Render for Palette {
                 PaletteMode::Search => t!("palette.search_placeholder").to_string(),
                 PaletteMode::Commands => t!("palette.commands_placeholder").to_string(),
             })
-            .max_h(px(420.))
+            .max_h(dims::PX_420)
             .bordered(false)
             .on_query(move |query, _, cx| {
                 let query = query.to_owned();
@@ -924,7 +925,7 @@ impl Render for Palette {
                 let muted = theme.muted_foreground;
                 move |_, _, _| {
                     div()
-                        .p(px(16.))
+                        .p(dims::PX_16)
                         .text_sm()
                         .text_color(muted)
                         .child(if searching {
@@ -940,7 +941,11 @@ impl Render for Palette {
             command = command.group(group);
         }
 
-        let mut chips = h_flex().gap_1().px(px(8.)).py(px(6.)).items_center();
+        let mut chips = h_flex()
+            .gap_1()
+            .px(dims::PX_8)
+            .py(dims::PX_6)
+            .items_center();
         if mode == PaletteMode::Search {
             for scope in SearchScope::ALL {
                 let enabled = scope != SearchScope::ThisPage || self.current_page.is_some();
@@ -994,7 +999,7 @@ impl Render for Palette {
             .flex()
             .justify_center()
             .items_start()
-            .pt(px(72.))
+            .pt(dims::PX_72)
             .on_mouse_down(crate::ui::text_edit::MouseButton::Left, move |_, _, cx| {
                 backdrop.update(cx, |p, cx| p.close(cx));
             })
@@ -1011,7 +1016,7 @@ impl Render for Palette {
                     .on_mouse_down(crate::ui::text_edit::MouseButton::Left, |_, _, cx| {
                         cx.stop_propagation();
                     })
-                    .w(px(680.))
+                    .w(dims::PX_680)
                     .max_w_full()
                     .bg(design.colors.raised)
                     .text_color(design.colors.text)

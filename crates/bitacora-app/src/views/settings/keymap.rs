@@ -1,6 +1,7 @@
 //! Settings > Keymap: view the shortcuts, record a new one, resolve conflicts, reset
 //! (BIT-T-0332). Changes are written to `keymap.json` and re-bound live.
 
+use crate::views::dims;
 use rust_i18n::t;
 
 use super::keymap_model::{KeymapModel, KeymapRow, save_user_keymap};
@@ -205,7 +206,7 @@ impl SettingsView {
                     .px_2()
                     .py_1()
                     .items_center()
-                    .rounded(crate::ui::px(4.))
+                    .rounded(dims::PX_4)
                     .when(is_recording, |r| r.bg(theme.accent.opacity(0.25)))
                     .child(
                         v_flex()
@@ -222,7 +223,7 @@ impl SettingsView {
                     )
                     .child(
                         div()
-                            .w(crate::ui::px(200.))
+                            .w(dims::PX_200)
                             .text_sm()
                             .font_family("monospace")
                             .when(customised_row, |d| d.text_color(theme.warning))

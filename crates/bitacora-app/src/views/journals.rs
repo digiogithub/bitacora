@@ -5,6 +5,7 @@
 //! drawn, so a long history costs nothing until it is scrolled into view. Viewing never
 //! creates a file: today's page stays virtual until it is edited.
 
+use crate::views::dims;
 use std::rc::Rc;
 use std::time::Duration;
 
@@ -123,7 +124,7 @@ impl JournalsView {
             before: None,
             has_more: false,
             loading_days: false,
-            list_state: ListState::new(0, ListAlignment::Top, px(400.)),
+            list_state: ListState::new(0, ListAlignment::Top, dims::PX_400),
             generation: 0,
             load_task: None,
             more_task: None,
@@ -632,7 +633,7 @@ impl JournalsView {
         let mut col = v_flex()
             .w_full()
             .px(bt.metrics.reading_pad_x)
-            .py(px(12.))
+            .py(dims::PX_12)
             .gap_1()
             .child(header);
         // An editable day shows core's rows; the others the index rows.
@@ -698,7 +699,7 @@ impl JournalsView {
             col = col.child(
                 div()
                     .id(("journal-more", ix))
-                    .pl(px(24.))
+                    .pl(dims::PX_24)
                     .text_sm()
                     .text_color(theme.info)
                     .cursor_pointer()
@@ -711,8 +712,8 @@ impl JournalsView {
         let separator = (ix + 1 < self.entries.len()).then(|| {
             div()
                 .w_full()
-                .h(px(1.))
-                .mt(px(8.))
+                .h(dims::PX_1)
+                .mt(dims::PX_8)
                 .bg(theme.border)
                 .into_any_element()
         });

@@ -4,6 +4,7 @@
 //! `Gallery::new`) and the fixture of the view tests below. It is not wired into the
 //! application chrome.
 
+use crate::views::dims;
 use bitacora_markdown::tasks::head::Marker;
 
 use super::{
@@ -13,7 +14,7 @@ use super::{
 use crate::ui::theme::{ActiveBitacoraTheme as _, TypeStyleExt as _};
 use crate::ui::{
     Context, Div, FluentBuilder as _, InteractiveElement as _, IntoElement, ParentElement as _,
-    Render, SharedString, StatefulInteractiveElement as _, Styled as _, Window, div, h_flex, px,
+    Render, SharedString, StatefulInteractiveElement as _, Styled as _, Window, div, h_flex,
     v_flex,
 };
 
@@ -235,7 +236,7 @@ impl Render for Gallery {
                     .when(self.popover_open, |d| {
                         d.child(
                             PopoverShell::new("gallery-popover")
-                                .width(px(240.0))
+                                .width(dims::PX_240)
                                 .on_dismiss(move |_, cx| {
                                     view.update(cx, |this, cx| {
                                         this.popover_open = false;

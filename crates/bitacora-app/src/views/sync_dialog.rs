@@ -6,6 +6,7 @@
 //! [`ActionableError`]s ("check the URL and your network"), and a graph that keeps its git data
 //! in Logseq's separate gitdir is offered the migration instead of an error.
 
+use crate::views::dims;
 use std::path::{Path, PathBuf};
 
 use bitacora_sync::GitDetection;
@@ -26,7 +27,7 @@ use crate::ui::{
     ActiveTheme as _, AppContext as _, Context, Disableable as _, Entity, EventEmitter,
     FluentBuilder as _, FocusHandle, Focusable, IconName, InteractiveElement as _, IntoElement,
     ParentElement as _, PathPromptOptions, Render, Sizable as _, Styled as _, Subscription, Task,
-    Window, div, h_flex, px, v_flex,
+    Window, div, h_flex, v_flex,
 };
 use crate::views::modal::{labelled, modal, title_bar};
 
@@ -693,7 +694,7 @@ impl Render for SyncDialog {
                         .id("sync-dialog-error")
                         .gap_1()
                         .p_2()
-                        .rounded(px(6.))
+                        .rounded(dims::PX_6)
                         .border_1()
                         .border_color(theme.danger)
                         .child(div().text_sm().child(error.message.clone()))

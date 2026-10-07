@@ -6,6 +6,7 @@
 //! control is only about the connection: status chip, what is degraded while Pando is away,
 //! per-graph feature switches, a link to the settings and the activity log.
 
+use crate::views::dims;
 use std::time::Duration;
 
 use bitacora_config::{PandoFeature, PandoSettings};
@@ -18,7 +19,7 @@ use crate::ui::theme::{ActiveBitacoraTheme as _, TypeStyleExt as _};
 use crate::ui::{
     Anchor, AnyElement, Context, Disableable as _, FluentBuilder as _, InteractiveElement as _,
     IntoElement, ParentElement as _, StatefulInteractiveElement as _, Styled as _, Task, Window,
-    anchored, deferred, div, h_flex, px, v_flex,
+    anchored, deferred, div, h_flex, v_flex,
 };
 use crate::views::kit::{Button, Chip, Overline, PopoverShell};
 use crate::views::pando_status::PandoState;
@@ -207,7 +208,7 @@ impl Workspace {
             .child(
                 div()
                     .flex_shrink_0()
-                    .size(px(7.))
+                    .size(dims::PX_7)
                     .rounded_full()
                     .bg(state.dot(&theme)),
             )
@@ -348,7 +349,7 @@ impl Workspace {
             anchored().anchor(Anchor::TopRight).snap_to_window().child(
                 div().mt(metrics.space[2]).child(
                     PopoverShell::new("pando-popover")
-                        .width(px(320.))
+                        .width(dims::PX_320)
                         .on_dismiss(move |_, cx| {
                             let _ = weak.update(cx, |this, cx| this.set_pando_popover(false, cx));
                         })

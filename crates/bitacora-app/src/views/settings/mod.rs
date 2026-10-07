@@ -20,6 +20,7 @@ mod sections;
 #[cfg(test)]
 mod tests;
 
+use crate::views::dims;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -1077,7 +1078,7 @@ pub(crate) fn mode_badge(theme: &crate::ui::theme::Theme, mode: ApplyMode) -> Op
     Some(
         div()
             .px_2()
-            .rounded(crate::ui::px(4.))
+            .rounded(dims::PX_4)
             .text_xs()
             .bg(theme.warning.opacity(0.18))
             .text_color(theme.warning)
@@ -1237,7 +1238,7 @@ impl Render for SettingsView {
                 .on_key_down(cx.listener(|this, event: &KeyDownEvent, window, cx| {
                     this.on_key(event, window, cx)
                 }))
-                .h(crate::ui::px(600.))
+                .h(dims::PX_600)
                 .child(title_bar(
                     &theme,
                     t!("settings.title").to_string(),

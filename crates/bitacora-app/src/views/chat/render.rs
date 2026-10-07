@@ -2,6 +2,7 @@
 //! composer. Colours, sizes and type come from the theme tokens; amber (`ai`) marks AI-only
 //! content: the sparkle, pending proposals, the activity line and AI accents.
 
+use crate::views::dims;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -103,7 +104,7 @@ impl Render for ChatView {
         let bt = cx.bitacora().clone();
         // Follow the stream while the user has not scrolled away from the bottom.
         let max = self.scroll.max_offset().y;
-        let at_bottom = max <= px(0.) || self.scroll.offset().y <= -max + px(4.);
+        let at_bottom = max <= px(0.) || self.scroll.offset().y <= -max + dims::PX_4;
         if at_bottom {
             self.follow = true;
         }
@@ -201,7 +202,7 @@ impl ChatView {
                         .items_center()
                         .text_color(c.ai)
                         .type_style(&bt.type_scale.mono)
-                        .child(div().size(px(6.)).rounded(m.radius_pill).bg(c.ai))
+                        .child(div().size(dims::PX_6).rounded(m.radius_pill).bg(c.ai))
                         .child(div().truncate().child(text)),
                 )
             })
@@ -263,7 +264,7 @@ impl ChatView {
             .on_scroll_wheel(cx.listener(
                 |this, event: &crate::ui::canvas::ScrollWheelEvent, _, _| {
                     // Scrolling up leaves the stream; reaching the bottom again rejoins it.
-                    if event.delta.pixel_delta(px(16.)).y > px(0.) {
+                    if event.delta.pixel_delta(dims::PX_16).y > px(0.) {
                         this.follow = false;
                     }
                 },
@@ -468,7 +469,7 @@ impl ChatView {
             .child(match icon {
                 Some(g) => glyph(g, m.icon_sm, tint, cx).into_any_element(),
                 None => div()
-                    .size(px(8.))
+                    .size(dims::PX_8)
                     .flex_none()
                     .rounded(m.radius_pill)
                     .bg(tint)
@@ -648,7 +649,7 @@ impl ChatView {
                 let (text, tint) = match self.edit_notes.get(&card.id) {
                     Some(EditNote::Applied { page, blocks }) => (
                         t!("chat.edit_applied", count = *blocks, page = page).to_string(),
-                        c.ok,
+                        c.text,
                     ),
                     Some(EditNote::Failed(why)) => {
                         (t!("chat.edit_failed", error = why).to_string(), c.warn)
@@ -656,7 +657,7 @@ impl ChatView {
                     None if matches!(card.kind, CardKind::Edit(_)) => {
                         (t!("chat.edit_applying").to_string(), c.muted)
                     }
-                    None => (t!("chat.answered").to_string(), c.ok),
+                    None => (t!("chat.answered").to_string(), c.muted),
                 };
                 body = body.child(
                     div()
@@ -710,7 +711,7 @@ impl ChatView {
         for (ix, diff) in diffs.iter().enumerate() {
             let mut block = v_flex()
                 .id(("diff", ix))
-                .gap(px(1.))
+                .gap(dims::PX_1)
                 .child(Overline::new(op_label(diff.kind)));
             for line in diff.lines.iter().take(DIFF_LINES) {
                 let (prefix, fg, bg) = match line.kind {
@@ -1128,8 +1129,8 @@ fn usage_el(state: &AgentState, bt: &BitacoraTheme) -> Option<AnyElement> {
             .when_some(usage_fraction(used, state.context_window), |d, f| {
                 d.child(
                     div()
-                        .w(px(40.))
-                        .h(px(3.))
+                        .w(dims::PX_40)
+                        .h(dims::PX_3)
                         .rounded(m.radius_pill)
                         .bg(c.line)
                         .child(
@@ -1187,7 +1188,7 @@ fn md_el(
                 Rendered::Bullet(depth, layout) => h_flex()
                     .items_start()
                     .gap(m.space[3])
-                    .pl(px(16.) * (*depth as f32))
+                    .pl(dims::PX_16 * (*depth as f32))
                     .child(div().flex_none().text_color(c.muted).child(BULLET))
                     .child(div().flex_1().min_w_0().child(text(ix, layout)))
                     .into_any_element(),

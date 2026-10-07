@@ -10,6 +10,7 @@
 //! Interaction logic (`pointer_down` / `pointer_move` / `pointer_up` / `scroll`) takes positions
 //! relative to the canvas centre so it is testable without a window.
 
+use crate::views::dims;
 use std::cell::Cell;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -720,7 +721,7 @@ struct EdgeBatch(
 impl EdgeBatch {
     fn flush(&mut self, color: Hsla, window: &mut Window) {
         for chunk in self.0.chunks(EDGES_PER_PATH) {
-            let mut builder = PathBuilder::stroke(px(1.0));
+            let mut builder = PathBuilder::stroke(dims::PX_1);
             for (a, b) in chunk {
                 builder.move_to(*a);
                 builder.line_to(*b);
@@ -804,13 +805,13 @@ fn paint_graph(bounds: Bounds<crate::ui::Pixels>, d: &PaintData, window: &mut Wi
             let ring = d.focused.get(i).copied().unwrap_or(false);
             let rect = Bounds::new(
                 pt([s[0] - r, s[1] - r]),
-                crate::ui::size(px(2.0 * r), px(2.0 * r)),
+                crate::ui::size(px(r * 2.0), px(r * 2.0)),
             );
             window.paint_quad(quad(
                 rect,
                 px(r),
                 color,
-                if ring { px(2.0) } else { px(0.0) },
+                if ring { dims::PX_2 } else { px(0.0) },
                 d.colors.text,
                 BorderStyle::default(),
             ));
@@ -943,16 +944,16 @@ impl GraphView {
         let hops = self.hops;
         let mut bar = h_flex()
             .absolute()
-            .top(px(12.0))
-            .left(px(12.0))
+            .top(dims::PX_12)
+            .left(dims::PX_12)
             .gap_2()
             .items_center()
-            .px(px(8.0))
-            .py(px(4.0))
+            .px(dims::PX_8)
+            .py(dims::PX_4)
             .bg(panel)
             .border_1()
             .border_color(line)
-            .rounded(px(6.0))
+            .rounded(dims::PX_6)
             .text_sm()
             .text_color(colors.text)
             .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())

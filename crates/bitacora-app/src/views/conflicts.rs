@@ -9,6 +9,7 @@
 //! The data model ([`ConflictCard`], [`actions_for`], [`Progress`]) is plain Rust so the state
 //! transitions are tested without a window.
 
+use crate::views::dims;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -26,7 +27,7 @@ use crate::ui::{
     ActiveTheme as _, AppContext as _, Context, Entity, EventEmitter, FluentBuilder as _,
     FocusHandle, Focusable, IconName, InteractiveElement as _, IntoElement, KeyDownEvent,
     ParentElement as _, Render, Sizable as _, StatefulInteractiveElement as _, Styled as _, Task,
-    Window, div, h_flex, px, v_flex,
+    Window, div, h_flex, v_flex,
 };
 use crate::views::modal::{modal, title_bar, word_diff};
 use crate::views::sync_panel::ago;
@@ -549,7 +550,7 @@ impl Render for ConflictsView {
             .gap_4()
             .p_4()
             .overflow_y_scroll()
-            .max_h(px(560.));
+            .max_h(dims::PX_560);
         if self.cards.is_empty() {
             body = body.child(
                 div().text_sm().text_color(theme.muted_foreground).child(
@@ -632,7 +633,7 @@ impl Render for ConflictsView {
                     .id(("conflict-card", ix))
                     .gap_2()
                     .p_3()
-                    .rounded(px(6.))
+                    .rounded(dims::PX_6)
                     .border_1()
                     .border_color(if selected {
                         theme.primary
@@ -767,7 +768,7 @@ impl Render for ConflictsView {
                         )
                         .child(
                             ProgressBar::new("conflicts-bar")
-                                .w(px(160.))
+                                .w(dims::PX_160)
                                 .value(progress.percent()),
                         )
                     })

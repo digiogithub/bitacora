@@ -25,6 +25,7 @@ use crate::ui::{
     Size, StatefulInteractiveElement as _, Styled as _, TitlebarOptions, Window, WindowBounds,
     WindowOptions, div, h_flex, icon, point, px,
 };
+use crate::views::dims;
 
 /// Height of the app title bar in logical pixels (design system layout).
 pub const TITLE_BAR_HEIGHT: f32 = 52.0;
@@ -124,7 +125,7 @@ pub fn main_window_options(
             title: Some(title.into()),
             appears_transparent: true,
             // Centre the 14px native lights vertically in the 52px bar.
-            traffic_light_position: Some(point(px(18.0), px((TITLE_BAR_HEIGHT - 14.0) / 2.0))),
+            traffic_light_position: Some(point(dims::PX_18, px((TITLE_BAR_HEIGHT - 14.0) / 2.0))),
         }),
         window_bounds: Some(WindowBounds::Windowed(bounds)),
         window_min_size: Some(min_size),

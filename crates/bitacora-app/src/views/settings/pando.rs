@@ -8,6 +8,7 @@
 //! agent writes, features) reopens the graph; exclusions and revoked consent apply to the running
 //! session at once (`Session::apply_pando_consent`).
 
+use crate::views::dims;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -801,7 +802,7 @@ impl SettingsView {
             theme,
             t!(key).to_string(),
             None,
-            div().w(crate::ui::px(300.)).child(Input::new(input)),
+            div().w(dims::PX_300).child(Input::new(input)),
         )
     }
 
@@ -833,7 +834,7 @@ impl SettingsView {
             Some(source),
             h_flex()
                 .gap_2()
-                .child(div().w(crate::ui::px(200.)).child(Input::new(input)))
+                .child(div().w(dims::PX_200).child(Input::new(input)))
                 .child(
                     Button::new(id_save)
                         .small()

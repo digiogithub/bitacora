@@ -5,6 +5,7 @@
 //! queue ([`edit_config`]: comment-preserving, atomic, hash-checked). Writes are serialised: while
 //! one is in flight, further edits wait in `pending` and go out as one batch.
 
+use crate::views::dims;
 use std::path::{Path, PathBuf};
 
 use super::{
@@ -18,7 +19,7 @@ use rust_i18n::t;
 use crate::ui::theme::ActiveBitacoraTheme as _;
 use crate::ui::{
     App, AppContext as _, Context, Hsla, InteractiveElement as _, IntoElement, ParentElement as _,
-    StatefulInteractiveElement as _, Styled as _, Window, div, h_flex, px,
+    StatefulInteractiveElement as _, Styled as _, Window, div, h_flex,
 };
 use crate::views::kit::{Button, Glyph};
 
@@ -362,7 +363,7 @@ impl GraphView {
                     )
                     .child(
                         div()
-                            .min_w(px(44.0))
+                            .min_w(dims::PX_44)
                             .text_center()
                             .child(format!("{value:.0}")),
                     )
@@ -524,9 +525,9 @@ impl GraphView {
         div()
             .id("graph-panel")
             .absolute()
-            .top(px(12.0))
-            .right(px(12.0))
-            .w(px(300.0))
+            .top(dims::PX_12)
+            .right(dims::PX_12)
+            .w(dims::PX_300)
             .max_h_full()
             .overflow_y_scroll()
             .text_sm()
