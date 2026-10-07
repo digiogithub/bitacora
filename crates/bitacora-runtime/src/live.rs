@@ -93,6 +93,8 @@ pub struct Session {
     sync: SyncSlot,
     sync_options: Option<SyncOptions>,
     pando: Option<PandoService>,
+    /// Semantic sync of the graph into Pando's KB (ADR-030); stops before the Pando service.
+    semantic: Option<bitacora_pando::semantic::SemanticWorker>,
     sync_watch: Option<SyncWatch>,
     recovery: Option<RecoveryReport>,
     events: Events,
@@ -265,6 +267,7 @@ impl Session {
             sync,
             sync_options: cfg.sync.clone(),
             pando: None,
+            semantic: None,
             sync_watch: None,
             recovery: None,
             events,
@@ -329,7 +332,21 @@ impl Session {
             if p.graph.as_os_str().is_empty() {
                 p.graph = root.clone();
             }
-            session.pando = Some(PandoService::start(p));
+            let service = PandoService::start(p.clone());
+            // Semantic search is optional: a failure is logged and never stops the open.
+            if let Some(ix) = session.indexer.as_ref() {
+                let inputs = bitacora_pando::semantic::SessionInputs {
+                    graph_root: &root,
+                    data_dir: session.index.location().dir(),
+                    reader: session.index.read_api(),
+                    events: ix.subscribe(),
+                };
+                match bitacora_pando::semantic::start_session(&service, &p, inputs) {
+                    Ok(worker) => session.semantic = worker,
+                    Err(e) => tracing::warn!(error = %e, "semantic sync not started"),
+                }
+            }
+            session.pando = Some(service);
         }
         Ok(session)
     }
@@ -338,6 +355,18 @@ impl Session {
     #[must_use]
     pub fn pando(&self) -> Option<&PandoService> {
         self.pando.as_ref()
+    }
+
+    /// Counts of the semantic sync (`None` when it is not running).
+    #[must_use]
+    pub fn semantic_status(&self) -> Option<bitacora_pando::semantic::SemanticStatus> {
+        self.semantic.as_ref().map(|w| w.status())
+    }
+
+    /// The semantic sync worker, to change exclusions, resync or purge (BIT-SP-0010.R6).
+    #[must_use]
+    pub fn semantic(&self) -> Option<&bitacora_pando::semantic::SemanticWorker> {
+        self.semantic.as_ref()
     }
 
     /// Current Pando status (`Off` when the integration was not configured).
@@ -754,7 +783,11 @@ impl Session {
         let deadline = Instant::now() + budget;
         let left = || deadline.saturating_duration_since(Instant::now());
 
-        // 0. Pando: it reads the index and core, so it stops before them.
+        // 0. Semantic sync and Pando: they read the index and core, so they stop before them.
+        // Pending semantic operations stay in the ledger for the next session.
+        if let Some(mut w) = self.semantic.take() {
+            w.stop();
+        }
         if let Some(mut p) = self.pando.take() {
             p.stop(left().min(Duration::from_secs(3)));
         }

@@ -1,0 +1,57 @@
+---
+source: crates/bitacora-pando/tests/semantic_index.rs
+expression: out
+---
+=== journals/2024_05_01.md :: 6650a1b2-0000-4000-8000-00000000000e
+# May 1st, 2024
+
+Went for a long walk along the beach with friends
+--- metadata
+{
+  "source": "bitacora",
+  "schema": 1,
+  "graph_name": "notes",
+  "page": "May 1st, 2024",
+  "page_path": "journals/2024_05_01.md",
+  "block_uuid": "6650a1b2-0000-4000-8000-00000000000e",
+  "journal_day": 20240501,
+  "tags": []
+}
+--- tags []
+
+=== pages/Trip Plan.md :: 6650a1b2-0000-4000-8000-00000000000c
+# Trip Plan
+> Itinerary > Day one #flights
+
+Book the ferry to the island before noon
+--- metadata
+{
+  "source": "bitacora",
+  "schema": 1,
+  "graph_name": "notes",
+  "page": "Trip Plan",
+  "page_path": "pages/Trip Plan.md",
+  "block_uuid": "6650a1b2-0000-4000-8000-00000000000c",
+  "tags": [
+    "travel"
+  ]
+}
+--- tags ["travel"]
+
+=== pages/Trip Plan.md :: 6650a1b2-0000-4000-8000-00000000000d
+# Trip Plan
+
+A long enough thought about packing light for the trip
+--- metadata
+{
+  "source": "bitacora",
+  "schema": 1,
+  "graph_name": "notes",
+  "page": "Trip Plan",
+  "page_path": "pages/Trip Plan.md",
+  "block_uuid": "6650a1b2-0000-4000-8000-00000000000d",
+  "tags": [
+    "travel"
+  ]
+}
+--- tags ["travel"]
