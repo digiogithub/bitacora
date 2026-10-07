@@ -22,6 +22,7 @@ pub use gpui_kit::{
     TitlebarOptions, WeakEntity, Window, WindowAppearance, WindowBounds, WindowOptions, deferred,
     div, point, px, size,
 };
+pub use gpui_kit::{rgb, rgba};
 
 /// The kit's "cancel" action (Escape in menus and command palettes).
 pub use gpui_kit::base::actions::Cancel as MenuCancel;
@@ -74,6 +75,13 @@ pub mod progress {
 
 /// Theme registry and modes.
 pub mod theme {
+    pub mod palette;
+
+    pub use palette::Palette;
+
+    #[cfg(test)]
+    mod palette_tests;
+
     pub use gpui_kit::component::theme::{Theme, ThemeConfig, ThemeMode, ThemeRegistry};
 }
 

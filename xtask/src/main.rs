@@ -4,6 +4,7 @@
 //! - `fixtures update|verify`: maintain and check `fixtures/graphs/MANIFEST.sha256`.
 //! - `bundle`, `release-check`, `release-notes`, `sha256sums`, `bump`: packaging and release
 //!   helpers (see `docs/design/release-process.md`).
+//! - `tokens [--check|--contrast]`: generate/verify the colour palette from `design/` (ADR-032).
 //! - `check-deps`: enforce the workspace dependency direction, the GPUI pin and
 //!   the "no tokio in `bitacora-core`" rule (ADR-001, ADR-012, ADR-016).
 
@@ -11,6 +12,7 @@ mod bundle;
 mod deps;
 mod fixtures;
 mod release;
+mod tokens;
 
 use std::process::ExitCode;
 
@@ -25,6 +27,17 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         },
+        Some("tokens") => {
+            let rest: Vec<String> = args.collect();
+            match tokens::run(&rest) {
+                Ok(true) => ExitCode::SUCCESS,
+                Ok(false) => ExitCode::FAILURE,
+                Err(err) => {
+                    eprintln!("xtask: {err:#}");
+                    ExitCode::FAILURE
+                }
+            }
+        }
         Some("fixtures") => match fixtures::run(args.next().as_deref()) {
             Ok(true) => ExitCode::SUCCESS,
             Ok(false) => ExitCode::FAILURE,
@@ -58,7 +71,7 @@ fn main() -> ExitCode {
                 eprintln!("xtask: unknown command `{cmd}`");
             }
             eprintln!(
-                "usage: cargo xtask <check-deps | fixtures update|verify | bundle | release-check TAG | \
+                "usage: cargo xtask <check-deps | fixtures update|verify | tokens [--check|--contrast] | bundle | release-check TAG | \
                  release-notes VERSION | sha256sums DIR | bump VERSION>"
             );
             ExitCode::FAILURE

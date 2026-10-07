@@ -77,6 +77,8 @@ jobs:
           command: check
       - run: cargo xtask check-deps
       - run: cargo xtask fixtures verify
+      - run: cargo xtask tokens --check
+      - run: cargo xtask tokens --contrast
 
   test-core:
     # GPUI-free fast path: never compiles gpui-kit and installs no GUI packages.
