@@ -98,7 +98,7 @@ pub struct Session {
     /// FTS5 + semantic search (BIT-US-0144); lexical only when Pando is off.
     hybrid: Option<bitacora_pando::semantic::HybridSearch>,
     /// Consent and feature switches the AI agents obey (BIT-SP-0011); `None` without Pando.
-    agent: Option<crate::agents::AgentContext>,
+    agent: Option<parking_lot::RwLock<crate::agents::AgentContext>>,
     sync_watch: Option<SyncWatch>,
     recovery: Option<RecoveryReport>,
     events: Events,
@@ -344,7 +344,9 @@ impl Session {
             if p.supervisor.is_none() && p.settings.mode == bitacora_config::PandoMode::Managed {
                 p.supervisor = default_supervisor(&p.settings);
             }
-            session.agent = Some(crate::agents::AgentContext::from_options(&p));
+            session.agent = Some(parking_lot::RwLock::new(
+                crate::agents::AgentContext::from_options(&p),
+            ));
             let service = PandoService::start(p.clone());
             // Semantic search is optional: a failure is logged and never stops the open.
             if let Some(ix) = session.indexer.as_ref() {
@@ -427,10 +429,8 @@ impl Session {
     /// worker's live exclusions when it runs; without consent nothing passes.
     #[must_use]
     pub fn agent_guard(&self) -> bitacora_pando::agents::ContentGuard {
-        crate::agents::guard(
-            self.agent.as_ref(),
-            self.semantic.as_ref().map(|w| w.policy()),
-        )
+        let ctx = self.agent.as_ref().map(|a| a.read().clone());
+        crate::agents::guard(ctx.as_ref(), self.semantic.as_ref().map(|w| w.policy()))
     }
 
     /// AG-UI client of the connected Pando, `None` unless it is connected.
@@ -499,7 +499,7 @@ impl Session {
         ),
         RuntimeError,
     > {
-        if !self.agent.as_ref().is_some_and(|a| a.chat_enabled) {
+        if !self.agent.as_ref().is_some_and(|a| a.read().chat_enabled) {
             return Err(RuntimeError::Agent("the chat feature is off".into()));
         }
         let agui = self.require_agents()?;
@@ -519,13 +519,48 @@ impl Session {
 
     fn require_agents(&self) -> Result<pando::agui::AguiClient, RuntimeError> {
         let err = |m: &str| RuntimeError::Agent(m.to_owned());
-        if !self.agent.as_ref().is_some_and(|a| a.consent.granted) {
+        if !self
+            .agent
+            .as_ref()
+            .is_some_and(|a| a.read().consent.granted)
+        {
             return Err(err("this graph has not consented to agent access"));
         }
         if !matches!(self.pando_status(), PandoStatus::Connected { .. }) {
             return Err(err("Pando is not connected"));
         }
         self.agui_client().ok_or_else(|| err("no AG-UI endpoint"))
+    }
+
+    /// Applies the consent and exclusions of `settings` for this graph without reopening it:
+    /// the semantic content policy (documents that became ineligible are deleted from Pando) and
+    /// the read exclusions of the `pando` MCP token. With `purge`, every document of this graph
+    /// is also removed from Pando (revoked consent, "remove my data"). Revoked consent stops the
+    /// sync because the policy then excludes everything.
+    pub fn apply_pando_consent(&self, settings: &bitacora_config::PandoSettings, purge: bool) {
+        let key = self.root.to_string_lossy().into_owned();
+        let consent = settings.consent(&key);
+        if let Some(agent) = self.agent.as_ref() {
+            agent.write().consent = consent.clone();
+        }
+        if let Some(worker) = self.semantic.as_ref() {
+            // Nothing may leave the machine without consent.
+            let policy = if consent.granted {
+                bitacora_pando::semantic::ContentPolicy::from_consent(&consent)
+            } else {
+                bitacora_pando::semantic::ContentPolicy::denying_all()
+            };
+            worker.set_policy(policy);
+            if purge {
+                worker.purge();
+            }
+        }
+        if let Some(server) = self.mcp.as_ref() {
+            server.set_read_exclusions(
+                bitacora_mcp::PANDO_TOKEN_NAME,
+                Some(bitacora_mcp::ReadExclusions::new(&consent.exclusions)),
+            );
+        }
     }
 
     /// Current Pando status (`Off` when the integration was not configured).

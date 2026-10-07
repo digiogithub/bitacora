@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [search, pando, index, v2]
 created: 2026-10-07T09:08:04Z
-updated: 2026-10-07T11:20:55Z
+updated: 2026-10-07T12:02:54Z
 requirements:
   R1:
     status: backlog
@@ -23,9 +23,12 @@ requirements:
       code:
         - crates/bitacora-pando/src/semantic/doc.rs
         - crates/bitacora-pando/src/semantic/worker.rs
+        - crates/bitacora-runtime/src/live.rs#apply_pando_consent
+        - crates/bitacora-app/src/views/settings/pando.rs
       tests:
         - crates/bitacora-pando/src/semantic/doc.rs
         - crates/bitacora-pando/tests/semantic_sync.rs
+        - crates/bitacora-runtime/tests/pando_semantic.rs#exclusions_and_revoked_consent_reach_the_running_session
   R3:
     status: backlog
     trace:

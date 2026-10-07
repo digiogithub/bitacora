@@ -2,7 +2,7 @@
 id: BIT-T-0428
 type: task
 title: "Pando settings section: connection, test and features"
-status: backlog
+status: in_review
 priority: high
 parent: BIT-US-0137
 milestone: BIT-M-0007
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, settings, bitacora-app]
 estimate: 3
 created: 2026-10-07T09:16:33Z
-updated: 2026-10-07T09:16:33Z
+updated: 2026-10-07T12:02:54Z
+started: 2026-10-07T12:02:54Z
 ---
 
 ## Description

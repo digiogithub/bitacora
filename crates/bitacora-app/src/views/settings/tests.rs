@@ -77,6 +77,7 @@ impl Env {
             session: None,
             global_config: Some(self.data.path().join("no-global.edn")),
             keymap_file: Some(self.data.path().join("keymap.json")),
+            pando_file: None,
             tokens: self.session().mcp_tokens(),
             policy: self.session().mcp_policy(),
         }
@@ -779,3 +780,5 @@ fn navigation_groups_cover_every_section_once_with_a_pando_slot() {
     }
     assert!(grouped.contains(&Section::Pando));
 }
+
+mod pando_ui;

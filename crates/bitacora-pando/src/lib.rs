@@ -17,6 +17,7 @@
 //! synchronous and never depends on it.
 
 pub mod agents;
+pub mod connection;
 pub mod credentials;
 pub mod events;
 pub mod managed;
@@ -24,13 +25,14 @@ pub mod semantic;
 pub mod service;
 pub mod supervisor;
 
+pub use connection::{ConnectionReport, KbSharing, kb_sharing, test_connection};
 pub use credentials::{
     CredentialError, MemoryBackend, PandoCredentials, SecretBackend, TokenKind, TokenSource,
     os_keychain,
 };
 pub use events::{EventSink, PandoEvent, PandoStatus, RunEvent, SyncProgress};
 pub use managed::config::external_config_snippet;
-pub use managed::{ManagedOptions, ManagedStatus, ManagedSupervisor};
+pub use managed::{ManagedOptions, ManagedState, ManagedStatus, ManagedSupervisor};
 pub use service::{DEFAULT_PROBE_INTERVAL, Endpoints, PandoOptions, PandoService, ServiceProbe};
 pub use supervisor::{ManagedEndpoint, McpAccess, Supervisor};
 

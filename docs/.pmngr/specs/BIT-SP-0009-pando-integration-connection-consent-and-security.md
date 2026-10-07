@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [pando, security, privacy, v2]
 created: 2026-10-07T09:08:04Z
-updated: 2026-10-07T10:30:07Z
+updated: 2026-10-07T12:02:54Z
 requirements:
   R1:
     status: backlog
@@ -16,9 +16,12 @@ requirements:
       code:
         - crates/bitacora-pando/src/credentials.rs#PandoCredentials
         - crates/bitacora-config/src/pando.rs#PandoSettings
+        - crates/bitacora-app/src/views/settings/pando.rs
       tests:
         - crates/bitacora-pando/src/credentials.rs#trace_logging_never_leaks_the_secret
         - crates/bitacora-config/src/pando.rs#serialized_settings_contain_no_token_field
+        - crates/bitacora-app/src/views/settings/tests/pando_ui.rs#saving_pando_settings_changes_nothing_in_the_graph_folder
+        - crates/bitacora-app/src/views/settings/tests/pando_ui.rs#tokens_go_to_the_keychain_and_are_never_shown
   R3:
     status: backlog
     trace:
@@ -42,6 +45,11 @@ requirements:
         - crates/bitacora-runtime/tests/pando.rs
   R6:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-app/src/views/settings/pando.rs
+        - crates/bitacora-pando/src/connection.rs
+      tests: [crates/bitacora-app/src/views/settings/tests/pando_ui.rs]
   R7:
     status: backlog
 ---

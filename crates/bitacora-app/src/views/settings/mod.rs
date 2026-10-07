@@ -15,6 +15,7 @@ mod graph_config;
 mod keymap;
 mod keymap_model;
 mod model;
+mod pando;
 mod sections;
 #[cfg(test)]
 mod tests;
@@ -33,6 +34,8 @@ pub use graph_config::{
 };
 pub use keymap_model::{KeymapModel, KeymapRow, save_user_keymap};
 pub use model::AppKey;
+pub(crate) use pando::agent_configured_for;
+pub use pando::{ConnTest, LiveStatus};
 
 use crate::session::SessionHandle;
 use crate::settings::AppSettings;
@@ -64,7 +67,7 @@ pub enum Section {
     Sync,
     /// MCP server: tokens, toggles, protected pages.
     Agents,
-    /// Pando (AI): slot reserved for BIT-US-0137, which fills it in.
+    /// Pando (AI): connection, features, per-graph consent and exclusions.
     Pando,
     /// Theme and font size.
     Appearance,
@@ -138,6 +141,12 @@ pub enum SettingsEvent {
     ReopenGraph,
     /// `:favorites` changed.
     FavoritesChanged(Vec<String>),
+    /// The Pando settings file changed (consent, endpoints, features...). `reopen` asks the
+    /// workspace to reopen the graph so the session starts with them.
+    PandoChanged {
+        /// Reopen the graph.
+        reopen: bool,
+    },
     /// Commit, fetch, merge and push now.
     SyncNow,
     /// Open the "Enable sync" form.
@@ -170,6 +179,16 @@ pub enum Pending {
     RevokeToken(String),
     /// Replace the secret of the token.
     RotateToken(String),
+    /// Consent to send the graph's indexed blocks to Pando's shared KB.
+    GrantPandoConsent {
+        /// Where the data goes (the URL, or the managed instance).
+        target: String,
+    },
+    /// Withdraw the consent (and optionally delete the graph's documents from Pando).
+    RevokePandoConsent {
+        /// Also remove the documents already sent.
+        purge: bool,
+    },
     /// Restore every default shortcut.
     ResetKeymap,
     /// Bind a keystroke that another action in the context already uses.
@@ -216,6 +235,8 @@ pub struct SettingsContext {
     pub global_config: Option<PathBuf>,
     /// Where the user keymap is kept (`None`: not persisted).
     pub keymap_file: Option<PathBuf>,
+    /// `pando.json` (machine-local Pando settings); `None` keeps them in memory (tests).
+    pub pando_file: Option<PathBuf>,
     /// Bearer tokens of the running MCP server.
     pub tokens: Option<Arc<TokenStore>>,
     /// Write policy of the running MCP server (toggles apply live).
@@ -256,6 +277,8 @@ pub(crate) enum Field {
     Port,
     SyncTiming,
     FontSize,
+    PandoEndpoints,
+    PandoExclusion,
 }
 
 /// The overlay.
@@ -276,6 +299,8 @@ pub struct SettingsView {
     pub(crate) recording: Option<(Option<String>, String)>,
     pub(crate) sync_prefs: SyncPrefs,
     pub(crate) sync_view: Option<SyncStatusView>,
+    pub(crate) pando: pando::PandoPanel,
+    pando_inputs: pando::PandoInputs,
     squash: bool,
     needs_reload: bool,
     _subscriptions: Vec<Subscription>,
@@ -345,7 +370,43 @@ impl SettingsView {
             sync_fetch: field(cx, window, "120".to_owned()),
             font_size: field(cx, window, "16".to_owned()),
         };
+        let pando_inputs = pando::PandoInputs {
+            rest_url: field(cx, window, "http://127.0.0.1:8765".to_owned()),
+            agui_url: field(cx, window, "http://127.0.0.1:8765".to_owned()),
+            rest_token: cx.new(|cx| {
+                InputState::new(window, cx)
+                    .masked(true)
+                    .placeholder(t!("settings.pando.token_placeholder").to_string())
+            }),
+            agui_token: cx.new(|cx| {
+                InputState::new(window, cx)
+                    .masked(true)
+                    .placeholder(t!("settings.pando.token_placeholder").to_string())
+            }),
+            binary: field(cx, window, "pando".to_owned()),
+            exclusion: field(
+                cx,
+                window,
+                t!("settings.pando.exclusion_placeholder").to_string(),
+            ),
+        };
         let mut subscriptions = Vec::new();
+        for (input, which) in [
+            (&pando_inputs.rest_url, Field::PandoEndpoints),
+            (&pando_inputs.agui_url, Field::PandoEndpoints),
+            (&pando_inputs.binary, Field::PandoEndpoints),
+            (&pando_inputs.exclusion, Field::PandoExclusion),
+        ] {
+            subscriptions.push(cx.subscribe_in(
+                input,
+                window,
+                move |this, _, event: &InputEvent, window, cx| {
+                    if matches!(event, InputEvent::PressEnter { .. }) {
+                        this.commit(which, window, cx);
+                    }
+                },
+            ));
+        }
         for (input, which) in [
             (&inputs.title_format, Field::TitleFormat),
             (&inputs.file_format, Field::FileFormat),
@@ -391,6 +452,8 @@ impl SettingsView {
             recording: None,
             sync_prefs: SyncPrefs::default(),
             sync_view: None,
+            pando: pando::PandoPanel::new(),
+            pando_inputs,
             squash: true,
             needs_reload: false,
             _subscriptions: subscriptions,
@@ -547,6 +610,7 @@ impl SettingsView {
             }
         }
         self.fill_sync_inputs(window, cx);
+        self.reload_pando(window, cx);
         self.reload_keymap(cx);
     }
 
@@ -638,6 +702,8 @@ impl SettingsView {
             }
             Field::SyncTiming => self.commit_sync_timing(cx),
             Field::FontSize => self.commit_font_size(window, cx),
+            Field::PandoEndpoints => self.commit_pando_endpoints(cx),
+            Field::PandoExclusion => self.add_pando_exclusion(window, cx),
         }
     }
 
@@ -744,6 +810,8 @@ impl SettingsView {
             Pending::Substring(on) => self.apply_substring(on, window, cx),
             Pending::RevokeToken(name) => self.revoke_token(&name, cx),
             Pending::RotateToken(name) => self.rotate_token(&name, cx),
+            Pending::GrantPandoConsent { .. } => self.grant_pando_consent(cx),
+            Pending::RevokePandoConsent { purge } => self.revoke_pando_consent(purge, cx),
             Pending::ResetKeymap => self.reset_keymap(cx),
             Pending::KeymapConflict {
                 context,
@@ -918,6 +986,15 @@ fn confirmation_for(pending: &Pending) -> Confirmation {
             t!("settings.confirm.rotate_title", name = name).to_string(),
             t!("settings.confirm.rotate_body").to_string(),
         ),
+        Pending::GrantPandoConsent { target } => pando::consent_confirmation(target),
+        Pending::RevokePandoConsent { purge: false } => (
+            t!("settings.pando.revoke_title").to_string(),
+            t!("settings.pando.revoke_body").to_string(),
+        ),
+        Pending::RevokePandoConsent { purge: true } => (
+            t!("settings.pando.purge_title").to_string(),
+            t!("settings.pando.purge_body").to_string(),
+        ),
         Pending::ResetKeymap => (
             t!("settings.confirm.reset_keys_title").to_string(),
             t!("settings.confirm.reset_keys_body").to_string(),
@@ -937,6 +1014,9 @@ fn confirmation_for(pending: &Pending) -> Confirmation {
         Pending::RevokeToken(_) => t!("settings.agents.revoke"),
         Pending::RotateToken(_) => t!("settings.agents.rotate"),
         Pending::ResetKeymap => t!("settings.keymap.reset"),
+        Pending::GrantPandoConsent { .. } => t!("settings.pando.grant"),
+        Pending::RevokePandoConsent { purge: false } => t!("settings.pando.revoke"),
+        Pending::RevokePandoConsent { purge: true } => t!("settings.pando.revoke_purge"),
         _ => t!("settings.confirm.ok"),
     }
     .to_string();
@@ -1017,18 +1097,6 @@ pub(crate) fn field(
         .into_any_element()
 }
 
-impl SettingsView {
-    /// The Pando section: only the slot for now, BIT-US-0137 renders its settings here.
-    fn render_pando(&self, theme: &crate::ui::theme::Theme) -> AnyElement {
-        div()
-            .id("settings-pando")
-            .text_sm()
-            .text_color(theme.muted_foreground)
-            .child(t!("settings.pando.placeholder").to_string())
-            .into_any_element()
-    }
-}
-
 impl Render for SettingsView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         if !self.open {
@@ -1107,7 +1175,7 @@ impl Render for SettingsView {
             Section::Search => self.render_search(&theme, cx),
             Section::Sync => self.render_sync(&theme, cx),
             Section::Agents => self.render_agents(&theme, cx),
-            Section::Pando => self.render_pando(&theme),
+            Section::Pando => self.render_pando(&theme, cx),
             Section::Appearance => self.render_appearance(&theme, cx),
             Section::Keymap => self.render_keymap(&theme, cx),
         };
