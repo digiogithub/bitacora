@@ -87,3 +87,11 @@ Status: backlog generated 2026-10-07 (milestones BIT-M-0006..0009). Continues [[
 
 1. Which OSes get manual frameless verification for 2.0?
 2. Graph node ceiling (5k vs 20k with LOD); PNG export via `tiny-skia` or SVG only first.
+
+## Execution status (2026-10-07)
+
+All 49 v2 stories (BIT-M-0006..0009) were implemented by worktree subagents and merged into `main`; BIT-US-0164 (colour-scheme files) stays post-2.0. Final gate on Linux: `cargo fmt --check`, `cargo clippy --workspace --all-targets -D warnings`, `cargo test --workspace` (1982 passed, 0 failed), `cargo xtask check-deps`, `cargo xtask tokens --check`.
+
+Deviations: `pando-rs` lives in-workspace at `crates/pando-rs` (ADR-027) because the Pando repo had owner WIP; PNG export via `tiny-skia` (no labels; SVG has labels); recommended graph ceiling 5k nodes (see [[performance-v2]]).
+
+Items left `in_review` need owner validation (visual review, macOS/Windows, real-GPU perf, live Pando with a capable model, crates.io publish, release tag): see [[owner-manual-validation-checklist]] section V and [[release-checklist-2.0]]. Open owner decisions: chat auto-approval of read-only Pando tools, filtering MCP `read_asset`/`config_text` for the `pando` token, the two purge buttons in Pando settings, breakpoints 1170/760px ([[ai-privacy-review]] §5).
