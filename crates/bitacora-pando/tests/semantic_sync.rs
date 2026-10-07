@@ -564,7 +564,11 @@ async fn a_rejected_document_does_not_block_the_others() {
             .any(|e| e.doc_id == id("a1") && e.attempts >= 1)
     })
     .await;
-    assert_eq!(ledger.pending_count().unwrap(), 1);
+    // The good document's acknowledgement may land just after its upsert is observed.
+    wait_for("only the bad one pending", || {
+        ledger.pending_count().unwrap() == 1
+    })
+    .await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
