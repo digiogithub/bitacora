@@ -14,6 +14,7 @@ use crate::Error;
 use crate::audit::{AuditLog, UndoError};
 use crate::bridge::QueueBridge;
 use crate::compat;
+use crate::exclusion::ReadExclusions;
 use crate::guard::{GuardState, guard};
 use crate::handler::{BitacoraMcp, Services};
 use crate::policy::{OpenGate, WriteGate, WritePolicy};
@@ -125,6 +126,7 @@ pub struct McpServer {
     policy: Arc<WritePolicy>,
     audit: Arc<AuditLog>,
     writer: Option<Arc<QueueBridge>>,
+    services: Arc<Services>,
 }
 
 impl std::fmt::Debug for McpServer {
@@ -194,7 +196,9 @@ impl McpServer {
                 .or_else(|| config.gate.clone())
                 .unwrap_or_else(|| Arc::new(OpenGate)),
             audit: Arc::clone(&audit),
+            exclusions: parking_lot::RwLock::default(),
         });
+        let exclusions_handle = Arc::clone(&services);
         if !config.bind.is_loopback() {
             return Err(Error::NonLoopbackBind(config.bind));
         }
@@ -277,7 +281,18 @@ impl McpServer {
             policy,
             audit,
             writer,
+            services: exclusions_handle,
         })
+    }
+
+    /// Restricts what the token `name` can read (`None` lifts the restriction). Takes effect for
+    /// the next call; used for the dedicated `pando` token (ADR-031).
+    pub fn set_read_exclusions(&self, name: &str, rules: Option<ReadExclusions>) {
+        let mut map = self.services.exclusions.write();
+        match rules {
+            Some(r) => map.insert(name.to_owned(), Arc::new(r)),
+            None => map.remove(name),
+        };
     }
 
     /// The live write policy (toggles, protected namespaces).

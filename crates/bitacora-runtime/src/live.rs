@@ -335,6 +335,12 @@ impl Session {
             if p.graph.as_os_str().is_empty() {
                 p.graph = root.clone();
             }
+            if let Some(server) = session.mcp.as_ref() {
+                provision_pando_mcp(server, &mut p);
+            }
+            if p.supervisor.is_none() && p.settings.mode == bitacora_config::PandoMode::Managed {
+                p.supervisor = default_supervisor(&p.settings);
+            }
             let service = PandoService::start(p.clone());
             // Semantic search is optional: a failure is logged and never stops the open.
             if let Some(ix) = session.indexer.as_ref() {
@@ -894,5 +900,50 @@ impl Session {
 impl Drop for Session {
     fn drop(&mut self) {
         let _ = self.stop_all(DEFAULT_SHUTDOWN_BUDGET);
+    }
+}
+
+/// Gives Pando agents least-privilege access to this graph's MCP server (ADR-031): the dedicated
+/// `pando` token (Read scope; Write only when the graph's consent grants `agent_writes`), the
+/// consent exclusions applied to everything that token reads, and the endpoint to register.
+/// Does nothing unless the integration is active, consented and the MCP bridge is on.
+fn provision_pando_mcp(server: &McpServer, p: &mut bitacora_pando::PandoOptions) {
+    use bitacora_config::PandoFeature;
+    use bitacora_mcp::{PANDO_TOKEN_NAME, ReadExclusions, Scope};
+
+    let key = p.graph_key();
+    if !p.settings.feature_enabled(PandoFeature::McpBridge) || !p.settings.has_consent(&key) {
+        return;
+    }
+    let consent = p.settings.consent(&key);
+    let scopes: &[Scope] = if consent.agent_writes {
+        &[Scope::Read, Scope::Write]
+    } else {
+        &[Scope::Read]
+    };
+    match server.tokens().ensure_token(PANDO_TOKEN_NAME, scopes) {
+        Ok(secret) => {
+            server.set_read_exclusions(
+                PANDO_TOKEN_NAME,
+                Some(ReadExclusions::new(&consent.exclusions)),
+            );
+            p.mcp = Some(bitacora_pando::McpAccess::new(server.endpoint(), secret));
+        }
+        // Without the token agents simply get no Bitacora tools; the open never fails.
+        Err(e) => tracing::warn!("cannot provision the pando MCP token: {e}"),
+    }
+}
+
+/// The real managed-mode supervisor (cache instance dir, `pando` from `PATH` or the configured
+/// binary); `None` leaves managed mode unavailable when no cache directory exists.
+fn default_supervisor(
+    settings: &bitacora_config::PandoSettings,
+) -> Option<std::sync::Arc<dyn bitacora_pando::Supervisor>> {
+    match bitacora_pando::ManagedSupervisor::with_defaults(settings.binary.as_deref()) {
+        Ok(s) => Some(std::sync::Arc::new(s)),
+        Err(e) => {
+            tracing::warn!("managed Pando is unavailable: {e}");
+            None
+        }
     }
 }

@@ -46,16 +46,31 @@ impl PandoClient {
                 config.base_url
             )));
         }
-        let http = reqwest::Client::builder()
-            .timeout(config.timeout)
-            .connect_timeout(config.connect_timeout)
-            .build()
-            .map_err(|e| Error::Config(e.to_string()))?;
-        let stream_http = reqwest::Client::builder()
-            .read_timeout(config.stream_idle_timeout)
-            .connect_timeout(config.connect_timeout)
-            .build()
-            .map_err(|e| Error::Config(e.to_string()))?;
+        let roots = match &config.root_certificate_pem {
+            Some(pem) => reqwest::Certificate::from_pem_bundle(pem)
+                .map_err(|e| Error::Config(format!("invalid root certificate: {e}")))?,
+            None => Vec::new(),
+        };
+        let with_roots = |mut b: reqwest::ClientBuilder| {
+            for cert in &roots {
+                b = b.add_root_certificate(cert.clone());
+            }
+            b
+        };
+        let http = with_roots(
+            reqwest::Client::builder()
+                .timeout(config.timeout)
+                .connect_timeout(config.connect_timeout),
+        )
+        .build()
+        .map_err(|e| Error::Config(e.to_string()))?;
+        let stream_http = with_roots(
+            reqwest::Client::builder()
+                .read_timeout(config.stream_idle_timeout)
+                .connect_timeout(config.connect_timeout),
+        )
+        .build()
+        .map_err(|e| Error::Config(e.to_string()))?;
         Ok(Self {
             inner: Arc::new(Inner {
                 http,
@@ -84,6 +99,20 @@ impl PandoClient {
     /// Server version info from `GET /health` (unauthenticated on the server side).
     pub async fn info(&self) -> Result<ServerInfo> {
         self.send_json(self.request(Method::GET, "/health")).await
+    }
+
+    /// The API token of a local `pando serve` from `GET /api/v1/token`. Pando answers it without
+    /// credentials only on a loopback bind, which is how a supervisor learns the token of the
+    /// server it just started.
+    pub async fn fetch_api_token(&self) -> Result<crate::config::Token> {
+        #[derive(Deserialize)]
+        struct Body {
+            token: String,
+        }
+        let body: Body = self
+            .send_json(self.request(Method::GET, "/api/v1/token"))
+            .await?;
+        Ok(crate::config::Token::new(body.token))
     }
 
     pub(crate) fn base(&self) -> &str {

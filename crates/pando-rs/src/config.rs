@@ -60,6 +60,9 @@ pub struct PandoConfig {
     /// Longest silence tolerated on a streaming response (AG-UI runs). Streams have no overall
     /// timeout because a run lasts as long as the agent works.
     pub stream_idle_timeout: Duration,
+    /// Extra root certificate (PEM) trusted for HTTPS, for servers that present a certificate
+    /// signed by a private CA (`pando serve` creates one per user). `None` uses the system roots.
+    pub root_certificate_pem: Option<Vec<u8>>,
 }
 
 impl PandoConfig {
@@ -71,7 +74,14 @@ impl PandoConfig {
             timeout: DEFAULT_TIMEOUT,
             connect_timeout: DEFAULT_CONNECT_TIMEOUT,
             stream_idle_timeout: DEFAULT_STREAM_IDLE_TIMEOUT,
+            root_certificate_pem: None,
         }
+    }
+
+    /// Trusts `pem` (one or more PEM certificates) in addition to the system roots.
+    pub fn with_root_certificate_pem(mut self, pem: impl Into<Vec<u8>>) -> Self {
+        self.root_certificate_pem = Some(pem.into());
+        self
     }
 
     /// Sets the API token.

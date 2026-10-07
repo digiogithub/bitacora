@@ -25,6 +25,7 @@ use tokio::sync::broadcast::error::RecvError;
 
 use crate::audit::{AuditLog, CallBase, CallInfo, summarize_args};
 use crate::bridge::{Applied, Env, QueueBridge};
+use crate::exclusion::{FilteredReader, ReadExclusions};
 use crate::policy::{WriteGate, WritePolicy};
 use crate::prompts;
 use crate::reader::GraphReader;
@@ -46,6 +47,20 @@ pub(crate) struct Services {
     pub policy: Arc<WritePolicy>,
     pub gate: Arc<dyn WriteGate>,
     pub audit: Arc<AuditLog>,
+    /// Read exclusions per token name (ADR-031); a token without an entry reads everything.
+    pub exclusions: parking_lot::RwLock<HashMap<String, Arc<ReadExclusions>>>,
+}
+
+impl Services {
+    /// The reader a token sees: the shared reader, or a filtered view when the token has
+    /// exclusions.
+    pub(crate) fn reader_for(&self, token: Option<&str>) -> Arc<dyn GraphReader> {
+        let rules = token.and_then(|t| self.exclusions.read().get(t).cloned());
+        match rules {
+            Some(rules) => Arc::new(FilteredReader::new(Arc::clone(&self.reader), rules)),
+            None => Arc::clone(&self.reader),
+        }
+    }
 }
 
 tokio::task_local! {
@@ -75,6 +90,16 @@ pub(crate) fn token_has_scope(parts: &axum::http::request::Parts, scope: Scope) 
         .extensions
         .get::<TokenInfo>()
         .is_some_and(|t| t.scopes.contains(&scope))
+}
+
+fn token_name(parts: &axum::http::request::Parts) -> Option<String> {
+    parts.extensions.get::<TokenInfo>().map(|t| t.name.clone())
+}
+
+fn ctx_token_name(ctx: &RequestContext<RoleServer>) -> Option<String> {
+    ctx.extensions
+        .get::<axum::http::request::Parts>()
+        .and_then(token_name)
 }
 
 fn ctx_has_scope(ctx: &RequestContext<RoleServer>, scope: Scope) -> bool {
@@ -211,7 +236,7 @@ impl BitacoraMcp {
         if !token_has_scope(parts, Scope::Read) {
             return Ok(error_result(&forbidden(Scope::Read)));
         }
-        let reader = Arc::clone(&self.svc.reader);
+        let reader = self.svc.reader_for(token_name(parts).as_deref());
         match tokio::task::spawn_blocking(move || f(&*reader)).await {
             Ok(Ok(out)) => Ok(success_result(out)),
             Ok(Err(e)) => Ok(error_result(&e)),
@@ -250,12 +275,12 @@ impl BitacoraMcp {
         }
     }
 
-    async fn blocking<T, F>(&self, f: F) -> Result<T, ErrorData>
+    async fn blocking<T, F>(&self, token: Option<String>, f: F) -> Result<T, ErrorData>
     where
         T: Send + 'static,
         F: FnOnce(&dyn GraphReader) -> T + Send + 'static,
     {
-        let reader = Arc::clone(&self.svc.reader);
+        let reader = self.svc.reader_for(token.as_deref());
         tokio::task::spawn_blocking(move || f(&*reader))
             .await
             .map_err(|e| ErrorData::internal_error(format!("reader task failed: {e}"), None))
@@ -655,7 +680,9 @@ impl BitacoraMcp {
         }
         let svc = Arc::clone(&self.svc);
         let r = self
-            .blocking(move |r| tools::check_graph(r, a.graph.as_deref()))
+            .blocking(token_name(&parts), move |r| {
+                tools::check_graph(r, a.graph.as_deref())
+            })
             .await?;
         if let Err(e) = r {
             return Ok(error_result(&e));
@@ -885,7 +912,9 @@ impl ServerHandler for BitacoraMcp {
         require_read(&context)?;
         let cursor = request.and_then(|r| r.cursor);
         let listed = self
-            .blocking(move |r| resources::list(r, cursor.as_deref()))
+            .blocking(ctx_token_name(&context), move |r| {
+                resources::list(r, cursor.as_deref())
+            })
             .await?
             .map_err(|e| resource_error(&e))?;
         let (items, next) = listed;
@@ -926,7 +955,9 @@ impl ServerHandler for BitacoraMcp {
         let sync = self.svc.sync.status();
         let uri = request.uri;
         let content = self
-            .blocking(move |r| resources::read(r, &sync, &uri))
+            .blocking(ctx_token_name(&context), move |r| {
+                resources::read(r, &sync, &uri)
+            })
             .await?
             .map_err(|e| resource_error(&e))?;
         let contents = match content {
@@ -1025,7 +1056,9 @@ impl ServerHandler for BitacoraMcp {
             .collect();
         let name = request.name;
         let (description, text) = self
-            .blocking(move |r| prompts::build(r, &name, &args))
+            .blocking(ctx_token_name(&context), move |r| {
+                prompts::build(r, &name, &args)
+            })
             .await?
             .map_err(|e| match e.code {
                 Code::NotFound => ErrorData::invalid_params(e.message, None),

@@ -18,7 +18,8 @@ use tokio::sync::watch;
 
 use crate::credentials::{PandoCredentials, TokenKind};
 use crate::events::{EventSink, PandoEvent, PandoStatus};
-use crate::supervisor::Supervisor;
+use crate::managed::ManagedStatus;
+use crate::supervisor::{McpAccess, Supervisor};
 
 /// Default delay between health probes.
 pub const DEFAULT_PROBE_INTERVAL: Duration = Duration::from_secs(15);
@@ -36,6 +37,9 @@ pub struct PandoOptions {
     pub supervisor: Option<Arc<dyn Supervisor>>,
     /// Delay between health probes.
     pub probe_interval: Duration,
+    /// How agents reach Bitacora's MCP server (managed mode registers it as
+    /// `[MCPServers.bitacora]`; ADR-031). `None` registers nothing.
+    pub mcp: Option<McpAccess>,
 }
 
 impl std::fmt::Debug for PandoOptions {
@@ -58,6 +62,7 @@ impl PandoOptions {
             credentials: PandoCredentials::system(),
             supervisor: None,
             probe_interval: DEFAULT_PROBE_INTERVAL,
+            mcp: None,
         }
     }
 
@@ -176,12 +181,16 @@ fn resolve_managed(
     opts: &PandoOptions,
     supervisor: &Arc<dyn Supervisor>,
 ) -> Result<Endpoints, String> {
+    supervisor.set_mcp_access(&opts.graph, opts.mcp.clone());
     let m = supervisor.ensure_running(&opts.graph)?;
     let rest = validate_pando_url(UrlRole::Rest, &m.rest_url, false).map_err(|e| e.to_string())?;
     let agui = validate_pando_url(UrlRole::Agui, &m.agui_url, false).map_err(|e| e.to_string())?;
     let mut cfg = PandoConfig::new(rest.normalized);
     if let Some(t) = m.rest_token {
         cfg = cfg.with_token(t);
+    }
+    if let Some(pem) = m.ca_pem {
+        cfg = cfg.with_root_certificate_pem(pem);
     }
     Ok(Endpoints {
         rest: cfg,
@@ -288,6 +297,31 @@ impl PandoService {
         self.shared.endpoints.lock().clone()
     }
 
+    /// Status of the managed instance (`None` outside managed mode or before it started).
+    #[must_use]
+    pub fn managed_status(&self) -> Option<ManagedStatus> {
+        if !self
+            .managed_started
+            .load(std::sync::atomic::Ordering::SeqCst)
+        {
+            return None;
+        }
+        self.supervisor.as_ref()?.managed_status(&self.graph)
+    }
+
+    /// Restarts the managed instance (also clears a failed state).
+    pub fn restart_managed(&self) {
+        if let Some(s) = &self.supervisor {
+            s.restart(&self.graph);
+        }
+    }
+
+    /// Log file of the managed instance, for the "Open log" action.
+    #[must_use]
+    pub fn managed_log_path(&self) -> Option<PathBuf> {
+        self.supervisor.as_ref()?.log_path(&self.graph)
+    }
+
     /// Handle of the service's tokio runtime, to spawn sync and run tasks on.
     #[must_use]
     pub fn handle(&self) -> Option<tokio::runtime::Handle> {
@@ -351,31 +385,59 @@ async fn run(
             return;
         }
     };
-    let client = match PandoClient::new(endpoints.rest.clone()) {
+    let mut client = match install(&shared, endpoints) {
         Ok(c) => c,
-        Err(e) => {
-            shared.set_status(PandoStatus::Unavailable {
-                reason: e.to_string(),
-            });
+        Err(reason) => {
+            shared.set_status(PandoStatus::Unavailable { reason });
             return;
         }
     };
-    *shared.endpoints.lock() = Some(endpoints);
-    *shared.client.lock() = Some(client.clone());
+    let managed = opts.settings.mode == PandoMode::Managed;
     loop {
         match client.info().await {
             Ok(info) => shared.set_status(PandoStatus::Connected {
                 version: info.version,
             }),
-            Err(e) => shared.set_status(PandoStatus::Unavailable {
-                reason: e.to_string(),
-            }),
+            Err(e) => {
+                shared.set_status(PandoStatus::Unavailable {
+                    reason: e.to_string(),
+                });
+                // A managed instance that was restarted may listen elsewhere with a new token:
+                // ask the supervisor again and switch clients when the endpoint changed.
+                if managed && let Some(sup) = opts.supervisor.clone() {
+                    let o = opts.clone();
+                    if let Ok(Ok(fresh)) =
+                        tokio::task::spawn_blocking(move || resolve_managed(&o, &sup)).await
+                        && endpoint_changed(&shared, &fresh)
+                        && let Ok(c) = install(&shared, fresh)
+                    {
+                        client = c;
+                    }
+                }
+            }
         }
         tokio::select! {
             () = tokio::time::sleep(opts.probe_interval) => {}
             _ = stop.changed() => return,
         }
     }
+}
+
+/// Builds the client for `endpoints` and publishes both.
+fn install(shared: &Shared, endpoints: Endpoints) -> Result<PandoClient, String> {
+    let client = PandoClient::new(endpoints.rest.clone()).map_err(|e| e.to_string())?;
+    *shared.endpoints.lock() = Some(endpoints);
+    *shared.client.lock() = Some(client.clone());
+    Ok(client)
+}
+
+fn endpoint_changed(shared: &Shared, fresh: &Endpoints) -> bool {
+    shared.endpoints.lock().as_ref().is_none_or(|cur| {
+        cur.rest.base_url != fresh.rest.base_url
+            || cur.agui_url != fresh.agui_url
+            || cur.rest.token != fresh.rest.token
+            || cur.agui_token != fresh.agui_token
+    })
 }
 
 #[cfg(test)]
@@ -433,6 +495,7 @@ mod tests {
             credentials: PandoCredentials::new(Some(mem), |_| None),
             supervisor: None,
             probe_interval: Duration::from_millis(50),
+            mcp: None,
         }
     }
 
@@ -537,6 +600,7 @@ mod tests {
                 agui_url: self.url.clone(),
                 rest_token: Some(Token::new("generated")),
                 agui_token: None,
+                ca_pem: None,
             })
         }
         fn stop(&self, _: &std::path::Path) {
@@ -585,5 +649,66 @@ mod tests {
         let svc = PandoService::start(o);
         let rx = svc.subscribe();
         assert!(wait_for(&rx, |s| matches!(s, PandoStatus::Unavailable { .. })).is_some());
+    }
+
+    /// First answer is a dead port (the instance crashed), later answers the live one.
+    #[derive(Debug)]
+    struct MovingSupervisor {
+        live: String,
+        calls: std::sync::atomic::AtomicUsize,
+        mcp: Mutex<Option<McpAccess>>,
+    }
+
+    impl Supervisor for MovingSupervisor {
+        fn ensure_running(&self, _: &std::path::Path) -> Result<ManagedEndpoint, String> {
+            let n = self.calls.fetch_add(1, Ordering::SeqCst);
+            let url = if n == 0 {
+                "http://127.0.0.1:1".to_owned()
+            } else {
+                self.live.clone()
+            };
+            Ok(ManagedEndpoint {
+                rest_url: url.clone(),
+                agui_url: url,
+                rest_token: None,
+                agui_token: None,
+                ca_pem: None,
+            })
+        }
+        fn stop(&self, _: &std::path::Path) {}
+        fn set_mcp_access(&self, _: &std::path::Path, access: Option<McpAccess>) {
+            *self.mcp.lock() = access;
+        }
+    }
+
+    #[test]
+    fn managed_service_follows_a_restarted_instance_and_registers_mcp() {
+        let g = PathBuf::from("/g");
+        let addr = health_server();
+        let sup = Arc::new(MovingSupervisor {
+            live: format!("http://{addr}"),
+            calls: std::sync::atomic::AtomicUsize::new(0),
+            mcp: Mutex::new(None),
+        });
+        let mut o = opts(settings(PandoMode::Managed, "http://127.0.0.1:1", &g), &g);
+        o.mcp = Some(McpAccess::new(
+            "http://127.0.0.1:9/mcp",
+            "bit_secret_token_value",
+        ));
+        o.supervisor = Some(sup.clone());
+        let svc = PandoService::start(o);
+        let rx = svc.subscribe();
+        assert!(wait_for(&rx, |s| matches!(s, PandoStatus::Connected { .. })).is_some());
+        assert_eq!(
+            sup.mcp.lock().as_ref().map(|m| m.url.clone()).as_deref(),
+            Some("http://127.0.0.1:9/mcp")
+        );
+        assert!(
+            svc.endpoints()
+                .unwrap()
+                .rest
+                .base_url
+                .contains(&addr.to_string())
+        );
     }
 }

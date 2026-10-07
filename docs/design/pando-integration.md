@@ -7,7 +7,7 @@ tags:
 ---
 # Pando integration
 
-Design of how Bitacora talks to [Pando](https://github.com/digiogithub/pando) (semantic search over the graph, agent chat, agent memory). Plan: [[bitacora-v2-plan]] (D1-D3). Decisions: ADR-027 (generic `pando-rs` SDK), ADR-028 (crate placement), ADR-029 (opt-in, managed by default, machine-local settings) in [[architecture]]. Pando is never changed for Bitacora: only its generic APIs are used.
+Design of how Bitacora talks to [Pando](https://github.com/digiogithub/pando) (semantic search over the graph, agent chat, agent memory). Plan: [[bitacora-v2-plan]] (D1-D3). Decisions: ADR-027 (generic `pando-rs` SDK), ADR-028 (crate placement), ADR-029 (opt-in, managed by default, machine-local settings), ADR-031 (agents read through a least-privilege MCP token; supervised managed Pando) in [[architecture]]. Pando is never changed for Bitacora: only its generic APIs are used.
 
 ## 1. Crates and dependency direction
 
@@ -42,9 +42,66 @@ Events (`PandoEvent`: `Status`, `SyncProgress`, `Run`) go to `std::sync::mpsc` r
 
 Shutdown: `Session::shutdown` stops Pando first (it reads core and the index), then sync, core, watcher, index, MCP. `PandoService::stop(budget)` signals the probe, calls `Supervisor::stop` when managed mode started one, and shuts the runtime down within the budget.
 
-## 5. Managed mode seam
+## 5. Managed mode
 
-`Supervisor` (`ensure_running(graph) -> ManagedEndpoint`, `stop(graph)`) is the only thing BIT-US-0141 has to implement: per-graph cache dir, generated `.pando.toml`, process spawn and readiness. Without a supervisor managed mode reports `Unavailable("managed Pando is not available in this build; use external mode")`.
+`Supervisor` (`ensure_running(graph) -> ManagedEndpoint`, `stop(graph)`, plus `set_mcp_access`, `managed_status`, `restart`, `log_path`) is the seam; `bitacora_pando::ManagedSupervisor` (module `managed`) is the real implementation and `Session::open` installs it when the mode is `managed` and the caller passed none. Without any supervisor managed mode reports `Unavailable("managed Pando is not available in this build; use external mode")`. The design follows git-in-track's `internal/pando/supervisor` (ideas only, written for this crate's blocking seam).
+
+### 5.1 Instance directory
+
+`<machine-local cache>/pando/<graph-key>/` (`directories::ProjectDirs("es", "Digio", "Bitacora")`, mode `0700`; `<graph-key>` = sanitised folder name + 8 hex of blake3 of the full path). **Nothing is ever written inside the graph folder.**
+
+| File | Content |
+|---|---|
+| `.pando.toml` | generated on every child start (atomic, `0600`) |
+| `agents/personas/<profile>.md` | persona files of the four profiles |
+| `token` | the instance's API token, once the child answers (`0600`) |
+| `state.json` | `ManagedStatus`, rewritten atomically on every change |
+| `supervisor.lock` | exclusive `flock` while a process supervises the directory |
+| `pando.log` (+ `.1`, `.2`) | child stdout/stderr, tokens redacted, rotated at 10 MB |
+| `.pando/` | Pando's own data when the user's config does not select another store (see 5.4) |
+
+### 5.2 Generated `.pando.toml`
+
+Pando merges it over the user's global `~/.config/pando/.pando.toml` (with `PANDO_CONFIG_PARENT_SEARCH=false` it is the only local file read), so model providers and API keys are never copied. Key names come from Pando's `internal/config/config.go`. It contains:
+
+- `[AGUI]`: `Enabled`, `Host = "127.0.0.1"`, a free `Port`, `RequireToken = true`, `AllowedOrigins = []`, `FrontendTools`, `HumanInTheLoop = true`, `AutoApprove = false`, `Mesnada = false`, and a read-only `Tools` allow-list;
+- `[AGUI.Profiles.<name>]` for `bitacora-chat`, `bitacora-journal-reviewer`, `bitacora-recommender`, `bitacora-writer` (Base `coder`, persona, prompt, per-profile `Tools`). Every profile gets the `bitacora_*` read tools and Pando's read-only KB tools (`kb_search_documents`, `kb_get_document`, `kb_related_documents`, `hybrid_search_remembrances`, `recall`); only `bitacora-writer` also gets the frontend tool `propose_edit`. Pando's KB write tools (`kb_add_document`, `kb_delete_document`, `remember`, `forget`) and every Bitacora write tool are never listed;
+- `[ToolDiscovery]`/`[MCPGateway]` off, so MCP tools keep their `<server>_<tool>` names and the allow-lists can see them;
+- `[MCPServers.bitacora]` (`streamable-http`, loopback URL, `[...Auth] Type = 'bearer'` with the `pando` token), only when the MCP server runs and the consent allows the bridge;
+- **no** `[Data]` and **no** `[Remembrances]` (shared KB, 5.4).
+
+The MCP token is in clear in this `0600` file inside the `0700` cache directory (git-in-track's `age1:` encryption needs the `pando secret` CLI and age keys; revisit if Pando exposes a keychain reference).
+
+### 5.3 Process supervision
+
+`pando serve --host 127.0.0.1 --port P --agui-port Q` with the instance directory as working directory, `PANDO_CONFIG_PARENT_SEARCH=false`, in its own process group. `pando serve` is HTTPS-only (its private CA lives in `<pando config dir>/tls/ca.crt`) and generates its own API token, so the supervisor trusts that CA and reads the token from the loopback-only `GET /api/v1/token`; both are handed to the REST and AG-UI clients (the AG-UI listener uses the same certificate and token). Lifecycle:
+
+1. lock the directory (`File::try_lock`); if another Bitacora process holds it, **adopt** its running instance through `state.json` + `token` instead of spawning a second one;
+2. end an orphan: a live pid in `state.json` whose working directory is the instance directory (Linux `/proc/<pid>/cwd`; elsewhere `ps` names the binary) and whose supervisor is gone;
+3. `pando --version` against the minimum (`DEFAULT_MIN_VERSION = 1.2.0`, an assumption: the release that has AG-UI profiles and `/api/v1/token`); a missing binary or old version is a `Failed` state with a message for the user (inside Flatpak the message says the host binary must be reachable);
+4. per run: prefer the previous ports when free (agents that cached them keep working), write config, spawn; Linux `PR_SET_PDEATHSIG` (the supervisor thread that spawned the child outlives it), other unix hosts run the child under the lifeline watchdog `run_watchdog_fd3` when `ManagedOptions::watchdog` names the binary's hidden subcommand (not wired in app/cli yet, macOS unverified);
+5. ready when `GET /health` answers over the CA within `ready_timeout` (30 s); then health every 30 s, 3 consecutive failures count as a crash;
+6. a crash restarts with backoff 1 s doubling to 60 s; 5 crashes in 10 minutes mark the instance `Failed` until `restart`; `restart` also bounces a healthy child without counting a crash;
+7. `stop`: SIGTERM to the process group, SIGKILL after 10 s; the runtime calls it from `Session::shutdown`.
+
+`PandoService` re-asks the supervisor when a probe fails in managed mode, so a restarted child on a new port or with a new token replaces the client. `PandoService::managed_status()`, `restart_managed()` and `managed_log_path()` back the settings page (mode, status, Restart, Open log; the page itself belongs to the app stories). Windows has no Job Object yet: managed mode answers `Unavailable` there.
+
+### 5.4 Shared KB (spike BIT-T-0489)
+
+Findings, with Pando v1.2.11 source and an experiment on the real binary:
+
+- The KB and remembrances live in `<Data.Directory>/pando.db` (`internal/db/connect.go:27`); `Data.Directory` defaults to `.pando` **relative to the working directory** (`internal/config/config.go:2513`). The KB path (`[Remembrances] KBPath`, `internal/app/remembrances.go:123`) only selects a folder mirrored into that database.
+- Pando's IPC primary/secondary election is per working directory (`<cwd>/.pando/ipc.lock`, `internal/ipc/lock_common.go:35`), so an instance started in the cache directory is the primary of its own directory; it does **not** coordinate with the user's own Pando.
+- Experiment (two `pando serve` processes in different directories, one global config with `[Data] Directory = '<abs>'`): a document upserted through instance A (`POST /api/v1/remembrances/kb/documents`, `file_path = bitacora/test/page.md`) was returned by instance B's `POST /api/v1/remembrances/kb/search` with `path_prefix = "bitacora/"`. Both processes wrote the same SQLite file in WAL mode without errors.
+- **Decision:** the generated config never sets `[Data]` or `[Remembrances]`. The managed instance therefore shares the user's KB exactly when the user's global Pando configuration selects an **absolute** `Data.Directory`; with the default relative `.pando` it gets a private database under the cache directory (semantic search still works, but agent memory is not shared with the user's own Pando). The settings page should say which of the two applies (read the global config; semantic-sync stories). Two Pando primaries writing one WAL database rely on SQLite busy handling rather than Pando's IPC write proxy: acceptable for the low write rate of KB sync, to be re-checked under load.
+- When the user's own Pando already runs and the user prefers one process, `external` mode connects to it (token from the keychain) instead of spawning.
+
+### 5.5 MCP access for agents (BIT-US-0139, ADR-031)
+
+- `Session::open` (after the MCP server started, before `PandoService::start`) calls `provision_pando_mcp` when the integration is active, the graph has consent and the `McpBridge` feature is on: `TokenStore::ensure_token("pando", [Read])` (`[Read, Write]` when `GraphConsent::agent_writes`), `McpServer::set_read_exclusions("pando", ReadExclusions::new(consent.exclusions))` and `PandoOptions::mcp = McpAccess { url, token }`.
+- `FilteredReader` (`bitacora-mcp/src/exclusion.rs`) wraps the shared reader per call for tokens with exclusions: pages that are `private:: true`, match an excluded name (and its namespace children), graph-relative path prefix or `#tag` disappear from search, page/list/journal tools, blocks, backlinks, tasks, query results, resources and prompts; subscriptions get no change events and aggregate/tuple queries are refused for that token. The same entries feed semantic sync (the `ContentPolicy` of BIT-US-0138 should expose them through `ReadExclusions::new`).
+- Managed mode registers the endpoint in the generated config (5.2); external mode shows `external_config_snippet(&McpAccess)` for the user's own `.pando.toml` (a UI "copy" action, since it contains the token).
+- Opt-in end-to-end check against a real Pando: `cargo test -p bitacora-runtime --test pando_real -- --ignored` starts the real `pando serve` from the generated config and asserts that it discovered the `bitacora_*` read tools and none of the write tools. A model-driven call test needs a stub model provider and stays a follow-up.
 
 ## Requirements
 
@@ -55,5 +112,6 @@ Shutdown: `Session::shutdown` stops Pando first (it reads core and the index), t
 
 ## Open questions
 
+- Settings page wiring of managed mode (status, Restart, Open log, shared-KB hint) and the app/cli hidden watchdog subcommand for macOS belong to the app stories.
 - Settings file location and the settings page wiring (`<config_dir>/pando.json` is proposed) belong to the app/UI stories.
 - Whether consent should be re-asked when the Pando server identity changes (remote servers).
