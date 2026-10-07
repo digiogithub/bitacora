@@ -2,7 +2,7 @@
 id: BIT-US-0154
 type: story
 title: AI features end-to-end tests and privacy review
-status: backlog
+status: in_review
 priority: medium
 parent: BIT-EP-0023
 milestone: BIT-M-0008
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, ai, tests, privacy]
 estimate: 3
 created: 2026-10-07T09:18:16Z
-updated: 2026-10-07T09:18:16Z
+updated: 2026-10-07T13:59:01Z
+started: 2026-10-07T13:57:40Z
 ---
 
 ## Description

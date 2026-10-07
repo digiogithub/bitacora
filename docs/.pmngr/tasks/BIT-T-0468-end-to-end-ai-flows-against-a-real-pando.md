@@ -2,7 +2,7 @@
 id: BIT-T-0468
 type: task
 title: End-to-end AI flows against a real Pando
-status: backlog
+status: in_review
 priority: medium
 parent: BIT-US-0154
 milestone: BIT-M-0008
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, ai, tests]
 estimate: 2
 created: 2026-10-07T09:19:07Z
-updated: 2026-10-07T09:19:07Z
+updated: 2026-10-07T13:58:57Z
+started: 2026-10-07T13:57:40Z
 ---
 
 ## Description
