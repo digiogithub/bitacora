@@ -19,6 +19,7 @@ use bitacora_mcp::{
     AuditFilter, AuditRecord, IndexGraphReader, McpServer, QueueBridge, ServerParts, TokenStore,
     UndoError, WritePolicy,
 };
+use bitacora_pando::{PandoEvent, PandoService, PandoStatus};
 use bitacora_sync::credentials::CredentialProvider;
 use bitacora_sync::engine::{
     Command as SyncCommand, EngineConfig, EngineHandle, SyncEngine, SystemTiming, Timing,
@@ -91,6 +92,7 @@ pub struct Session {
     mcp: Option<McpServer>,
     sync: SyncSlot,
     sync_options: Option<SyncOptions>,
+    pando: Option<PandoService>,
     sync_watch: Option<SyncWatch>,
     recovery: Option<RecoveryReport>,
     events: Events,
@@ -262,6 +264,7 @@ impl Session {
             mcp: None,
             sync,
             sync_options: cfg.sync.clone(),
+            pando: None,
             sync_watch: None,
             recovery: None,
             events,
@@ -321,7 +324,35 @@ impl Session {
                 },
             )?);
         }
+        // Pando never fails the open: a bad setup shows up as `PandoStatus::Unavailable`.
+        if let Some(mut p) = cfg.pando {
+            if p.graph.as_os_str().is_empty() {
+                p.graph = root.clone();
+            }
+            session.pando = Some(PandoService::start(p));
+        }
         Ok(session)
+    }
+
+    /// The Pando integration of this session, when [`RuntimeConfig::pando`] was set.
+    #[must_use]
+    pub fn pando(&self) -> Option<&PandoService> {
+        self.pando.as_ref()
+    }
+
+    /// Current Pando status (`Off` when the integration was not configured).
+    #[must_use]
+    pub fn pando_status(&self) -> PandoStatus {
+        self.pando
+            .as_ref()
+            .map_or(PandoStatus::Off, PandoService::status)
+    }
+
+    /// New subscription to Pando events (first message is the current status); `None` when the
+    /// integration was not configured.
+    #[must_use]
+    pub fn pando_events(&self) -> Option<Receiver<PandoEvent>> {
+        self.pando.as_ref().map(PandoService::subscribe)
     }
 
     /// Canonical graph folder.
@@ -722,6 +753,11 @@ impl Session {
         }
         let deadline = Instant::now() + budget;
         let left = || deadline.saturating_duration_since(Instant::now());
+
+        // 0. Pando: it reads the index and core, so it stops before them.
+        if let Some(mut p) = self.pando.take() {
+            p.stop(left().min(Duration::from_secs(3)));
+        }
 
         // 1. Sync: final commit + best-effort push while the writer still runs.
         let handle = lock(&self.sync).take();

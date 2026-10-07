@@ -161,6 +161,9 @@ pub struct RuntimeConfig {
     pub mcp: Option<McpOptions>,
     /// Git sync (default off).
     pub sync: Option<SyncOptions>,
+    /// Pando integration (default off; `None` never starts the service). The caller builds the
+    /// options from the machine-local settings; the service itself decides what is active.
+    pub pando: Option<bitacora_pando::PandoOptions>,
 }
 
 impl std::fmt::Debug for RuntimeConfig {
@@ -169,6 +172,7 @@ impl std::fmt::Debug for RuntimeConfig {
             .field("graph", &self.graph)
             .field("mcp", &self.mcp.is_some())
             .field("sync", &self.sync)
+            .field("pando", &self.pando)
             .finish_non_exhaustive()
     }
 }
@@ -187,6 +191,7 @@ impl RuntimeConfig {
             debounce: Some(DebounceConfig::default()),
             mcp: None,
             sync: None,
+            pando: None,
         }
     }
 }

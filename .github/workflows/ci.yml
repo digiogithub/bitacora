@@ -97,6 +97,7 @@ jobs:
           -p bitacora-markdown -p bitacora-config -p bitacora-core -p bitacora-watch
           -p bitacora-index -p bitacora-sync -p bitacora-mcp -p bitacora-cli
           -p bitacora-merge -p bitacora-graph -p bitacora-testkit -p xtask
+          -p pando-rs -p bitacora-pando -p bitacora-runtime
       - name: Benchmarks compile
         run: cargo bench --no-run --locked -p bitacora-markdown
       - name: Guard - gpui-kit must not be in the test-core graph
@@ -104,7 +105,7 @@ jobs:
           if cargo tree --locked -e normal,dev \
               -p bitacora-markdown -p bitacora-config -p bitacora-core -p bitacora-watch \
               -p bitacora-index -p bitacora-sync -p bitacora-mcp -p bitacora-cli \
-              -p bitacora-merge | grep -q 'gpui-kit'; then
+              -p bitacora-merge -p pando-rs -p bitacora-pando -p bitacora-runtime | grep -q 'gpui-kit'; then
             echo "gpui-kit leaked into the GPUI-free crates" >&2
             exit 1
           fi
