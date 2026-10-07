@@ -16,6 +16,7 @@ use crate::ui::{
     Window, div, h_flex, px, v_flex,
 };
 use crate::views::all_pages::AllPagesView;
+use crate::views::graph_view::{GraphMode, GraphView};
 use crate::views::journals::JournalsView;
 use crate::views::page_view::{BlockFocusEvent, ConflictJumpEvent, PageEvent, PageView};
 
@@ -52,6 +53,7 @@ pub struct MainView {
     page: Entity<PageView>,
     journals: Entity<JournalsView>,
     all_pages: Entity<AllPagesView>,
+    graph: Entity<GraphView>,
     handle: Option<GraphHandle>,
     history: NavHistory,
     pending: Option<Route>,
@@ -74,6 +76,7 @@ impl MainView {
         let page = cx.new(PageView::new);
         let journals = cx.new(JournalsView::new);
         let all_pages = cx.new(|cx| AllPagesView::new(window, cx));
+        let graph = cx.new(|_| GraphView::new(GraphMode::Global));
         let subscriptions = vec![
             cx.subscribe(&page, Self::on_page_event),
             cx.subscribe(&page, |_, _, event: &BlockFocusEvent, cx| {
@@ -84,11 +87,13 @@ impl MainView {
             }),
             cx.subscribe(&journals, Self::on_page_event),
             cx.subscribe(&all_pages, Self::on_page_event),
+            cx.subscribe(&graph, Self::on_page_event),
         ];
         Self {
             page,
             journals,
             all_pages,
+            graph,
             handle: None,
             history: NavHistory::new(),
             pending: None,
@@ -111,11 +116,16 @@ impl MainView {
         &self.all_pages
     }
 
+    /// The graph view entity.
+    pub fn graph(&self) -> &Entity<GraphView> {
+        &self.graph
+    }
+
     /// Index id of the page on screen (the "this page" search scope).
     pub fn current_page_id(&self, cx: &App) -> Option<i64> {
         match self.route()? {
             Route::Page(_) => self.page.read(cx).header().page_id,
-            Route::Journals | Route::AllPages | Route::Block(_) => None,
+            Route::Journals | Route::AllPages | Route::Graph | Route::Block(_) => None,
         }
     }
 
@@ -153,13 +163,14 @@ impl MainView {
         self.handle = None;
         self.history = NavHistory::new();
         self.all_pages.update(cx, |v, cx| v.clear(cx));
+        self.graph.update(cx, |v, cx| v.clear(cx));
         cx.notify();
     }
 
     fn current_scroll(&self, cx: &Context<Self>) -> Option<Scroll> {
         Some(match self.route()? {
             Route::Journals => self.journals.read(cx).scroll(),
-            Route::AllPages => Scroll::default(),
+            Route::AllPages | Route::Graph => Scroll::default(),
             Route::Page(_) | Route::Block(_) => self.page.read(cx).scroll(),
         })
     }
@@ -190,6 +201,7 @@ impl MainView {
                 .journals
                 .update(cx, |j, cx| j.show(handle, restore, cx)),
             Route::AllPages => self.all_pages.update(cx, |v, cx| v.show(handle, cx)),
+            Route::Graph => self.graph.update(cx, |v, cx| v.show(handle, cx)),
             Route::Page(_) | Route::Block(_) => {
                 self.page
                     .update(cx, |p, cx| p.show(handle, route, restore, cx));
@@ -256,6 +268,7 @@ impl MainView {
         match self.route() {
             Some(Route::Journals) => self.journals.update(cx, |j, cx| j.refresh(cx)),
             Some(Route::AllPages) => self.all_pages.update(cx, |v, cx| v.reload(cx)),
+            Some(Route::Graph) => self.graph.update(cx, |v, cx| v.reload(cx)),
             Some(_) => self.page.update(cx, |p, cx| p.reload(cx)),
             None => {}
         }
@@ -268,6 +281,7 @@ impl MainView {
                 .journals
                 .update(cx, |j, cx| j.on_index_event(event, cx)),
             Some(Route::AllPages) => self.all_pages.update(cx, |v, cx| v.on_index_changed(cx)),
+            Some(Route::Graph) => self.graph.update(cx, |v, cx| v.on_index_event(event, cx)),
             Some(_) => self.page.update(cx, |p, cx| p.on_index_event(event, cx)),
             None => {}
         }
@@ -319,6 +333,7 @@ impl Render for MainView {
         let shown = match self.route() {
             Some(Route::Journals) => self.journals.clone().into_any_element(),
             Some(Route::AllPages) => self.all_pages.clone().into_any_element(),
+            Some(Route::Graph) => self.graph.clone().into_any_element(),
             _ => self.page.clone().into_any_element(),
         };
         v_flex()

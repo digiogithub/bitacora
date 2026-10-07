@@ -418,6 +418,14 @@ pub mod text_edit {
     };
 }
 
+/// Low-level painting and pointer events for the graph canvas (BIT-US-0157).
+pub mod canvas {
+    pub use gpui_kit::gpui::{
+        BorderStyle, Corners, Edges, MouseDownEvent, MouseMoveEvent, MouseUpEvent, Path,
+        PathBuilder, ScrollWheelEvent, canvas, quad,
+    };
+}
+
 /// Accessibility roles and states (GPUI exposes them through AccessKit; BIT-T-0338). Elements
 /// need an id and a role to appear in the accessibility tree: `div().id(..).role(Role::Button)
 /// .aria_label(..)`.

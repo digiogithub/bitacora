@@ -24,6 +24,7 @@ bitacora-runtime.workspace = true
 bitacora-mcp.workspace = true
 bitacora-watch.workspace = true
 bitacora-config.workspace = true
+bitacora-graph.workspace = true
 # The ONLY crate allowed to depend on gpui-kit (ADR-001); reach GPUI via `gpui_kit::gpui`.
 gpui-kit.workspace = true
 anyhow.workspace = true

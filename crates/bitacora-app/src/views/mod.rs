@@ -6,6 +6,9 @@ pub mod block_view;
 pub mod conflicts;
 pub mod credential_dialog;
 pub mod disk_conflict;
+pub mod graph_view;
+#[cfg(test)]
+mod graph_view_tests;
 pub mod history;
 pub mod journals;
 pub mod kit;

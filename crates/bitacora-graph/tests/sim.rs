@@ -293,3 +293,17 @@ fn five_thousand_nodes_at_sixty_ticks_per_second() {
     eprintln!("5k nodes: {best:.0} ticks/s");
     assert!(best >= 60.0, "{best:.1} ticks/s");
 }
+
+#[test]
+fn with_positions_keeps_given_starts_and_alpha() {
+    let input = GraphInput {
+        node_count: 3,
+        links: vec![(0, 1)],
+    };
+    let initial = [Some([100.0, 200.0]), None, Some([-5.0, 7.0])];
+    let sim = Simulation::with_positions(&input, ForceParams::default(), 1, &initial, 0.3);
+    assert_eq!(sim.positions()[0], [100.0, 200.0]);
+    assert_eq!(sim.positions()[2], [-5.0, 7.0]);
+    assert_ne!(sim.positions()[1], [100.0, 200.0]);
+    assert!((sim.alpha() - 0.3).abs() < 1e-6);
+}

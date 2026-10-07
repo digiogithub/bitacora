@@ -19,10 +19,13 @@ use crate::ui::{
     IconName, InteractiveElement as _, IntoElement, ParentElement as _, Render, Sizable as _,
     StatefulInteractiveElement as _, Styled as _, Subscription, Window, div, h_flex, px, v_flex,
 };
+use crate::views::graph_view::{GraphMode, GraphView};
 use crate::views::page_view::{PageEvent, PageView};
 
 /// Height of an expanded item body.
 const ITEM_HEIGHT: f32 = 340.0;
+/// Height of the local graph widget.
+const LOCAL_GRAPH_HEIGHT: f32 = 240.0;
 
 /// What the stack asks of its host.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -50,6 +53,10 @@ pub struct RightSidebar {
     handle: Option<GraphHandle>,
     selected: Option<usize>,
     focus: FocusHandle,
+    /// Local graph of the page on screen (BIT-US-0159); a stand-in for the Context tab.
+    local: Entity<GraphView>,
+    local_page: Option<String>,
+    _local_subscription: Subscription,
 }
 
 impl std::fmt::Debug for RightSidebar {
@@ -65,12 +72,36 @@ impl EventEmitter<StackEvent> for RightSidebar {}
 impl RightSidebar {
     /// An empty stack.
     pub fn new(cx: &mut Context<Self>) -> Self {
+        let local = cx.new(|_| GraphView::new(GraphMode::Local));
+        let local_subscription =
+            cx.subscribe(&local, |this, _, event: &PageEvent, cx| match event {
+                PageEvent::Navigate(target) => cx.emit(StackEvent::Navigate(target.clone())),
+                PageEvent::OpenInSidebar(target) => this.open_target(target, cx),
+                PageEvent::DeleteAsset { .. } | PageEvent::RenamePage { .. } => {}
+            });
         Self {
+            local,
+            local_page: None,
+            _local_subscription: local_subscription,
             items: Vec::new(),
             next_id: 1,
             handle: None,
             selected: None,
             focus: cx.focus_handle(),
+        }
+    }
+
+    /// The local graph widget.
+    pub fn local_graph(&self) -> &Entity<GraphView> {
+        &self.local
+    }
+
+    /// The page whose local graph is shown (`None` hides the widget).
+    pub fn set_local_page(&mut self, page: Option<String>, cx: &mut Context<Self>) {
+        if self.local_page != page {
+            self.local_page = page.clone();
+            self.local.update(cx, |v, cx| v.set_page(page, cx));
+            cx.notify();
         }
     }
 
@@ -120,6 +151,7 @@ impl RightSidebar {
     /// Connects every item to an open graph.
     pub fn set_graph(&mut self, handle: GraphHandle, cx: &mut Context<Self>) {
         self.handle = Some(handle.clone());
+        self.local.update(cx, |v, cx| v.show(handle.clone(), cx));
         for item in &self.items {
             let route = item.route.clone();
             let handle = handle.clone();
@@ -132,6 +164,7 @@ impl RightSidebar {
     /// Forgets the graph and empties the stack (a different graph was opened).
     pub fn clear(&mut self, cx: &mut Context<Self>) {
         self.handle = None;
+        self.local.update(cx, |v, cx| v.clear(cx));
         self.items.clear();
         self.selected = None;
         cx.notify();
@@ -191,7 +224,7 @@ impl RightSidebar {
 
     /// Shows `route` at the top of the stack; an item already showing it moves up and unfolds.
     pub fn open(&mut self, route: Route, cx: &mut Context<Self>) {
-        if matches!(route, Route::Journals | Route::AllPages) {
+        if matches!(route, Route::Journals | Route::AllPages | Route::Graph) {
             return;
         }
         if let Some(ix) = self.items.iter().position(|i| i.route == route) {
@@ -232,6 +265,9 @@ impl RightSidebar {
 
     /// Forwards an index change to the items on screen.
     pub fn on_index_event(&mut self, event: &bitacora_index::IndexEvent, cx: &mut Context<Self>) {
+        if self.local_page.is_some() {
+            self.local.update(cx, |v, cx| v.on_index_event(event, cx));
+        }
         for item in self.items.iter().filter(|i| !i.collapsed) {
             item.view.update(cx, |v, cx| v.on_index_event(event, cx));
         }
@@ -307,7 +343,7 @@ impl RightSidebar {
                 .zoom
                 .first()
                 .map_or_else(|| t!("right.block").to_string(), |l| l.label.clone()),
-            Route::Journals | Route::AllPages => String::new(),
+            Route::Journals | Route::AllPages | Route::Graph => String::new(),
         }
     }
 }
@@ -336,6 +372,30 @@ impl Render for RightSidebar {
             .overflow_y_scroll()
             .gap_2()
             .p(px(8.));
+        if self.local_page.is_some() {
+            stack = stack.child(
+                v_flex()
+                    .id("local-graph")
+                    .w_full()
+                    .border_1()
+                    .border_color(theme.border)
+                    .rounded(px(6.))
+                    .child(
+                        div()
+                            .px(px(10.))
+                            .py(px(6.))
+                            .text_sm()
+                            .child(t!("graph_view.local_title").to_string()),
+                    )
+                    .child(
+                        div()
+                            .h(px(LOCAL_GRAPH_HEIGHT))
+                            .border_t_1()
+                            .border_color(theme.border)
+                            .child(self.local.clone()),
+                    ),
+            );
+        }
         if self.items.is_empty() {
             return stack
                 .child(

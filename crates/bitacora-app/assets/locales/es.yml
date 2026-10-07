@@ -12,6 +12,7 @@ sidebar:
   group_graph: Grafo
   empty: Todavía no hay nada aquí
   no_graph: Ningún grafo abierto
+  graph_view: Vista de grafo
 all_pages:
   title: Todas las páginas
   name: Nombre
@@ -41,6 +42,7 @@ palette:
   reindexing: Reconstruyendo el índice...
   cmd_journals: "Ir a: Diarios"
   cmd_all_pages: "Ir a: Todas las páginas"
+  cmd_graph_view: "Ir a: Vista de grafo"
   cmd_back: "Volver atrás"
   cmd_forward: "Ir adelante"
   cmd_left_sidebar: Mostrar u ocultar la barra lateral izquierda
@@ -372,3 +374,14 @@ a11y:
   zoom_block: Acercar al bloque
   open_block: Abrir bloque
   empty_block: Bloque vacío
+graph_view:
+  title: Vista de grafo
+  local_title: Grafo local
+  pages: "%{count} páginas"
+  fit: Ajustar
+  hops: "Saltos: %{n}"
+  less: Menos saltos
+  more: Más saltos
+  reset_focus: Restablecer foco
+  empty: No hay páginas que mostrar
+  loading: Cargando grafo...

@@ -14,6 +14,7 @@ actions!(
         // Navigation (BIT-US-0078, BIT-US-0079).
         GoJournals,
         GoAllPages,
+        GoGraph,
         // Palettes.
         OpenSearch,
         OpenCommandPalette,

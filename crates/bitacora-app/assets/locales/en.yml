@@ -12,6 +12,7 @@ sidebar:
   group_graph: Graph
   empty: Nothing here yet
   no_graph: No graph open
+  graph_view: Graph view
 all_pages:
   title: All pages
   name: Name
@@ -41,6 +42,7 @@ palette:
   reindexing: Rebuilding the index...
   cmd_journals: "Go to: Journals"
   cmd_all_pages: "Go to: All pages"
+  cmd_graph_view: "Go to: Graph view"
   cmd_back: "Go back"
   cmd_forward: "Go forward"
   cmd_left_sidebar: Toggle left sidebar
@@ -372,3 +374,14 @@ a11y:
   zoom_block: Zoom into block
   open_block: Open block
   empty_block: Empty block
+graph_view:
+  title: Graph view
+  local_title: Local graph
+  pages: "%{count} pages"
+  fit: Fit
+  hops: "Hops: %{n}"
+  less: Fewer hops
+  more: More hops
+  reset_focus: Reset focus
+  empty: No pages to show
+  loading: Loading graph...
