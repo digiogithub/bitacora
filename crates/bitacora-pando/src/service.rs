@@ -44,6 +44,9 @@ pub struct PandoOptions {
     pub mcp: Option<McpAccess>,
     /// Machine-local activity log (BIT-SP-0009.R7); `None` keeps no log.
     pub activity: Option<ActivityLog>,
+    /// The machine-local `pando.json` these settings came from; used to persist remembered tool
+    /// decisions. `None` keeps them in memory only.
+    pub settings_file: Option<PathBuf>,
 }
 
 impl std::fmt::Debug for PandoOptions {
@@ -68,6 +71,7 @@ impl PandoOptions {
             probe_interval: DEFAULT_PROBE_INTERVAL,
             mcp: None,
             activity: None,
+            settings_file: None,
         }
     }
 
@@ -527,6 +531,7 @@ mod tests {
             probe_interval: Duration::from_millis(50),
             mcp: None,
             activity: None,
+            settings_file: None,
         }
     }
 

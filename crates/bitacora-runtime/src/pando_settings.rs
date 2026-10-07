@@ -38,6 +38,7 @@ pub fn pando_options_from_file(
     }
     let mut opts = PandoOptions::new(settings, graph);
     opts.activity = Some(bitacora_pando::ActivityLog::beside(path));
+    opts.settings_file = Some(path.to_path_buf());
     Ok(Some(opts))
 }
 

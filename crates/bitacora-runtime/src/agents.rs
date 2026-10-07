@@ -15,6 +15,9 @@ use bitacora_pando::{PandoOptions, PandoService, PandoStatus};
 pub(crate) struct AgentContext {
     pub consent: GraphConsent,
     pub chat_enabled: bool,
+    /// Graph key and settings file, to persist remembered tool decisions.
+    pub graph_key: String,
+    pub settings_file: Option<std::path::PathBuf>,
 }
 
 impl AgentContext {
@@ -22,6 +25,44 @@ impl AgentContext {
         Self {
             consent: p.settings.consent(&p.graph_key()),
             chat_enabled: p.settings.enabled && p.settings.feature_enabled(PandoFeature::AgentChat),
+            graph_key: p.graph_key(),
+            settings_file: p.settings_file.clone(),
+        }
+    }
+}
+
+/// Remembered "allow/deny always" tool decisions of this graph. They are read from the session's
+/// live consent record (so revoking consent or forgetting one in Settings applies at once, and
+/// nothing is honoured without consent) and persisted to the machine-local `pando.json`.
+pub(crate) struct SessionToolMemory {
+    pub agent: Arc<parking_lot::RwLock<AgentContext>>,
+}
+
+impl bitacora_pando::agents::ToolMemory for SessionToolMemory {
+    fn decision(&self, tool: &str) -> Option<bool> {
+        let a = self.agent.read();
+        if !a.consent.granted {
+            return None;
+        }
+        a.consent.tool_decisions.get(tool).copied()
+    }
+
+    fn remember(&self, tool: &str, allow: bool) {
+        let (key, file) = {
+            let mut a = self.agent.write();
+            if !a.consent.granted || tool.trim().is_empty() {
+                return;
+            }
+            a.consent.tool_decisions.insert(tool.to_owned(), allow);
+            (a.graph_key.clone(), a.settings_file.clone())
+        };
+        let Some(file) = file else { return };
+        let result = bitacora_config::PandoSettings::load(&file).and_then(|mut s| {
+            s.remember_tool_decision(&key, tool, allow);
+            s.save(&file)
+        });
+        if let Err(e) = result {
+            tracing::warn!("cannot persist the remembered decision for {tool}: {e}");
         }
     }
 }
@@ -83,5 +124,48 @@ pub(crate) fn edit_applier(queue: &CommandQueue, mcp: Option<&McpServer>) -> Que
             queue: queue.clone(),
         })),
         None => applier,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used)]
+    use bitacora_pando::agents::ToolMemory;
+
+    use super::*;
+
+    #[test]
+    fn remembered_decisions_persist_and_vanish_with_consent() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("pando.json");
+        let mut s = bitacora_config::PandoSettings::default();
+        s.grant_consent("/g", 1);
+        s.save(&file).unwrap();
+        let agent = Arc::new(parking_lot::RwLock::new(AgentContext {
+            consent: s.consent("/g"),
+            chat_enabled: true,
+            graph_key: "/g".into(),
+            settings_file: Some(file.clone()),
+        }));
+        let mem = SessionToolMemory {
+            agent: Arc::clone(&agent),
+        };
+        assert_eq!(mem.decision("propose_edit"), None);
+        mem.remember("propose_edit", true);
+        mem.remember("bash", false);
+        assert_eq!(mem.decision("propose_edit"), Some(true));
+        assert_eq!(mem.decision("bash"), Some(false));
+        let saved = bitacora_config::PandoSettings::load(&file).unwrap();
+        assert_eq!(saved.consent("/g").tool_decisions.len(), 2);
+
+        // Revoking consent clears them in the file and nothing is honoured meanwhile.
+        let mut revoked = saved;
+        revoked.revoke_consent("/g");
+        agent.write().consent = revoked.consent("/g");
+        assert_eq!(mem.decision("propose_edit"), None);
+        assert!(revoked.consent("/g").tool_decisions.is_empty());
+        // Without consent nothing is remembered.
+        mem.remember("bash", true);
+        assert_eq!(mem.decision("bash"), None);
     }
 }

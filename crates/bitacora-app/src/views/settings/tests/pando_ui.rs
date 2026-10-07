@@ -218,14 +218,32 @@ fn consent_dialog_says_what_is_shared_and_revoke_keeps_exclusions(cx: &mut TestA
         "exclusions apply live, no reopen"
     );
 
+    // Remembered tool decisions can be forgotten one by one...
+    let mut with = bitacora_runtime::load_pando_settings(&file).unwrap();
+    with.remember_tool_decision(&key, "propose_edit", true);
+    with.remember_tool_decision(&key, "bash", false);
+    view.update(cx, |v, cx| {
+        assert!(v.save_pando(with, false, cx));
+        v.forget_pando_tool_decision("bash", cx);
+    });
+    let consent = bitacora_runtime::load_pando_settings(&file)
+        .unwrap()
+        .consent(&key);
+    assert_eq!(consent.tool_decisions.len(), 1);
+    assert_eq!(consent.tool_decisions.get("propose_edit"), Some(&true));
+    // ...and revoking consent (the single data-removal action) clears the rest.
+    let q = confirmation_for(&Pending::RevokePandoConsent);
+    assert!(q.description.contains("remembered"), "{}", q.description);
+    assert!(q.description.contains("never touched"), "{}", q.description);
     view.update_in(cx, |v, window, cx| {
-        v.request(Pending::RevokePandoConsent { purge: true }, window, cx);
+        v.request(Pending::RevokePandoConsent, window, cx);
         v.confirm_pending(window, cx);
     });
     let consent = bitacora_runtime::load_pando_settings(&file)
         .unwrap()
         .consent(&key);
     assert!(!consent.granted);
+    assert!(consent.tool_decisions.is_empty());
     assert_eq!(consent.exclusions, vec!["Journal/Private"]);
     view.update(cx, |v, cx| v.remove_pando_exclusion("Journal/Private", cx));
     assert!(

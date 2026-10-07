@@ -506,6 +506,7 @@ chat:
   skip: Skip
   auto_deny: "Denied automatically after %{seconds} s without an answer"
   perm_title: Permission request
+  remember: "Remember my decision"
   perm_explicit: Needs your explicit approval.
   question_title: The assistant asks
   diff_more: "... %{count} more lines"

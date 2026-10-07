@@ -131,6 +131,8 @@ pub struct ChatView {
     picks: HashMap<String, Vec<Option<(String, String)>>>,
     notice: Option<String>,
     expanded: HashSet<String>,
+    /// Cards whose "Remember my decision" box is ticked.
+    remembering: HashSet<String>,
     threads: Threads,
     scroll: ScrollHandle,
     follow: bool,
@@ -194,6 +196,7 @@ impl ChatView {
             picks: HashMap::new(),
             notice: None,
             expanded: HashSet::new(),
+            remembering: HashSet::new(),
             threads: Threads::default(),
             scroll: ScrollHandle::new(),
             follow: true,
@@ -632,18 +635,42 @@ impl ChatView {
 
     /// Approves a permission or edit card.
     pub fn approve(&mut self, id: &str, cx: &mut Context<Self>) {
+        let remember = self.remembering.remove(id);
         if let Some(chat) = &self.chat {
-            chat.approve(id);
+            if remember {
+                chat.decide_and_remember(id, Decision::Approve);
+            } else {
+                chat.approve(id);
+            }
         }
         cx.notify();
     }
 
     /// Denies a card.
     pub fn deny(&mut self, id: &str, cx: &mut Context<Self>) {
+        let remember = self.remembering.remove(id);
         if let Some(chat) = &self.chat {
-            chat.deny(id);
+            if remember {
+                chat.decide_and_remember(id, Decision::Deny);
+            } else {
+                chat.deny(id);
+            }
         }
         cx.notify();
+    }
+
+    /// Ticks or clears "Remember my decision" on a card.
+    pub fn toggle_remember(&mut self, id: &str, cx: &mut Context<Self>) {
+        if !self.remembering.remove(id) {
+            self.remembering.insert(id.to_owned());
+        }
+        cx.notify();
+    }
+
+    /// Whether "Remember my decision" is ticked on card `id`.
+    #[must_use]
+    pub fn is_remembering(&self, id: &str) -> bool {
+        self.remembering.contains(id)
     }
 
     /// Records the option chosen for question `ix` of a question card; once every question has

@@ -24,6 +24,7 @@ pub mod compose;
 pub mod edits;
 pub mod guard;
 pub mod lookup;
+pub mod memory;
 pub mod recommend;
 pub mod review;
 pub mod runs;
@@ -35,9 +36,9 @@ pub use approvals::{
 };
 pub use cache::{ReviewCache, WallClock};
 pub use chat::{
-    AgentState, ApprovalCard, CHAT_PROFILE, CardKind, CardState, CardView, ChatConfig, ChatDeps,
-    ChatEvent, ChatHandle, ChatMessage, ChatModel, ChatSession, RunEnd, SubAgent, ToolCallView,
-    WRITER_PROFILE,
+    AgentState, ApprovalCard, AutoAnswer, CHAT_PROFILE, CardKind, CardState, CardView, ChatConfig,
+    ChatDeps, ChatEvent, ChatHandle, ChatMessage, ChatModel, ChatSession, RunEnd, SubAgent,
+    ToolCallView, WRITER_PROFILE,
 };
 pub use compose::{ComposeDeps, ComposeMode, ComposeRequest, PageLookup, PageMeta, run_compose};
 pub use edits::{
@@ -46,6 +47,7 @@ pub use edits::{
 };
 pub use guard::{AttachedBlock, ContentGuard, GuardSource, under_private_block};
 pub use lookup::{BlockInfo, BlockLookup};
+pub use memory::{InMemoryToolMemory, ToolMemory};
 pub use recommend::{
     AutoRecommender, RECOMMENDER_PROFILE, RecommendDeps, RecommendOutcome, RecommendRequest,
     Suggestions, run_recommend,

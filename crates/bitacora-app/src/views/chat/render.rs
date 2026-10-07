@@ -606,6 +606,23 @@ impl ChatView {
             CardState::Pending => {
                 if !matches!(card.kind, CardKind::Question(_)) {
                     let (approve_id, deny_id) = (card.id.clone(), card.id.clone());
+                    if let Some(tool) = card.remember_tool.clone() {
+                        let remember_id = card.id.clone();
+                        let on = self.is_remembering(&card.id);
+                        body = body.child(
+                            Button::new(SharedString::from(format!("remember-{}", card.id)))
+                                .label(format!(
+                                    "{} {} ({tool})",
+                                    if on { "[x]" } else { "[ ]" },
+                                    t!("chat.remember")
+                                ))
+                                .ghost()
+                                .compact()
+                                .on_click(cx.listener(move |this, _, _, cx| {
+                                    this.toggle_remember(&remember_id, cx);
+                                })),
+                        );
+                    }
                     body = body.child(
                         h_flex()
                             .gap(m.space[3])
