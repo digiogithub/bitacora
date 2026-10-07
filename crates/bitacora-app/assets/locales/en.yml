@@ -41,6 +41,7 @@ palette:
   reindexing: Rebuilding the index...
   cmd_journals: "Go to: Journals"
   cmd_all_pages: "Go to: All pages"
+  cmd_tasks: "Go to: Tasks"
   cmd_back: "Go back"
   cmd_forward: "Go forward"
   cmd_left_sidebar: Toggle left sidebar
@@ -372,3 +373,25 @@ a11y:
   zoom_block: Zoom into block
   open_block: Open block
   empty_block: Empty block
+tasks:
+  title: Tasks
+  summary: "%{count} open across the graph"
+  overdue_count: "%{count} overdue"
+  filter_all: All
+  filter_overdue: Overdue
+  filter_doing: In progress
+  filter_todo: To do
+  filter_later: Later
+  priority: "Priority %{letter}"
+  group_overdue: Overdue
+  group_week: This week
+  group_later: Later
+  group_none: No date
+  scheduled: "scheduled %{date}"
+  deadline: "due %{date}"
+  overdue_tag: overdue
+  no_date: no date
+  in_page: "in %{page}"
+  empty: No open tasks match.
+  err_page: "Cannot open the page %{page}."
+  err_moved: The task changed on disk; reload and try again.

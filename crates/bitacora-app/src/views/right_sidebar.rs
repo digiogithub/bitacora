@@ -191,7 +191,7 @@ impl RightSidebar {
 
     /// Shows `route` at the top of the stack; an item already showing it moves up and unfolds.
     pub fn open(&mut self, route: Route, cx: &mut Context<Self>) {
-        if matches!(route, Route::Journals | Route::AllPages) {
+        if matches!(route, Route::Journals | Route::AllPages | Route::Tasks) {
             return;
         }
         if let Some(ix) = self.items.iter().position(|i| i.route == route) {
@@ -307,7 +307,7 @@ impl RightSidebar {
                 .zoom
                 .first()
                 .map_or_else(|| t!("right.block").to_string(), |l| l.label.clone()),
-            Route::Journals | Route::AllPages => String::new(),
+            Route::Journals | Route::AllPages | Route::Tasks => String::new(),
         }
     }
 }

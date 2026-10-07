@@ -13,6 +13,8 @@ pub enum Route {
     Block(String),
     /// The table of all pages.
     AllPages,
+    /// The open tasks of the graph (BIT-US-0126).
+    Tasks,
 }
 
 /// Where a click on a ref, tag, bullet or list entry opens its target (Shift+click opens the

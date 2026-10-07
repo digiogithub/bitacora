@@ -85,6 +85,8 @@ pub enum PaletteCommand {
     GoJournals,
     /// Show the table of all pages.
     GoAllPages,
+    /// Show the tasks view (BIT-US-0126).
+    GoTasks,
     /// Show or hide the left sidebar.
     ToggleLeftSidebar,
     /// Show or hide the right sidebar.
@@ -127,9 +129,10 @@ pub enum PaletteCommand {
 
 impl PaletteCommand {
     /// Every command, in palette order.
-    pub const ALL: [Self; 21] = [
+    pub const ALL: [Self; 22] = [
         Self::GoJournals,
         Self::GoAllPages,
+        Self::GoTasks,
         Self::GoBack,
         Self::GoForward,
         Self::ToggleLeftSidebar,
@@ -156,6 +159,7 @@ impl PaletteCommand {
         match self {
             Self::GoJournals => t!("palette.cmd_journals"),
             Self::GoAllPages => t!("palette.cmd_all_pages"),
+            Self::GoTasks => t!("palette.cmd_tasks"),
             Self::GoBack => t!("palette.cmd_back"),
             Self::GoForward => t!("palette.cmd_forward"),
             Self::ToggleLeftSidebar => t!("palette.cmd_left_sidebar"),
@@ -183,6 +187,7 @@ impl PaletteCommand {
         match self {
             Self::GoJournals => IconName::Calendar,
             Self::GoAllPages => IconName::FileText,
+            Self::GoTasks => IconName::CircleCheck,
             Self::GoBack => IconName::ArrowLeft,
             Self::GoForward => IconName::ArrowRight,
             Self::ToggleLeftSidebar | Self::ToggleRightSidebar => IconName::PanelLeft,

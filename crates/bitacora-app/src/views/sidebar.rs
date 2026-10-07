@@ -91,6 +91,7 @@ impl LeftSidebar {
         let active = match route {
             Some(Route::Journals) => Some(Target::Journals),
             Some(Route::AllPages) => Some(Target::AllPages),
+            Some(Route::Tasks) => None,
             Some(Route::Page(name)) => Some(Target::Page(name.clone())),
             Some(Route::Block(_)) | None => None,
         };

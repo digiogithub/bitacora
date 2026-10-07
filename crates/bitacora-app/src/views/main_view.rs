@@ -18,6 +18,7 @@ use crate::ui::{
 use crate::views::all_pages::AllPagesView;
 use crate::views::journals::JournalsView;
 use crate::views::page_view::{BlockFocusEvent, ConflictJumpEvent, PageEvent, PageView};
+use crate::views::tasks::TasksView;
 
 /// What a pane tells its host.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -52,6 +53,7 @@ pub struct MainView {
     page: Entity<PageView>,
     journals: Entity<JournalsView>,
     all_pages: Entity<AllPagesView>,
+    tasks: Entity<TasksView>,
     handle: Option<GraphHandle>,
     history: NavHistory,
     pending: Option<Route>,
@@ -74,6 +76,7 @@ impl MainView {
         let page = cx.new(PageView::new);
         let journals = cx.new(JournalsView::new);
         let all_pages = cx.new(|cx| AllPagesView::new(window, cx));
+        let tasks = cx.new(TasksView::new);
         let subscriptions = vec![
             cx.subscribe(&page, Self::on_page_event),
             cx.subscribe(&page, |_, _, event: &BlockFocusEvent, cx| {
@@ -84,11 +87,13 @@ impl MainView {
             }),
             cx.subscribe(&journals, Self::on_page_event),
             cx.subscribe(&all_pages, Self::on_page_event),
+            cx.subscribe(&tasks, Self::on_page_event),
         ];
         Self {
             page,
             journals,
             all_pages,
+            tasks,
             handle: None,
             history: NavHistory::new(),
             pending: None,
@@ -115,7 +120,7 @@ impl MainView {
     pub fn current_page_id(&self, cx: &App) -> Option<i64> {
         match self.route()? {
             Route::Page(_) => self.page.read(cx).header().page_id,
-            Route::Journals | Route::AllPages | Route::Block(_) => None,
+            Route::Journals | Route::AllPages | Route::Tasks | Route::Block(_) => None,
         }
     }
 
@@ -153,13 +158,14 @@ impl MainView {
         self.handle = None;
         self.history = NavHistory::new();
         self.all_pages.update(cx, |v, cx| v.clear(cx));
+        self.tasks.update(cx, |v, cx| v.clear(cx));
         cx.notify();
     }
 
     fn current_scroll(&self, cx: &Context<Self>) -> Option<Scroll> {
         Some(match self.route()? {
             Route::Journals => self.journals.read(cx).scroll(),
-            Route::AllPages => Scroll::default(),
+            Route::AllPages | Route::Tasks => Scroll::default(),
             Route::Page(_) | Route::Block(_) => self.page.read(cx).scroll(),
         })
     }
@@ -190,6 +196,7 @@ impl MainView {
                 .journals
                 .update(cx, |j, cx| j.show(handle, restore, cx)),
             Route::AllPages => self.all_pages.update(cx, |v, cx| v.show(handle, cx)),
+            Route::Tasks => self.tasks.update(cx, |v, cx| v.show(handle, cx)),
             Route::Page(_) | Route::Block(_) => {
                 self.page
                     .update(cx, |p, cx| p.show(handle, route, restore, cx));
@@ -233,6 +240,8 @@ impl MainView {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        self.tasks
+            .update(cx, |t, cx| t.set_session_link(Some(link.clone()), cx));
         self.journals
             .update(cx, |j, cx| j.set_session_link(Some(link.clone()), cx));
         self.page
@@ -256,6 +265,7 @@ impl MainView {
         match self.route() {
             Some(Route::Journals) => self.journals.update(cx, |j, cx| j.refresh(cx)),
             Some(Route::AllPages) => self.all_pages.update(cx, |v, cx| v.reload(cx)),
+            Some(Route::Tasks) => self.tasks.update(cx, |v, cx| v.reload(cx)),
             Some(_) => self.page.update(cx, |p, cx| p.reload(cx)),
             None => {}
         }
@@ -268,6 +278,7 @@ impl MainView {
                 .journals
                 .update(cx, |j, cx| j.on_index_event(event, cx)),
             Some(Route::AllPages) => self.all_pages.update(cx, |v, cx| v.on_index_changed(cx)),
+            Some(Route::Tasks) => self.tasks.update(cx, |v, cx| v.on_index_changed(cx)),
             Some(_) => self.page.update(cx, |p, cx| p.on_index_event(event, cx)),
             None => {}
         }
@@ -319,6 +330,7 @@ impl Render for MainView {
         let shown = match self.route() {
             Some(Route::Journals) => self.journals.clone().into_any_element(),
             Some(Route::AllPages) => self.all_pages.clone().into_any_element(),
+            Some(Route::Tasks) => self.tasks.clone().into_any_element(),
             _ => self.page.clone().into_any_element(),
         };
         v_flex()
