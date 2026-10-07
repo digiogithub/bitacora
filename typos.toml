@@ -7,6 +7,8 @@ extend-exclude = [
     # Spanish translations are not English words
     "crates/bitacora-app/assets/locales/es.yml",
     "crates/bitacora-app/assets/locales/*.es.yml",
+    # Vendored design system sources and docs are written in Spanish
+    "design/**",
 ]
 
 [default.extend-words]
@@ -33,3 +35,11 @@ edn = "edn"
 Nd = "Nd"
 mis = "mis"
 unparseable = "unparseable"
+# Level of detail (graph view docs)
+LOD = "LOD"
+# Streaming-delta test fragment ("Hel" + "lo ")
+Hel = "Hel"
+# Spanish words quoted from the design-system docs / generated token descriptions
+componentes = "componentes"
+controles = "controles"
+decorativo = "decorativo"

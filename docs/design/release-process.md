@@ -49,7 +49,7 @@ Cutting a release: `cargo xtask bump X.Y.Z`, commit, `git tag vX.Y.Z`, push the 
 
 ## 6. Flatpak
 
-`packaging/flatpak/es.digio.bitacora.yml` (runtime Freedesktop 24.08, Rust and LLVM SDK extensions), desktop file and AppStream metainfo. Cargo sources are generated from `Cargo.lock` with `flatpak-cargo-generator.py` (not committed). Permissions: Wayland/X11, DRI, network (git sync, MCP on localhost reachable from host clients), SSH agent, Secret Service, `xdg-documents`; other graph folders via the file chooser portal. No `git` is bundled (ADR-020) so the gix backend is used unless a host git is visible. Flathub submission: open a PR against `flathub/flathub` with the manifest switched to the tagged git source and `cargo-sources.json` committed beside it.
+`packaging/flatpak/es.digio.bitacora.yml` (runtime Freedesktop 25.08, Rust and LLVM SDK extensions), desktop file and AppStream metainfo. Cargo sources are generated from `Cargo.lock` with `flatpak-cargo-generator.py` (not committed). Permissions: Wayland/X11, DRI, network (git sync, MCP on localhost reachable from host clients), SSH agent, Secret Service, `xdg-documents`; other graph folders via the file chooser portal. No `git` is bundled (ADR-020) so the gix backend is used unless a host git is visible. Flathub submission: open a PR against `flathub/flathub` with the manifest switched to the tagged git source and `cargo-sources.json` committed beside it.
 
 ## Requirements
 
