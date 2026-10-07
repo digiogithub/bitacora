@@ -77,3 +77,34 @@ Errors added by AG-UI: `Protocol` (200 that is not an SSE stream), `Run { code, 
 
 AG-UI shapes were verified against Pando `internal/agui/{events,input,threads,hitl,server,sse}.go`
 and the TypeScript SDK `sdk/typescript/src/agui/{client,thread,hitl}.ts`.
+
+## Testing and conformance
+
+- `cargo test -p pando-rs`: mock-server tests (axum on an ephemeral port) plus `tests/conformance.rs`,
+  which replays the recorded SSE streams in `tests/fixtures/agui/` (byte-for-byte copies of the
+  fixtures in Pando's TypeScript SDK, so all SDKs reduce the same streams to the same state).
+- Live tests, all `#[ignore]`: `cargo test -p pando-rs --test live -- --ignored`. The AG-UI ones
+  spawn `pando agui-serve --no-tls --no-token` (binary from `PANDO_BIN`, default `pando` on
+  `PATH`) in a temp directory, or use `PANDO_LIVE_AGUI_URL` / `PANDO_LIVE_AGUI_TOKEN`. They make no
+  LLM call. The REST one needs `PANDO_LIVE_REST_URL` / `PANDO_LIVE_REST_TOKEN` (`pando serve` is
+  TLS-only with a self-signed certificate). Verified against `pando` v1.2.11.
+
+## Versioning (semver policy)
+
+`pando-rs` follows semver. While `0.x`, a minor bump may break the Rust API; patch bumps never do.
+Wire compatibility is tracked separately: responses and AG-UI events are decoded tolerantly
+(unknown fields and event types are preserved, never fatal), so a newer Pando server does not
+require a new SDK release. A new Pando API route or event gets a minor bump. A Pando change that
+removes or reshapes something the SDK relies on gets a minor bump (`0.x`) or major bump (`>=1.0`)
+and a CHANGELOG entry naming the Pando version. Minimum supported Rust version: 1.90.
+See [CHANGELOG.md](CHANGELOG.md).
+
+## Releasing
+
+The crate is publish-ready (metadata, README, CHANGELOG, version 0.1.0) but not published:
+`publish` is inherited as `false` from the workspace until the owner decides. To release:
+set `publish = true` for this crate, run `cargo package -p pando-rs` and
+`cargo publish -p pando-rs --dry-run`, then `cargo publish -p pando-rs`. The crate is meant to
+move to Pando's `sdk/rust/` (it has no dependency on any other crate of this workspace); at that
+point update `repository` and the CI job there. Until it is published, dependents pin a git rev
+or use the path dependency.
