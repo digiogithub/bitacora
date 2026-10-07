@@ -11,6 +11,7 @@ pub mod cst;
 pub mod edit;
 pub mod edn;
 pub mod error;
+pub mod graph_view;
 pub mod pando;
 
 pub use accessors::{
@@ -23,6 +24,7 @@ pub use cst::Cst;
 pub use edit::ConfigEditor;
 pub use edn::{Edn, read_str};
 pub use error::{Diagnostic, DiagnosticKind, Error};
+pub use graph_view::{GraphForce, GraphToggle, GraphViewSettings};
 pub use pando::{
     GraphConsent, PandoFeature, PandoMode, PandoSettings, PandoSettingsError, PandoUrl, UrlRole,
     validate_pando_url,

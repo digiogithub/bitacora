@@ -15,11 +15,15 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
 
+use bitacora_config::{GraphForce, GraphToggle, GraphViewSettings};
+use bitacora_core::queue::CommandQueue;
 use bitacora_graph::{Control, ForceParams, Simulation, SimulationHandle};
 use bitacora_index::{GraphData, GraphFilter, IndexEvent};
 use rust_i18n::t;
 
 use crate::data::GraphHandle;
+use crate::graph_view::export::{ExportError, Format, Palette, Rgb, Scene};
+use crate::graph_view::prefs::{match_mask, normalize_query, stepped};
 use crate::graph_view::viewport::{LABEL_ZOOM, Viewport, hit_test};
 use crate::graph_view::{GraphModel, carry_positions};
 use crate::nav::OpenIn;
@@ -27,13 +31,19 @@ use crate::render::inline::NavTarget;
 use crate::ui::button::{Button, ButtonVariants as _};
 use crate::ui::canvas::{BorderStyle, MouseDownEvent, MouseMoveEvent, MouseUpEvent, PathBuilder};
 use crate::ui::canvas::{ScrollWheelEvent, canvas, quad};
+use crate::ui::input::{Input, InputEvent, InputState};
 use crate::ui::text_edit::{MouseButton, fill};
 use crate::ui::theme::ActiveBitacoraTheme as _;
 use crate::ui::{
-    App, Bounds, Context, EventEmitter, Hsla, IconName, InteractiveElement as _, IntoElement,
-    ParentElement as _, Render, Sizable as _, Styled as _, Task, Window, div, h_flex, point, px,
+    App, Bounds, Context, Entity, EventEmitter, Hsla, IconName, InteractiveElement as _,
+    IntoElement, ParentElement as _, Render, Rgba, Sizable as _, Styled as _, Subscription, Task,
+    Window, div, h_flex, point, px,
 };
+use crate::views::kit::{Card, Glyph, IconButton, Segmented};
 use crate::views::page_view::PageEvent;
+use crate::views::settings::{GraphEdit, edit_config};
+
+mod panel;
 
 /// Debounce between an index change and the graph refresh.
 const REFRESH_DEBOUNCE: Duration = Duration::from_millis(400);
@@ -59,14 +69,56 @@ pub enum GraphMode {
     Local,
 }
 
-/// Settings of the view. Persistence in `config.edn` (`:graph/settings`, `:graph/forcesettings`)
-/// is a later story (BIT-US-0158); until then the defaults apply and this struct is the seam.
+/// Settings of the view, derived from `:graph/settings` and `:graph/forcesettings`
+/// ([`GraphSettings::from_prefs`]; persisted by [`GraphView::toggle_pref`] and friends).
 #[derive(Debug, Clone, Default)]
 pub struct GraphSettings {
     /// Which pages are shown.
     pub filter: GraphFilter,
     /// Force parameters of the layout.
     pub forces: ForceParams,
+}
+
+impl GraphSettings {
+    /// The filter and force parameters of `prefs` (Logseq's `link-dist`, `charge-strength` and
+    /// `charge-range` map to the link distance, charge and charge range of the layout).
+    #[allow(clippy::cast_possible_truncation)]
+    pub fn from_prefs(prefs: &GraphViewSettings) -> Self {
+        Self {
+            filter: GraphFilter {
+                journals: prefs.journals,
+                orphans: prefs.orphan_pages,
+                builtins: prefs.builtin_pages,
+                show_excluded: prefs.excluded_pages,
+                ..GraphFilter::default()
+            },
+            forces: ForceParams {
+                link_distance: prefs.link_dist as f32,
+                charge: prefs.charge_strength as f32,
+                charge_range: prefs.charge_range as f32,
+                ..ForceParams::default()
+            },
+        }
+    }
+}
+
+/// Sections of the settings panel.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PanelSection {
+    /// Counts and page filters.
+    Nodes,
+    /// Label search.
+    Search,
+    /// Layout forces.
+    Forces,
+    /// Picture export.
+    Export,
+}
+
+impl PanelSection {
+    fn index(self) -> usize {
+        self as usize
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -100,7 +152,8 @@ struct PaintData {
     positions: Arc<[[f32; 2]]>,
     viewport: Viewport,
     hover: Option<usize>,
-    /// `Some(mask)` while a node is hovered: `true` for the node and its neighbours.
+    /// `Some(mask)` while a node is hovered (the node and its neighbours are `true`) or the
+    /// panel's label search is active (the matching pages are `true`).
     lit: Option<Vec<bool>>,
     current: Option<usize>,
     focused: Vec<bool>,
@@ -134,6 +187,20 @@ pub struct GraphView {
     loaded: bool,
     load_task: Option<Task<()>>,
     refresh_task: Option<Task<()>>,
+    // ---- settings panel (BIT-US-0158) ----
+    prefs: GraphViewSettings,
+    /// The graph `prefs` were read for (they are read again only when the graph changes).
+    prefs_root: Option<std::path::PathBuf>,
+    queue: Option<CommandQueue>,
+    panel_open: bool,
+    sections: [bool; 4],
+    paused: bool,
+    query: String,
+    search: Option<(Entity<InputState>, Subscription)>,
+    message: Option<String>,
+    /// Config edits waiting for the write in flight to finish.
+    pending: Vec<GraphEdit>,
+    saving: bool,
 }
 
 impl std::fmt::Debug for GraphView {
@@ -173,13 +240,36 @@ impl GraphView {
             loaded: false,
             load_task: None,
             refresh_task: None,
+            prefs: GraphViewSettings::default(),
+            prefs_root: None,
+            queue: None,
+            panel_open: false,
+            sections: [true, false, true, false],
+            paused: false,
+            query: String::new(),
+            search: None,
+            message: None,
+            pending: Vec::new(),
+            saving: false,
         }
     }
 
     /// Connects the view to a graph and loads it.
     pub fn show(&mut self, handle: GraphHandle, cx: &mut Context<Self>) {
+        // The global graph follows the saved settings; they are read once per graph (edits made
+        // here are kept in `prefs`, the handle only has the config as it was when it opened).
+        if self.mode == GraphMode::Global && self.prefs_root.as_deref() != Some(&handle.root) {
+            self.prefs = handle.settings.config.graph_view_settings();
+            self.prefs_root = Some(handle.root.clone());
+            self.settings = GraphSettings::from_prefs(&self.prefs);
+        }
         self.handle = Some(handle);
         self.reload(cx);
+    }
+
+    /// Gives the view the command queue its settings edits are written through.
+    pub fn set_queue(&mut self, queue: Option<CommandQueue>) {
+        self.queue = queue;
     }
 
     /// Forgets the graph (it was closed).
@@ -191,6 +281,8 @@ impl GraphView {
         self.positions = Arc::from(Vec::new());
         self.loaded = false;
         self.focus.clear();
+        self.prefs_root = None;
+        self.queue = None;
         cx.notify();
     }
 
@@ -525,6 +617,15 @@ impl GraphView {
         }
     }
 
+    /// `Some(mask)` while the panel's label search has text: `true` for the matching pages.
+    pub(crate) fn search_mask(&self) -> Option<Vec<bool>> {
+        let q = normalize_query(&self.query)?;
+        Some(match_mask(
+            self.model.nodes().iter().map(|n| n.name.as_str()),
+            &q,
+        ))
+    }
+
     fn paint_data(&self, cx: &App) -> PaintData {
         let lit = self.hover.map(|h| {
             let mut mask = vec![false; self.model.len()];
@@ -538,6 +639,7 @@ impl GraphView {
             }
             mask
         });
+        let lit = lit.or_else(|| self.search_mask());
         let mut focused = vec![false; self.model.len()];
         for id in &self.focus {
             if let Some(slot) = self.model.index_of(*id).and_then(|i| focused.get_mut(i)) {
@@ -647,7 +749,7 @@ fn paint_graph(bounds: Bounds<crate::ui::Pixels>, d: &PaintData, window: &mut Wi
         .collect();
 
     // Edges: one batch per colour.
-    let dim = d.hover.is_some();
+    let dim = d.lit.is_some();
     let mut plain = EdgeBatch(Vec::new());
     let mut lit = EdgeBatch(Vec::new());
     for &(a, b) in d.model.links() {
@@ -809,6 +911,9 @@ impl Render for GraphView {
 
         if self.mode == GraphMode::Global {
             root = root.child(self.toolbar(cx));
+            if self.panel_open {
+                root = root.child(self.panel(window, cx));
+            }
         }
         if self.loaded && self.model.is_empty() {
             root = root.child(
@@ -832,7 +937,9 @@ impl GraphView {
         let panel = cx.bitacora().colors.panel;
         let line = cx.bitacora().colors.line;
         let this = cx.entity();
-        let (fit, less, more, reset) = (this.clone(), this.clone(), this.clone(), this);
+        let (fit, less, more, reset, settings) =
+            (this.clone(), this.clone(), this.clone(), this.clone(), this);
+        let panel_open = self.panel_open;
         let hops = self.hops;
         let mut bar = h_flex()
             .absolute()
@@ -856,6 +963,12 @@ impl GraphView {
                     .small()
                     .label(t!("graph_view.fit").to_string())
                     .on_click(move |_, _, cx| fit.update(cx, |v, cx| v.fit(cx))),
+            )
+            .child(
+                IconButton::new("graph-settings", Glyph::Settings)
+                    .small()
+                    .active(panel_open)
+                    .on_click(move |_, _, cx| settings.update(cx, |v, cx| v.toggle_panel(cx))),
             );
         if !self.focus.is_empty() {
             bar = bar

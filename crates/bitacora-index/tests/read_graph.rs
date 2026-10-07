@@ -133,6 +133,21 @@ fn filters_journals_orphans_and_excluded_pages() {
     assert!(ex.nodes.iter().all(|n| n.name != "Beta"));
     let alpha = ex.nodes.iter().find(|n| n.name == "Alpha").expect("alpha");
     assert_eq!(alpha.degree, 3, "edges to excluded pages are dropped");
+    // `:excluded-pages? true` shows the pages that opt out with `exclude-from-graph-view`.
+    assert!(
+        r.graph_data(&GraphFilter::default())
+            .expect("graph")
+            .nodes
+            .iter()
+            .all(|n| n.name != "Hidden")
+    );
+    let shown = r
+        .graph_data(&GraphFilter {
+            show_excluded: true,
+            ..GraphFilter::default()
+        })
+        .expect("graph");
+    assert!(shown.nodes.iter().any(|n| n.name == "Hidden"));
 }
 
 #[test]

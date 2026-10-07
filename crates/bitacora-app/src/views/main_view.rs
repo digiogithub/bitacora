@@ -245,6 +245,8 @@ impl MainView {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        self.graph
+            .update(cx, |g, _| g.set_queue(Some(link.queue.clone())));
         self.journals
             .update(cx, |j, cx| j.set_session_link(Some(link.clone()), cx));
         self.page

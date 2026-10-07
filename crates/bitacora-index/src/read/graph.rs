@@ -21,6 +21,8 @@ pub struct GraphFilter {
     pub orphans: bool,
     /// Show built-in pages (`TODO`, `A`, ...).
     pub builtins: bool,
+    /// Show pages that opt out with `exclude-from-graph-view:: true` (`:excluded-pages?`).
+    pub show_excluded: bool,
     /// Page names hidden from the graph (the `:graph/settings` excluded pages), any case.
     pub excluded_pages: Vec<String>,
 }
@@ -31,6 +33,7 @@ impl Default for GraphFilter {
             journals: false,
             orphans: true,
             builtins: false,
+            show_excluded: false,
             excluded_pages: Vec::new(),
         }
     }
@@ -207,7 +210,7 @@ fn finish(
         .iter()
         .filter(|p| {
             Some(p.id) == centre
-                || (!p.hidden
+                || ((!p.hidden || filter.show_excluded)
                     && !excluded.contains(&p.name)
                     && !is_uuid_like(&p.name)
                     && !is_asset_name(&p.name)

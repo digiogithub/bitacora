@@ -867,6 +867,10 @@ fn unchanged(values: &GraphValues, edit: &GraphEdit) -> bool {
         GraphEdit::PreferredWorkflow(w) => values.workflow == *w,
         GraphEdit::FavoriteAdd(p) => values.favorites.iter().any(|f| f == p.trim()),
         GraphEdit::FavoriteRemove(p) => !values.favorites.iter().any(|f| f == p),
+        // Owned by the graph view, which compares against its own state.
+        GraphEdit::GraphToggle(..) | GraphEdit::GraphForce(..) | GraphEdit::GraphForcesReset => {
+            false
+        }
     }
 }
 
