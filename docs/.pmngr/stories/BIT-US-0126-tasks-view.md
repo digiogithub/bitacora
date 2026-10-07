@@ -2,7 +2,7 @@
 id: BIT-US-0126
 type: story
 title: Tasks view
-status: backlog
+status: todo
 priority: medium
 parent: BIT-EP-0017
 milestone: BIT-M-0006
@@ -10,7 +10,7 @@ author: mcp
 labels: [v2, ui, bitacora-app, bitacora-index]
 estimate: 8
 created: 2026-10-07T09:13:09Z
-updated: 2026-10-07T09:13:09Z
+updated: 2026-10-07T11:10:03Z
 ---
 
 ## Description

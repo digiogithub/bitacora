@@ -2,7 +2,7 @@
 id: BIT-T-0402
 type: task
 title: Tasks view grouping, filter pills and row actions
-status: backlog
+status: todo
 priority: medium
 parent: BIT-US-0126
 milestone: BIT-M-0006
@@ -10,7 +10,7 @@ author: mcp
 labels: [v2, ui, bitacora-index]
 estimate: 5
 created: 2026-10-07T09:13:45Z
-updated: 2026-10-07T09:13:45Z
+updated: 2026-10-07T11:10:03Z
 ---
 
 ## Description

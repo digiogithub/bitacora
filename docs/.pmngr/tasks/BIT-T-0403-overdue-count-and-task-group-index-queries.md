@@ -2,7 +2,7 @@
 id: BIT-T-0403
 type: task
 title: Overdue count and task-group index queries
-status: backlog
+status: todo
 priority: medium
 parent: BIT-US-0126
 milestone: BIT-M-0006
@@ -10,7 +10,7 @@ author: mcp
 labels: [v2, bitacora-index]
 estimate: 2
 created: 2026-10-07T09:13:45Z
-updated: 2026-10-07T09:13:45Z
+updated: 2026-10-07T11:10:03Z
 ---
 
 ## Description
