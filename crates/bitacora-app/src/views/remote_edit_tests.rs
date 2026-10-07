@@ -1,4 +1,4 @@
-//! Click-to-edit of blocks shown from other pages (BIT-US-0187): query results, backlinks, the
+//! Click-to-edit of blocks shown from other pages (BIT-US-0168): query results, backlinks, the
 //! Tasks view and the zoomed block of a sidebar item. Linked references are covered in
 //! `page_view`'s tests and embeds in `widgets`' tests.
 

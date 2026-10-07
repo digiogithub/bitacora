@@ -554,6 +554,7 @@ impl QueryBlock {
             .into_any_element()
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn render_list(
         &mut self,
         eid: u64,
@@ -561,6 +562,7 @@ impl QueryBlock {
         theme: &crate::ui::theme::Theme,
         bt: &crate::ui::theme::BitacoraTheme,
         root: Option<&std::path::Path>,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let nav = self.nav.clone();
@@ -602,7 +604,9 @@ impl QueryBlock {
                             );
                         }
                         // A click on the text edits the block in its own page.
-                        let remote = self.remote.prepare(&this, &group.page, row, None, None, cx);
+                        let remote =
+                            self.remote
+                                .prepare(&this, &group.page, row, None, None, window, cx);
                         let editing = remote.as_ref().is_some_and(|rr| rr.editing);
                         let (edit, activate, shown) = match remote {
                             Some(rr) => (rr.edit, rr.activate, Some(rr.row)),
@@ -804,7 +808,7 @@ fn chip(
 }
 
 impl Render for QueryBlock {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.last_drawn = Some(Instant::now());
         if self.stale && self.task.is_none() {
             self.run(cx);
@@ -880,6 +884,7 @@ impl Render for QueryBlock {
                         &theme,
                         &bt,
                         root.as_deref(),
+                        window,
                         cx,
                     ));
                 }

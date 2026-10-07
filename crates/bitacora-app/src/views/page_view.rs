@@ -197,7 +197,7 @@ pub struct PageView {
     live: bool,
     _editor_subs: Vec<crate::ui::Subscription>,
     /// Editors of the source pages of the blocks drawn from the index (references, zoomed
-    /// blocks): a click on their text edits them in place (BIT-US-0187).
+    /// blocks): a click on their text edits them in place (BIT-US-0168).
     remote: RemoteEditors<PageView>,
     /// Session handle of a view that stays read-only as a page (the right sidebar) but whose
     /// blocks are still edited in place through [`Self::remote`].
@@ -1204,7 +1204,12 @@ impl PageView {
         })
     }
 
-    fn render_item(&mut self, ix: usize, _: &mut Window, cx: &mut Context<Self>) -> AnyElement {
+    fn render_item(
+        &mut self,
+        ix: usize,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
         let _span = crate::perf::span("page_view.render_item");
         let Some(item) = self.items.get(ix).copied() else {
             return div().into_any_element();
@@ -1252,7 +1257,7 @@ impl PageView {
                         };
                         let bullet = row.has_children.then(|| toggle.clone());
                         self.remote
-                            .prepare(&this, &page, row, Some(toggle), bullet, cx)
+                            .prepare(&this, &page, row, Some(toggle), bullet, window, cx)
                             .map(|rr| (page, rr))
                     });
                     let remote_editing = remote.as_ref().is_some_and(|(_, rr)| rr.editing);
@@ -1371,8 +1376,15 @@ impl PageView {
                         };
                         let bullet = row.has_children.then(|| toggle.clone());
                         let remote = page.as_ref().and_then(|page| {
-                            self.remote
-                                .prepare(&this, page, &row, Some(toggle.clone()), bullet, cx)
+                            self.remote.prepare(
+                                &this,
+                                page,
+                                &row,
+                                Some(toggle.clone()),
+                                bullet,
+                                window,
+                                cx,
+                            )
                         });
                         let (edit, activate, shown, editing) = match remote {
                             Some(rr) => (rr.edit, rr.activate, Some(rr.row), rr.editing),
@@ -2015,6 +2027,41 @@ mod tests {
             .expect("queue")
             .expect("step");
         assert_eq!(env.disk("pages/A.md"), a_before);
+    }
+
+    #[gpui_test]
+    fn planning_chips_of_a_reference_open_the_picker_and_rewrite_the_source(
+        cx: &mut TestAppContext,
+    ) {
+        use crate::views::widgets::tests::Env;
+        setup(cx);
+        let src = "- TODO plan [[Target]]\n  SCHEDULED: <2026-10-07 Wed>\n- other\n";
+        let env = Env::new(&[("pages/Target.md", "- the target\n"), ("pages/A.md", src)]);
+        let (view, cx) = open(cx);
+        let link = env.link.clone();
+        view.update_in(cx, |v, window, cx| {
+            v.set_session_link(Some(link), window, cx);
+        });
+        view.update(cx, |v, cx| {
+            v.show(env.handle.clone(), page_route("Target"), None, cx);
+        });
+        settle(cx, &view, |v| v.linked().is_some() && v.is_live());
+        // Drawing the reference gives its page an editor, so the chip is interactive without a
+        // previous click on the text.
+        settle(cx, &view, |v| v.remote_editor("A").is_some());
+        let ed = view.read_with(cx, |v, _| v.remote_editor("A").expect("editor"));
+        let hooks = cx
+            .update(|_, cx| OutlineEditor::row_edit(&ed, 0, cx))
+            .and_then(|e| e.planning)
+            .expect("planning hooks on the reference row");
+        cx.update(|window, cx| (hooks.on_open)(crate::views::planning::SCHEDULED, window, cx));
+        assert!(ed.read_with(cx, |e, _| e.planning_open().is_some()));
+        ed.update_in(cx, |e, window, cx| e.pick_planning(20_261_010, window, cx));
+        assert_eq!(
+            env.disk("pages/A.md"),
+            "- TODO plan [[Target]]\n  SCHEDULED: <2026-10-10 Sat>\n- other\n"
+        );
+        assert_eq!(env.disk("pages/Target.md"), "- the target\n");
     }
 
     #[gpui_test]

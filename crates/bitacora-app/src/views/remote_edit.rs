@@ -1,4 +1,4 @@
-//! Inline editing of blocks shown outside their own page (BIT-US-0187).
+//! Inline editing of blocks shown outside their own page (BIT-US-0168).
 //!
 //! Linked and unlinked references, the zoomed block of a sidebar item, query results and the
 //! Tasks view all draw blocks that belong to *another* page, from the index. A click on the
@@ -184,6 +184,7 @@ impl<V: 'static> RemoteEditors<V> {
     /// What to draw for `row` of page `page`. `toggle` is the host's view-only fold and
     /// `bullet` what the bullet does (the editor's own versions would change the file or zoom
     /// an editor nobody sees). `None` when the row cannot be edited in place.
+    #[allow(clippy::too_many_arguments)]
     pub fn prepare(
         &mut self,
         host: &Entity<V>,
@@ -191,16 +192,18 @@ impl<V: 'static> RemoteEditors<V> {
         row: &Row,
         toggle: Option<Hook>,
         bullet: Option<Hook>,
+        window: &mut Window,
         cx: &mut Context<V>,
     ) -> Option<RemoteRow> {
         if !self.enabled() {
             return None;
         }
         let target = BlockRef::of_row(page, row)?;
-        self.prepare_target(host, &target, row, toggle, bullet, cx)
+        self.prepare_target(host, &target, row, toggle, bullet, window, cx)
     }
 
     /// [`Self::prepare`] for a caller that built the [`BlockRef`] itself.
+    #[allow(clippy::too_many_arguments)]
     pub fn prepare_target(
         &mut self,
         host: &Entity<V>,
@@ -208,10 +211,16 @@ impl<V: 'static> RemoteEditors<V> {
         row: &Row,
         toggle: Option<Hook>,
         bullet: Option<Hook>,
+        window: &mut Window,
         cx: &mut Context<V>,
     ) -> Option<RemoteRow> {
         if !self.enabled() {
             return None;
+        }
+        // Planning chips (SCHEDULED/DEADLINE) are only clickable on rows built by an editor:
+        // blocks that have them get their page's editor at once instead of on the first click.
+        if !row.block.planning.is_empty() && !self.slots.contains_key(&target.page) {
+            self.ensure(&target.page, window, cx);
         }
         let activate = self.activate_hook(host, target.clone());
         let live = self.slots.get(&target.page).and_then(|slot| {

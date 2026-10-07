@@ -439,7 +439,7 @@ impl RightPanel {
             })
     }
 
-    fn context_tab(&mut self, cx: &mut Context<Self>) -> AnyElement {
+    fn context_tab(&mut self, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
         let bt = cx.bitacora().clone();
         let m = &bt.metrics;
         let theme = cx.theme().clone();
@@ -477,7 +477,7 @@ impl RightPanel {
                         .child(properties_table(1, &self.context.properties, &theme, None)),
                 );
             }
-            col = col.child(self.backlinks_section(cx));
+            col = col.child(self.backlinks_section(window, cx));
             if let Some(section) = self.related_section(cx) {
                 col = col.child(section);
             }
@@ -488,7 +488,7 @@ impl RightPanel {
         col.child(self.stack.clone()).into_any_element()
     }
 
-    fn backlinks_section(&mut self, cx: &mut Context<Self>) -> AnyElement {
+    fn backlinks_section(&mut self, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
         let bt = cx.bitacora().clone();
         let m = &bt.metrics;
         let total: usize = self.context.backlinks.iter().map(|b| b.count).sum();
@@ -533,7 +533,7 @@ impl RightPanel {
                     ),
             );
             for (n, row) in link.blocks.iter().enumerate() {
-                card = card.child(self.backlink_block(ix, n, &link.page, row, cx));
+                card = card.child(self.backlink_block(ix, n, &link.page, row, window, cx));
             }
             section = section.child(div().id(("backlink", ix)).child(card));
         }
@@ -547,6 +547,7 @@ impl RightPanel {
         n: usize,
         page: &str,
         row: &Row,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let bt = cx.bitacora().clone();
@@ -559,7 +560,9 @@ impl RightPanel {
                 OpenIn::Main => stack.navigate(target, cx),
             });
         });
-        let remote = self.remote.prepare(&this, page, row, None, None, cx);
+        let remote = self
+            .remote
+            .prepare(&this, page, row, None, None, window, cx);
         let editing = remote.as_ref().is_some_and(|rr| rr.editing);
         let (edit, activate, shown) = match remote {
             Some(rr) => (rr.edit, rr.activate, Some(rr.row)),
@@ -716,10 +719,10 @@ impl RightPanel {
 }
 
 impl Render for RightPanel {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let bt = cx.bitacora().clone();
         let body = match self.tab {
-            PanelTab::Context => self.context_tab(cx),
+            PanelTab::Context => self.context_tab(window, cx),
             PanelTab::Agent => self.agent_tab(cx),
         };
         v_flex()
