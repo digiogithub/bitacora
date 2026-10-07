@@ -2,7 +2,7 @@
 id: BIT-US-0162
 type: story
 title: Settings migration from 1.x
-status: backlog
+status: in_review
 priority: high
 parent: BIT-EP-0025
 milestone: BIT-M-0009
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, release, compat]
 estimate: 3
 created: 2026-10-07T09:19:46Z
-updated: 2026-10-07T09:55:09Z
+updated: 2026-10-07T12:34:11Z
+started: 2026-10-07T12:34:11Z
 ---
 
 ## Description
