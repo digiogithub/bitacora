@@ -41,6 +41,7 @@ use crate::ui::{
     Window, div, h_flex, icon, px, v_flex,
 };
 use crate::views::block_view::{Nav, RowActions, properties_table, render_block_row};
+use crate::views::remote_edit::RemoteEditors;
 
 /// Pause after the last index event before the page is reloaded.
 const REFRESH_DEBOUNCE: Duration = Duration::from_millis(250);
@@ -195,6 +196,12 @@ pub struct PageView {
     /// The rows are core's page (editable), not the index's.
     live: bool,
     _editor_subs: Vec<crate::ui::Subscription>,
+    /// Editors of the source pages of the blocks drawn from the index (references, zoomed
+    /// blocks): a click on their text edits them in place (BIT-US-0187).
+    remote: RemoteEditors<PageView>,
+    /// Session handle of a view that stays read-only as a page (the right sidebar) but whose
+    /// blocks are still edited in place through [`Self::remote`].
+    remote_link: Option<SessionLink>,
     /// The title is being edited (page rename, BIT-T-0157).
     rename: Option<crate::ui::Entity<InputState>>,
     _rename_sub: Option<crate::ui::Subscription>,
@@ -253,9 +260,22 @@ impl PageView {
             editor: None,
             live: false,
             _editor_subs: Vec::new(),
+            remote: RemoteEditors::new(
+                |v| &mut v.remote,
+                Some(Rc::new(|v: &mut PageView, _| v.list_state.remeasure())),
+            ),
+            remote_link: None,
             rename: None,
             _rename_sub: None,
         }
+    }
+
+    /// Lets the blocks of this (non-live) view be edited in place without making the page
+    /// itself an outline editor.
+    pub fn set_remote_link(&mut self, link: Option<SessionLink>) {
+        self.remote_link = link.clone();
+        self.remote
+            .configure(self.link.clone().or(link), self.handle.clone());
     }
 
     /// Connects the view to the live session: pages become editable (BIT-US-0030). The
@@ -270,6 +290,7 @@ impl PageView {
         self._editor_subs.clear();
         self.editor = None;
         self.link = link.clone();
+        self.remote.configure(link.clone(), self.handle.clone());
         if let Some(link) = link {
             let hidden = bitacora_core::editor::HiddenKeys::with_extra(
                 link.config.block_hidden_properties(),
@@ -301,6 +322,7 @@ impl PageView {
         conflict: &bitacora_core::editor::EditingConflict,
         cx: &mut Context<Self>,
     ) {
+        self.remote.on_editing_conflict(conflict, cx);
         if let Some(ed) = self.editor.clone() {
             let (block, mine, disk) =
                 (conflict.block, conflict.mine.clone(), conflict.disk.clone());
@@ -652,6 +674,10 @@ impl PageView {
         }
         self.route = Some(route.clone());
         self.handle = Some(handle.clone());
+        self.remote.configure(
+            self.link.clone().or_else(|| self.remote_link.clone()),
+            Some(handle.clone()),
+        );
         self.generation += 1;
         let generation = self.generation;
         let link = self.link.clone();
@@ -1211,6 +1237,32 @@ impl PageView {
                         .filter(|_| self.live)
                         .and_then(|ed| OutlineEditor::row_edit(ed, r, cx));
                     let live_edit = edit.is_some();
+                    // Rows from the index (a zoomed block) edit their source page in place.
+                    let zoom_page = (!live_edit)
+                        .then(|| match (&self.route, self.header.zoom.first()) {
+                            (_, Some(l)) => Some(l.label.clone()),
+                            (Some(Route::Page(_)), None) => Some(self.header.title.clone()),
+                            _ => None,
+                        })
+                        .flatten();
+                    let remote = zoom_page.and_then(|page| {
+                        let toggle: crate::editor::row::Hook = {
+                            let v = this.clone();
+                            Rc::new(move |_, cx| v.update(cx, |v, cx| v.toggle_block(r, cx)))
+                        };
+                        let bullet = row.has_children.then(|| toggle.clone());
+                        self.remote
+                            .prepare(&this, &page, row, Some(toggle), bullet, cx)
+                            .map(|rr| (page, rr))
+                    });
+                    let remote_editing = remote.as_ref().is_some_and(|(_, rr)| rr.editing);
+                    let remote_page = remote.as_ref().map(|(p, _)| p.clone());
+                    let (remote_edit, remote_activate, remote_row) = match remote {
+                        Some((_, rr)) => (rr.edit, rr.activate, Some(rr.row)),
+                        None => (None, None, None),
+                    };
+                    let edit = edit.or(remote_edit);
+                    let row = remote_row.as_ref().unwrap_or(row);
                     let widgets = self.row_widgets(r, row, &nav, edit.as_ref(), cx);
                     let actions = RowActions {
                         nav: nav.clone(),
@@ -1227,8 +1279,13 @@ impl PageView {
                         }),
                         edit,
                         widgets,
+                        activate: remote_activate,
                     };
                     let block = render_block_row(r, row, root.as_deref(), &theme, &bt, &actions);
+                    let block = match (&remote_page, remote_editing) {
+                        (Some(page), true) => self.remote.wrap(page, block, cx),
+                        _ => block,
+                    };
                     let conflicted = row
                         .uuid
                         .as_deref()
@@ -1302,24 +1359,44 @@ impl PageView {
                     .ref_group(kind, g)
                     .and_then(|x| x.hits.get(h))
                     .and_then(|hit| hit.rows.get(r));
-                match row {
+                match row.cloned() {
                     Some(row) => {
                         let this = cx.entity();
+                        let page = self.ref_group(kind, g).map(|x| x.page.clone());
+                        let toggle: crate::editor::row::Hook = {
+                            let this = this.clone();
+                            Rc::new(move |_, cx| {
+                                this.update(cx, |v, cx| v.toggle_ref_row(kind, g, h, r, cx));
+                            })
+                        };
+                        let bullet = row.has_children.then(|| toggle.clone());
+                        let remote = page.as_ref().and_then(|page| {
+                            self.remote
+                                .prepare(&this, page, &row, Some(toggle.clone()), bullet, cx)
+                        });
+                        let (edit, activate, shown, editing) = match remote {
+                            Some(rr) => (rr.edit, rr.activate, Some(rr.row), rr.editing),
+                            None => (None, None, None, false),
+                        };
+                        let row = shown.unwrap_or(row);
                         let actions = RowActions {
                             nav: nav.clone(),
-                            toggle: Some(Rc::new(move |_, cx| {
-                                this.update(cx, |v, cx| v.toggle_ref_row(kind, g, h, r, cx));
-                            })),
+                            toggle: Some(toggle),
                             referrers: None,
                             focus: None,
-                            edit: None,
+                            edit,
                             widgets: None,
+                            activate,
                         };
                         let id = (kind.tag() << 40)
                             | ((g & 0xFFF) << 28)
                             | ((h & 0x3FFF) << 14)
                             | (r & 0x3FFF);
-                        render_block_row(id, row, root.as_deref(), &theme, &bt, &actions)
+                        let el = render_block_row(id, &row, root.as_deref(), &theme, &bt, &actions);
+                        match (&page, editing) {
+                            (Some(page), true) => self.remote.wrap(page, el, cx),
+                            _ => el,
+                        }
                     }
                     None => div().into_any_element(),
                 }
@@ -1358,6 +1435,57 @@ impl PageView {
             crate::views::widgets::edit_hook(edit),
             cx,
         )
+    }
+
+    /// What a click on the text of a reference row does (tests; the UI goes through the row's
+    /// activate hook, which ends in the same call).
+    #[cfg(test)]
+    pub(crate) fn click_ref_row(
+        &mut self,
+        (kind, g, h, r): (RefKind, usize, usize, usize),
+        offset: usize,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(group) = self.ref_group(kind, g) else {
+            return;
+        };
+        let page = group.page.clone();
+        let Some(row) = group.hits.get(h).and_then(|hit| hit.rows.get(r)) else {
+            return;
+        };
+        if let Some(target) = crate::views::remote_edit::BlockRef::of_row(&page, row) {
+            self.remote.activate(&target, offset, false, window, cx);
+        }
+    }
+
+    /// The editor of source page `page`, once a click created it (tests).
+    #[cfg(test)]
+    pub(crate) fn remote_editor(
+        &self,
+        page: &str,
+    ) -> Option<crate::ui::Entity<crate::editor::OutlineEditor>> {
+        self.remote.editor(page).cloned()
+    }
+
+    /// What a click on the text of block row `r` of a read-only view does (tests).
+    #[cfg(test)]
+    pub(crate) fn click_block_row(
+        &mut self,
+        r: usize,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let page = match self.header.zoom.first() {
+            Some(l) => l.label.clone(),
+            None => self.header.title.clone(),
+        };
+        let Some(row) = self.rows.get(r) else {
+            return;
+        };
+        if let Some(target) = crate::views::remote_edit::BlockRef::of_row(&page, row) {
+            self.remote.activate(&target, usize::MAX, false, window, cx);
+        }
     }
 
     fn ref_group(&self, kind: RefKind, g: usize) -> Option<&RefGroupModel> {
@@ -1842,6 +1970,51 @@ mod tests {
             *events.borrow(),
             vec![PageEvent::Navigate(NavTarget::Page("Bob".into()))]
         );
+    }
+
+    #[gpui_test]
+    fn clicking_a_reference_edits_the_source_block_in_place(cx: &mut TestAppContext) {
+        use crate::views::widgets::tests::Env;
+        use bitacora_core::queue::Source;
+        setup(cx);
+        cx.update(|cx| crate::keymap::load_with_user(cx, None).expect("keymap"));
+        let env = Env::new(&[
+            ("pages/Target.md", "- the target\n"),
+            ("pages/A.md", "- one [[Target]]\n- two\n"),
+            ("pages/B.md", "- also [[Target]]\n"),
+        ]);
+        let (view, cx) = open(cx);
+        let link = env.link.clone();
+        view.update_in(cx, |v, window, cx| {
+            v.set_session_link(Some(link), window, cx);
+        });
+        view.update(cx, |v, cx| {
+            v.show(env.handle.clone(), page_route("Target"), None, cx);
+        });
+        settle(cx, &view, |v| v.linked().is_some() && v.is_live());
+        let (target_before, b_before) = (env.disk("pages/Target.md"), env.disk("pages/B.md"));
+        let a_before = env.disk("pages/A.md");
+        view.update_in(cx, |v, window, cx| {
+            v.click_ref_row((RefKind::Linked, 0, 0, 0), usize::MAX, window, cx);
+        });
+        assert!(view.read_with(cx, |v, cx| v.remote.any_editing(cx)));
+        cx.simulate_input("!");
+        let ed = view.read_with(cx, |v, _| v.remote.editor("A").cloned().expect("editor"));
+        ed.update(cx, |e, cx| {
+            e.flush(cx);
+        });
+        // Only the clicked block of its own page changed on disk.
+        assert_eq!(env.disk("pages/A.md"), "- one [[Target]]!\n- two\n");
+        assert_eq!(env.disk("pages/Target.md"), target_before);
+        assert_eq!(env.disk("pages/B.md"), b_before);
+        ed.update(cx, |e, cx| e.exit_edit(cx));
+        // One undo restores the bytes.
+        env.link
+            .queue
+            .undo(Source::Ui)
+            .expect("queue")
+            .expect("step");
+        assert_eq!(env.disk("pages/A.md"), a_before);
     }
 
     #[gpui_test]

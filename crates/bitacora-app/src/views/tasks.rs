@@ -2,9 +2,10 @@
 //! grouped Overdue / This week / Later / No date, with filter pills (marker class, priority,
 //! page) that show counts, in a column capped at the `tasks_max` metric (860px).
 //!
-//! Queries come from `bitacora-index` ([`bitacora_index::IndexReader::task_groups`]). A row opens
-//! its block, the checkbox completes it and the marker cycles it; both go through the core
-//! command queue as undoable `Cmd`s (single writer).
+//! Queries come from `bitacora-index` ([`bitacora_index::IndexReader::task_groups`]). A click on
+//! a row's text edits its block in place (BIT-US-0187, Shift+click opens it in the sidebar), the
+//! checkbox completes it and the marker cycles it; all go through the core command queue as
+//! undoable `Cmd`s (single writer).
 
 use std::time::Duration;
 
@@ -16,17 +17,20 @@ use rust_i18n::t;
 
 use crate::data::{self, GraphHandle};
 use crate::editor;
+use crate::editor::row::TextHook;
 use crate::nav::OpenIn;
 use crate::render::inline::NavTarget;
+use crate::render::model::Row;
 use crate::session::SessionLink;
 use crate::ui::theme::{ActiveBitacoraTheme as _, TypeStyleExt as _};
 use crate::ui::{
-    Context, EventEmitter, FluentBuilder as _, InteractiveElement as _, IntoElement,
-    ParentElement as _, Render, StatefulInteractiveElement as _, Styled as _, Task, Window, div,
-    h_flex, v_flex,
+    ActiveTheme as _, AnyElement, Context, EventEmitter, FluentBuilder as _,
+    InteractiveElement as _, IntoElement, ParentElement as _, Render,
+    StatefulInteractiveElement as _, Styled as _, Task, Window, div, h_flex, v_flex,
 };
 use crate::views::kit::{Card, Overline, Pill, Surface, TaskMarker};
 use crate::views::page_view::PageEvent;
+use crate::views::remote_edit::{BlockRef, RemoteEditors};
 
 /// Debounce between an index change and the reload.
 const REFRESH_DEBOUNCE: Duration = Duration::from_millis(300);
@@ -293,6 +297,8 @@ pub struct TasksView {
     load_task: Option<Task<()>>,
     refresh_task: Option<Task<()>>,
     action_task: Option<Task<()>>,
+    /// Editors of the pages the tasks live on: a click on a title edits the block in place.
+    remote: RemoteEditors<TasksView>,
 }
 
 impl std::fmt::Debug for TasksView {
@@ -318,17 +324,55 @@ impl TasksView {
             load_task: None,
             refresh_task: None,
             action_task: None,
+            remote: RemoteEditors::new(|v| &mut v.remote, None),
         }
+    }
+
+    /// The editor of source page `page`, once a click created it (tests).
+    #[cfg(test)]
+    pub(crate) fn editor(
+        &self,
+        page: &str,
+    ) -> Option<crate::ui::Entity<crate::editor::OutlineEditor>> {
+        self.remote.editor(page).cloned()
+    }
+
+    /// What a click on the title of task `uuid` does (tests).
+    #[cfg(test)]
+    pub(crate) fn click_task(&mut self, uuid: &str, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(task) = self.model.rows.iter().find(|r| r.uuid == uuid).cloned() else {
+            return;
+        };
+        let target = BlockRef {
+            page: task.page,
+            uuid: Some(task.uuid),
+            ord: usize::try_from(task.ord).ok(),
+            content: None,
+            contains: Some(task.title),
+        };
+        self.remote.activate(&target, usize::MAX, false, window, cx);
+    }
+
+    /// The block being edited changed on disk: the editors of the task pages look at it.
+    pub fn on_editing_conflict(
+        &mut self,
+        conflict: &bitacora_core::editor::EditingConflict,
+        cx: &mut Context<Self>,
+    ) {
+        self.remote.on_editing_conflict(conflict, cx);
     }
 
     /// Connects the view to the live session so rows can be completed.
     pub fn set_session_link(&mut self, link: Option<SessionLink>, cx: &mut Context<Self>) {
-        self.link = link;
+        self.link = link.clone();
+        self.remote.configure(link, self.handle.clone());
         cx.notify();
     }
 
     /// Shows the tasks of a graph.
     pub fn show(&mut self, handle: GraphHandle, cx: &mut Context<Self>) {
+        self.remote
+            .configure(self.link.clone(), Some(handle.clone()));
         self.handle = Some(handle);
         self.reload(cx);
     }
@@ -478,8 +522,27 @@ impl TasksView {
         row
     }
 
-    fn row_card(&self, task: &TaskRow, cx: &mut Context<Self>) -> impl IntoElement {
+    fn row_card(&mut self, task: &TaskRow, cx: &mut Context<Self>) -> AnyElement {
         let theme = cx.bitacora().clone();
+        let ui_theme = cx.theme().clone();
+        let host = cx.entity();
+        let target = BlockRef {
+            page: task.page.clone(),
+            uuid: Some(task.uuid.clone()),
+            ord: usize::try_from(task.ord).ok(),
+            content: None,
+            contains: Some(task.title.clone()),
+        };
+        let remote = self
+            .remote
+            .prepare_target(&host, &target, &Row::default(), None, None, cx);
+        let editing = remote.as_ref().is_some_and(|rr| rr.editing);
+        let edit_build = remote
+            .as_ref()
+            .and_then(|rr| rr.edit.as_ref())
+            .and_then(|e| e.editing.clone());
+        let click: Option<TextHook> =
+            remote.and_then(|rr| rr.edit.map(|e| e.on_text).or(rr.activate));
         let c = &theme.colors;
         let uuid = task.uuid.clone();
         let this = cx.entity();
@@ -487,6 +550,7 @@ impl TasksView {
         let (done_view, done_uuid) = (this.clone(), uuid.clone());
         let (cycle_view, cycle_uuid) = (this.clone(), uuid.clone());
         let (open_view, open_uuid) = (this.clone(), uuid.clone());
+        let (open_block_view, open_block_uuid) = (this.clone(), uuid.clone());
         let (page_view, page_name) = (this, task.page.clone());
         let overdue = task.group == TaskGroup::Overdue;
         let sched = match task.due {
@@ -536,7 +600,7 @@ impl TasksView {
                     .child(word.to_owned()),
             );
         }
-        Card::new().surface(Surface::Panel).child(
+        let card = Card::new().surface(Surface::Panel).child(
             h_flex()
                 .gap(theme.metrics.space[7])
                 .items_start()
@@ -564,18 +628,52 @@ impl TasksView {
                         .flex_1()
                         .min_w_0()
                         .gap(theme.metrics.space[3])
-                        .child(
-                            div()
+                        .child(match edit_build {
+                            Some(build) => div()
                                 .id(("tasks-open", task.ord as usize))
-                                .cursor_pointer()
                                 .type_style(&theme.type_scale.panel_body)
                                 .text_color(c.text)
-                                .on_click(move |ev, _, cx| {
-                                    let open = OpenIn::from_shift(ev.modifiers().shift);
-                                    open_view.update(cx, |v, cx| v.open(&open_uuid, open, cx));
-                                })
-                                .child(title),
-                        )
+                                .child(build(&ui_theme))
+                                .into_any_element(),
+                            None => {
+                                let area = div()
+                                    .id(("tasks-open", task.ord as usize))
+                                    .cursor_pointer()
+                                    .type_style(&theme.type_scale.panel_body)
+                                    .text_color(c.text);
+                                match click {
+                                    // Like Logseq: a click on the text edits the block; Shift
+                                    // opens it in the sidebar.
+                                    Some(hook) => {
+                                        let open_view = open_view.clone();
+                                        let open_uuid = open_uuid.clone();
+                                        area.on_mouse_down(
+                                            crate::ui::text_edit::MouseButton::Left,
+                                            move |ev, window, cx| {
+                                                cx.stop_propagation();
+                                                if ev.modifiers.shift {
+                                                    open_view.update(cx, |v, cx| {
+                                                        v.open(&open_uuid, OpenIn::Sidebar, cx);
+                                                    });
+                                                } else {
+                                                    hook(usize::MAX, false, window, cx);
+                                                }
+                                            },
+                                        )
+                                        .child(title)
+                                        .into_any_element()
+                                    }
+                                    None => area
+                                        .on_click(move |ev, _, cx| {
+                                            let open = OpenIn::from_shift(ev.modifiers().shift);
+                                            open_view
+                                                .update(cx, |v, cx| v.open(&open_uuid, open, cx));
+                                        })
+                                        .child(title)
+                                        .into_any_element(),
+                                }
+                            }
+                        })
                         .child(
                             h_flex()
                                 .flex_wrap()
@@ -599,10 +697,28 @@ impl TasksView {
                                         })
                                         .child(t!("tasks.in_page", page = task.page).to_string()),
                                 )
-                                .child(div().when(overdue, |d| d.text_color(c.warn)).child(sched)),
+                                .child(div().when(overdue, |d| d.text_color(c.warn)).child(sched))
+                                .child(
+                                    div()
+                                        .id(("tasks-open-block", task.ord as usize))
+                                        .cursor_pointer()
+                                        .hover(|s| s.text_color(c.accent))
+                                        .on_click(move |ev, _, cx| {
+                                            let open = OpenIn::from_shift(ev.modifiers().shift);
+                                            open_block_view.update(cx, |v, cx| {
+                                                v.open(&open_block_uuid, open, cx)
+                                            });
+                                        })
+                                        .child(t!("tasks.open_block").to_string()),
+                                ),
                         ),
                 ),
-        )
+        );
+        if editing {
+            self.remote.wrap(&task.page, card.into_any_element(), cx)
+        } else {
+            card.into_any_element()
+        }
     }
 }
 
@@ -612,7 +728,12 @@ impl Render for TasksView {
         let c = &theme.colors;
         let total = self.model.rows.len();
         let overdue = self.model.overdue();
-        let groups = self.model.grouped(&self.selection);
+        let groups: Vec<(TaskGroup, Vec<TaskRow>)> = self
+            .model
+            .grouped(&self.selection)
+            .into_iter()
+            .map(|(g, rows)| (g, rows.into_iter().cloned().collect()))
+            .collect();
         let mut sections = Vec::new();
         for (group, rows) in groups {
             let title = match group {
@@ -629,7 +750,7 @@ impl Render for TasksView {
                         .warn(group == TaskGroup::Overdue),
                 ),
             );
-            for row in rows {
+            for row in &rows {
                 section = section.child(self.row_card(row, cx));
             }
             sections.push(section);

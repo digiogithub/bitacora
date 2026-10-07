@@ -162,6 +162,7 @@ pub fn rows_from_blocks(h: &GraphHandle, blocks: &[BlockRow], base_depth: i64) -
                 has_children: b.subtree_end > b.ord,
                 block,
                 uuid: Some(b.uuid.clone()),
+                content: Some(b.content.clone()),
                 view_collapsed: None,
                 ref_count,
                 referrers: None,

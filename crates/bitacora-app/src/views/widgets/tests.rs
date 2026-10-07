@@ -218,12 +218,12 @@ fn a_file_replaced_without_changes_is_not_relevant() {
 
 // ---- embeds ---------------------------------------------------------------------------
 
-struct Env {
-    graph: tempfile::TempDir,
+pub(crate) struct Env {
+    pub(crate) graph: tempfile::TempDir,
     _data: tempfile::TempDir,
     session: Option<Session>,
-    handle: GraphHandle,
-    link: SessionLink,
+    pub(crate) handle: GraphHandle,
+    pub(crate) link: SessionLink,
 }
 
 impl Drop for Env {
@@ -235,7 +235,7 @@ impl Drop for Env {
 }
 
 impl Env {
-    fn new(files: &[(&str, &str)]) -> Self {
+    pub(crate) fn new(files: &[(&str, &str)]) -> Self {
         let graph = tempfile::tempdir().expect("graph");
         let data = tempfile::tempdir().expect("data");
         let root = graph.path();
@@ -285,12 +285,12 @@ impl Env {
         }
     }
 
-    fn disk(&self, rel: &str) -> String {
+    pub(crate) fn disk(&self, rel: &str) -> String {
         let _ = self.link.queue.flush(Source::Ui).expect("flush");
         std::fs::read_to_string(self.graph.path().join(rel)).expect("read page")
     }
 
-    fn texts(&self, title: &str) -> Vec<String> {
+    pub(crate) fn texts(&self, title: &str) -> Vec<String> {
         self.link
             .queue
             .snapshot(&PageKey::from_title(title))

@@ -8,12 +8,16 @@
 //!   [`RightPanel::set_agent_slot`] it shows an empty state, or "Pando not configured" while
 //!   [`RightPanel::set_agent_configured`] has not been called with `true`.
 
+use std::rc::Rc;
+
 use bitacora_index::RefFilters;
 use rust_i18n::t;
 
 use crate::data::{self, GraphHandle};
+use crate::nav::OpenIn;
 use crate::render::inline::NavTarget;
-use crate::render::model::PropertyRow;
+use crate::render::model::{PropertyRow, Row};
+use crate::session::SessionLink;
 use crate::ui::theme::{ActiveBitacoraTheme as _, TypeStyleExt as _};
 use crate::ui::{
     ActiveTheme as _, AnyElement, AnyView, AppContext as _, Context, Entity, FluentBuilder as _,
@@ -22,19 +26,20 @@ use crate::ui::{
     v_flex,
 };
 use crate::views::ai_assist::suggestions::SuggestionsView;
-use crate::views::block_view::properties_table;
+use crate::views::block_view::{Nav, RowActions, properties_table, render_block_row};
 use crate::views::graph_view::{GraphMode, GraphView};
 use crate::views::kit::{Card, Glyph, Overline, Segmented, glyph};
 use crate::views::page_view::PageEvent;
 use crate::views::related::{self, Related};
+use crate::views::remote_edit::RemoteEditors;
 use crate::views::right_sidebar::RightSidebar;
 
 /// Height of the local graph widget.
 const LOCAL_GRAPH_HEIGHT: f32 = 240.0;
-/// Linked-reference snippets listed per referencing page.
-const SNIPPETS_PER_PAGE: usize = 3;
-/// Longest snippet, in characters.
-const SNIPPET_CHARS: usize = 140;
+/// Linked-reference blocks listed per referencing page.
+const BLOCKS_PER_PAGE: usize = 3;
+/// Base of the element ids of the backlink rows (they must not collide with other rows).
+const BACKLINK_ROW_ID: usize = 1 << 34;
 
 /// The two tabs of the panel.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -64,14 +69,14 @@ impl PanelTab {
 }
 
 /// One referencing page in the Context tab.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Backlink {
     /// Title of the referencing page.
     pub page: String,
     /// Number of referencing blocks on it.
     pub count: usize,
-    /// First lines of some of those blocks.
-    pub snippets: Vec<String>,
+    /// Some of those blocks, drawn as rows: a click on one edits it in its page.
+    pub blocks: Vec<Row>,
 }
 
 /// What the Context tab shows about the page on screen.
@@ -102,31 +107,27 @@ pub fn load_context(handle: &GraphHandle, name: &str) -> Result<ContextInfo, Str
         .map(|g| Backlink {
             page: g.page.original_name,
             count: g.blocks.len(),
-            snippets: g
+            blocks: g
                 .blocks
                 .iter()
-                .take(SNIPPETS_PER_PAGE)
-                .map(|hit| snippet(&hit.block.title, &hit.block.content))
+                .take(BLOCKS_PER_PAGE)
+                .flat_map(|hit| {
+                    let mut rows = data::rows_from_blocks(
+                        handle,
+                        std::slice::from_ref(&hit.block),
+                        hit.block.depth - 1,
+                    );
+                    // Only the block itself: its children are not part of the backlink.
+                    for row in &mut rows {
+                        row.has_children = false;
+                        row.depth = 0;
+                    }
+                    rows
+                })
                 .collect(),
         })
         .collect();
     Ok(info)
-}
-
-/// A one-line preview of a block.
-fn snippet(title: &str, content: &str) -> String {
-    let text = if title.trim().is_empty() {
-        content.lines().next().unwrap_or_default()
-    } else {
-        title
-    };
-    let text = text.trim();
-    if text.chars().count() > SNIPPET_CHARS {
-        let cut: String = text.chars().take(SNIPPET_CHARS).collect();
-        format!("{cut}...")
-    } else {
-        text.to_owned()
-    }
 }
 
 /// The panel view.
@@ -134,6 +135,7 @@ pub struct RightPanel {
     stack: Entity<RightSidebar>,
     tab: PanelTab,
     handle: Option<GraphHandle>,
+    link: Option<SessionLink>,
     local: Entity<GraphView>,
     local_page: Option<String>,
     context: ContextInfo,
@@ -147,6 +149,8 @@ pub struct RightPanel {
     agent_slot: Option<AnyView>,
     /// AI suggestion chips of the Context tab (BIT-US-0152).
     suggestions: Option<Entity<SuggestionsView>>,
+    /// Editors of the source pages of the backlink blocks (click to edit in place).
+    remote: RemoteEditors<RightPanel>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -176,6 +180,7 @@ impl RightPanel {
             stack,
             tab: PanelTab::Context,
             handle: None,
+            link: None,
             local,
             local_page: None,
             context: ContextInfo::default(),
@@ -188,6 +193,7 @@ impl RightPanel {
             agent_configured: false,
             agent_slot: None,
             suggestions: None,
+            remote: RemoteEditors::new(|v| &mut v.remote, None),
             _subscriptions: vec![subscription],
         }
     }
@@ -275,10 +281,56 @@ impl RightPanel {
     /// Connects the panel (and the stack) to an open graph.
     pub fn set_graph(&mut self, handle: GraphHandle, cx: &mut Context<Self>) {
         self.handle = Some(handle.clone());
+        self.remote
+            .configure(self.link.clone(), Some(handle.clone()));
         self.local.update(cx, |v, cx| v.show(handle.clone(), cx));
         self.stack.update(cx, |s, cx| s.set_graph(handle, cx));
         self.reload_context(cx);
         self.reload_related(cx);
+    }
+
+    /// Connects the backlinks to the live session: their blocks can be edited in place.
+    pub fn set_session_link(&mut self, link: Option<SessionLink>, cx: &mut Context<Self>) {
+        self.link = link.clone();
+        self.remote.configure(link, self.handle.clone());
+        cx.notify();
+    }
+
+    /// The editor of source page `page`, once a click created it (tests).
+    #[cfg(test)]
+    pub(crate) fn editor(
+        &self,
+        page: &str,
+    ) -> Option<crate::ui::Entity<crate::editor::OutlineEditor>> {
+        self.remote.editor(page).cloned()
+    }
+
+    /// What a click on backlink block `n` of referencing page `ix` does (tests).
+    #[cfg(test)]
+    pub(crate) fn click_backlink(
+        &mut self,
+        (ix, n): (usize, usize),
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(link) = self.context.backlinks.get(ix) else {
+            return;
+        };
+        let Some(row) = link.blocks.get(n) else {
+            return;
+        };
+        if let Some(target) = crate::views::remote_edit::BlockRef::of_row(&link.page, row) {
+            self.remote.activate(&target, usize::MAX, false, window, cx);
+        }
+    }
+
+    /// The block being edited changed on disk: the backlink editors look at it.
+    pub fn on_editing_conflict(
+        &mut self,
+        conflict: &bitacora_core::editor::EditingConflict,
+        cx: &mut Context<Self>,
+    ) {
+        self.remote.on_editing_conflict(conflict, cx);
     }
 
     /// Gives the panel the session's hybrid searcher for the Related blocks section.
@@ -454,7 +506,8 @@ impl RightPanel {
                 )
                 .into_any_element();
         }
-        for (ix, link) in self.context.backlinks.iter().enumerate() {
+        let backlinks = self.context.backlinks.clone();
+        for (ix, link) in backlinks.iter().enumerate() {
             let page = link.page.clone();
             let mut card = v_flex().gap(m.space[1]).child(
                 h_flex()
@@ -479,19 +532,59 @@ impl RightPanel {
                             .child(link.count.to_string()),
                     ),
             );
-            for line in &link.snippets {
-                card = card.child(
-                    div()
-                        .pl(m.space[6])
-                        .truncate()
-                        .text_color(bt.colors.muted)
-                        .type_style(&bt.type_scale.ui_small)
-                        .child(SharedString::from(line.clone())),
-                );
+            for (n, row) in link.blocks.iter().enumerate() {
+                card = card.child(self.backlink_block(ix, n, &link.page, row, cx));
             }
             section = section.child(div().id(("backlink", ix)).child(card));
         }
         section.into_any_element()
+    }
+
+    /// One backlink block: its text edits in place on click, links inside still navigate.
+    fn backlink_block(
+        &mut self,
+        ix: usize,
+        n: usize,
+        page: &str,
+        row: &Row,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let bt = cx.bitacora().clone();
+        let theme = cx.theme().clone();
+        let this = cx.entity();
+        let stack = self.stack.clone();
+        let nav: Nav = Rc::new(move |target, open, cx| {
+            stack.update(cx, |stack, cx| match open {
+                OpenIn::Sidebar => stack.open_in_stack(&target, cx),
+                OpenIn::Main => stack.navigate(target, cx),
+            });
+        });
+        let remote = self.remote.prepare(&this, page, row, None, None, cx);
+        let editing = remote.as_ref().is_some_and(|rr| rr.editing);
+        let (edit, activate, shown) = match remote {
+            Some(rr) => (rr.edit, rr.activate, Some(rr.row)),
+            None => (None, None, None),
+        };
+        let actions = RowActions {
+            edit,
+            activate,
+            ..RowActions::nav_only(nav)
+        };
+        let root = self.handle.as_ref().map(|h| h.root.clone());
+        let el = render_block_row(
+            BACKLINK_ROW_ID + ix * 64 + n,
+            shown.as_ref().unwrap_or(row),
+            root.as_deref(),
+            &theme,
+            &bt,
+            &actions,
+        );
+        let el = if editing {
+            self.remote.wrap(page, el, cx)
+        } else {
+            el
+        };
+        div().pl(bt.metrics.space[2]).child(el).into_any_element()
     }
 
     /// The "Related blocks" section; hidden unless semantic search is working or failing.
@@ -676,14 +769,6 @@ mod tests {
         assert_eq!(PanelTab::from_key("unknown"), PanelTab::Context);
     }
 
-    #[test]
-    fn snippets_are_one_trimmed_line() {
-        assert_eq!(snippet("  hello  ", "ignored"), "hello");
-        assert_eq!(snippet("", "first\nsecond"), "first");
-        let long = "x".repeat(SNIPPET_CHARS + 10);
-        assert_eq!(snippet(&long, "").chars().count(), SNIPPET_CHARS + 3);
-    }
-
     #[gpui_test]
     fn tabs_agent_states_and_slot(cx: &mut TestAppContext) {
         setup(cx);
@@ -724,7 +809,13 @@ mod tests {
             .map(|b| (b.page.as_str(), b.count))
             .collect();
         assert_eq!(pages, [("Beta", 2), ("Gamma", 1)]);
-        assert!(info.backlinks[0].snippets[0].contains("Alpha"));
+        assert!(
+            info.backlinks[0].blocks[0]
+                .block
+                .title
+                .text
+                .contains("Alpha")
+        );
         // A page the index does not know has neither.
         let none = load_context(&g.handle, "Nowhere").expect("context");
         assert!(none.properties.is_empty() && none.backlinks.is_empty());

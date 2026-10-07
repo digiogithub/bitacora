@@ -275,6 +275,8 @@ impl MainView {
             .update(cx, |p, cx| p.on_editing_conflict(conflict, cx));
         self.journals
             .update(cx, |j, cx| j.on_editing_conflict(conflict, cx));
+        self.tasks
+            .update(cx, |t, cx| t.on_editing_conflict(conflict, cx));
     }
 
     /// Reloads what is shown (the startup index reconcile finished).

@@ -197,10 +197,12 @@ fn query_entity(
         entity.update(cx, |q, cx| {
             q.configure(host.handle.clone(), spec.clone(), scope, nav, edit, cx);
         });
+        entity.update(cx, |q, _| q.set_link(host.link.clone()));
         return entity;
     }
     let entity =
         cx.new(|cx| QueryBlock::new(host.handle.clone(), spec.clone(), scope, nav, edit, cx));
+    entity.update(cx, |q, _| q.set_link(host.link.clone()));
     with_registry(cx, |r| {
         let tick = r.tick;
         r.queries.insert(key.to_owned(), (entity.clone(), tick));
@@ -261,6 +263,30 @@ pub fn on_index_event(event: &IndexEvent, cx: &mut App) {
     }
 }
 
+/// The block being edited changed on disk: the editors inside the widgets look at it.
+pub fn on_editing_conflict(conflict: &bitacora_core::editor::EditingConflict, cx: &mut App) {
+    if !cx.has_global::<Registry>() {
+        return;
+    }
+    let (queries, embeds): (Vec<_>, Vec<_>) = {
+        let r = cx.global::<Registry>();
+        (
+            r.queries.values().map(|(e, _)| e.clone()).collect(),
+            r.embeds.values().map(|(e, _)| e.clone()).collect(),
+        )
+    };
+    for q in queries {
+        q.update(cx, |q, cx| q.on_editing_conflict(conflict, cx));
+    }
+    for e in embeds {
+        let Some(ed) = e.read(cx).editor().cloned() else {
+            continue;
+        };
+        let (block, mine, disk) = (conflict.block, conflict.mine.clone(), conflict.disk.clone());
+        ed.update(cx, |ed, cx| ed.on_editing_conflict(block, mine, disk, cx));
+    }
+}
+
 /// Forgets every widget (the graph was closed).
 pub fn clear(cx: &mut App) {
     if cx.has_global::<Registry>() {
@@ -285,7 +311,7 @@ pub(crate) fn embeds(cx: &App) -> Vec<Entity<EmbedBlock>> {
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 
 #[cfg(test)]
 mod unit {

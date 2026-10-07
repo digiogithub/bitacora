@@ -14,6 +14,7 @@ use crate::data::GraphHandle;
 use crate::graph_state::{StackEntry, StoredRoute};
 use crate::nav::Route;
 use crate::render::inline::NavTarget;
+use crate::session::SessionLink;
 use crate::ui::button::{Button, ButtonVariants as _};
 use crate::ui::{
     ActiveTheme as _, App, AppContext as _, Context, Entity, EventEmitter, FocusHandle, Focusable,
@@ -49,6 +50,7 @@ pub struct RightSidebar {
     items: Vec<Item>,
     next_id: u64,
     handle: Option<GraphHandle>,
+    link: Option<SessionLink>,
     selected: Option<usize>,
     focus: FocusHandle,
 }
@@ -70,6 +72,7 @@ impl RightSidebar {
             items: Vec::new(),
             next_id: 1,
             handle: None,
+            link: None,
             selected: None,
             focus: cx.focus_handle(),
         }
@@ -128,6 +131,27 @@ impl RightSidebar {
             .collect()
     }
 
+    /// Connects the items to the live session: their blocks can be edited in place.
+    pub fn set_session_link(&mut self, link: Option<SessionLink>, cx: &mut Context<Self>) {
+        self.link = link.clone();
+        for item in &self.items {
+            let link = link.clone();
+            item.view.update(cx, |view, _| view.set_remote_link(link));
+        }
+    }
+
+    /// The block being edited changed on disk: the items' editors look at it.
+    pub fn on_editing_conflict(
+        &mut self,
+        conflict: &bitacora_core::editor::EditingConflict,
+        cx: &mut Context<Self>,
+    ) {
+        for item in &self.items {
+            item.view
+                .update(cx, |view, cx| view.on_editing_conflict(conflict, cx));
+        }
+    }
+
     /// Connects every item to an open graph.
     pub fn set_graph(&mut self, handle: GraphHandle, cx: &mut Context<Self>) {
         self.handle = Some(handle.clone());
@@ -143,6 +167,7 @@ impl RightSidebar {
     /// Forgets the graph and empties the stack (a different graph was opened).
     pub fn clear(&mut self, cx: &mut Context<Self>) {
         self.handle = None;
+        self.link = None;
         self.items.clear();
         self.selected = None;
         cx.notify();
@@ -175,6 +200,8 @@ impl RightSidebar {
             // Sidebar pages are read-only: nothing to delete from here.
             PageEvent::DeleteAsset { .. } | PageEvent::RenamePage { .. } => {}
         });
+        let link = self.link.clone();
+        view.update(cx, |v, _| v.set_remote_link(link));
         if let Some(handle) = self.handle.clone() {
             let route = route.clone();
             view.update(cx, |v, cx| v.show(handle, route, None, cx));

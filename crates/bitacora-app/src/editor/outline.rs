@@ -223,6 +223,7 @@ impl Outline {
                 block,
                 uuid: b.uuid.map(|u| u.to_string()),
                 view_collapsed: (ix == from && zoom.is_some()).then_some(false),
+                content: None,
                 ref_count,
                 referrers: None,
             });

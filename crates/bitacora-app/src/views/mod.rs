@@ -25,6 +25,9 @@ pub mod pando_status;
 pub mod panels;
 pub mod picker;
 pub mod related;
+pub mod remote_edit;
+#[cfg(test)]
+mod remote_edit_tests;
 pub mod responsive;
 pub mod right_panel;
 pub mod right_sidebar;

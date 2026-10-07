@@ -388,6 +388,9 @@ pub struct RowActions {
     pub edit: Option<RowEdit>,
     /// Draws the row's query and embed widgets; without it they show as their source text.
     pub widgets: Option<WidgetBuild>,
+    /// Click on the text of a row that is not edited by an outline editor yet (a block shown
+    /// from another page): the host creates the editor and enters edit mode.
+    pub activate: Option<TextHook>,
 }
 
 impl std::fmt::Debug for RowActions {
@@ -406,6 +409,7 @@ impl RowActions {
             focus: None,
             edit: None,
             widgets: None,
+            activate: None,
         }
     }
 }
@@ -427,7 +431,9 @@ pub fn render_block_row(
     let title_style = block.heading.map(|h| heading_style(h, bt));
     let dispatch = &actions.nav;
     let edit = actions.edit.as_ref();
-    let on_text: Option<TextHook> = edit.map(|e| e.on_text.clone());
+    let on_text: Option<TextHook> = edit
+        .map(|e| e.on_text.clone())
+        .or_else(|| actions.activate.clone());
 
     let mut title_line = h_flex().items_start().gap_2().flex_wrap();
     if let Some(marker) = &block.marker {
@@ -629,6 +635,14 @@ pub fn render_block_row(
                 },
             );
         }
+    } else if let Some(hook) = actions.activate.clone() {
+        content = content.on_mouse_down(
+            crate::ui::text_edit::MouseButton::Left,
+            move |event, window, cx| {
+                cx.stop_propagation();
+                hook(usize::MAX, event.modifiers.shift, window, cx);
+            },
+        );
     }
     let toggle_hook: Option<Action> = edit
         .map(|e| e.on_toggle.clone())
