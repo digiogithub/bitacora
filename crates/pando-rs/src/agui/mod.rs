@@ -35,6 +35,7 @@ mod types;
 
 pub use client::{AguiClient, AguiOptions, DEFAULT_AGENT, DEFAULT_PATH, RunStream};
 pub use hitl::Interrupt;
+pub use patch::apply as apply_patch;
 pub use sse::SseParser;
 pub use thread::{PendingToolCall, RunOutcome, Thread, ThreadRun};
 pub use types::{

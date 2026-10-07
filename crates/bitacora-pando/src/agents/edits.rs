@@ -516,6 +516,43 @@ pub trait EditApplier: Send + Sync {
     fn apply(&self, proposal: &Proposal) -> Result<AppliedEdit, EditError>;
 }
 
+/// A block as the index sees it (the uuid agents read over MCP).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IndexedBlock {
+    /// Index uuid: the `id::` value, or one the index generated for a block without `id::`.
+    pub uuid: String,
+    /// Raw block text.
+    pub text: String,
+}
+
+/// What the app gives [`QueueEditApplier`] to reach pages that are not loaded yet and blocks
+/// that have no persisted `id::`.
+pub trait PageResolver: Send + Sync {
+    /// Loads the page into the writer when it exists in the graph. Never creates a page.
+    /// `true` when the page is (now) loaded.
+    fn ensure_loaded(&self, page: &str) -> bool;
+
+    /// The index's blocks of the page in outline order, without the page-properties pre-block.
+    fn indexed_blocks(&self, page: &str) -> Vec<IndexedBlock>;
+}
+
+/// Gives the blocks of `snap` that have no persisted `id::` the uuid the index (and so the agent)
+/// knows them by. A block is matched by position and only when its text is identical, so an index
+/// that lags behind the writer never aliases another block. The result lives in memory only:
+/// nothing is ever written into the user's file for it (rule 1).
+fn with_index_uuids(snap: &PageSnapshot, indexed: &[IndexedBlock]) -> PageSnapshot {
+    let mut out = snap.clone();
+    for (b, ix) in out.blocks.iter_mut().zip(indexed) {
+        if b.uuid.is_none()
+            && normalize(&b.text) == normalize(&ix.text)
+            && let Ok(u) = ix.uuid.parse()
+        {
+            b.uuid = Some(u);
+        }
+    }
+    out
+}
+
 /// Records applied agent edits in the agent audit log (BIT-SP-0011.R2).
 pub trait AuditSink: Send + Sync {
     /// Records `edit`; returns the audit entry id (used with the log's undo).
@@ -527,6 +564,7 @@ pub trait AuditSink: Send + Sync {
 pub struct QueueEditApplier {
     queue: CommandQueue,
     audit: Option<Arc<dyn AuditSink>>,
+    resolver: Option<Arc<dyn PageResolver>>,
 }
 
 impl std::fmt::Debug for QueueEditApplier {
@@ -539,7 +577,11 @@ impl QueueEditApplier {
     /// An applier over `queue`.
     #[must_use]
     pub fn new(queue: CommandQueue) -> Self {
-        Self { queue, audit: None }
+        Self {
+            queue,
+            audit: None,
+            resolver: None,
+        }
     }
 
     /// Records every applied edit in `audit`.
@@ -549,10 +591,29 @@ impl QueueEditApplier {
         self
     }
 
+    /// Loads pages on demand and addresses blocks without `id::` through `resolver`.
+    #[must_use]
+    pub fn with_resolver(mut self, resolver: Arc<dyn PageResolver>) -> Self {
+        self.resolver = Some(resolver);
+        self
+    }
+
     fn snapshot(&self, page: &str) -> Result<Arc<PageSnapshot>, EditError> {
-        self.queue
-            .snapshot(&PageKey::from_title(page))
-            .ok_or_else(|| EditError::PageNotLoaded(page.to_owned()))
+        let key = PageKey::from_title(page);
+        let mut snap = self.queue.snapshot(&key);
+        if snap.is_none()
+            && let Some(r) = &self.resolver
+            && r.ensure_loaded(page)
+        {
+            snap = self.queue.snapshot(&key);
+        }
+        let snap = snap.ok_or_else(|| EditError::PageNotLoaded(page.to_owned()))?;
+        Ok(match &self.resolver {
+            Some(r) if snap.blocks.iter().any(|b| b.uuid.is_none()) => {
+                Arc::new(with_index_uuids(&snap, &r.indexed_blocks(page)))
+            }
+            _ => snap,
+        })
     }
 
     fn commit_op(&self, label: &'static str, ops: Vec<Op>) -> Result<Transaction, EditError> {
@@ -863,6 +924,81 @@ mod tests {
         let before = texts(&q);
         assert!(matches!(applier.apply(&p), Err(EditError::Stale(_))));
         assert_eq!(texts(&q), before);
+        drop(q);
+        let _ = join.shutdown();
+    }
+
+    struct FakeResolver {
+        queue: CommandQueue,
+        plain_uuid: String,
+    }
+
+    impl PageResolver for FakeResolver {
+        fn ensure_loaded(&self, page: &str) -> bool {
+            if page != "Lazy" {
+                return false;
+            }
+            self.queue
+                .execute(
+                    Source::Ui,
+                    Request::LoadPage {
+                        key: PageKey::from_title("Lazy"),
+                        title: "Lazy".into(),
+                        path: GraphPath::new("pages/Lazy.md").ok(),
+                        bytes: b"- one\n- two\n".to_vec(),
+                    },
+                )
+                .is_ok()
+        }
+
+        fn indexed_blocks(&self, page: &str) -> Vec<IndexedBlock> {
+            let row = |u: &str, t: &str| IndexedBlock {
+                uuid: u.into(),
+                text: t.into(),
+            };
+            match page {
+                "Lazy" => vec![row(&self.plain_uuid, "one"), row(B, "stale index text")],
+                _ => Vec::new(),
+            }
+        }
+    }
+
+    #[test]
+    fn resolver_loads_pages_and_addresses_blocks_without_id() {
+        let (q, join) = queue();
+        let uuid = "44444444-4444-4444-8444-444444444444".to_owned();
+        let applier = QueueEditApplier::new(q.clone()).with_resolver(Arc::new(FakeResolver {
+            queue: q.clone(),
+            plain_uuid: uuid.clone(),
+        }));
+        let mut p = proposal(json!([{"op": "update_block", "uuid": uuid,
+            "expected_text": "one", "text": "ONE"}]));
+        p.page = "Lazy".into();
+        // The page was not loaded; the resolver loads it and maps the index uuid.
+        let preview = applier.preview(&p).expect("preview");
+        assert_eq!(preview.ops[0].before.as_deref(), Some("one"));
+        applier.apply(&p).expect("apply");
+        let snap = q.snapshot(&PageKey::from_title("Lazy")).expect("snap");
+        assert_eq!(snap.blocks[0].text, "ONE");
+        assert!(
+            snap.blocks.iter().all(|b| b.uuid.is_none()),
+            "no id:: is written for the user"
+        );
+        // A block whose text differs from the index (lagging index) is not addressable.
+        let mut bad = proposal(json!([{"op": "delete_block", "uuid": B}]));
+        bad.page = "Lazy".into();
+        assert!(matches!(
+            applier.preview(&bad),
+            Err(EditError::UnknownBlock(_))
+        ));
+        // Unknown pages stay not loaded.
+        let mut none = proposal(json!([{"op": "delete_block", "uuid": A}]));
+        none.page = "Nowhere".into();
+        assert!(matches!(
+            applier.preview(&none),
+            Err(EditError::PageNotLoaded(_))
+        ));
+        drop(applier);
         drop(q);
         let _ = join.shutdown();
     }

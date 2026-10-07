@@ -19,9 +19,9 @@ pub use gpui_kit::{
     Application, AsyncApp, Bounds, ClickEvent, Context, Div, ElementId, Entity, EntityId,
     EventEmitter, FocusHandle, Focusable, Global, Hsla, KeyBinding, KeyBindingContextPredicate,
     KeyDownEvent, KeyUpEvent, Keystroke, NoAction, PathPromptOptions, Pixels, Point, Render, Rgba,
-    SharedString, Size, StyledImage, Subscription, Task, TextSystem, TitlebarOptions, WeakEntity,
-    Window, WindowAppearance, WindowBounds, WindowOptions, anchored, deferred, div, point, px,
-    size,
+    ScrollHandle, SharedString, Size, StyledImage, Subscription, Task, TextSystem, TitlebarOptions,
+    WeakEntity, Window, WindowAppearance, WindowBounds, WindowOptions, anchored, deferred, div,
+    point, px, size,
 };
 pub use gpui_kit::{rgb, rgba};
 

@@ -47,6 +47,7 @@ velopack.workspace = true
 ureq.workspace = true
 semver.workspace = true
 tiny-skia.workspace = true
+similar.workspace = true
 
 [dev-dependencies]
 gpui-kit = { workspace = true, features = ["test-support"] }

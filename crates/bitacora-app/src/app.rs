@@ -163,7 +163,9 @@ fn start(cx: &mut App, args: &Args, dirs: &AppDirs, services: Services) -> anyho
                 ws.read(cx).save_now(cx);
                 // Window-close quits end up here: stop the session in order (final flush)
                 // unless the `Quit` action already did.
-                ws.update(cx, |ws, _| ws.take_session())
+                ws.update(cx, |ws, cx| {
+                    ws.take_session(bitacora_runtime::ai::DenyReason::Quit, cx)
+                })
             });
         let shutdown = session.map(|s| {
             cx.background_executor()
@@ -331,7 +333,9 @@ fn handle_launch(cx: &mut App, dirs: &AppDirs, launch: &Launch) {
         });
         return;
     }
-    let session = current.update(cx, |ws, _| ws.take_session());
+    let session = current.update(cx, |ws, cx| {
+        ws.take_session(bitacora_runtime::ai::DenyReason::GraphSwitch, cx)
+    });
     let dirs = dirs.clone();
     cx.spawn(async move |cx| {
         if let Some(session) = session {

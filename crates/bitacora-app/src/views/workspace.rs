@@ -37,6 +37,9 @@ use crate::ui::{
 };
 use crate::ui::{Level, notify};
 use crate::views::agent_activity::{AgentActivityEvent, AgentActivityView};
+use crate::views::chat::{
+    ChatContext, ChatView, ChatViewEvent, ContextItem, ContextKind, PageBlocks,
+};
 use crate::views::conflicts::{ConflictsEvent, ConflictsView};
 use crate::views::credential_dialog::CredentialDialog;
 use crate::views::disk_conflict::{
@@ -58,6 +61,7 @@ use crate::views::sync_panel::{SyncPanel, SyncPanelEvent};
 use bitacora_core::editor::MergeMode;
 use bitacora_core::graph::PageKey;
 use bitacora_core::queue::{Keep, Request, Source};
+use bitacora_runtime::ai::DenyReason;
 use rust_i18n::t;
 use std::sync::Arc;
 
@@ -132,6 +136,8 @@ pub struct Workspace {
     hub: Entity<PaneHub>,
     stack: Entity<RightSidebar>,
     panel: Entity<RightPanel>,
+    chat: Entity<ChatView>,
+    right_open: bool,
     palette: Entity<Palette>,
     sync_dialog: Entity<SyncDialog>,
     credential_dialog: Entity<CredentialDialog>,
@@ -184,6 +190,10 @@ impl Workspace {
         let main = cx.new(|cx| MainView::new(window, cx));
         let stack = cx.new(RightSidebar::new);
         let panel = cx.new(|cx| RightPanel::new(stack.clone(), cx));
+        let chat = cx.new(|cx| ChatView::new(window, cx));
+        panel.update(cx, |panel, cx| {
+            panel.set_agent_slot(Some(chat.clone().into()), cx)
+        });
         let hub = cx.new(|_| PaneHub::new(main.clone(), panel.clone()));
         cx.set_global(SharedHub(hub.clone()));
         let palette = cx.new(|cx| Palette::new(window, cx));
@@ -232,6 +242,20 @@ impl Workspace {
                 }
             },
         ));
+        subscriptions.push(cx.subscribe_in(
+            &chat,
+            window,
+            |this, _, event: &ChatViewEvent, _, cx| match event {
+                ChatViewEvent::Navigate(target) => this.on_stack_navigate(target, cx),
+            },
+        ));
+        let weak = cx.weak_entity();
+        chat.update(cx, |chat, _| {
+            chat.set_context_provider(std::rc::Rc::new(move |cx| {
+                weak.update(cx, |ws, cx| ws.chat_context(cx))
+                    .unwrap_or_default()
+            }));
+        });
         subscriptions.push(cx.subscribe_in(&conflicts, window, Self::on_conflicts_event));
         subscriptions.push(cx.subscribe_in(&disk_banner, window, Self::on_disk_event));
         subscriptions.push(cx.subscribe_in(
@@ -272,6 +296,8 @@ impl Workspace {
             hub,
             stack,
             panel,
+            chat,
+            right_open: false,
             palette,
             sync_dialog,
             credential_dialog,
@@ -460,6 +486,9 @@ impl Workspace {
             }
         };
         self.session_handle = session.handle();
+        self.chat.update(cx, |chat, cx| {
+            chat.set_session(self.session_handle.clone(), cx)
+        });
         self.session = Some(session);
         self.settings.update(cx, |s, cx| {
             s.set_mcp_endpoint(None, cx);
@@ -579,6 +608,8 @@ impl Workspace {
     /// running reconcile never blocks the UI.
     fn close_session(&mut self, cx: &mut Context<Self>) {
         self.session_task = None;
+        self.chat
+            .update(cx, |chat, cx| chat.disconnect(DenyReason::GraphSwitch, cx));
         if let Some(session) = self.session.take() {
             cx.background_spawn(async move { session.close() }).detach();
         }
@@ -958,6 +989,8 @@ impl Workspace {
         match event {
             SessionEvent::Live(link) => {
                 self.link = Some(link.clone());
+                self.chat
+                    .update(cx, |chat, _| chat.set_link(Some(link.clone())));
                 self.settings.update(cx, |s, cx| {
                     s.set_mcp_endpoint(link.mcp_endpoint.clone(), cx)
                 });
@@ -1014,6 +1047,8 @@ impl Workspace {
                     .as_deref()
                     .map(|req| requested_route(&handle, req));
                 self.handle = Some(handle.clone());
+                self.chat
+                    .update(cx, |chat, cx| chat.set_graph(Some(handle.clone()), cx));
                 self.hub
                     .update(cx, |hub, _| hub.set_handle(Some(handle.clone())));
                 let favorites = handle.settings.config.favorites();
@@ -1221,6 +1256,93 @@ impl Workspace {
         self.ensure_right_dock(window, cx);
     }
 
+    /// "Ask Pando about the selection": attaches the selected blocks (or, without a selection,
+    /// the page on screen) to the chat composer and opens the Agent tab. Nothing is sent until
+    /// the user writes the question and presses Enter.
+    pub fn ask_about_selection(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let context = self.chat_context(cx);
+        let item = match (context.selection, context.page) {
+            (Some(data), _) if !data.blocks.is_empty() => Some(ContextItem {
+                kind: ContextKind::Selection,
+                data,
+            }),
+            (_, Some((data, journal))) => Some(ContextItem {
+                kind: if journal {
+                    ContextKind::Journal
+                } else {
+                    ContextKind::Page
+                },
+                data,
+            }),
+            _ => None,
+        };
+        self.open_agent_panel(window, cx);
+        match item {
+            Some(item) => self.chat.update(cx, |chat, cx| {
+                chat.attach(item, cx);
+                chat.focus_composer(window, cx);
+            }),
+            None => notify(
+                window,
+                cx,
+                Level::Info,
+                t!("chat.ctx_no_selection").to_string(),
+            ),
+        }
+    }
+
+    /// What the chat can attach right now: the page on screen and the selected blocks of its
+    /// editor. Called by the chat view from its own handlers, never from inside a chat update.
+    fn chat_context(&self, cx: &mut Context<Self>) -> ChatContext {
+        let (Some(link), Some(main)) = (self.link.as_ref(), self.panes(cx).into_iter().next())
+        else {
+            return ChatContext::default();
+        };
+        let (route, page_view) = {
+            let main = main.read(cx);
+            (main.route().cloned(), main.page().clone())
+        };
+        let name = match route {
+            Some(Route::Page(name)) => name,
+            Some(Route::Journals) => {
+                // The newest journal page stands for the feed.
+                let Some(handle) = self.handle.as_ref() else {
+                    return ChatContext::default();
+                };
+                match handle
+                    .reader
+                    .journals(None, 1)
+                    .ok()
+                    .and_then(|mut p| p.pop())
+                {
+                    Some(page) => page.original_name,
+                    None => return ChatContext::default(),
+                }
+            }
+            _ => return ChatContext::default(),
+        };
+        let key = bitacora_core::graph::PageKey::from_title(&name);
+        let Some(snapshot) = link.queue.snapshot(&key) else {
+            return ChatContext::default();
+        };
+        let journal = self
+            .handle
+            .as_ref()
+            .and_then(|h| h.reader.page_by_name(&name).ok().flatten())
+            .is_some_and(|p| p.is_journal);
+        let selection = page_view
+            .read(cx)
+            .editor()
+            .map(|ed| ed.read(cx).selected_blocks())
+            .filter(|ids| !ids.is_empty())
+            .filter(|_| matches!(self.main.read(cx).route(), Some(Route::Page(_))))
+            .map(|ids| PageBlocks::from_snapshot(&snapshot, Some(&ids)));
+        ChatContext {
+            page: Some((PageBlocks::from_snapshot(&snapshot, None), journal)),
+            selection,
+        }
+    }
+
     /// The right panel.
     pub fn right_panel(&self) -> &Entity<RightPanel> {
         &self.panel
@@ -1313,6 +1435,19 @@ impl Workspace {
             .push(cx.observe(pane, |_, _, cx| cx.notify()));
     }
 
+    fn on_stack_navigate(
+        &mut self,
+        target: &crate::render::inline::NavTarget,
+        cx: &mut Context<Self>,
+    ) {
+        use crate::render::inline::NavTarget;
+        match target {
+            NavTarget::Page(name) => self.navigate(Route::Page(name.clone()), cx),
+            NavTarget::Block(uuid) => self.navigate(Route::Block(uuid.clone()), cx),
+            NavTarget::Url(url) => cx.open_url(url),
+        }
+    }
+
     fn on_stack_event(
         &mut self,
         _: &Entity<RightSidebar>,
@@ -1321,14 +1456,7 @@ impl Workspace {
         cx: &mut Context<Self>,
     ) {
         match event {
-            StackEvent::Navigate(target) => {
-                use crate::render::inline::NavTarget;
-                match target {
-                    NavTarget::Page(name) => self.navigate(Route::Page(name.clone()), cx),
-                    NavTarget::Block(uuid) => self.navigate(Route::Block(uuid.clone()), cx),
-                    NavTarget::Url(url) => cx.open_url(url),
-                }
-            }
+            StackEvent::Navigate(target) => self.on_stack_navigate(target, cx),
             StackEvent::OpenInMain(route) => self.navigate(route.clone(), cx),
             StackEvent::Changed => {
                 self.graph_state.right_sidebar = self.stack.read(cx).entries();
@@ -1417,6 +1545,7 @@ impl Workspace {
             PaletteCommand::OpenSettings => self.open_settings(None, window, cx),
             PaletteCommand::PageHistory => self.open_history(window, cx),
             PaletteCommand::AgentActivity => self.open_agent_activity(window, cx),
+            PaletteCommand::AskAboutSelection => self.ask_about_selection(window, cx),
             PaletteCommand::ResolveConflicts => self.open_conflicts(window, cx),
             PaletteCommand::CloneGraph => self.open_clone_dialog(window, cx),
         }
@@ -1654,7 +1783,7 @@ impl Workspace {
         let Some(root) = self.graph_root.clone() else {
             return;
         };
-        let session = self.take_session();
+        let session = self.take_session(DenyReason::GraphSwitch, cx);
         self.hub.update(cx, |hub, _| hub.set_handle(None));
         let task = cx.background_spawn(async move {
             if let Some(session) = session {
@@ -2042,7 +2171,7 @@ impl Workspace {
             return;
         };
         let data_dir = self.config.index_data_dir.clone();
-        let session = self.take_session();
+        let session = self.take_session(DenyReason::GraphSwitch, cx);
         self.hub.update(cx, |hub, _| hub.set_handle(None));
         notify(
             window,
@@ -2203,6 +2332,12 @@ impl Workspace {
     ) {
         if matches!(event, DockEvent::LayoutChanged) {
             self.schedule_save(cx);
+            // Closing the right panel ends the chat session: pending approvals are denied.
+            let open = self.dock.read(cx).is_dock_open(DockPlacement::Right);
+            if self.right_open && !open {
+                self.chat.update(cx, |chat, cx| chat.panel_closed(cx));
+            }
+            self.right_open = open;
         }
     }
 
@@ -2250,7 +2385,13 @@ impl Workspace {
 
     /// Hands the session out for the final shutdown (app quit); afterwards the workspace has no
     /// session left.
-    pub fn take_session(&mut self) -> Option<GraphSession> {
+    pub fn take_session(
+        &mut self,
+        reason: DenyReason,
+        cx: &mut Context<Self>,
+    ) -> Option<GraphSession> {
+        // Pending agent approvals are denied for `reason` before the session goes away.
+        self.chat.update(cx, |chat, cx| chat.disconnect(reason, cx));
         self.link = None;
         self.session_handle = None;
         self.session_task = None;
@@ -2259,7 +2400,7 @@ impl Workspace {
 
     /// `Quit`: runs the ordered shutdown first and shows a notice when files stayed unwritten.
     fn quit(&mut self, _: &Quit, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(session) = self.take_session() else {
+        let Some(session) = self.take_session(DenyReason::Quit, cx) else {
             cx.quit();
             return;
         };

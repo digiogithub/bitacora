@@ -40,6 +40,17 @@ pub use bitacora_pando::semantic::{
 pub use bitacora_pando::{
     PandoCredentials, PandoEvent, PandoOptions, PandoService, PandoStatus, Supervisor,
 };
+/// The AI agent types the app needs (chat events and handles, approvals, the AG-UI thread list),
+/// re-exported so `bitacora-app` does not depend on `bitacora-pando` or `pando-rs`.
+pub mod ai {
+    pub use bitacora_pando::agents::*;
+    pub use pando::agui::hitl::{
+        PermissionRequest, Question, QuestionAnswer, QuestionAnswerEntry, QuestionOption,
+        QuestionRequest,
+    };
+    pub use pando::agui::{AguiClient, Message, MessageContent, ThreadSummary, ThreadsPage};
+}
+
 pub use live::{DEFAULT_SHUTDOWN_BUDGET, Session, ShutdownReport};
 pub use pando_settings::{
     PANDO_SETTINGS_FILE, default_pando_settings_path, load_pando_settings, pando_options_from_file,

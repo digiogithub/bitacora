@@ -68,6 +68,7 @@ palette:
   cmd_sync_settings: Ajustes de sincronización...
   cmd_page_history: Historial de la página...
   cmd_agent_activity: Actividad de agentes...
+  cmd_ask_selection: Preguntar a Pando sobre la selección
   cmd_conflicts: Resolver conflictos de sincronización...
   cmd_clone: Abrir un grafo desde un remoto...
   cmd_open_graph: Abrir grafo...
@@ -461,3 +462,55 @@ tasks:
   empty: Ninguna tarea abierta coincide.
   err_page: "No se puede abrir la página %{page}."
   err_moved: La tarea cambió en disco; recarga e inténtalo de nuevo.
+chat:
+  placeholder: Pregunta sobre tus notas...
+  empty_hint: Adjunta una página o una selección para centrar la respuesta. Solo se envía lo que adjuntes con tu pregunta.
+  model_unknown: Pando
+  sub_agents: "%{count} subagentes"
+  threads: Conversaciones
+  threads_loading: Cargando conversaciones...
+  threads_empty: Aún no hay conversaciones.
+  threads_unavailable: Pando no está conectado.
+  thread_untitled: Conversación
+  thread_delete_failed: No se pudo borrar la conversación.
+  working: Trabajando...
+  stopped: Detenido
+  reasoning: Razonamiento
+  tool_input: Entrada
+  tool_output: Salida
+  no_graph: Abre un grafo y conecta Pando en Ajustes para conversar.
+  no_events: El chat no pudo iniciar su lector de eventos.
+  unavailable: "Chat no disponible: %{reason}"
+  context: "Contexto:"
+  add_page: "+ Página"
+  add_selection: "+ Selección"
+  ctx_no_page: Abre una página primero.
+  ctx_no_selection: Selecciona algunos bloques primero.
+  mode_read: Solo lectura
+  mode_edit: Puede proponer cambios
+  apply: Aplicar
+  allow: Permitir
+  deny: Rechazar
+  skip: Omitir
+  auto_deny: "Se rechaza sola tras %{seconds} s sin respuesta"
+  perm_title: Petición de permiso
+  perm_explicit: Requiere tu aprobación explícita.
+  question_title: El asistente pregunta
+  diff_more: "... %{count} líneas más"
+  op_insert: Insertar
+  op_update: Modificar
+  op_move: Mover
+  op_delete: Borrar
+  op_property: Propiedad
+  edit_applying: Aprobado, aplicando...
+  edit_applied: "Aplicado en %{count} bloque(s) de [[%{page}]]. Ctrl+Z lo deshace."
+  edit_failed: "No aplicado: %{error}"
+  answered: Respondido
+  denied_user: Rechazado
+  denied_timeout: Rechazado, sin respuesta a tiempo
+  denied_panel: Rechazado, se cerró el panel
+  denied_thread: Rechazado, cambió la conversación
+  denied_graph: Rechazado, cambió el grafo
+  denied_quit: Rechazado, la app se cerró
+  denied_cancelled: Rechazado, se detuvo la ejecución
+  denied_expired: Rechazado, la petición caducó

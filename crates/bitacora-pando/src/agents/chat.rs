@@ -141,6 +141,18 @@ pub enum ChatEvent {
         /// Result text.
         content: String,
     },
+    /// The shared-state document after a `STATE_SNAPSHOT` or `STATE_DELTA` (model, token usage,
+    /// sub-agents, ...). See [`AgentState::from_value`].
+    State(Value),
+    /// An `ACTIVITY_SNAPSHOT` (progress of something the agent does).
+    Activity {
+        /// Message id the activity belongs to.
+        message_id: String,
+        /// Activity type.
+        kind: String,
+        /// Content.
+        content: Value,
+    },
     /// A `pando.*` custom signal.
     Custom {
         /// Name.
@@ -441,6 +453,8 @@ struct Ctx {
     cmd_closed: bool,
     /// The server-side cancel of the current turn was already sent.
     cancel_sent: bool,
+    /// The shared-state document, patched by `STATE_DELTA`.
+    state: Value,
 }
 
 impl Ctx {
@@ -462,6 +476,7 @@ impl Ctx {
             abort: None,
             cmd_closed: false,
             cancel_sent: false,
+            state: Value::Null,
         }
     }
 
@@ -663,6 +678,28 @@ impl Ctx {
                 ..
             } => ChatEvent::ToolCallResult {
                 call_id: tool_call_id,
+                content,
+            },
+            Event::StateSnapshot { snapshot } => {
+                self.state = snapshot;
+                ChatEvent::State(self.state.clone())
+            }
+            Event::StateDelta { delta } => {
+                for op in &delta {
+                    if let Err(e) = pando::agui::apply_patch(&mut self.state, op) {
+                        tracing::debug!(error = %e, "ignoring a state patch that does not apply");
+                    }
+                }
+                ChatEvent::State(self.state.clone())
+            }
+            Event::ActivitySnapshot {
+                message_id,
+                activity_type,
+                content,
+                ..
+            } => ChatEvent::Activity {
+                message_id,
+                kind: activity_type,
                 content,
             },
             Event::Custom { name, value } => ChatEvent::Custom { name, value },
@@ -946,6 +983,107 @@ pub struct ToolCallView {
     pub args: String,
     /// Result, once there is one.
     pub result: Option<String>,
+    /// When the call opened (live calls only).
+    pub started: Option<std::time::Instant>,
+    /// How long the call took, once its result arrived (live calls only).
+    pub duration: Option<Duration>,
+}
+
+/// The shared-state document of a thread, as the agent header shows it (BIT-T-0456). Every field
+/// is optional: the document is a projection Pando owns and may grow.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct AgentState {
+    /// Model name (or id).
+    pub model: Option<String>,
+    /// Provider of the model.
+    pub provider: Option<String>,
+    /// Prompt tokens in the context.
+    pub prompt_tokens: u64,
+    /// Completion tokens.
+    pub completion_tokens: u64,
+    /// Context window of the model (0 when unknown).
+    pub context_window: u64,
+    /// The counts are estimates.
+    pub estimated: bool,
+    /// Sub-agents the thread delegated to.
+    pub sub_agents: Vec<SubAgent>,
+}
+
+/// A delegated task listed in the state document.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct SubAgent {
+    /// Task id.
+    pub id: String,
+    /// `running`, `completed`, `failed`, ...
+    pub status: String,
+    /// Fixed role, when it has one.
+    pub role: String,
+}
+
+impl SubAgent {
+    /// The task has not ended yet.
+    #[must_use]
+    pub fn is_running(&self) -> bool {
+        matches!(
+            self.status.to_lowercase().as_str(),
+            "running" | "pending" | "queued" | "started" | "in_progress"
+        )
+    }
+}
+
+impl AgentState {
+    /// Reads the document leniently: unknown or missing fields are skipped.
+    #[must_use]
+    pub fn from_value(v: &Value) -> Self {
+        let text = |p: &str| {
+            v.pointer(p)
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_owned)
+        };
+        let num = |p: &str| v.pointer(p).and_then(Value::as_u64).unwrap_or(0);
+        let context_window = match num("/tokenUsage/contextWindow") {
+            0 => num("/model/contextWindow"),
+            n => n,
+        };
+        Self {
+            model: text("/model/name").or_else(|| text("/model/id")),
+            provider: text("/model/provider"),
+            prompt_tokens: num("/tokenUsage/promptTokens"),
+            completion_tokens: num("/tokenUsage/completionTokens"),
+            context_window,
+            estimated: v
+                .pointer("/tokenUsage/estimated")
+                .and_then(Value::as_bool)
+                .unwrap_or(false),
+            sub_agents: v
+                .pointer("/subAgents")
+                .and_then(Value::as_array)
+                .map(|a| {
+                    a.iter()
+                        .map(|s| SubAgent {
+                            id: s["id"].as_str().unwrap_or_default().to_owned(),
+                            status: s["status"].as_str().unwrap_or_default().to_owned(),
+                            role: s["role"].as_str().unwrap_or_default().to_owned(),
+                        })
+                        .collect()
+                })
+                .unwrap_or_default(),
+        }
+    }
+
+    /// Tokens in use (prompt plus completion).
+    #[must_use]
+    pub fn used_tokens(&self) -> u64 {
+        self.prompt_tokens + self.completion_tokens
+    }
+
+    /// Sub-agents still working.
+    #[must_use]
+    pub fn running_sub_agents(&self) -> usize {
+        self.sub_agents.iter().filter(|s| s.is_running()).count()
+    }
 }
 
 /// State of an approval card in the transcript.
@@ -999,6 +1137,10 @@ pub struct ChatModel {
     pub error: Option<String>,
     /// The session ended.
     pub closed: bool,
+    /// Model, token usage and sub-agents from the shared state; `None` before the first one.
+    pub state: Option<AgentState>,
+    /// Latest `ACTIVITY_SNAPSHOT` as a one-line progress text (cleared when the turn ends).
+    pub activity: Option<String>,
 }
 
 impl ChatModel {
@@ -1057,7 +1199,7 @@ impl ChatModel {
                                 id: c.id.clone(),
                                 name: c.function.name.clone(),
                                 args: c.function.arguments.clone(),
-                                result: None,
+                                ..ToolCallView::default()
                             })
                             .collect(),
                         ..ChatMessage::default()
@@ -1082,6 +1224,7 @@ impl ChatModel {
                 self.message(&target).tool_calls.push(ToolCallView {
                     id: call_id.clone(),
                     name: name.clone(),
+                    started: Some(std::time::Instant::now()),
                     ..ToolCallView::default()
                 });
             }
@@ -1093,6 +1236,7 @@ impl ChatModel {
             ChatEvent::ToolCallResult { call_id, content } => {
                 if let Some(c) = self.call(call_id) {
                     c.result = Some(content.clone());
+                    c.duration = c.started.map(|t| t.elapsed());
                 }
             }
             ChatEvent::ApprovalRequested(card) => self.cards.push(CardView {
@@ -1116,8 +1260,13 @@ impl ChatModel {
                 self.error = Some(message.clone());
             }
             ChatEvent::Error { message, .. } => self.error = Some(message.clone()),
+            ChatEvent::State(doc) => self.state = Some(AgentState::from_value(doc)),
+            ChatEvent::Activity { kind, content, .. } => {
+                self.activity = Some(activity_line(kind, content));
+            }
             ChatEvent::RunFinished(end) => {
                 self.running = false;
+                self.activity = None;
                 if *end == RunEnd::Cancelled
                     && let Some(m) = self
                         .messages
@@ -1138,4 +1287,14 @@ impl ChatModel {
             | ChatEvent::EditApplied { .. } => {}
         }
     }
+}
+
+/// One line for an `ACTIVITY_SNAPSHOT`: its `title`/`message`/`text` when it has one, else its
+/// type.
+fn activity_line(kind: &str, content: &Value) -> String {
+    ["title", "message", "text", "status"]
+        .iter()
+        .find_map(|k| content.get(*k).and_then(Value::as_str))
+        .or_else(|| content.as_str())
+        .map_or_else(|| kind.to_owned(), |t| t.trim().to_owned())
 }
