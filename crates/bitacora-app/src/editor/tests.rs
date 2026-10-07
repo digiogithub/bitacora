@@ -512,6 +512,47 @@ fn ctrl_enter_cycles_the_task_marker_and_the_checkbox_toggles_done(cx: &mut Test
 }
 
 #[gpui_test]
+fn ctrl_1_2_3_set_the_marker_of_the_editing_block_and_undo_restores_the_bytes(
+    cx: &mut TestAppContext,
+) {
+    let env = Env::new(&[(HOME, "- [#A] write\n  owner:: me\n- other\n")]);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    edit(&ed, 0, Caret::End, cx);
+    cx.simulate_keystrokes(&k("ctrl-1"));
+    assert_eq!(env.disk(HOME), "- TODO [#A] write\n  owner:: me\n- other\n");
+    cx.simulate_keystrokes(&k("ctrl-2"));
+    assert_eq!(
+        env.disk(HOME),
+        "- DOING [#A] write\n  owner:: me\n- other\n"
+    );
+    cx.simulate_keystrokes(&k("ctrl-3"));
+    assert_eq!(env.disk(HOME), "- DONE [#A] write\n  owner:: me\n- other\n");
+    cx.simulate_keystrokes(&k("ctrl-z"));
+    assert_eq!(
+        env.disk(HOME),
+        "- DOING [#A] write\n  owner:: me\n- other\n"
+    );
+    cx.simulate_keystrokes(&k("ctrl-z ctrl-z"));
+    assert_eq!(env.disk(HOME), "- [#A] write\n  owner:: me\n- other\n");
+}
+
+#[gpui_test]
+fn ctrl_1_2_3_apply_to_a_block_selection_as_one_undo_step(cx: &mut TestAppContext) {
+    let env = Env::new(&[(HOME, "- a\n- DONE b\n- c\n")]);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    edit(&ed, 0, Caret::End, cx);
+    cx.simulate_keystrokes("escape shift-down");
+    cx.simulate_keystrokes(&k("ctrl-1"));
+    assert_eq!(env.disk(HOME), "- TODO a\n- TODO b\n- c\n");
+    cx.simulate_keystrokes(&k("ctrl-3"));
+    assert_eq!(env.disk(HOME), "- DONE a\n- DONE b\n- c\n");
+    cx.simulate_keystrokes(&k("ctrl-z"));
+    assert_eq!(env.disk(HOME), "- TODO a\n- TODO b\n- c\n");
+    cx.simulate_keystrokes(&k("ctrl-z"));
+    assert_eq!(env.disk(HOME), "- a\n- DONE b\n- c\n");
+}
+
+#[gpui_test]
 fn escape_selects_shift_arrows_extend_and_bulk_operations_use_one_transaction(
     cx: &mut TestAppContext,
 ) {
