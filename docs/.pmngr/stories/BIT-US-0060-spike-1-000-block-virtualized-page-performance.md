@@ -2,7 +2,7 @@
 id: BIT-US-0060
 type: story
 title: "Spike: 1,000-block virtualized page performance"
-status: in_review
+status: done
 priority: high
 parent: BIT-EP-0002
 milestone: BIT-M-0001
@@ -10,8 +10,9 @@ author: mcp
 labels: [ui, spike, performance, bitacora-app]
 estimate: 5
 created: 2026-10-06T14:28:56Z
-updated: 2026-10-06T17:59:55Z
+updated: 2026-10-07T08:21:31Z
 started: 2026-10-06T17:33:08Z
+closed: 2026-10-07T08:21:31Z
 ---
 
 ## Description

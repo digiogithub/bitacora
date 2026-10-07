@@ -2,7 +2,7 @@
 id: BIT-T-0271
 type: task
 title: Flatpak manifest with offline cargo sources and CI build
-status: in_review
+status: done
 priority: low
 parent: BIT-US-0112
 milestone: BIT-M-0005
@@ -10,8 +10,9 @@ author: mcp
 labels: [packaging, linux, ci, bitacora-app]
 estimate: 3
 created: 2026-10-06T14:32:50Z
-updated: 2026-10-06T19:59:49Z
+updated: 2026-10-07T08:21:12Z
 started: 2026-10-06T19:59:49Z
+closed: 2026-10-07T08:21:12Z
 ---
 
 ## Description

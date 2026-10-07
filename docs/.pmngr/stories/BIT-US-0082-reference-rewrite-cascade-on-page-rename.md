@@ -2,7 +2,7 @@
 id: BIT-US-0082
 type: story
 title: Reference rewrite cascade on page rename
-status: in_review
+status: done
 priority: high
 parent: BIT-EP-0009
 milestone: BIT-M-0003
@@ -10,8 +10,9 @@ author: mcp
 labels: [core, compat, rename]
 estimate: 8
 created: 2026-10-06T14:29:32Z
-updated: 2026-10-06T19:30:10Z
+updated: 2026-10-07T08:21:31Z
 started: 2026-10-06T19:30:10Z
+closed: 2026-10-07T08:21:31Z
 ---
 
 ## Description

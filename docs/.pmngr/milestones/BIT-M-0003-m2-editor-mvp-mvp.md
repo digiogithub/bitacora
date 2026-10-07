@@ -2,11 +2,12 @@
 id: BIT-M-0003
 type: milestone
 title: M2 — Editor MVP (MVP-β)
-status: in_review
+status: done
 author: mcp
 created: 2026-10-06T14:20:19Z
-updated: 2026-10-07T00:15:15Z
+updated: 2026-10-07T08:21:50Z
 started: 2026-10-07T00:15:15Z
+closed: 2026-10-07T08:21:50Z
 due: 2027-04-15
 ---
 

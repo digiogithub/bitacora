@@ -2,7 +2,7 @@
 id: BIT-T-0292
 type: task
 title: Cross-OS auth verification matrix and checklist
-status: in_review
+status: done
 priority: medium
 parent: BIT-US-0046
 milestone: BIT-M-0004
@@ -10,8 +10,9 @@ author: mcp
 labels: [bitacora-sync, auth, testing, docs]
 estimate: 2
 created: 2026-10-06T14:32:57Z
-updated: 2026-10-06T18:35:25Z
+updated: 2026-10-07T08:21:12Z
 started: 2026-10-06T18:35:25Z
+closed: 2026-10-07T08:21:12Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-T-0178
 type: task
 title: Install/launch/uninstall smoke tests for every bundle format
-status: in_review
+status: done
 priority: medium
 parent: BIT-US-0090
 milestone: BIT-M-0005
@@ -10,8 +10,9 @@ author: mcp
 labels: [packaging, ci, testing]
 estimate: 2
 created: 2026-10-06T14:30:55Z
-updated: 2026-10-06T19:59:48Z
+updated: 2026-10-07T08:21:12Z
 started: 2026-10-06T19:59:48Z
+closed: 2026-10-07T08:21:12Z
 ---
 
 ## Description

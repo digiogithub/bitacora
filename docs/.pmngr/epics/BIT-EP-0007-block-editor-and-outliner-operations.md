@@ -2,14 +2,15 @@
 id: BIT-EP-0007
 type: epic
 title: Block editor and outliner operations
-status: in_review
+status: done
 priority: critical
 milestone: BIT-M-0003
 author: mcp
 labels: [editor, ui, core]
 created: 2026-10-06T14:21:13Z
-updated: 2026-10-07T00:15:15Z
+updated: 2026-10-07T08:21:43Z
 started: 2026-10-07T00:15:15Z
+closed: 2026-10-07T08:21:43Z
 ---
 
 ## Description

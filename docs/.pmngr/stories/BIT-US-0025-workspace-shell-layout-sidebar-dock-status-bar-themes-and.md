@@ -2,7 +2,7 @@
 id: BIT-US-0025
 type: story
 title: "Workspace shell layout: sidebar, dock, status bar, themes and i18n"
-status: in_review
+status: done
 priority: high
 parent: BIT-EP-0002
 milestone: BIT-M-0001
@@ -10,8 +10,9 @@ author: mcp
 labels: [ui, bitacora-app]
 estimate: 5
 created: 2026-10-06T14:27:43Z
-updated: 2026-10-06T17:04:05Z
+updated: 2026-10-07T08:21:32Z
 started: 2026-10-06T16:46:40Z
+closed: 2026-10-07T08:21:32Z
 ---
 
 ## Description

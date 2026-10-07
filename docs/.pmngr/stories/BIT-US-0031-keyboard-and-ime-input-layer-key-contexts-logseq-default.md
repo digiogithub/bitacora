@@ -2,7 +2,7 @@
 id: BIT-US-0031
 type: story
 title: "Keyboard and IME input layer: key contexts, Logseq default keymap and IME composition"
-status: in_review
+status: done
 priority: high
 parent: BIT-EP-0007
 milestone: BIT-M-0003
@@ -10,8 +10,9 @@ author: mcp
 labels: [editor, ui, bitacora-app]
 estimate: 5
 created: 2026-10-06T14:28:07Z
-updated: 2026-10-06T21:12:41Z
+updated: 2026-10-07T08:21:31Z
 started: 2026-10-06T21:12:41Z
+closed: 2026-10-07T08:21:31Z
 ---
 
 ## Description

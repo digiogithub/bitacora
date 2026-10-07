@@ -2,7 +2,7 @@
 id: BIT-T-0106
 type: task
 title: Write the block-editor spike report and record the ADR-002 decision
-status: in_review
+status: done
 priority: critical
 parent: BIT-US-0072
 milestone: BIT-M-0001
@@ -10,8 +10,9 @@ author: mcp
 labels: [spike, docs, adr]
 estimate: 2
 created: 2026-10-06T14:29:45Z
-updated: 2026-10-06T17:59:48Z
+updated: 2026-10-07T08:21:12Z
 started: 2026-10-06T17:33:08Z
+closed: 2026-10-07T08:21:12Z
 ---
 
 ## Description

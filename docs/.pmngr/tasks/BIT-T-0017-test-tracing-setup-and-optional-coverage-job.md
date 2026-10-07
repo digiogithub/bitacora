@@ -2,7 +2,7 @@
 id: BIT-T-0017
 type: task
 title: Test tracing setup and optional coverage job
-status: in_review
+status: done
 priority: medium
 parent: BIT-US-0012
 milestone: BIT-M-0001
@@ -10,8 +10,9 @@ author: mcp
 labels: [testing, ci, bitacora-testkit]
 estimate: 1
 created: 2026-10-06T14:26:22Z
-updated: 2026-10-06T16:55:34Z
+updated: 2026-10-07T08:21:12Z
 started: 2026-10-06T16:55:34Z
+closed: 2026-10-07T08:21:12Z
 ---
 
 ## Description

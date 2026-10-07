@@ -2,7 +2,7 @@
 id: BIT-T-0308
 type: task
 title: Unsupported-construct reporting and advanced query corpus test
-status: in_review
+status: done
 priority: medium
 parent: BIT-US-0103
 milestone: BIT-M-0005
@@ -10,8 +10,9 @@ author: mcp
 labels: [bitacora-index, query, testing]
 estimate: 2
 created: 2026-10-06T14:33:07Z
-updated: 2026-10-06T19:05:56Z
+updated: 2026-10-07T08:21:12Z
 started: 2026-10-06T19:05:50Z
+closed: 2026-10-07T08:21:12Z
 ---
 
 ## Description

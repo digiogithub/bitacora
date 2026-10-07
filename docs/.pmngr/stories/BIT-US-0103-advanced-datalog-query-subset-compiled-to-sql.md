@@ -2,7 +2,7 @@
 id: BIT-US-0103
 type: story
 title: Advanced Datalog query subset compiled to SQL
-status: in_review
+status: done
 priority: medium
 parent: BIT-EP-0013
 milestone: BIT-M-0005
@@ -10,8 +10,9 @@ author: mcp
 labels: [query, bitacora-index]
 estimate: 8
 created: 2026-10-06T14:31:46Z
-updated: 2026-10-06T19:06:06Z
+updated: 2026-10-07T08:21:31Z
 started: 2026-10-06T19:05:49Z
+closed: 2026-10-07T08:21:31Z
 ---
 
 ## Description

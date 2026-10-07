@@ -2,7 +2,7 @@
 id: BIT-US-0097
 type: story
 title: Tag-driven release pipeline to GitHub Releases
-status: in_review
+status: done
 priority: high
 parent: BIT-EP-0014
 milestone: BIT-M-0005
@@ -10,8 +10,9 @@ author: mcp
 labels: [release, ci]
 estimate: 5
 created: 2026-10-06T14:31:01Z
-updated: 2026-10-06T19:59:49Z
+updated: 2026-10-07T08:21:31Z
 started: 2026-10-06T19:59:49Z
+closed: 2026-10-07T08:21:31Z
 ---
 
 ## Description

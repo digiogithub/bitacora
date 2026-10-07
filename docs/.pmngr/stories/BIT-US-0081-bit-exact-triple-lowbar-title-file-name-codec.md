@@ -2,7 +2,7 @@
 id: BIT-US-0081
 type: story
 title: Bit-exact :triple-lowbar title ↔ file name codec
-status: in_review
+status: done
 priority: critical
 parent: BIT-EP-0004
 milestone: BIT-M-0002
@@ -10,8 +10,9 @@ author: mcp
 labels: [core, compat]
 estimate: 5
 created: 2026-10-06T14:29:27Z
-updated: 2026-10-06T16:59:05Z
+updated: 2026-10-07T08:21:32Z
 started: 2026-10-06T16:54:06Z
+closed: 2026-10-07T08:21:32Z
 ---
 
 ## Description

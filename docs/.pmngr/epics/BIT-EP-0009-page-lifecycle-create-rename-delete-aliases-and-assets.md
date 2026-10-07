@@ -2,14 +2,15 @@
 id: BIT-EP-0009
 type: epic
 title: "Page lifecycle: create, rename, delete, aliases and assets"
-status: in_review
+status: done
 priority: high
 milestone: BIT-M-0003
 author: mcp
 labels: [core, compat]
 created: 2026-10-06T14:21:13Z
-updated: 2026-10-07T00:15:15Z
+updated: 2026-10-07T08:21:43Z
 started: 2026-10-07T00:15:15Z
+closed: 2026-10-07T08:21:43Z
 ---
 
 ## Description

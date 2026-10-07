@@ -2,14 +2,15 @@
 id: BIT-EP-0004
 type: epic
 title: Graph model, config.edn and file layout
-status: in_review
+status: done
 priority: critical
 milestone: BIT-M-0002
 author: mcp
 labels: [core, compat]
 created: 2026-10-06T14:21:13Z
-updated: 2026-10-07T00:15:15Z
+updated: 2026-10-07T08:21:43Z
 started: 2026-10-07T00:15:15Z
+closed: 2026-10-07T08:21:43Z
 ---
 
 ## Description

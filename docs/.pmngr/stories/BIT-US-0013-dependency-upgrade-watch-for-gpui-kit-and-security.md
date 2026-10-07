@@ -2,7 +2,7 @@
 id: BIT-US-0013
 type: story
 title: Dependency upgrade watch for GPUI Kit and security advisories
-status: in_review
+status: done
 priority: medium
 parent: BIT-EP-0001
 milestone: BIT-M-0001
@@ -10,8 +10,9 @@ author: mcp
 labels: [infra, ci, dependencies]
 estimate: 3
 created: 2026-10-06T14:26:29Z
-updated: 2026-10-06T16:55:34Z
+updated: 2026-10-07T08:21:32Z
 started: 2026-10-06T16:55:34Z
+closed: 2026-10-07T08:21:32Z
 ---
 
 ## Description

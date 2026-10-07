@@ -2,7 +2,7 @@
 id: BIT-T-0243
 type: task
 title: Publish Velopack packages and update feeds from the release workflow
-status: in_review
+status: done
 priority: medium
 parent: BIT-US-0100
 milestone: BIT-M-0005
@@ -10,8 +10,9 @@ author: mcp
 labels: [auto-update, release, ci]
 estimate: 2
 created: 2026-10-06T14:31:45Z
-updated: 2026-10-06T20:18:19Z
+updated: 2026-10-07T08:21:12Z
 started: 2026-10-06T20:18:19Z
+closed: 2026-10-07T08:21:12Z
 ---
 
 ## Description

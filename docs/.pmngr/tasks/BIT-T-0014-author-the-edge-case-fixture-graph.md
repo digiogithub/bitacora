@@ -2,7 +2,7 @@
 id: BIT-T-0014
 type: task
 title: Author the edge-case fixture graph
-status: in_review
+status: done
 priority: critical
 parent: BIT-US-0011
 milestone: BIT-M-0001
@@ -10,8 +10,9 @@ author: mcp
 labels: [infra, fixtures]
 estimate: 3
 created: 2026-10-06T14:26:00Z
-updated: 2026-10-06T16:55:26Z
+updated: 2026-10-07T08:21:12Z
 started: 2026-10-06T16:46:30Z
+closed: 2026-10-07T08:21:12Z
 ---
 
 ## Description

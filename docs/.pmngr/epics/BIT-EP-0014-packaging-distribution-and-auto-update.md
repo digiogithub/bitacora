@@ -2,14 +2,15 @@
 id: BIT-EP-0014
 type: epic
 title: Packaging, distribution and auto-update
-status: in_review
+status: done
 priority: medium
 milestone: BIT-M-0005
 author: mcp
 labels: [infra, release]
 created: 2026-10-06T14:21:13Z
-updated: 2026-10-07T00:15:15Z
+updated: 2026-10-07T08:21:44Z
 started: 2026-10-07T00:15:15Z
+closed: 2026-10-07T08:21:44Z
 ---
 
 ## Description

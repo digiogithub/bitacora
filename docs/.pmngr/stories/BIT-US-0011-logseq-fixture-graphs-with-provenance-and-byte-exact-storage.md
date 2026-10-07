@@ -2,7 +2,7 @@
 id: BIT-US-0011
 type: story
 title: Logseq fixture graphs with provenance and byte-exact storage
-status: in_review
+status: done
 priority: critical
 parent: BIT-EP-0001
 milestone: BIT-M-0001
@@ -10,8 +10,9 @@ author: mcp
 labels: [infra, fixtures, testing]
 estimate: 5
 created: 2026-10-06T14:25:33Z
-updated: 2026-10-06T16:55:26Z
+updated: 2026-10-07T08:21:32Z
 started: 2026-10-06T16:46:30Z
+closed: 2026-10-07T08:21:32Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-T-0177
 type: task
 title: Windows Authenticode signing of binaries and installers
-status: in_review
+status: done
 priority: high
 parent: BIT-US-0090
 milestone: BIT-M-0005
@@ -10,8 +10,9 @@ author: mcp
 labels: [packaging, signing, windows, bitacora-app]
 estimate: 2
 created: 2026-10-06T14:30:54Z
-updated: 2026-10-06T19:59:48Z
+updated: 2026-10-07T08:21:12Z
 started: 2026-10-06T19:59:48Z
+closed: 2026-10-07T08:21:12Z
 ---
 
 ## Description
