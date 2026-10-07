@@ -164,6 +164,15 @@ notice:
 right:
   block: Bloque
   empty_hint: Mayús+clic en una página, referencia o viñeta para abrirla aquí.
+  tab_context: Contexto
+  tab_agent: Agente
+  properties: Propiedades
+  backlinks: Enlaces entrantes
+  no_backlinks: Nada enlaza aquí todavía.
+  agent_empty_title: Pregunta a tu grafo
+  agent_empty_hint: El asistente conversará aquí sobre la página en pantalla.
+  agent_unconfigured_title: Pando no configurado
+  agent_unconfigured_hint: Conecta un servidor Pando en Ajustes para chatear con el asistente.
 delete:
   page_title: "¿Eliminar la página \"%{name}\"?"
   page_description: El archivo se mueve a logseq/.recycle/ y la página sale de los favoritos. Los enlaces a ella apuntarán a una página vacía.

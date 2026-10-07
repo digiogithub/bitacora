@@ -16,7 +16,7 @@ use crate::ui::{
     IntoElement, ParentElement as _, Render, SharedString, Styled as _, WeakEntity, Window, div,
 };
 use crate::views::main_view::MainView;
-use crate::views::right_sidebar::RightSidebar;
+use crate::views::right_panel::RightPanel;
 
 /// Persisted panel name of the center page host. Never change: it is in layout files.
 pub const PAGE_HOST: &str = "PageHost";
@@ -53,7 +53,7 @@ pub enum HubEvent {
 pub struct PaneHub {
     spare: Option<Entity<MainView>>,
     panes: Vec<WeakEntity<MainView>>,
-    stack: Entity<RightSidebar>,
+    panel: Entity<RightPanel>,
     handle: Option<GraphHandle>,
 }
 
@@ -69,11 +69,11 @@ impl EventEmitter<HubEvent> for PaneHub {}
 
 impl PaneHub {
     /// A hub whose first panel will get `primary`.
-    pub fn new(primary: Entity<MainView>, stack: Entity<RightSidebar>) -> Self {
+    pub fn new(primary: Entity<MainView>, panel: Entity<RightPanel>) -> Self {
         Self {
             panes: vec![primary.downgrade()],
             spare: Some(primary),
-            stack,
+            panel,
             handle: None,
         }
     }
@@ -83,9 +83,9 @@ impl PaneHub {
         self.panes.iter().filter_map(WeakEntity::upgrade).collect()
     }
 
-    /// The right sidebar stack.
-    pub fn stack(&self) -> &Entity<RightSidebar> {
-        &self.stack
+    /// The right panel (Context and Agent tabs).
+    pub fn panel(&self) -> &Entity<RightPanel> {
+        &self.panel
     }
 
     /// Remembers the open graph (panes created later connect to it).
@@ -121,26 +121,26 @@ pub struct PlaceholderPanel {
     kind: PanelKind,
     focus: FocusHandle,
     pane: Option<Entity<MainView>>,
-    stack: Option<Entity<RightSidebar>>,
+    panel: Option<Entity<RightPanel>>,
 }
 
 impl PlaceholderPanel {
     /// Creates the panel entity; content comes from the shared hub when there is one.
     pub fn new(kind: PanelKind, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let hub = cx.try_global::<SharedHub>().map(|g| g.0.clone());
-        let (pane, stack) = match (kind, hub) {
+        let (pane, panel) = match (kind, hub) {
             (PanelKind::PageHost, Some(hub)) => (
                 Some(hub.update(cx, |hub, cx| hub.claim_pane(window, cx))),
                 None,
             ),
-            (PanelKind::RightSidebar, Some(hub)) => (None, Some(hub.read(cx).stack().clone())),
+            (PanelKind::RightSidebar, Some(hub)) => (None, Some(hub.read(cx).panel().clone())),
             (_, None) => (None, None),
         };
         Self {
             kind,
             focus: cx.focus_handle(),
             pane,
-            stack,
+            panel,
         }
     }
 }
@@ -184,8 +184,8 @@ impl Render for PlaceholderPanel {
         if let Some(pane) = &self.pane {
             return div().size_full().child(pane.clone()).into_any_element();
         }
-        if let Some(stack) = &self.stack {
-            return div().size_full().child(stack.clone()).into_any_element();
+        if let Some(panel) = &self.panel {
+            return div().size_full().child(panel.clone()).into_any_element();
         }
         let text = match self.kind {
             PanelKind::PageHost => t!("panel.page_host.empty").to_string(),

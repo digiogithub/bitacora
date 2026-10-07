@@ -164,6 +164,15 @@ notice:
 right:
   block: Block
   empty_hint: Shift+click a page, reference or bullet to open it here.
+  tab_context: Context
+  tab_agent: Agent
+  properties: Properties
+  backlinks: Backlinks
+  no_backlinks: Nothing links here yet.
+  agent_empty_title: Ask your graph
+  agent_empty_hint: The assistant will chat here about the page on screen.
+  agent_unconfigured_title: Pando not configured
+  agent_unconfigured_hint: Connect a Pando server in Settings to chat with the assistant.
 delete:
   page_title: "Delete page \"%{name}\"?"
   page_description: The file moves to logseq/.recycle/ and the page leaves the favorites. Links to it will point to an empty page.

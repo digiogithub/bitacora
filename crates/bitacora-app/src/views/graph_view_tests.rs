@@ -309,15 +309,21 @@ fn local_graph_shows_the_page_and_its_neighbours(cx: &mut TestAppContext) {
 
 #[gpui_test]
 fn right_sidebar_local_graph_follows_the_page_and_click_navigates(cx: &mut TestAppContext) {
+    use crate::ui::AppContext as _;
+    use crate::views::right_panel::RightPanel;
     use crate::views::right_sidebar::{RightSidebar, StackEvent};
     setup(cx);
     let g = graph();
-    let (stack, cx) = cx.add_window_view(|_, cx| RightSidebar::new(cx));
-    stack.update(cx, |s, cx| {
+    let (panel, cx) = cx.add_window_view(|_, cx| {
+        let stack = cx.new(RightSidebar::new);
+        RightPanel::new(stack, cx)
+    });
+    let stack = panel.read_with(cx, |p, _| p.stack().clone());
+    panel.update(cx, |s, cx| {
         s.set_graph(g.handle.clone(), cx);
         s.set_local_page(Some("Gamma".into()), cx);
     });
-    let local = stack.read_with(cx, |s, _| s.local_graph().clone());
+    let local = panel.read_with(cx, |s, _| s.local_graph().clone());
     for _ in 0..400 {
         cx.run_until_parked();
         if names(&local, cx).len() == 4 {
@@ -326,7 +332,7 @@ fn right_sidebar_local_graph_follows_the_page_and_click_navigates(cx: &mut TestA
         std::thread::sleep(Duration::from_millis(5));
     }
     assert_eq!(names(&local, cx), ["Alpha", "Beta", "Delta", "Gamma"]);
-    stack.update(cx, |s, cx| s.set_local_page(Some("Delta".into()), cx));
+    panel.update(cx, |s, cx| s.set_local_page(Some("Delta".into()), cx));
     for _ in 0..400 {
         cx.run_until_parked();
         if names(&local, cx) == ["Delta", "Gamma"] {

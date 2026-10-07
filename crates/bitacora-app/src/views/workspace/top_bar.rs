@@ -294,10 +294,12 @@ impl Workspace {
                 )
                 // PDF export has no backend yet: shown disabled until it lands.
                 .child(IconButton::new("top-pdf", Glyph::Printer).disabled(true))
-                // Placeholder for the assistant; opens the settings until the Pando epic.
-                .child(IconButton::new("top-ai", Glyph::Sparkle).on_click(
-                    cx.listener(|this, _, window, cx| this.open_settings(None, window, cx)),
-                ))
+                // The assistant lives in the right panel's Agent tab.
+                .child(
+                    IconButton::new("top-ai", Glyph::Sparkle).on_click(
+                        cx.listener(|this, _, window, cx| this.open_agent_panel(window, cx)),
+                    ),
+                )
                 .child(
                     IconButton::new("top-right-panel", Glyph::PanelRight)
                         .active(right_open)
