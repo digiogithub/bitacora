@@ -33,3 +33,7 @@ tracing.workspace = true
 bitacora-testkit.workspace = true
 blake3.workspace = true
 tempfile.workspace = true
+
+[package.metadata.cargo-machete]
+# `pando-rs` is imported under its lib name `pando`.
+ignored = ["pando-rs"]
