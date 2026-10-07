@@ -18,6 +18,7 @@ bitacora-index.workspace = true
 bitacora-watch.workspace = true
 bitacora-sync.workspace = true
 bitacora-mcp.workspace = true
+bitacora-pando.workspace = true
 thiserror.workspace = true
 serde.workspace = true
 jiff.workspace = true

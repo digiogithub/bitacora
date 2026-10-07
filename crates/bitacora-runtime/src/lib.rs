@@ -31,6 +31,9 @@ mod store;
 mod sync_ctl;
 mod writer;
 
+pub use bitacora_pando::{
+    PandoCredentials, PandoEvent, PandoOptions, PandoService, PandoStatus, Supervisor,
+};
 pub use live::{DEFAULT_SHUTDOWN_BUDGET, Session, ShutdownReport};
 pub use rename_lookup::IndexRefLookup;
 pub use restore::RestoreReport;

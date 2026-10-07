@@ -1,0 +1,30 @@
+[package]
+name = "bitacora-pando"
+description = "Bitacora: Pando integration (credentials, endpoint resolution, service lifecycle and events) on top of pando-rs (ADR-028)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+bitacora-config.workspace = true
+pando-rs.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+parking_lot.workspace = true
+tracing.workspace = true
+keyring = { workspace = true, optional = true }
+
+[features]
+default = ["keyring-store"]
+# OS keychain for Pando tokens (macOS Keychain, Windows Credential Manager, Secret Service).
+keyring-store = ["dep:keyring"]
+
+[dev-dependencies]
+axum.workspace = true
+tracing-subscriber.workspace = true

@@ -67,6 +67,8 @@ crates/
   bitacora-sync/           # GitBackend (git CLI + gix), sync loop, conflict state
   bitacora-mcp/            # rmcp + axum Streamable HTTP server
   bitacora-graph/          # GPUI-free force-directed graph layout engine (ADR-034); leaf, no bitacora deps
+  pando-rs/                # generic async Pando SDK (lib `pando`, ADR-027); no bitacora deps
+  bitacora-pando/          # Pando integration: keychain tokens, PandoService lifecycle/events, Supervisor seam (ADR-028/029)
   bitacora-runtime/        # headless graph session: composes core+index+watch+sync+mcp (ADR-024); no UI
   bitacora-app/            # GPUI Kit desktop binary (the ONLY crate depending on gpui-kit)
   bitacora-cli/            # headless binary (serve, reindex, sync, doctor)
@@ -75,7 +77,7 @@ fixtures/graphs/           # Logseq sample graphs used by tests
 docs/                      # knowledge base (Markdown, wikilinks) + gintrack backlog in docs/.pmngr
 ```
 
-Dependency direction: `markdown` ← `merge` ← `core` ← {`index`, `sync`, `mcp`} ← `runtime` ← {`app`, `cli`} (`sync` also uses `merge` directly). `bitacora-graph` is a leaf (no bitacora or UI dependencies) used only by `runtime` and `app`. Never add a reverse edge.
+Dependency direction: `markdown` ← `merge` ← `core` ← {`index`, `sync`, `mcp`} ← `runtime` ← {`app`, `cli`} (`sync` also uses `merge` directly). `bitacora-pando` sits between `index` and `runtime` (`{config, core, index, pando-rs}` ← `pando` ← `runtime`; only `runtime` depends on it); `pando-rs` depends on no bitacora crate and neither it nor `bitacora-pando` may enter the `core` closure (ADR-027/028). `bitacora-graph` is a leaf (no bitacora or UI dependencies) used only by `runtime` and `app`. Never add a reverse edge.
 
 ## 5. MANDATORY: project-specific non-negotiable rules
 

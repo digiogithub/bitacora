@@ -11,6 +11,7 @@ pub mod cst;
 pub mod edit;
 pub mod edn;
 pub mod error;
+pub mod pando;
 
 pub use accessors::{
     BulletIndentation, DefaultHome, NameFormat, PreferredFormat, PreferredWorkflow,
@@ -22,6 +23,10 @@ pub use cst::Cst;
 pub use edit::ConfigEditor;
 pub use edn::{Edn, read_str};
 pub use error::{Diagnostic, DiagnosticKind, Error};
+pub use pando::{
+    GraphConsent, PandoFeature, PandoMode, PandoSettings, PandoSettingsError, PandoUrl, UrlRole,
+    validate_pando_url,
+};
 
 /// Crate name, used by smoke tests.
 pub const CRATE_NAME: &str = "bitacora-config";
