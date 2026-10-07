@@ -5,8 +5,7 @@ use crate::ui::text_edit::MouseButton;
 use crate::ui::theme::Theme;
 use crate::ui::{
     AnyElement, App, InteractiveElement as _, IntoElement, ParentElement as _,
-    StatefulInteractiveElement as _, Styled as _, Window,
-    div, h_flex, px, v_flex,
+    StatefulInteractiveElement as _, Styled as _, Window, div, h_flex, px, v_flex,
 };
 
 /// A dimmed full-window layer with a centred card; `on_dismiss` runs for a click outside the
