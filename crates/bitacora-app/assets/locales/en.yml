@@ -106,6 +106,9 @@ refs:
   filters_none: No pages to filter by
   filters_active: Filtered
   filters_clear: Clear filters
+top_bar:
+  search: Search or run a command
+  block_tab: Block
 menu:
   graph: Graph
   open_graph: Open graph...

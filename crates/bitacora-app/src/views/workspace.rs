@@ -54,7 +54,6 @@ use crate::views::sidebar::{LeftSidebar, SidebarEvent, Target};
 use crate::views::status_bar::{AppStatusBar, Slot, SlotState, StatusBarEvent, StatusEvent};
 use crate::views::sync_dialog::{SyncDialog, SyncDialogEvent};
 use crate::views::sync_panel::{SyncPanel, SyncPanelEvent};
-use crate::views::title_bar::AppTitleBar;
 use bitacora_core::editor::MergeMode;
 use bitacora_core::graph::PageKey;
 use bitacora_core::queue::{Keep, Request, Source};
@@ -115,6 +114,8 @@ pub struct WorkspaceConfig {
     pub mcp_secrets: Option<Arc<dyn bitacora_mcp::SecretBackend>>,
 }
 
+mod top_bar;
+
 /// The root view of the main window.
 #[derive(Debug)]
 pub struct Workspace {
@@ -156,6 +157,8 @@ pub struct Workspace {
     link: Option<SessionLink>,
     session_task: Option<Task<()>>,
     picker_visible: bool,
+    tabs: top_bar::TabStrip,
+    app_menu_open: bool,
     save_task: Option<Task<()>>,
     heartbeat_task: Option<Task<Result<(), JoinError>>>,
     probe_task: Option<Task<()>>,
@@ -291,6 +294,8 @@ impl Workspace {
             link: None,
             session_task: None,
             picker_visible: true,
+            tabs: top_bar::TabStrip::new(),
+            app_menu_open: false,
             save_task: None,
             heartbeat_task: None,
             probe_task: None,
@@ -1189,6 +1194,7 @@ impl Workspace {
     ) {
         match event {
             MainEvent::Visited(route) => {
+                self.tabs_visit(route);
                 if let Route::Page(name) = route {
                     self.graph_state.push_recent(name);
                     let recent = self.graph_state.recent.clone();
@@ -2255,6 +2261,7 @@ impl Focusable for Workspace {
 
 impl Render for Workspace {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let title_bar = self.title_bar(cx);
         let sidebar_visible = self.sidebar.read(cx).is_visible();
         let main = if self.picker_visible {
             div().flex_1().min_h_0().child(self.picker.clone())
@@ -2348,7 +2355,7 @@ impl Render for Workspace {
                 }
             }))
             .size_full()
-            .child(AppTitleBar::new())
+            .child(title_bar)
             .child(main)
             .child(self.status.clone())
             .child(self.palette.clone())
@@ -2999,6 +3006,90 @@ mod tests {
         );
         let cfg = std::fs::read_to_string(root.join("logseq/config.edn")).expect("config");
         assert!(!cfg.contains("Home"), "{cfg}");
+    }
+
+    fn click_bar(cx: &mut VisualTestContext, id: &'static str) {
+        let at = cx
+            .debug_bounds(id)
+            .unwrap_or_else(|| panic!("`{id}` was not rendered"))
+            .center();
+        cx.simulate_click(at, Default::default());
+        cx.run_until_parked();
+    }
+
+    #[gpui_test]
+    fn title_bar_buttons_toggle_sidebar_theme_and_right_panel(cx: &mut TestAppContext) {
+        setup(cx);
+        let (ws, cx) = open(cx, None);
+        cx.run_until_parked();
+        let sidebar = ws.read_with(cx, |w, _| w.sidebar().clone());
+        let dock = ws.read_with(cx, |w, _| w.dock().clone());
+        click_bar(cx, "top-sidebar");
+        assert!(!sidebar.read_with(cx, |s, _| s.is_visible()));
+        let right = dock.read_with(cx, |d, _| d.is_dock_open(DockPlacement::Right));
+        click_bar(cx, "top-right-panel");
+        assert_eq!(
+            dock.read_with(cx, |d, _| d.is_dock_open(DockPlacement::Right)),
+            !right
+        );
+        cx.update(|_, cx| theme::set_preference(cx, None, ThemePreference::Light));
+        click_bar(cx, "top-theme");
+        assert!(cx.read(|cx| Theme::global(cx).is_dark()));
+    }
+
+    #[gpui_test]
+    fn search_field_opens_the_palette_once_a_graph_is_shown(cx: &mut TestAppContext) {
+        setup(cx);
+        let (ws, cx) = open(cx, None);
+        ws.update(cx, |w, cx| {
+            w.picker_visible = false;
+            cx.notify();
+        });
+        cx.run_until_parked();
+        let palette = ws.read_with(cx, |w, _| w.palette().clone());
+        assert!(!palette.read_with(cx, |p, _| p.is_open()));
+        click_bar(cx, "top-search");
+        assert!(palette.read_with(cx, |p, _| p.is_open()));
+    }
+
+    #[gpui_test]
+    fn tabs_follow_navigation_and_can_be_added_and_closed(cx: &mut TestAppContext) {
+        setup(cx);
+        let (ws, cx) = open(cx, None);
+        ws.update(cx, |w, cx| {
+            w.picker_visible = false;
+            cx.notify();
+        });
+        cx.run_until_parked();
+        assert_eq!(ws.read_with(cx, |w, _| w.tabs.routes().len()), 1);
+        click_bar(cx, "top-new-tab");
+        assert_eq!(ws.read_with(cx, |w, _| w.tabs.routes().len()), 2);
+        assert_eq!(ws.read_with(cx, |w, _| w.tabs.active()), 1);
+        // No graph is open, so emit the event a navigation would.
+        let main = ws.read_with(cx, |w, _| w.main.clone());
+        main.update(cx, |_, cx| cx.emit(MainEvent::Visited(Route::AllPages)));
+        cx.run_until_parked();
+        assert_eq!(
+            ws.read_with(cx, |w, _| w.tabs.routes().to_vec()),
+            vec![Route::Journals, Route::AllPages]
+        );
+    }
+
+    #[gpui_test]
+    fn graph_menu_opens_in_the_title_bar_on_non_macos(cx: &mut TestAppContext) {
+        if cfg!(target_os = "macos") {
+            return;
+        }
+        setup(cx);
+        let (ws, cx) = open(cx, None);
+        cx.run_until_parked();
+        assert!(cx.debug_bounds("app-menu").is_none());
+        click_bar(cx, "top-graph-menu");
+        assert!(ws.read_with(cx, |w, _| w.app_menu_open));
+        assert!(cx.debug_bounds("menu-open-graph").is_some());
+        assert!(cx.debug_bounds("menu-close-graph").is_some());
+        click_bar(cx, "menu-close-graph");
+        assert!(!ws.read_with(cx, |w, _| w.app_menu_open));
     }
 }
 
