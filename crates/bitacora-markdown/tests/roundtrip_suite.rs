@@ -148,6 +148,18 @@ const SPEC_CASES: &[(&str, &str)] = &[
         "19 image meta",
         "- ![x](../assets/a.png){:height 100, :width 200}\n",
     ),
+    (
+        "20 special blocks",
+        "- #+BEGIN_SRC rust\n  - not a bullet\n  fn x() {}\n  #+END_SRC\n- #+BEGIN_QUOTE\n  wise words\n  #+END_QUOTE\n- note\n  #+BEGIN_NOTE\n  - inner\n  #+END_NOTE\n- > one\n  > two\n  after\n",
+    ),
+    (
+        "20 admonitions and regions",
+        "- #+BEGIN_TIP\n  t\n  #+END_TIP\n- #+BEGIN_IMPORTANT\n  i\n  #+END_IMPORTANT\n- #+BEGIN_CAUTION\n  c\n  #+END_CAUTION\n- #+BEGIN_WARNING\n  w\n  #+END_WARNING\n- #+BEGIN_PINNED\n  p\n  #+END_PINNED\n- #+BEGIN_EXAMPLE\n  - e\n  #+END_EXAMPLE\n- #+BEGIN_CENTER\n  c\n  #+END_CENTER\n- #+BEGIN_VERSE\n  v\n  #+END_VERSE\n- #+BEGIN_COMMENT\n  - hidden\n  #+END_COMMENT\n- #+BEGIN_EXPORT latex\n  \\x\n  #+END_EXPORT\n",
+    ),
+    (
+        "20 lowercase and unclosed regions",
+        "- #+begin_note\n  n\n  #+end_note\n- ```python\n  print(1)\n  ```\n- #+BEGIN_NOTE\n  never closed\n- tail\n",
+    ),
     ("no trailing newline", "- a\n- b"),
     ("empty", ""),
     ("only newline", "\n"),

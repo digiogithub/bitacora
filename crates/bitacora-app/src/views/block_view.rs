@@ -11,7 +11,7 @@ use crate::editor::row::{RowEdit, TextHook};
 use crate::nav::OpenIn;
 use crate::render::highlight::TokenClass;
 use crate::render::inline::{Emphasis, ImageRef, NavTarget, Role, TextLayout};
-use crate::render::model::{BlockModel, BodyItem, CodeBlock, PropertyRow, Row};
+use crate::render::model::{BlockModel, BodyItem, CalloutKind, CodeBlock, PropertyRow, Row};
 use crate::ui::a11y;
 use crate::ui::text_edit::{
     FontStyle, FontWeight, HighlightStyle, InteractiveText, ObjectFit, StrikethroughStyle,
@@ -302,6 +302,32 @@ pub(crate) fn code_element(
             )
         })
         .collect();
+    let copied = code.text.clone();
+    let copy = div()
+        .id(("code-copy", ix))
+        .cursor_pointer()
+        .p_0p5()
+        .rounded(dims::PX_4)
+        .text_color(theme.muted_foreground)
+        .hover(|d| d.text_color(theme.foreground))
+        // The row enters edit mode on a mouse press; the button must not.
+        .on_mouse_down(crate::ui::text_edit::MouseButton::Left, |_, _, cx| {
+            cx.stop_propagation();
+        })
+        .on_click(move |_, _, cx| {
+            cx.stop_propagation();
+            cx.write_to_clipboard(crate::ui::text_edit::ClipboardItem::new_string(
+                copied.clone(),
+            ));
+        })
+        .child(
+            h_flex()
+                .gap_1()
+                .items_center()
+                .text_xs()
+                .child(icon(IconName::Copy).size(dims::PX_12))
+                .child(t!("page.copy_code").to_string()),
+        );
     v_flex()
         .id(("code", ix))
         .w_full()
@@ -310,14 +336,18 @@ pub(crate) fn code_element(
         .bg(theme.muted)
         .border_1()
         .border_color(theme.border)
-        .when_some(code.language.clone(), |d, lang| {
-            d.child(
-                div()
-                    .text_xs()
-                    .text_color(theme.muted_foreground)
-                    .child(lang),
-            )
-        })
+        .child(
+            h_flex()
+                .justify_between()
+                .items_center()
+                .child(
+                    div()
+                        .text_xs()
+                        .text_color(theme.muted_foreground)
+                        .children(code.language.clone()),
+                )
+                .child(copy),
+        )
         .child(
             div()
                 .font_family(theme.mono_font_family.clone())
@@ -326,6 +356,74 @@ pub(crate) fn code_element(
                     StyledText::new(SharedString::from(code.text.clone())).with_highlights(styles),
                 ),
         )
+        .into_any_element()
+}
+
+/// Icon, title and tone of one admonition kind.
+fn callout_style(kind: CalloutKind, bt: &BitacoraTheme) -> (IconName, String, Hsla) {
+    match kind {
+        CalloutKind::Note => (
+            IconName::Info,
+            t!("page.callout_note").to_string(),
+            bt.colors.accent,
+        ),
+        CalloutKind::Tip => (
+            IconName::Star,
+            t!("page.callout_tip").to_string(),
+            bt.colors.accent,
+        ),
+        CalloutKind::Important => (
+            IconName::CircleAlert,
+            t!("page.callout_important").to_string(),
+            bt.colors.warn,
+        ),
+        CalloutKind::Caution => (
+            IconName::TriangleAlert,
+            t!("page.callout_caution").to_string(),
+            bt.colors.warn,
+        ),
+        CalloutKind::Warning => (
+            IconName::TriangleAlert,
+            t!("page.callout_warning").to_string(),
+            bt.colors.warn,
+        ),
+        CalloutKind::Pinned => (
+            IconName::Bell,
+            t!("page.callout_pinned").to_string(),
+            bt.colors.accent,
+        ),
+    }
+}
+
+/// An admonition: tinted card with a coloured left rule, an icon and the kind's title.
+pub(crate) fn callout_element(
+    ix: usize,
+    kind: CalloutKind,
+    body: AnyElement,
+    bt: &BitacoraTheme,
+) -> AnyElement {
+    let (glyph, title, tone) = callout_style(kind, bt);
+    v_flex()
+        .id(("callout", ix))
+        .w_full()
+        .gap_1()
+        .py_2()
+        .px_3()
+        .rounded(dims::PX_6)
+        .border_l_2()
+        .border_color(tone)
+        .bg(tone.opacity(dims::CALLOUT_TINT))
+        .child(
+            h_flex()
+                .gap_1()
+                .items_center()
+                .text_xs()
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_color(tone)
+                .child(icon(glyph).size(dims::PX_14))
+                .child(title),
+        )
+        .child(body)
         .into_any_element()
 }
 
@@ -538,12 +636,47 @@ pub fn render_block_row(
                     None => widget_source(widget, theme),
                 });
             }
+            BodyItem::Callout { kind, layout } => {
+                content = content.child(callout_element(
+                    part,
+                    *kind,
+                    text_element_owned(
+                        ("callout", part),
+                        layout.clone(),
+                        theme,
+                        false,
+                        Some(dispatch.clone()),
+                        on_text.clone(),
+                    ),
+                    bt,
+                ));
+            }
+            BodyItem::Center(layout) => {
+                content = content.child(div().w_full().text_center().child(text_element_owned(
+                    ("center", part),
+                    layout.clone(),
+                    theme,
+                    false,
+                    Some(dispatch.clone()),
+                    on_text.clone(),
+                )));
+            }
+            BodyItem::Verse(layout) => {
+                content = content.child(div().pl_3().italic().child(text_element_owned(
+                    ("verse", part),
+                    layout.clone(),
+                    theme,
+                    false,
+                    Some(dispatch.clone()),
+                    on_text.clone(),
+                )));
+            }
             BodyItem::Quote(layout) => {
                 content = content.child(
                     div()
                         .pl_3()
                         .border_l_2()
-                        .border_color(theme.border)
+                        .border_color(bt.colors.line_2)
                         .text_color(theme.muted_foreground)
                         .child(text_element_owned(
                             ("quote", part),
@@ -944,6 +1077,29 @@ mod look_tests {
         assert_eq!(heading_style(3, &bt), bt.type_scale.h3_block);
         assert!(heading_style(4, &bt).size > bt.type_scale.body.size);
         assert!(heading_style(6, &bt).size < heading_style(4, &bt).size);
+    }
+
+    #[test]
+    fn every_admonition_has_its_own_title_and_a_palette_tone_in_both_modes() {
+        let kinds = [
+            CalloutKind::Note,
+            CalloutKind::Tip,
+            CalloutKind::Important,
+            CalloutKind::Caution,
+            CalloutKind::Warning,
+            CalloutKind::Pinned,
+        ];
+        for mode in [crate::ui::theme::Mode::Dark, crate::ui::theme::Mode::Light] {
+            let bt = BitacoraTheme::new(mode);
+            let mut titles = std::collections::HashSet::new();
+            for kind in kinds {
+                let (_, title, tone) = callout_style(kind, &bt);
+                assert!(!title.is_empty());
+                assert!(tone == bt.colors.accent || tone == bt.colors.warn);
+                titles.insert(title);
+            }
+            assert_eq!(titles.len(), kinds.len());
+        }
     }
 
     #[test]

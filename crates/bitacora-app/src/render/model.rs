@@ -107,6 +107,75 @@ impl CodeBlock {
     }
 }
 
+/// The admonition kinds of `#+BEGIN_<KIND>` blocks (Logseq 0.10.x `<note`, `<tip`, ...).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CalloutKind {
+    /// `#+BEGIN_NOTE`.
+    Note,
+    /// `#+BEGIN_TIP`.
+    Tip,
+    /// `#+BEGIN_IMPORTANT`.
+    Important,
+    /// `#+BEGIN_CAUTION`.
+    Caution,
+    /// `#+BEGIN_WARNING`.
+    Warning,
+    /// `#+BEGIN_PINNED`.
+    Pinned,
+}
+
+impl CalloutKind {
+    /// The kind of `#+BEGIN_<name>` (case-insensitive), `None` for other regions.
+    #[must_use]
+    pub fn from_name(name: &str) -> Option<Self> {
+        Some(match name.to_ascii_uppercase().as_str() {
+            "NOTE" => Self::Note,
+            "TIP" => Self::Tip,
+            "IMPORTANT" => Self::Important,
+            "CAUTION" => Self::Caution,
+            "WARNING" => Self::Warning,
+            "PINNED" => Self::Pinned,
+            _ => return None,
+        })
+    }
+}
+
+/// How a `#+BEGIN_<name>` region with inline content is shown.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Special {
+    Quote,
+    Callout(CalloutKind),
+    Center,
+    Verse,
+}
+
+impl Special {
+    fn from_name(name: &str) -> Option<Self> {
+        if name.eq_ignore_ascii_case("QUOTE") {
+            return Some(Self::Quote);
+        }
+        if name.eq_ignore_ascii_case("CENTER") {
+            return Some(Self::Center);
+        }
+        if name.eq_ignore_ascii_case("VERSE") {
+            return Some(Self::Verse);
+        }
+        CalloutKind::from_name(name).map(Self::Callout)
+    }
+
+    fn item(self, layout: TextLayout) -> BodyItem {
+        match self {
+            Self::Quote => BodyItem::Quote(layout),
+            Self::Callout(kind) => BodyItem::Callout { kind, layout },
+            Self::Center => BodyItem::Center(layout),
+            Self::Verse => BodyItem::Verse(layout),
+        }
+    }
+}
+
+/// An open `#+BEGIN_<name>` region: its kind, name and the `(line, offset)` pairs collected.
+type OpenSpecial<'a> = (Special, String, Vec<(&'a str, usize)>);
+
 /// One item of a block body.
 #[derive(Debug, Clone, PartialEq)]
 pub enum BodyItem {
@@ -114,8 +183,19 @@ pub enum BodyItem {
     Text(TextLayout),
     /// A code fence or `#+BEGIN_SRC` region.
     Code(CodeBlock),
-    /// A `#+BEGIN_QUOTE` region.
+    /// A `#+BEGIN_QUOTE` region or consecutive `> ` lines.
     Quote(TextLayout),
+    /// An admonition (`#+BEGIN_NOTE` ... `#+END_NOTE` and its siblings).
+    Callout {
+        /// Which admonition.
+        kind: CalloutKind,
+        /// The content.
+        layout: TextLayout,
+    },
+    /// A `#+BEGIN_CENTER` region.
+    Center(TextLayout),
+    /// A `#+BEGIN_VERSE` region (line breaks kept).
+    Verse(TextLayout),
     /// A live query or an embed that fills its own line (BIT-US-0102, BIT-US-0104).
     Widget(Widget),
 }
@@ -281,7 +361,9 @@ impl BlockModel {
         let mut title_done = false;
         let mut paragraph: Vec<(&str, usize)> = Vec::new();
         let mut region: Option<Region> = None;
-        let mut quote: Option<Vec<(&str, usize)>> = None;
+        let mut quote: Option<OpenSpecial> = None;
+        // Consecutive `> ` lines.
+        let mut gt_quote: Vec<(&str, usize)> = Vec::new();
         let flush_paragraph = |model: &mut Self, paragraph: &mut Vec<(&str, usize)>| {
             if !paragraph.is_empty() {
                 let layout = layout_lines_at(paragraph.iter().copied(), resolver);
@@ -321,15 +403,24 @@ impl BlockModel {
                 }
                 continue;
             }
-            if let Some(q) = quote.as_mut() {
-                if line.trim().eq_ignore_ascii_case("#+END_QUOTE") {
-                    let lines = quote.take().unwrap_or_default();
-                    let layout = layout_lines_at(lines, resolver);
-                    model.body.push(BodyItem::Quote(layout));
+            if let Some((_, name, q)) = quote.as_mut() {
+                let closes = strip_prefix_ci(line.trim(), "#+END_")
+                    .is_some_and(|rest| rest.trim().eq_ignore_ascii_case(name));
+                if closes {
+                    if let Some((special, _, lines)) = quote.take() {
+                        let layout = layout_lines_at(lines, resolver);
+                        model.body.push(special.item(layout));
+                    }
                 } else {
                     q.push((line, start));
                 }
                 continue;
+            }
+            if index > 0 && !gt_quote.is_empty() && !line.trim_start().starts_with('>') {
+                let lines = std::mem::take(&mut gt_quote);
+                model
+                    .body
+                    .push(BodyItem::Quote(layout_lines_at(lines, resolver)));
             }
             if overlaps(&skip, start, end)
                 || (!planning_spans.is_empty()
@@ -378,8 +469,8 @@ impl BlockModel {
                 let mut parts = begin.splitn(2, char::is_whitespace);
                 let name = parts.next().unwrap_or("").to_owned();
                 let language = parts.next().unwrap_or("").trim().to_owned();
-                if name.eq_ignore_ascii_case("QUOTE") {
-                    quote = Some(Vec::new());
+                if let Some(special) = Special::from_name(&name) {
+                    quote = Some((special, name, Vec::new()));
                 } else {
                     region = Some(Region::Begin {
                         name,
@@ -388,6 +479,10 @@ impl BlockModel {
                         starts: Vec::new(),
                     });
                 }
+            } else if let Some(rest) = trimmed.strip_prefix('>') {
+                flush_paragraph(&mut model, &mut paragraph);
+                let rest = rest.strip_prefix(' ').unwrap_or(rest);
+                gt_quote.push((rest, start + (line.len() - rest.len())));
             } else if line.trim().is_empty() {
                 flush_paragraph(&mut model, &mut paragraph);
             } else if let Some(w) = widget::detect_line(line) {
@@ -401,10 +496,15 @@ impl BlockModel {
         if let Some(r) = region.take() {
             model.push_region(r);
         }
-        if let Some(lines) = quote.take() {
+        if let Some((special, _, lines)) = quote.take() {
             model
                 .body
-                .push(BodyItem::Quote(layout_lines_at(lines, resolver)));
+                .push(special.item(layout_lines_at(lines, resolver)));
+        }
+        if !gt_quote.is_empty() {
+            model
+                .body
+                .push(BodyItem::Quote(layout_lines_at(gt_quote, resolver)));
         }
         flush_paragraph(&mut model, &mut paragraph);
         for item in &mut model.body {
@@ -437,8 +537,14 @@ impl BlockModel {
                 .push(BodyItem::Widget(widget::advanced_region(&text)));
             return;
         }
-        let language = (!language.is_empty()).then_some(language);
-        let tokens = highlight(&text, language.as_deref().unwrap_or(""));
+        // `#+BEGIN_EXAMPLE` is verbatim text: monospace, no label, no highlighting.
+        let example = name.eq_ignore_ascii_case("EXAMPLE");
+        let language = (!language.is_empty() && !example).then_some(language);
+        let tokens = if example {
+            Vec::new()
+        } else {
+            highlight(&text, language.as_deref().unwrap_or(""))
+        };
         self.body.push(BodyItem::Code(CodeBlock {
             language,
             text,
@@ -686,6 +792,63 @@ mod tests {
         assert!(!c.tokens.is_empty());
         assert!(matches!(&b.body[1], BodyItem::Text(t) if t.text == "after"));
         assert!(matches!(&b.body[2], BodyItem::Code(c) if c.language.as_deref() == Some("python")));
+    }
+
+    #[test]
+    fn admonitions_center_verse_and_example_regions() {
+        for (name, kind) in [
+            ("NOTE", CalloutKind::Note),
+            ("tip", CalloutKind::Tip),
+            ("IMPORTANT", CalloutKind::Important),
+            ("CAUTION", CalloutKind::Caution),
+            ("WARNING", CalloutKind::Warning),
+            ("PINNED", CalloutKind::Pinned),
+        ] {
+            let b = block(&format!(
+                "t\n#+BEGIN_{name}\nbody [[x]]\n#+END_{name}\nafter"
+            ));
+            assert!(
+                matches!(&b.body[0], BodyItem::Callout { kind: k, layout } if *k == kind && layout.text == "body [[x]]"),
+                "{name}: {:?}",
+                b.body
+            );
+            assert!(matches!(&b.body[1], BodyItem::Text(t) if t.text == "after"));
+        }
+        let b = block("t\n#+BEGIN_CENTER\nmid\n#+END_CENTER\n#+BEGIN_VERSE\na\nb\n#+END_VERSE");
+        assert!(matches!(&b.body[0], BodyItem::Center(l) if l.text == "mid"));
+        assert!(matches!(&b.body[1], BodyItem::Verse(l) if l.text.contains('\n')));
+        // Example is verbatim: monospace, no label, no highlighting; comments are hidden.
+        let b = block(
+            "t\n#+BEGIN_EXAMPLE\nlet x = 1;\n#+END_EXAMPLE\n#+BEGIN_COMMENT\nsecret\n#+END_COMMENT",
+        );
+        assert_eq!(b.body.len(), 1);
+        assert!(
+            matches!(&b.body[0], BodyItem::Code(c) if c.language.is_none() && c.tokens.is_empty() && c.text == "let x = 1;")
+        );
+        // An unclosed admonition renders what it collected.
+        let b = block("t\n#+BEGIN_WARNING\nopen");
+        assert!(matches!(
+            &b.body[0],
+            BodyItem::Callout {
+                kind: CalloutKind::Warning,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn greater_than_lines_form_a_quote() {
+        let b = block("t\n> first\n> second [[x]]\nplain");
+        assert!(
+            matches!(&b.body[0], BodyItem::Quote(q) if q.text.starts_with("first") && q.text.contains("second"))
+        );
+        assert!(matches!(&b.body[1], BodyItem::Text(t) if t.text == "plain"));
+        let b = block("t\ntext\n>tight");
+        assert!(matches!(&b.body[0], BodyItem::Text(_)));
+        assert!(matches!(&b.body[1], BodyItem::Quote(q) if q.text == "tight"));
+        // A quote that ends the block is flushed.
+        let b = block("t\n> last");
+        assert!(matches!(&b.body[0], BodyItem::Quote(q) if q.text == "last"));
     }
 
     #[test]

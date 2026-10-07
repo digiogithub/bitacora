@@ -147,6 +147,7 @@ pub const ANGLE: &[Command] = &[
     c(CommandId::Block("QUOTE"), "Quote", ""),
     c(CommandId::Block("SRC"), "Src", "code"),
     c(CommandId::Block("QUERY"), "Query", "search"),
+    c(CommandId::Block("LATEX"), "Latex export", "export"),
     c(CommandId::Block("NOTE"), "Note", ""),
     c(CommandId::Block("TIP"), "Tip", ""),
     c(CommandId::Block("IMPORTANT"), "Important", ""),
@@ -310,9 +311,19 @@ fn shifted(old_len: usize, new: String, cursor: usize) -> Rewrite {
     Rewrite { text: new, cursor }
 }
 
-/// A `#+BEGIN_<name>` block that starts on its own line; the caret goes to the empty body line
-/// (after `SRC ` for source blocks, where the language is typed).
+/// A `#+BEGIN_<name>` block that starts on its own line; the caret goes to the empty body line.
+/// Mirrors Logseq's `->block`: `SRC` is a ```` ``` ```` fence in Markdown (caret after the
+/// fence, where the language is typed), `LATEX` and `ASCII` are `EXPORT` blocks with that
+/// export type.
 fn begin_block(text: &str, range: &Range<usize>, name: &str) -> Rewrite {
+    if name == "SRC" {
+        return code_fence(text, range);
+    }
+    let (name, arg) = match name {
+        "LATEX" => ("EXPORT", " latex"),
+        "ASCII" => ("EXPORT", " ascii"),
+        other => (other, ""),
+    };
     let start = range.start.min(text.len());
     let at_line_start = start == 0 || text[..start].ends_with('\n');
     let rest = &text[range.end.min(text.len())..];
@@ -322,17 +333,9 @@ fn begin_block(text: &str, range: &Range<usize>, name: &str) -> Rewrite {
     } else {
         "\n"
     };
-    let head = if name == "SRC" {
-        format!("#+BEGIN_{name} ")
-    } else {
-        format!("#+BEGIN_{name}")
-    };
+    let head = format!("#+BEGIN_{name}{arg}");
     let body = format!("{lead}{head}\n\n#+END_{name}{tail}");
-    let caret = if name == "SRC" {
-        lead.len() + head.len()
-    } else {
-        lead.len() + head.len() + 1
-    };
+    let caret = lead.len() + head.len() + 1;
     insert(text, range, &body, caret)
 }
 
@@ -573,8 +576,14 @@ mod tests {
         assert_eq!(r.text, "#+BEGIN_QUOTE\n\n#+END_QUOTE");
         assert_eq!(r.cursor, "#+BEGIN_QUOTE\n".len());
         let r = rewrite(apply(CommandId::Block("SRC"), "<src", &(0..4), &ctx()));
-        assert_eq!(r.text, "#+BEGIN_SRC \n\n#+END_SRC");
-        assert_eq!(r.cursor, "#+BEGIN_SRC ".len());
+        // Markdown `src` is a fence, as in Logseq's `->block`.
+        assert_eq!(r.text, "```\n\n```");
+        assert_eq!(r.cursor, 3);
+        let r = rewrite(apply(CommandId::Block("LATEX"), "<la", &(0..3), &ctx()));
+        assert_eq!(r.text, "#+BEGIN_EXPORT latex\n\n#+END_EXPORT");
+        assert_eq!(r.cursor, "#+BEGIN_EXPORT latex\n".len());
+        let r = rewrite(apply(CommandId::Block("ASCII"), "<as", &(0..3), &ctx()));
+        assert_eq!(r.text, "#+BEGIN_EXPORT ascii\n\n#+END_EXPORT");
         // Mid-line: the block starts on a new line.
         let r = rewrite(apply(CommandId::Block("NOTE"), "text <no", &(5..8), &ctx()));
         assert_eq!(r.text, "text \n#+BEGIN_NOTE\n\n#+END_NOTE");
@@ -593,7 +602,7 @@ mod tests {
             let r = rewrite(apply(CommandId::Block(name), "<x", &(0..2), &ctx()));
             assert_eq!(r.text, format!("#+BEGIN_{name}\n\n#+END_{name}"));
         }
-        assert_eq!(ANGLE.len(), 15);
+        assert_eq!(ANGLE.len(), 16);
     }
 
     #[test]

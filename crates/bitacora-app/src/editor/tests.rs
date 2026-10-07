@@ -391,6 +391,36 @@ fn enter_on_an_empty_last_child_outdents_and_shift_enter_adds_a_line(cx: &mut Te
 }
 
 #[gpui_test]
+fn enter_and_tab_inside_a_code_fence_edit_the_code_instead_of_the_outline(cx: &mut TestAppContext) {
+    let env = Env::new(&[(HOME, "- ```rust\n  fn x() {}\n  ```\n- other\n")]);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    edit(&ed, 0, Caret::Visible(17), cx);
+    cx.simulate_keystrokes("enter");
+    cx.simulate_keystrokes("tab");
+    cx.simulate_input("y");
+    flush(&ed, cx);
+    let texts = env.snapshot_texts("Home");
+    assert_eq!(texts.len(), 2, "Enter did not split the block: {texts:?}");
+    assert_eq!(texts[0], pair(1, "```rust\nfn x() {}\n  y\n```"));
+    // Shift+Tab removes one level of code indentation and keeps the depth.
+    cx.simulate_keystrokes("shift-tab");
+    flush(&ed, cx);
+    assert_eq!(
+        env.snapshot_texts("Home")[0],
+        pair(1, "```rust\nfn x() {}\ny\n```")
+    );
+}
+
+#[gpui_test]
+fn enter_after_the_closing_fence_still_splits_the_block(cx: &mut TestAppContext) {
+    let env = Env::new(&[(HOME, "- ```\n  x\n  ```\n")]);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    edit(&ed, 0, Caret::End, cx);
+    cx.simulate_keystrokes("enter");
+    assert_eq!(env.snapshot_texts("Home").len(), 2);
+}
+
+#[gpui_test]
 fn enter_inside_a_page_ref_jumps_past_the_brackets_instead_of_splitting(cx: &mut TestAppContext) {
     let env = Env::new(&[(HOME, "- see [[Alpha]] now\n")]);
     let (_view, ed, cx) = open_page(cx, &env, "Home");

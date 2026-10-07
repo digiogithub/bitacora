@@ -118,6 +118,13 @@ page:
   namespace_children: Páginas de este espacio de nombres
   logbook: "LOGBOOK (%{count} entradas)"
   logbook_total: "LOGBOOK (%{count} entradas, %{total})"
+  copy_code: Copiar código
+  callout_note: Nota
+  callout_tip: Consejo
+  callout_important: Importante
+  callout_caution: Precaución
+  callout_warning: Advertencia
+  callout_pinned: Fijado
 journals:
   today_badge: Hoy
   today_empty: Todavía no has escrito nada hoy
