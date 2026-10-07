@@ -48,6 +48,7 @@ use crate::views::page_view::PageView;
 use crate::views::palette::{Palette, PaletteCommand, PaletteEvent};
 use crate::views::panels::{HubEvent, PaneHub, PanelKind, PlaceholderPanel, SharedHub};
 use crate::views::picker::{GraphPicker, PickerEvent};
+use crate::views::right_panel::{PanelTab, RightPanel};
 use crate::views::right_sidebar::{RightSidebar, StackEvent};
 use crate::views::settings::{SettingsContext, SettingsEvent, SettingsView};
 use crate::views::sidebar::{LeftSidebar, SidebarEvent, Target};
@@ -67,7 +68,8 @@ const SAVE_DEBOUNCE: Duration = Duration::from_millis(500);
 const QUIT_NOTICE_TIME: Duration = Duration::from_secs(4);
 
 /// Initial width of the right dock.
-const RIGHT_DOCK_WIDTH: f32 = 280.0;
+/// Width of the right panel (the `sidebar_right` design token).
+const RIGHT_DOCK_WIDTH: f32 = 360.0;
 
 /// Source of "today" (local calendar date); replaced in tests.
 pub type Clock = Rc<dyn Fn() -> Option<Date>>;
@@ -129,6 +131,7 @@ pub struct Workspace {
     main: Entity<MainView>,
     hub: Entity<PaneHub>,
     stack: Entity<RightSidebar>,
+    panel: Entity<RightPanel>,
     palette: Entity<Palette>,
     sync_dialog: Entity<SyncDialog>,
     credential_dialog: Entity<CredentialDialog>,
@@ -180,7 +183,8 @@ impl Workspace {
         let picker = cx.new(|_| GraphPicker::new(recents.graphs().to_vec()));
         let main = cx.new(|cx| MainView::new(window, cx));
         let stack = cx.new(RightSidebar::new);
-        let hub = cx.new(|_| PaneHub::new(main.clone(), stack.clone()));
+        let panel = cx.new(|cx| RightPanel::new(stack.clone(), cx));
+        let hub = cx.new(|_| PaneHub::new(main.clone(), panel.clone()));
         cx.set_global(SharedHub(hub.clone()));
         let palette = cx.new(|cx| Palette::new(window, cx));
         let sync_dialog = cx.new(|cx| SyncDialog::new(window, cx));
@@ -267,6 +271,7 @@ impl Workspace {
             main,
             hub,
             stack,
+            panel,
             palette,
             sync_dialog,
             credential_dialog,
@@ -398,8 +403,8 @@ impl Workspace {
         self.sidebar
             .update(cx, |sidebar, cx| sidebar.set_recent(recent_titles, cx));
         let stack_entries = self.graph_state.right_sidebar.clone();
+        self.panel.update(cx, |panel, cx| panel.clear(cx));
         self.stack.update(cx, |stack, cx| {
-            stack.clear(cx);
             stack.restore(&stack_entries, cx);
         });
         self.sync_prefs_file = self
@@ -1016,8 +1021,8 @@ impl Workspace {
                     sidebar.set_favorites(favorites, cx);
                     sidebar.set_handle(Some(handle.clone()), cx);
                 });
-                self.stack
-                    .update(cx, |stack, cx| stack.set_graph(handle.clone(), cx));
+                self.panel
+                    .update(cx, |panel, cx| panel.set_graph(handle.clone(), cx));
                 for (ix, pane) in self.panes(cx).into_iter().enumerate() {
                     let handle = handle.clone();
                     let initial = if ix == 0 {
@@ -1035,8 +1040,8 @@ impl Workspace {
                 for pane in self.panes(cx) {
                     pane.update(cx, |main, cx| main.on_index_event(&event, cx));
                 }
-                self.stack
-                    .update(cx, |stack, cx| stack.on_index_event(&event, cx));
+                self.panel
+                    .update(cx, |panel, cx| panel.on_index_event(&event, cx));
             }
             SessionEvent::Ready(summary) => {
                 crate::perf::mark("index_ready");
@@ -1209,6 +1214,18 @@ impl Workspace {
         self.ensure_right_dock(window, cx);
     }
 
+    /// Opens the right panel on the Agent tab (the top bar's sparkle button).
+    pub fn open_agent_panel(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.panel
+            .update(cx, |panel, cx| panel.set_tab(PanelTab::Agent, cx));
+        self.ensure_right_dock(window, cx);
+    }
+
+    /// The right panel.
+    pub fn right_panel(&self) -> &Entity<RightPanel> {
+        &self.panel
+    }
+
     fn ensure_right_dock(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.dock.update(cx, |area, cx| {
             if !area.is_dock_open(DockPlacement::Right) {
@@ -1240,8 +1257,8 @@ impl Workspace {
                     Route::Page(name) => Some(name.clone()),
                     _ => None,
                 };
-                self.stack
-                    .update(cx, |stack, cx| stack.set_local_page(local, cx));
+                self.panel
+                    .update(cx, |panel, cx| panel.set_local_page(local, cx));
                 let day = match (route, &self.handle) {
                     (Route::Page(name), Some(handle)) => {
                         bitacora_core::journal::detect_journal(name, &handle.settings.config)
@@ -2489,6 +2506,20 @@ mod tests {
         assert!(dock.read_with(cx, |d, _| d.is_dock_open(DockPlacement::Right)));
         cx.simulate_keystrokes("secondary-shift-b");
         assert!(!dock.read_with(cx, |d, _| d.is_dock_open(DockPlacement::Right)));
+    }
+
+    #[gpui_test]
+    fn sparkle_opens_the_right_panel_on_the_agent_tab(cx: &mut TestAppContext) {
+        setup(cx);
+        let (ws, cx) = open(cx, None);
+        let dock = ws.read_with(cx, |w, _| w.dock().clone());
+        let panel = ws.read_with(cx, |w, _| w.right_panel().clone());
+        assert_eq!(panel.read_with(cx, |p, _| p.tab()), PanelTab::Context);
+        cx.simulate_keystrokes("secondary-shift-b");
+        assert!(!dock.read_with(cx, |d, _| d.is_dock_open(DockPlacement::Right)));
+        ws.update_in(cx, |w, window, cx| w.open_agent_panel(window, cx));
+        assert!(dock.read_with(cx, |d, _| d.is_dock_open(DockPlacement::Right)));
+        assert_eq!(panel.read_with(cx, |p, _| p.tab()), PanelTab::Agent);
     }
 
     #[gpui_test]
