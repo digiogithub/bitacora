@@ -39,8 +39,11 @@ pub use gpui_kit::component::{
 /// Frameless-window building blocks (BIT-US-0119 spike): the kit's title bar and window
 /// border, plus the GPUI decoration types needed to branch on the actual window mode.
 pub mod frameless {
-    pub use gpui_kit::component::{TitleBar, window_border};
-    pub use gpui_kit::{Decorations, ResizeEdge, Tiling, WindowControls, WindowDecorations};
+    pub use gpui_kit::component::{InteractiveElementExt, TitleBar, window_border};
+    pub use gpui_kit::{
+        Decorations, MouseButton, ResizeEdge, Tiling, WindowControlArea, WindowControls,
+        WindowDecorations,
+    };
 }
 
 /// Buttons.

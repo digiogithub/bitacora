@@ -54,6 +54,7 @@ use crate::views::sidebar::{LeftSidebar, SidebarEvent, Target};
 use crate::views::status_bar::{AppStatusBar, Slot, SlotState, StatusBarEvent, StatusEvent};
 use crate::views::sync_dialog::{SyncDialog, SyncDialogEvent};
 use crate::views::sync_panel::{SyncPanel, SyncPanelEvent};
+use crate::views::title_bar::AppTitleBar;
 use bitacora_core::editor::MergeMode;
 use bitacora_core::graph::PageKey;
 use bitacora_core::queue::{Keep, Request, Source};
@@ -2273,7 +2274,7 @@ impl Render for Workspace {
                 ),
             )
         };
-        v_flex()
+        let content = v_flex()
             .id("workspace")
             .key_context("Workspace")
             .track_focus(&self.focus)
@@ -2347,6 +2348,7 @@ impl Render for Workspace {
                 }
             }))
             .size_full()
+            .child(AppTitleBar::new())
             .child(main)
             .child(self.status.clone())
             .child(self.palette.clone())
@@ -2358,7 +2360,10 @@ impl Render for Workspace {
             .child(self.disk_diff.clone())
             .child(self.sync_dialog.clone())
             .child(self.credential_dialog.clone())
-            .when(crate::perf::enabled(), |d| d.child(crate::perf::FrameEnd))
+            .when(crate::perf::enabled(), |d| d.child(crate::perf::FrameEnd));
+        // Client-side shadow ring, resize bands and tiling insets (ADR-033); a no-op under
+        // server decorations.
+        crate::ui::frameless::window_border().child(content)
     }
 }
 

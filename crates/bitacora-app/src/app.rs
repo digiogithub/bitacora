@@ -14,8 +14,7 @@ use crate::instance::{self, Startup};
 use crate::paths::AppDirs;
 use crate::settings::AppSettings;
 use crate::ui::{
-    self, AnyWindowHandle, App, AppContext as _, Bounds, Entity, Focusable as _, Global,
-    TitlebarOptions, WindowBounds, WindowOptions, px, size,
+    self, AnyWindowHandle, App, AppContext as _, Bounds, Entity, Focusable as _, Global, px, size,
 };
 use crate::views::panels::register_panels;
 use crate::views::workspace::{Workspace, WorkspaceConfig};
@@ -60,11 +59,8 @@ pub fn run(args: Args) -> anyhow::Result<()> {
     tracing::info!(log_dir = %dirs.log_dir.display(), "app directories ready");
 
     // Smoke tests and the editor spike must not fight a real instance for the lock.
-    let single_instance = !(args.smoke_test
-        || args.spike_editor
-        || args.spike_bench
-        || args.spike_csd
-        || args.perf_bench);
+    let single_instance =
+        !(args.smoke_test || args.spike_editor || args.spike_bench || args.perf_bench);
     let mut instance_guard = None;
     let mut launches = None;
     let mut previous_crash_pid = None;
@@ -145,11 +141,6 @@ fn start(cx: &mut App, args: &Args, dirs: &AppDirs, services: Services) -> anyho
         }
     })
     .detach();
-
-    if args.spike_csd {
-        crate::spike::csd::open(cx, args.smoke_test)?;
-        return Ok(());
-    }
 
     if args.spike_editor || args.spike_bench {
         let options = crate::spike::block_editor::SpikeOptions {
@@ -265,19 +256,11 @@ fn open_workspace(
         keymap_file: Some(dirs.keymap_file()),
         mcp_secrets: bitacora_mcp::os_keychain(),
     };
-    let options = WindowOptions {
-        titlebar: Some(TitlebarOptions {
-            title: Some(args.window_title().into()),
-            ..Default::default()
-        }),
-        window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
-            None,
-            size(px(DEFAULT_SIZE.0), px(DEFAULT_SIZE.1)),
-            cx,
-        ))),
-        window_min_size: Some(size(px(MIN_SIZE.0), px(MIN_SIZE.1))),
-        ..Default::default()
-    };
+    let options = crate::views::title_bar::main_window_options(
+        args.window_title(),
+        Bounds::centered(None, size(px(DEFAULT_SIZE.0), px(DEFAULT_SIZE.1)), cx),
+        size(px(MIN_SIZE.0), px(MIN_SIZE.1)),
+    );
     let (handle, workspace) = ui::open_main_window(options, cx, |window, cx| {
         let workspace = cx.new(|cx| Workspace::new(config, window, cx));
         window
