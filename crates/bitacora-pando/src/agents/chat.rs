@@ -38,6 +38,8 @@ use super::approvals::{
 };
 use super::edits::{EditApplier, EditError, Preview, Proposal};
 use super::guard::{AttachedBlock, ContentGuard, GuardSource};
+use super::memory::ToolMemory;
+use super::runs::is_read_only_tool;
 use super::tools::{
     FrontendHost, GET_SELECTION_TOOL, NoHost, OPEN_PAGE_TOOL, PROPOSE_EDIT_TOOL, run_get_selection,
     tool_set,
@@ -79,6 +81,18 @@ pub struct ApprovalCard {
     pub kind: CardKind,
     /// Seconds until the card is denied on its own.
     pub timeout_secs: u64,
+    /// The tool name a "Remember my decision" choice would apply to; `None` when the card cannot
+    /// offer it (questions, prompts that demand explicit approval, unknown tools).
+    pub remember_tool: Option<String>,
+}
+
+/// Why a card was answered without being shown.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AutoAnswer {
+    /// A permission prompt for an allow-listed read-only tool.
+    ReadTool,
+    /// The user chose "remember my decision" for this tool earlier.
+    Remembered,
 }
 
 /// How a run ended.
@@ -182,6 +196,17 @@ pub enum ChatEvent {
         /// Why it was denied, when it was.
         reason: Option<DenyReason>,
     },
+    /// A prompt was answered without a card: an allow-listed read tool, or a remembered decision.
+    AutoAnswered {
+        /// Call id.
+        call_id: String,
+        /// Tool name.
+        tool: String,
+        /// The answer given.
+        approved: bool,
+        /// Why no card was shown.
+        why: AutoAnswer,
+    },
     /// A `propose_edit` call was refused before any card (invalid, stale, page not loaded).
     EditRejected {
         /// Call id.
@@ -280,6 +305,9 @@ pub struct ChatDeps {
     pub clock: Arc<dyn Clock>,
     /// Where runs, approvals and applied edits are logged (BIT-SP-0009.R7); `None` logs nothing.
     pub activity: Option<EventSink>,
+    /// Remembered "allow/deny always" decisions per tool; `None` never remembers (every write
+    /// prompt asks).
+    pub tool_memory: Option<Arc<dyn ToolMemory>>,
 }
 
 impl std::fmt::Debug for ChatDeps {
@@ -301,6 +329,7 @@ impl ChatDeps {
             live_guard: None,
             clock: Arc::new(SystemClock::default()),
             activity: None,
+            tool_memory: None,
         }
     }
 }
@@ -313,6 +342,7 @@ enum Command {
     Decide {
         id: String,
         decision: Decision,
+        remember: bool,
     },
     Abort {
         reason: DenyReason,
@@ -361,6 +391,21 @@ impl ChatHandle {
             .send(Command::Decide {
                 id: id.into(),
                 decision,
+                remember: false,
+            })
+            .is_ok()
+    }
+
+    /// Answers a permission or edit card with Approve or Deny and remembers the answer for that
+    /// tool ("allow always" / "deny always"). Ignored for cards that offer no
+    /// [`ApprovalCard::remember_tool`] and for any other decision; the answer itself still
+    /// applies.
+    pub fn decide_and_remember(&self, id: impl Into<String>, decision: Decision) -> bool {
+        self.tx
+            .send(Command::Decide {
+                id: id.into(),
+                decision,
+                remember: true,
             })
             .is_ok()
     }
@@ -464,6 +509,8 @@ struct Ctx {
     thread_id: String,
     book: PendingApprovals,
     prepared: HashMap<String, Prep>,
+    /// Tool name a remembered decision of this card would apply to, by call id.
+    remember_tools: HashMap<String, String>,
     announced: HashSet<String>,
     /// Set by a cancel/close/dropped handle; ends the current turn.
     abort: Option<(DenyReason, bool)>,
@@ -490,6 +537,7 @@ impl Ctx {
             thread_id,
             book,
             prepared: HashMap::new(),
+            remember_tools: HashMap::new(),
             announced: HashSet::new(),
             abort: None,
             cmd_closed: false,
@@ -521,6 +569,17 @@ impl Ctx {
                     RunEnd::Cancelled => "cancelled",
                 },
                 &self.thread_id,
+            ),
+            ChatEvent::AutoAnswered {
+                call_id, approved, ..
+            } => one(
+                ActivityKind::Approval,
+                if *approved {
+                    "auto-approved"
+                } else {
+                    "auto-denied"
+                },
+                call_id,
             ),
             ChatEvent::ApprovalResolved { id, approved, .. } => one(
                 ActivityKind::Approval,
@@ -776,8 +835,26 @@ impl Ctx {
                 self.abort_turn(DenyReason::PanelClosed, true).await;
             }
             Some(Command::Abort { reason, end }) => self.abort_turn(reason, end).await,
-            Some(Command::Decide { id, decision }) => {
+            Some(Command::Decide {
+                id,
+                decision,
+                remember,
+            }) => {
+                let allow = match decision {
+                    Decision::Approve => Some(true),
+                    Decision::Deny => Some(false),
+                    Decision::Answer(_) => None,
+                };
                 if self.book.decide(&id, decision) {
+                    if remember
+                        && let (Some(allow), Some(tool), Some(mem)) = (
+                            allow,
+                            self.remember_tools.get(&id),
+                            self.deps.tool_memory.as_ref(),
+                        )
+                    {
+                        mem.remember(tool, allow);
+                    }
                     self.announce_resolved(&[id]);
                 }
             }
@@ -823,6 +900,7 @@ impl Ctx {
         let id = first.tool_call_id().to_owned();
         let content = self.answer(first).await?;
         self.prepared.remove(&id);
+        self.remember_tools.remove(&id);
         self.announced.remove(&id);
         self.book.remove(&id);
         Some((Some(id), content.into()))
@@ -839,10 +917,36 @@ impl Ctx {
             Interrupt::Permission { request, .. } => {
                 self.book.register(&id, ApprovalKind::Permission, now);
                 self.prepared.insert(id.clone(), Prep::Permission);
+                let tool = request.tool_name.clone();
+                if is_read_only_tool(request) {
+                    // Allow-listed read tools never ask (as in the headless runs): the tool call
+                    // itself shows in the transcript.
+                    self.auto_answer(&id, &tool, true, AutoAnswer::ReadTool);
+                    return;
+                }
+                // Prompts that demand explicit approval cannot be remembered and never
+                // auto-allow; a remembered deny still applies.
+                let explicit = request.require_explicit_approval || request.never_auto_approve;
+                match self.remembered(&tool) {
+                    Some(false) => {
+                        self.auto_answer(&id, &tool, false, AutoAnswer::Remembered);
+                        return;
+                    }
+                    Some(true) if !explicit && self.guard().has_consent() => {
+                        self.auto_answer(&id, &tool, true, AutoAnswer::Remembered);
+                        return;
+                    }
+                    _ => {}
+                }
+                let remember_tool = (!explicit && !tool.trim().is_empty()).then_some(tool);
+                if let Some(t) = &remember_tool {
+                    self.remember_tools.insert(id.clone(), t.clone());
+                }
                 self.emit(ChatEvent::ApprovalRequested(ApprovalCard {
                     id,
                     kind: CardKind::Permission(request.clone()),
                     timeout_secs,
+                    remember_tool,
                 }));
             }
             Interrupt::Question { request, .. } => {
@@ -852,6 +956,7 @@ impl Ctx {
                     id,
                     kind: CardKind::Question(request.clone()),
                     timeout_secs,
+                    remember_tool: None,
                 }));
             }
             Interrupt::FrontendTool(call) if call.name == PROPOSE_EDIT_TOOL => {
@@ -859,10 +964,37 @@ impl Ctx {
                     Ok((proposal, preview)) => {
                         self.book.register(&id, ApprovalKind::ProposeEdit, now);
                         self.prepared.insert(id.clone(), Prep::Edit(proposal));
+                        // A remembered allow only skips the card: the applier still runs the
+                        // content guard and commits through the audited, undoable core queue.
+                        // Without consent nothing is auto-allowed.
+                        match self.remembered(PROPOSE_EDIT_TOOL) {
+                            Some(false) => {
+                                self.auto_answer(
+                                    &id,
+                                    PROPOSE_EDIT_TOOL,
+                                    false,
+                                    AutoAnswer::Remembered,
+                                );
+                                return;
+                            }
+                            Some(true) if self.guard().has_consent() => {
+                                self.auto_answer(
+                                    &id,
+                                    PROPOSE_EDIT_TOOL,
+                                    true,
+                                    AutoAnswer::Remembered,
+                                );
+                                return;
+                            }
+                            _ => {}
+                        }
+                        self.remember_tools
+                            .insert(id.clone(), PROPOSE_EDIT_TOOL.to_owned());
                         self.emit(ChatEvent::ApprovalRequested(ApprovalCard {
                             id,
                             kind: CardKind::Edit(preview),
                             timeout_secs,
+                            remember_tool: Some(PROPOSE_EDIT_TOOL.to_owned()),
                         }));
                     }
                     Err(e) => {
@@ -882,6 +1014,26 @@ impl Ctx {
                 self.prepared.insert(id, Prep::Immediate);
             }
         }
+    }
+
+    fn remembered(&self, tool: &str) -> Option<bool> {
+        self.deps.tool_memory.as_ref()?.decision(tool)
+    }
+
+    /// Resolves the registered approval `id` without a card.
+    fn auto_answer(&mut self, id: &str, tool: &str, approved: bool, why: AutoAnswer) {
+        let decision = if approved {
+            Decision::Approve
+        } else {
+            Decision::Deny
+        };
+        self.book.decide(id, decision);
+        self.emit(ChatEvent::AutoAnswered {
+            call_id: id.to_owned(),
+            tool: tool.to_owned(),
+            approved,
+            why,
+        });
     }
 
     async fn prepare_edit(&self, args: Option<&Value>) -> Result<(Proposal, Preview), EditError> {
@@ -1355,6 +1507,7 @@ impl ChatModel {
             ChatEvent::MessageEnd { .. }
             | ChatEvent::ToolCallEnd { .. }
             | ChatEvent::Custom { .. }
+            | ChatEvent::AutoAnswered { .. }
             | ChatEvent::EditApplied { .. } => {}
         }
     }

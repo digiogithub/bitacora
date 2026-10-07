@@ -98,6 +98,10 @@ pub struct GraphConsent {
     /// Also grant the dedicated `pando` MCP token the Write scope for this graph (ADR-031). Off
     /// by default: agents read through MCP and propose edits instead of writing.
     pub agent_writes: bool,
+    /// Remembered answers to agent approval cards, by tool name: `true` allows, `false` denies
+    /// without asking again. Machine-local like the rest of this file, cleared when consent is
+    /// revoked, and only ever consulted for tools the chat can name (unknown tools always ask).
+    pub tool_decisions: BTreeMap<String, bool>,
 }
 
 /// Pando settings of this machine.
@@ -384,7 +388,28 @@ impl PandoSettings {
         if let Some(c) = self.graphs.get_mut(graph) {
             c.granted = false;
             c.granted_at = None;
+            c.tool_decisions.clear();
         }
+    }
+
+    /// Remembers that `tool` is always allowed (`allow`) or always denied for `graph`.
+    pub fn remember_tool_decision(&mut self, graph: &str, tool: &str, allow: bool) {
+        let tool = tool.trim();
+        if tool.is_empty() {
+            return;
+        }
+        self.graphs
+            .entry(graph.to_owned())
+            .or_default()
+            .tool_decisions
+            .insert(tool.to_owned(), allow);
+    }
+
+    /// Forgets the remembered decision for `tool`. `true` when there was one.
+    pub fn forget_tool_decision(&mut self, graph: &str, tool: &str) -> bool {
+        self.graphs
+            .get_mut(graph)
+            .is_some_and(|c| c.tool_decisions.remove(tool).is_some())
     }
 
     /// Reads settings from `path`; a missing file yields the defaults.
@@ -579,6 +604,24 @@ mod tests {
         s.revoke_consent("/g");
         assert!(!s.has_consent("/g"));
         assert_eq!(s.consent("/g").exclusions, vec!["pages/private"]);
+    }
+
+    #[test]
+    fn tool_decisions_are_remembered_forgotten_and_cleared_on_revoke() {
+        let mut s = PandoSettings::default();
+        s.grant_consent("/g", 1);
+        s.remember_tool_decision("/g", "propose_edit", true);
+        s.remember_tool_decision("/g", "bash", false);
+        s.remember_tool_decision("/g", "  ", true);
+        assert_eq!(s.consent("/g").tool_decisions.len(), 2);
+        assert!(s.forget_tool_decision("/g", "bash"));
+        assert!(!s.forget_tool_decision("/g", "bash"));
+        assert_eq!(
+            s.consent("/g").tool_decisions.get("propose_edit"),
+            Some(&true)
+        );
+        s.revoke_consent("/g");
+        assert!(s.consent("/g").tool_decisions.is_empty());
     }
 
     #[test]

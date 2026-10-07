@@ -17,8 +17,9 @@ use bitacora_core::graph::PageKey;
 use bitacora_core::graph_path::GraphPath;
 use bitacora_core::queue::{CommandQueue, QueueConfig, QueueJoin, Request, Source};
 use bitacora_pando::agents::{
-    ApprovalCard, AttachedBlock, CardKind, CardState, ChatConfig, ChatDeps, ChatEvent, ChatModel,
-    ChatSession, ContentGuard, DenyReason, EditApplier, FrontendHost, QueueEditApplier, RunEnd,
+    ApprovalCard, AttachedBlock, AutoAnswer, CardKind, CardState, ChatConfig, ChatDeps, ChatEvent,
+    ChatModel, ChatSession, ContentGuard, DenyReason, EditApplier, FrontendHost,
+    InMemoryToolMemory, QueueEditApplier, RunEnd, ToolMemory,
 };
 use pando::{PandoClient, PandoConfig};
 use serde_json::{Value, json};
@@ -721,6 +722,188 @@ async fn permission_prompts_are_answered_and_fail_closed() {
     drop((handle, handle2));
 }
 
+fn perm(id: &str, tool: &str) -> Vec<Value> {
+    tool_call(
+        id,
+        "pando_permission_request",
+        &json!({"toolName": tool, "action": "execute", "description": "x"}).to_string(),
+    )
+}
+
+fn memory_deps(base: &str, mem: &Arc<InMemoryToolMemory>) -> ChatDeps {
+    let mut deps = ChatDeps::new(agui(base), guard());
+    deps.tool_memory = Some(mem.clone());
+    deps
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn read_tool_prompts_are_auto_approved_without_a_card() {
+    for tool in ["bitacora_search", "kb_search_documents", "recall"] {
+        let (base, seen) = serve(interrupt_once(perm("p1", tool))).await;
+        let (handle, rx) = ChatSession::spawn(
+            &tokio::runtime::Handle::current(),
+            ChatDeps::new(agui(&base), guard()),
+        );
+        handle.send("go", Vec::new());
+        let evs = until(&rx, |e| matches!(e, ChatEvent::RunFinished(_))).await;
+        assert!(
+            !evs.iter()
+                .any(|e| matches!(e, ChatEvent::ApprovalRequested(_))),
+            "{tool}"
+        );
+        assert!(evs.iter().any(|e| matches!(
+            e,
+            ChatEvent::AutoAnswered {
+                approved: true,
+                why: AutoAnswer::ReadTool,
+                ..
+            }
+        )));
+        assert_eq!(tool_answer(&seen, 1)["approved"], json!(true), "{tool}");
+        drop(handle);
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn write_and_unknown_tool_prompts_still_ask_and_offer_to_remember() {
+    for tool in ["bash", "kb_add_document", "totally_unknown_tool"] {
+        let (base, _seen) = serve(interrupt_once(perm("p1", tool))).await;
+        let mem = Arc::new(InMemoryToolMemory::default());
+        let (handle, rx) =
+            ChatSession::spawn(&tokio::runtime::Handle::current(), memory_deps(&base, &mem));
+        handle.send("go", Vec::new());
+        let evs = until(&rx, |e| matches!(e, ChatEvent::ApprovalRequested(_))).await;
+        assert_eq!(card(&evs).remember_tool.as_deref(), Some(tool));
+        drop(handle);
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn remembering_an_allow_answers_later_prompts_without_a_card() {
+    let mem = Arc::new(InMemoryToolMemory::default());
+    let (base, _seen) = serve(interrupt_once(perm("p1", "bash"))).await;
+    let (handle, rx) =
+        ChatSession::spawn(&tokio::runtime::Handle::current(), memory_deps(&base, &mem));
+    handle.send("go", Vec::new());
+    until(&rx, |e| matches!(e, ChatEvent::ApprovalRequested(_))).await;
+    assert!(handle.decide_and_remember("p1", approve_decision()));
+    until(&rx, |e| matches!(e, ChatEvent::RunFinished(_))).await;
+    assert_eq!(mem.decision("bash"), Some(true));
+    drop(handle);
+
+    // A new session asks nothing for the same tool.
+    let (base, seen) = serve(interrupt_once(perm("p2", "bash"))).await;
+    let (handle, rx) =
+        ChatSession::spawn(&tokio::runtime::Handle::current(), memory_deps(&base, &mem));
+    handle.send("go", Vec::new());
+    let evs = until(&rx, |e| matches!(e, ChatEvent::RunFinished(_))).await;
+    assert!(
+        !evs.iter()
+            .any(|e| matches!(e, ChatEvent::ApprovalRequested(_)))
+    );
+    assert!(evs.iter().any(|e| matches!(
+        e,
+        ChatEvent::AutoAnswered {
+            approved: true,
+            why: AutoAnswer::Remembered,
+            ..
+        }
+    )));
+    assert_eq!(tool_answer(&seen, 1)["approved"], json!(true));
+    drop(handle);
+
+    // Forgotten (consent revoked): it asks again.
+    mem.clear();
+    let (base, _seen) = serve(interrupt_once(perm("p3", "bash"))).await;
+    let (handle, rx) =
+        ChatSession::spawn(&tokio::runtime::Handle::current(), memory_deps(&base, &mem));
+    handle.send("go", Vec::new());
+    until(&rx, |e| matches!(e, ChatEvent::ApprovalRequested(_))).await;
+    drop(handle);
+}
+
+fn approve_decision() -> bitacora_pando::agents::Decision {
+    bitacora_pando::agents::Decision::Approve
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_remembered_deny_answers_prompts_with_a_denial() {
+    let mem = Arc::new(InMemoryToolMemory::with([("bash".to_owned(), false)]));
+    let (base, seen) = serve(interrupt_once(perm("p1", "bash"))).await;
+    let (handle, rx) =
+        ChatSession::spawn(&tokio::runtime::Handle::current(), memory_deps(&base, &mem));
+    handle.send("go", Vec::new());
+    let evs = until(&rx, |e| matches!(e, ChatEvent::RunFinished(_))).await;
+    assert!(
+        !evs.iter()
+            .any(|e| matches!(e, ChatEvent::ApprovalRequested(_)))
+    );
+    assert_eq!(tool_answer(&seen, 1)["approved"], json!(false));
+    drop(handle);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_remembered_allow_for_propose_edit_still_goes_through_the_audited_queue() {
+    let (q, join) = queue();
+    let mem = Arc::new(InMemoryToolMemory::with([(
+        "propose_edit".to_owned(),
+        true,
+    )]));
+    let (base, seen) = serve(interrupt_once(tool_call(
+        "e1",
+        "propose_edit",
+        &update_args(),
+    )))
+    .await;
+    let mut deps = writer_deps(&base, &q);
+    deps.tool_memory = Some(mem.clone());
+    let (handle, rx) = ChatSession::spawn(&tokio::runtime::Handle::current(), deps);
+    handle.send("shout", Vec::new());
+    let evs = until(&rx, |e| matches!(e, ChatEvent::RunFinished(_))).await;
+    assert!(
+        !evs.iter()
+            .any(|e| matches!(e, ChatEvent::ApprovalRequested(_)))
+    );
+    assert!(
+        evs.iter()
+            .any(|e| matches!(e, ChatEvent::EditApplied { .. }))
+    );
+    assert!(page_text(&q)[0].starts_with("ALPHA"));
+    assert!(q.audit().iter().any(|a| a.source == Source::Agent));
+    assert_eq!(tool_answer(&seen, 1)["applied"], json!(true));
+    // Undoable like a manual approval.
+    q.undo(Source::Ui).unwrap().expect("undo step");
+    assert!(page_text(&q)[0].starts_with("alpha"));
+    drop(handle);
+    drop(q);
+    let _ = join.shutdown();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_remembered_deny_for_propose_edit_writes_nothing() {
+    let (q, join) = queue();
+    let mem = Arc::new(InMemoryToolMemory::with([(
+        "propose_edit".to_owned(),
+        false,
+    )]));
+    let (base, seen) = serve(interrupt_once(tool_call(
+        "e1",
+        "propose_edit",
+        &update_args(),
+    )))
+    .await;
+    let mut deps = writer_deps(&base, &q);
+    deps.tool_memory = Some(mem);
+    let (handle, rx) = ChatSession::spawn(&tokio::runtime::Handle::current(), deps);
+    handle.send("shout", Vec::new());
+    until(&rx, |e| matches!(e, ChatEvent::RunFinished(_))).await;
+    assert!(page_text(&q)[0].starts_with("alpha"));
+    assert_eq!(tool_answer(&seen, 1)["applied"], json!(false));
+    drop(handle);
+    drop(q);
+    let _ = join.shutdown();
+}
+
 /// Revoking consent (or adding an exclusion) applies to a chat that is already open: the next
 /// message carries no context.
 #[tokio::test(flavor = "multi_thread")]
@@ -774,7 +957,7 @@ async fn server_side_tool_calls_beside_a_prompt_are_not_answered() {
     frames.extend(tool_call(
         "p1",
         "pando_permission_request",
-        "{\"toolName\":\"bitacora_search\",\"action\":\"execute\",\"description\":\"search\"}",
+        "{\"toolName\":\"bash\",\"action\":\"execute\",\"description\":\"search\"}",
     ));
     let (base, seen) = serve(interrupt_once(frames)).await;
     let (handle, rx) = ChatSession::spawn(

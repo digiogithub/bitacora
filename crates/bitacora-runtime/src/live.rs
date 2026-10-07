@@ -563,6 +563,10 @@ impl Session {
             .ok_or_else(|| RuntimeError::Agent("the Pando runtime is not running".into()))?;
         let mut deps = bitacora_pando::agents::ChatDeps::new(agui, self.agent_guard());
         deps.live_guard = Some(self.agent_guard_source());
+        deps.tool_memory = self.agent.clone().map(|agent| {
+            Arc::new(crate::agents::SessionToolMemory { agent })
+                as Arc<dyn bitacora_pando::agents::ToolMemory>
+        });
         deps.host = host;
         if config.propose_edit {
             let mut applier = self

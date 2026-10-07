@@ -193,6 +193,7 @@ fn edit_card(id: &str) -> ChatEvent {
             }],
         }),
         timeout_secs: 120,
+        remember_tool: Some("propose_edit".into()),
     })
 }
 
@@ -359,4 +360,26 @@ fn sending_without_a_session_reports_it_and_keeps_the_text(cx: &mut TestAppConte
 fn thread_times_are_short() {
     assert_eq!(short_time("2026-10-07T14:03:59Z"), "2026-10-07 14:03");
     assert_eq!(short_time("now"), "now");
+}
+
+#[gpui_test]
+fn remember_my_decision_is_a_toggle_on_a_pending_card(cx: &mut TestAppContext) {
+    setup(cx);
+    let (view, cx) = cx.add_window_view(ChatView::new);
+    let generation = view.read_with(cx, |v, _| v.generation);
+    view.update(cx, |v, cx| {
+        v.apply_events(generation, vec![edit_card("call-1")], cx)
+    });
+    cx.run_until_parked();
+    view.read_with(cx, |v, _| {
+        assert_eq!(
+            v.model().cards[0].card.remember_tool.as_deref(),
+            Some("propose_edit")
+        );
+        assert!(!v.is_remembering("call-1"));
+    });
+    view.update(cx, |v, cx| v.toggle_remember("call-1", cx));
+    view.read_with(cx, |v, _| assert!(v.is_remembering("call-1")));
+    view.update(cx, |v, cx| v.toggle_remember("call-1", cx));
+    view.read_with(cx, |v, _| assert!(!v.is_remembering("call-1")));
 }

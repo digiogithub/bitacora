@@ -303,18 +303,6 @@ impl SettingsView {
         self.refresh_pando_live(cx);
     }
 
-    /// Removes the graph's documents from Pando's semantic index (after the user confirmed).
-    pub(crate) fn purge_semantic(&mut self, cx: &mut Context<Self>) {
-        if let Some(session) = self.ctx.session.clone() {
-            let _ = session.run(|s| {
-                if let Some(worker) = s.semantic() {
-                    worker.purge();
-                }
-            });
-        }
-        self.refresh_pando_live(cx);
-    }
-
     /// Validates and saves `settings`, then tells the workspace. Nothing is written on a
     /// validation error. `reopen` asks for the graph to be reopened so the session starts with
     /// the new settings.
@@ -517,16 +505,27 @@ impl SettingsView {
         self.save_pando(s, true, cx);
     }
 
-    /// Revokes the consent after the user confirmed; `purge` also removes the graph's documents
-    /// from Pando. The running session stops sending at once.
-    pub(crate) fn revoke_pando_consent(&mut self, purge: bool, cx: &mut Context<Self>) {
+    /// Revokes the consent after the user confirmed and removes the graph's documents from
+    /// Pando. The running session stops sending (and honouring remembered tool decisions) at once.
+    pub(crate) fn revoke_pando_consent(&mut self, cx: &mut Context<Self>) {
         let Some(key) = self.pando_graph_key() else {
             return;
         };
         let mut s = self.pando.settings.clone();
         s.revoke_consent(&key);
         if self.save_pando(s, false, cx) {
-            self.apply_pando_live(purge);
+            self.apply_pando_live(true);
+        }
+    }
+
+    /// Forgets the remembered "always allow/deny" decision for `tool`.
+    pub fn forget_pando_tool_decision(&mut self, tool: &str, cx: &mut Context<Self>) {
+        let Some(key) = self.pando_graph_key() else {
+            return;
+        };
+        let mut s = self.pando.settings.clone();
+        if s.forget_tool_decision(&key, tool) && self.save_pando(s, false, cx) {
+            self.apply_pando_live(false);
         }
     }
 
@@ -971,32 +970,14 @@ impl SettingsView {
             t!("settings.pando.consent").to_string(),
             Some(consent_text),
             if consent.granted {
-                h_flex()
-                    .gap_2()
-                    .child(
-                        Button::new("settings-pando-revoke")
-                            .small()
-                            .label(t!("settings.pando.revoke").to_string())
-                            .on_click(cx.listener(|this, _: &ClickEvent, window, cx| {
-                                this.request(
-                                    Pending::RevokePandoConsent { purge: false },
-                                    window,
-                                    cx,
-                                );
-                            })),
-                    )
-                    .child(
-                        Button::new("settings-pando-purge")
-                            .small()
-                            .label(t!("settings.pando.revoke_purge").to_string())
-                            .on_click(cx.listener(|this, _: &ClickEvent, window, cx| {
-                                this.request(
-                                    Pending::RevokePandoConsent { purge: true },
-                                    window,
-                                    cx,
-                                );
-                            })),
-                    )
+                h_flex().gap_2().child(
+                    Button::new("settings-pando-purge")
+                        .small()
+                        .label(t!("settings.pando.revoke_purge").to_string())
+                        .on_click(cx.listener(|this, _: &ClickEvent, window, cx| {
+                            this.request(Pending::RevokePandoConsent, window, cx);
+                        })),
+                )
             } else {
                 h_flex().gap_2().child(
                     Button::new("settings-pando-grant")
@@ -1054,6 +1035,39 @@ impl SettingsView {
         if !consent.exclusions.is_empty() {
             col = col.child(div().py_1().child(chips));
         }
+        col = col.child(row(
+            theme,
+            t!("settings.pando.remembered").to_string(),
+            Some(if consent.tool_decisions.is_empty() {
+                t!("settings.pando.remembered_none").to_string()
+            } else {
+                t!("settings.pando.remembered_help").to_string()
+            }),
+            div(),
+        ));
+        for (ix, (tool, allow)) in consent.tool_decisions.iter().enumerate() {
+            let tool_name = tool.clone();
+            col = col.child(
+                h_flex()
+                    .id(("settings-pando-decision", ix))
+                    .gap_2()
+                    .items_center()
+                    .child(Chip::new(tool.clone()).tone(ChipTone::Outline).mono(true))
+                    .child(div().text_xs().child(if *allow {
+                        t!("settings.pando.remembered_allow").to_string()
+                    } else {
+                        t!("settings.pando.remembered_deny").to_string()
+                    }))
+                    .child(
+                        Button::new(("settings-pando-forget", ix))
+                            .small()
+                            .label(t!("settings.pando.forget").to_string())
+                            .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                                this.forget_pando_tool_decision(&tool_name, cx);
+                            })),
+                    ),
+            );
+        }
         col.into_any_element()
     }
 
@@ -1090,15 +1104,6 @@ impl SettingsView {
                         .disabled(!running)
                         .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                             this.resync_semantic(cx);
-                        })),
-                )
-                .child(
-                    Button::new("settings-pando-purge-index")
-                        .small()
-                        .label(t!("settings.pando.purge_index").to_string())
-                        .disabled(!running)
-                        .on_click(cx.listener(|this, _: &ClickEvent, window, cx| {
-                            this.request(Pending::PurgeSemantic, window, cx);
                         })),
                 )
                 .child(

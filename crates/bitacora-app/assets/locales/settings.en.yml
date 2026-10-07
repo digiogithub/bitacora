@@ -96,7 +96,6 @@ settings:
     consent_given_undated: You agreed.
     consent_missing: Nothing from this graph is sent to Pando until you agree.
     grant: Review and agree...
-    revoke: Revoke consent
     revoke_purge: Revoke and remove my data
     agent_writes: Let agents edit this graph
     agent_writes_help: Off by default. When on, Pando agents may write through MCP; every write is audited and undoable. Applies when the graph is reopened.
@@ -104,24 +103,25 @@ settings:
     exclusions_help: Pages, namespaces, folders (with /) or #tags. Pages with private:: true are never sent. Click an entry to remove it.
     exclusion_placeholder: "Page, namespace, folder/ or #tag"
     exclusion_empty: Type a page name, a folder or a #tag.
+    remembered: "Remembered tool decisions"
+    remembered_help: "Answers you chose to remember in the chat. Forget one to be asked again."
+    remembered_none: "None. Chat approval cards offer \"Remember my decision\"."
+    remembered_allow: "always allow"
+    remembered_deny: "always deny"
+    forget: "Forget"
     exclusion_remove: remove
     activity: Activity
     sync: Semantic sync
     sync_counts: "%{synced} documents in Pando, %{pending} waiting."
     sync_none: Not running.
     resync: Resync
-    purge_index: Remove semantic data
-    purge_index_title: Remove this graph's semantic data?
-    purge_index_body: The graph's blocks are deleted from Pando's semantic index. Your files are not touched. Resync sends them again.
     sync_error: "last error: %{error}"
     refresh: Refresh
     target_managed: a Pando server that Bitacora starts on this computer
     consent_title: Send this graph's notes to Pando?
     consent_body: "Indexed blocks of this graph are sent to %{target} and stored in Pando's shared knowledge base, the agent memory. Any Pando agent or client that searches that knowledge base can read them, not only Bitacora. Pages marked private:: true and your exclusions are never sent. Agents cannot edit your notes unless you turn that on separately. You can revoke this at any time and remove what was sent."
-    revoke_title: Revoke consent?
-    revoke_body: Bitacora stops sending and the documents already sent are removed from Pando.
     purge_title: Revoke consent and remove your data?
-    purge_body: Bitacora stops sending and deletes every document of this graph from Pando's knowledge base.
+    purge_body: Revokes your consent, deletes every document of this graph from Pando's knowledge base, stops sync, chat and agent access to this graph, and clears the tool decisions Bitacora remembered. Your graph files and the local index are never touched. Agree again to re-enable it.
   mode:
     reindex: Rebuilds the index
     restart: Restart required

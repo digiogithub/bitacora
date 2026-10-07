@@ -96,7 +96,6 @@ settings:
     consent_given_undated: Aceptaste.
     consent_missing: No se envía nada de este grafo a Pando hasta que aceptes.
     grant: Revisar y aceptar...
-    revoke: Revocar consentimiento
     revoke_purge: Revocar y eliminar mis datos
     agent_writes: Permitir que los agentes editen este grafo
     agent_writes_help: Desactivado por defecto. Si se activa, los agentes de Pando pueden escribir por MCP; cada escritura queda auditada y se puede deshacer. Se aplica al reabrir el grafo.
@@ -104,24 +103,25 @@ settings:
     exclusions_help: Páginas, espacios de nombres, carpetas (con /) o #etiquetas. Las páginas con private:: true nunca se envían. Pulsa una entrada para quitarla.
     exclusion_placeholder: "Página, espacio de nombres, carpeta/ o #etiqueta"
     exclusion_empty: Escribe un nombre de página, una carpeta o una #etiqueta.
+    remembered: "Decisiones de herramientas recordadas"
+    remembered_help: "Respuestas que elegiste recordar en el chat. Olvida una para que vuelva a preguntarte."
+    remembered_none: "Ninguna. Las tarjetas de aprobación del chat ofrecen \"Recordar mi decisión\"."
+    remembered_allow: "permitir siempre"
+    remembered_deny: "denegar siempre"
+    forget: "Olvidar"
     exclusion_remove: quitar
     activity: Actividad
     sync: Sincronización semántica
     sync_counts: "%{synced} documentos en Pando, %{pending} en espera."
     sync_none: No está en marcha.
     resync: Resincronizar
-    purge_index: Quitar datos semánticos
-    purge_index_title: ¿Quitar los datos semánticos de este grafo?
-    purge_index_body: Los bloques del grafo se borran del índice semántico de Pando. Tus archivos no se tocan. Resincronizar los envía de nuevo.
     sync_error: "último error: %{error}"
     refresh: Actualizar
     target_managed: un servidor Pando que Bitacora arranca en este equipo
     consent_title: "¿Enviar las notas de este grafo a Pando?"
     consent_body: "Los bloques indexados de este grafo se envían a %{target} y se guardan en la base de conocimiento compartida de Pando, la memoria de los agentes. Cualquier agente o cliente de Pando que busque en esa base puede leerlos, no solo Bitacora. Las páginas con private:: true y tus exclusiones nunca se envían. Los agentes no pueden editar tus notas salvo que lo actives aparte. Puedes revocarlo cuando quieras y eliminar lo enviado."
-    revoke_title: "¿Revocar el consentimiento?"
-    revoke_body: Bitacora deja de enviar y los documentos ya enviados se eliminan de Pando.
     purge_title: "¿Revocar el consentimiento y eliminar tus datos?"
-    purge_body: Bitacora deja de enviar y borra todos los documentos de este grafo de la base de conocimiento de Pando.
+    purge_body: Revoca tu consentimiento, borra todos los documentos de este grafo de la base de conocimiento de Pando, detiene la sincronización, el chat y el acceso de los agentes a este grafo, y borra las decisiones de herramientas que Bitacora recordaba. Los archivos del grafo y el índice local no se tocan. Vuelve a aceptar para reactivarlo.
   mode:
     reindex: Reconstruye el índice
     restart: Requiere reiniciar
