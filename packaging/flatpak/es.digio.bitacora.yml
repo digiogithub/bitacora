@@ -32,6 +32,13 @@ finish-args:
   - --filesystem=xdg-documents
 
 build-options:
+  # The SDK injects -O2 (and hardening flags) into CFLAGS/CXXFLAGS, which cc-rs appends *after* the
+  # crate's own flags. aws-lc-sys compiles jitterentropy with -O0 and its source `#error`s on any
+  # optimisation, so the SDK defaults are replaced; Rust code is unaffected (cargo --release).
+  cflags: -g
+  cflags-override: true
+  cxxflags: -g
+  cxxflags-override: true
   append-path: /usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm20/bin
   env:
     CARGO_HOME: /run/build/bitacora/cargo

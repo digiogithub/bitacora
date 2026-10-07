@@ -179,7 +179,8 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           dmg=$(ls target/packager/*.dmg | head -n1)
-          hdiutil attach "$dmg" -mountpoint "$RUNNER_TEMP/mnt" -nobrowse
+          # The DMG embeds a license agreement (LICENSE); without a TTY hdiutil cancels unless it is accepted.
+          echo Y | hdiutil attach "$dmg" -mountpoint "$RUNNER_TEMP/mnt" -nobrowse -noverify
           test -d "$RUNNER_TEMP/mnt/Bitacora.app"
           mkdir -p "$RUNNER_TEMP/graph"
           "$RUNNER_TEMP/mnt/Bitacora.app/Contents/MacOS/bitacora" --graph "$RUNNER_TEMP/graph" --smoke-test 2>&1 | tee smoke.log || true
