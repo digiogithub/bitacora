@@ -2,7 +2,7 @@
 id: BIT-T-0440
 type: task
 title: ADR-030 and semantic-search design doc
-status: backlog
+status: done
 priority: medium
 parent: BIT-US-0142
 milestone: BIT-M-0007
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, docs]
 estimate: 1
 created: 2026-10-07T09:17:36Z
-updated: 2026-10-07T09:17:36Z
+updated: 2026-10-07T10:50:56Z
+closed: 2026-10-07T10:50:56Z
 ---
 
 ## Description

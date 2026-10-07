@@ -2,7 +2,7 @@
 id: BIT-T-0441
 type: task
 title: Machine-local semantic sync ledger and outbox
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0143
 milestone: BIT-M-0007
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, bitacora-pando, schema]
 estimate: 2
 created: 2026-10-07T09:17:36Z
-updated: 2026-10-07T09:54:52Z
+updated: 2026-10-07T10:50:56Z
+closed: 2026-10-07T10:50:56Z
 ---
 
 ## Description
