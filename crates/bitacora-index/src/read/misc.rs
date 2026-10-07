@@ -280,7 +280,8 @@ impl IndexReader {
         Ok(groups)
     }
 
-    /// Number of open tasks dated before `today` (`yyyyMMdd`).
+    /// Number of open tasks dated before `today` (`yyyyMMdd`); the one overdue count shared by
+    /// the Tasks view and the sidebar badge.
     pub fn overdue_count(&self, today: i64) -> Result<usize, Error> {
         let conn = self.conn()?;
         let n: i64 = conn.query_row(
@@ -382,6 +383,34 @@ impl IndexReader {
                 .then_with(|| a.task.block.ord.cmp(&b.task.block.ord))
         });
         Ok(out)
+    }
+
+    /// Journal days (`yyyyMMdd`) within `[from_day, to_day]` whose page has at least one
+    /// non-blank block (the calendar's "has notes" dots), ascending.
+    pub fn journal_days_with_notes(&self, from_day: i64, to_day: i64) -> Result<Vec<i64>, Error> {
+        let conn = self.conn()?;
+        let mut st = conn.prepare_cached(
+            "SELECT p.journal_day FROM pages p WHERE p.is_journal = 1 AND p.file_id IS NOT NULL \
+             AND p.journal_day BETWEEN ?1 AND ?2 \
+             AND EXISTS (SELECT 1 FROM blocks b WHERE b.page_id = p.id AND b.is_pre_block = 0 \
+                         AND trim(b.content, ' ' || char(9) || char(10) || char(13)) <> '') \
+             ORDER BY p.journal_day",
+        )?;
+        let rows = st
+            .query_map(params![from_day, to_day], |r| r.get::<_, i64>(0))?
+            .collect::<Result<_, _>>()?;
+        Ok(rows)
+    }
+
+    /// Number of pages backed by a file (journals included), for the sidebar footer.
+    pub fn file_page_count(&self) -> Result<usize, Error> {
+        let conn = self.conn()?;
+        let n: i64 = conn.query_row(
+            "SELECT count(*) FROM pages WHERE file_id IS NOT NULL AND is_builtin = 0",
+            [],
+            |r| r.get(0),
+        )?;
+        Ok(usize::try_from(n).unwrap_or(0))
     }
 
     /// Direct namespace children of a page, by name.

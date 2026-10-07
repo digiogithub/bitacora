@@ -13,6 +13,17 @@ sidebar:
   empty: Todavía no hay nada aquí
   no_graph: Ningún grafo abierto
   graph_view: Vista de grafo
+  tasks: Tareas
+  graph: Grafo
+  overdue: "%{count} tareas vencidas"
+  pages_count: "%{count} páginas"
+  mcp_active: Servidor MCP activo
+  go_to_date: Ir a fecha...
+calendar:
+  prev_month: Mes anterior
+  next_month: Mes siguiente
+  weekdays: "L M X J V S D"
+  months: "enero,febrero,marzo,abril,mayo,junio,julio,agosto,septiembre,octubre,noviembre,diciembre"
 all_pages:
   title: Todas las páginas
   name: Nombre

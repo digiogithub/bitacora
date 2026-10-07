@@ -130,7 +130,9 @@ impl MainView {
     pub fn current_page_id(&self, cx: &App) -> Option<i64> {
         match self.route()? {
             Route::Page(_) => self.page.read(cx).header().page_id,
-            Route::Journals | Route::AllPages | Route::Graph | Route::Tasks | Route::Block(_) => None,
+            Route::Journals | Route::AllPages | Route::Graph | Route::Tasks | Route::Block(_) => {
+                None
+            }
         }
     }
 

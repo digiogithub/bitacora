@@ -197,6 +197,7 @@ impl Workspace {
         skin.set_toggle_button_visible(false, cx);
         let mut subscriptions = vec![cx.subscribe_in(&dock, window, Self::on_dock_event)];
         subscriptions.push(cx.observe(&sidebar, |_, _, cx| cx.notify()));
+        subscriptions.push(cx.observe(&status, |this, _, cx| this.sync_sidebar_footer(cx)));
         subscriptions.push(cx.subscribe_in(&picker, window, Self::on_picker_event));
         subscriptions.push(cx.observe(&main, |_, _, cx| cx.notify()));
         subscriptions.push(cx.subscribe_in(&main, window, Self::on_main_event));
@@ -580,6 +581,8 @@ impl Workspace {
         self.day_task = None;
         self.rollover = None;
         self.handle = None;
+        self.sidebar
+            .update(cx, |sidebar, cx| sidebar.set_handle(None, cx));
         self.hub.update(cx, |hub, _| hub.set_handle(None));
         self.graph_root = None;
         crate::theme::set_graph_css(cx, None);
@@ -1009,8 +1012,10 @@ impl Workspace {
                 self.hub
                     .update(cx, |hub, _| hub.set_handle(Some(handle.clone())));
                 let favorites = handle.settings.config.favorites();
-                self.sidebar
-                    .update(cx, |sidebar, cx| sidebar.set_favorites(favorites, cx));
+                self.sidebar.update(cx, |sidebar, cx| {
+                    sidebar.set_favorites(favorites, cx);
+                    sidebar.set_handle(Some(handle.clone()), cx);
+                });
                 self.stack
                     .update(cx, |stack, cx| stack.set_graph(handle.clone(), cx));
                 for (ix, pane) in self.panes(cx).into_iter().enumerate() {
@@ -1025,6 +1030,8 @@ impl Workspace {
             }
             SessionEvent::Index(event) => {
                 crate::views::widgets::on_index_event(&event, cx);
+                self.sidebar
+                    .update(cx, |sidebar, cx| sidebar.on_index_changed(cx));
                 for pane in self.panes(cx) {
                     pane.update(cx, |main, cx| main.on_index_event(&event, cx));
                 }
@@ -1153,13 +1160,37 @@ impl Workspace {
             SidebarEvent::Navigate(Target::Journals) => self.navigate(Route::Journals, cx),
             SidebarEvent::Navigate(Target::AllPages) => self.navigate(Route::AllPages, cx),
             SidebarEvent::Navigate(Target::Graph) => self.navigate(Route::Graph, cx),
+            SidebarEvent::Navigate(Target::Tasks) => self.navigate(Route::Tasks, cx),
             SidebarEvent::Navigate(Target::Page(name)) => {
                 self.navigate(Route::Page(name.clone()), cx);
             }
             SidebarEvent::OpenInSidebar(name) => {
                 self.open_in_right_sidebar(Route::Page(name.clone()), window, cx);
             }
+            SidebarEvent::OpenJournalDay(day) => {
+                let title = self.handle.as_ref().and_then(|handle| {
+                    let date = bitacora_core::date::Date::from_journal_day(*day)?;
+                    Some(data::journal_title(handle, date))
+                });
+                if let Some(title) = title {
+                    self.navigate(Route::Page(title), cx);
+                }
+            }
+            SidebarEvent::GoToDate => self
+                .palette
+                .update(cx, |palette, cx| palette.open_commands(window, cx)),
         }
+    }
+
+    /// Mirrors the status bar's MCP and sync slots into the sidebar footer.
+    fn sync_sidebar_footer(&mut self, cx: &mut Context<Self>) {
+        let (mcp, sync) = {
+            let bar = self.status.read(cx);
+            (bar.slot(Slot::Mcp), bar.slot(Slot::Sync))
+        };
+        let endpoint = self.mcp_endpoint().map(str::to_owned);
+        self.sidebar
+            .update(cx, |s, cx| s.set_footer_status(mcp, endpoint, sync, cx));
     }
 
     /// Navigates the primary pane.
@@ -1211,6 +1242,15 @@ impl Workspace {
                 };
                 self.stack
                     .update(cx, |stack, cx| stack.set_local_page(local, cx));
+                let day = match (route, &self.handle) {
+                    (Route::Page(name), Some(handle)) => {
+                        bitacora_core::journal::detect_journal(name, &handle.settings.config)
+                            .map(|j| j.journal_day)
+                    }
+                    _ => None,
+                };
+                self.sidebar
+                    .update(cx, |sidebar, cx| sidebar.set_selected_day(day, cx));
                 let key = match route {
                     Route::Page(name) => Some(PageKey::from_title(name)),
                     _ => None,

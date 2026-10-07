@@ -224,7 +224,10 @@ impl RightSidebar {
 
     /// Shows `route` at the top of the stack; an item already showing it moves up and unfolds.
     pub fn open(&mut self, route: Route, cx: &mut Context<Self>) {
-        if matches!(route, Route::Journals | Route::AllPages | Route::Graph | Route::Tasks) {
+        if matches!(
+            route,
+            Route::Journals | Route::AllPages | Route::Graph | Route::Tasks
+        ) {
             return;
         }
         if let Some(ix) = self.items.iter().position(|i| i.route == route) {
