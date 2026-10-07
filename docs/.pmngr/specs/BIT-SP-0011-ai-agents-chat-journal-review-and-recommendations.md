@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [ai, pando, agui, v2]
 created: 2026-10-07T09:08:04Z
-updated: 2026-10-07T12:26:06Z
+updated: 2026-10-07T12:50:40Z
 requirements:
   R1:
     status: backlog
@@ -54,6 +54,14 @@ requirements:
     status: backlog
   R6:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-pando/src/agents/compose.rs
+        - crates/bitacora-app/src/editor/view/ai.rs
+        - crates/bitacora-app/src/editor/ai_view.rs
+      tests:
+        - crates/bitacora-pando/tests/agents_compose.rs
+        - crates/bitacora-app/src/editor/tests/ai_tests.rs
 ---
 
 ## Purpose
