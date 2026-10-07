@@ -34,6 +34,9 @@ mod store;
 mod sync_ctl;
 mod writer;
 
+pub use bitacora_pando::agents::{
+    AgentError, ComposeDeps, ComposeMode, ComposeRequest, run_compose as run_agent_compose,
+};
 pub use bitacora_pando::semantic::{
     HybridHit, HybridOptions, HybridResults, HybridSearch, HybridTarget, SemanticState, Unavailable,
 };

@@ -8,7 +8,7 @@
 use std::rc::Rc;
 
 use super::layout::BlockLayout;
-use super::style::{Palette, TextMetrics, source_runs, style_runs};
+use super::style::{Palette, TextMetrics, ghost_run, source_runs, style_runs};
 use super::view::OutlineEditor;
 use crate::ui::button::{Button, ButtonVariants as _};
 use crate::ui::text_edit::{
@@ -75,12 +75,21 @@ impl Element for BlockTextElement {
     ) -> (LayoutId, Self::RequestLayoutState) {
         let metrics = TextMetrics::from_window(window);
         let editor = self.editor.read(cx);
-        let text: SharedString = editor.buffer_text().unwrap_or("").to_owned().into();
-        let runs = style_runs(
-            source_runs(&text, editor.marked_range()),
+        let palette = Palette::from_theme(cx);
+        let base = editor.buffer_text().unwrap_or("");
+        let mut runs = style_runs(
+            source_runs(base, editor.marked_range()),
             &metrics.font,
-            &Palette::from_theme(cx),
+            &palette,
         );
+        // An unaccepted AI continuation is shaped after the text (BIT-US-0153).
+        let text: SharedString = match editor.ghost() {
+            Some(ghost) => {
+                runs.push(ghost_run(ghost.len(), &metrics.font, &palette));
+                format!("{base}{ghost}").into()
+            }
+            None => base.to_owned().into(),
+        };
         let mut style = Style::default();
         style.size.width = relative(1.).into();
         let layout_id =
@@ -361,8 +370,17 @@ pub fn edit_content(
     theme: &crate::ui::theme::Theme,
     design: &BitacoraTheme,
     popup: Option<PopupData>,
+    ai: Option<super::ai::AiView>,
 ) -> AnyElement {
     let popup = completion_popup(&editor, theme, design, popup);
+    let (hint, compose) = match ai {
+        Some(ai) => (
+            ai.ghost_hint.then(|| super::ai_view::hint_bar(design)),
+            ai.compose
+                .map(|c| super::ai_view::compose_box(editor.clone(), c, design.clone())),
+        ),
+        None => (None, None),
+    };
     let down = editor.clone();
     let moved = editor.clone();
     let up = editor.clone();
@@ -393,7 +411,9 @@ pub fn edit_content(
                 })
                 .child(BlockTextElement::new(editor)),
         )
+        .children(hint)
         .children(popup)
+        .children(compose)
         .into_any_element()
 }
 

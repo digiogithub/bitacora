@@ -486,6 +486,20 @@ impl Session {
         ))
     }
 
+    /// Dependencies for compose and ghost-text runs ([`bitacora_pando::agents::run_compose`]).
+    /// Run it on [`PandoService::handle`] or any tokio runtime.
+    ///
+    /// # Errors
+    /// [`RuntimeError::Agent`] when agents are unavailable.
+    pub fn compose_deps(&self) -> Result<bitacora_pando::agents::ComposeDeps, RuntimeError> {
+        let agui = self.require_agents()?;
+        Ok(bitacora_pando::agents::ComposeDeps::new(
+            agui,
+            self.agent_guard(),
+            Arc::new(self.index.read_api()),
+        ))
+    }
+
     /// Starts a chat session on the Pando service's runtime. The returned handle sends messages,
     /// answers approval cards and cancels; the receiver delivers
     /// [`bitacora_pando::agents::ChatEvent`]s (fold them with `ChatModel`). `host` is the app's

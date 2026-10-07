@@ -470,6 +470,12 @@ impl Workspace {
             }
         };
         self.session_handle = session.handle();
+        crate::editor::ai::install(
+            cx,
+            self.session_handle
+                .clone()
+                .map(|h| std::rc::Rc::new(crate::editor::ai::SessionAiBackend::new(h)) as _),
+        );
         self.session = Some(session);
         self.settings.update(cx, |s, cx| {
             s.set_mcp_endpoint(None, cx);
@@ -588,6 +594,7 @@ impl Workspace {
     /// Stops the current session; the index is closed on a background thread so a still
     /// running reconcile never blocks the UI.
     fn close_session(&mut self, cx: &mut Context<Self>) {
+        crate::editor::ai::install(cx, None);
         self.session_task = None;
         if let Some(session) = self.session.take() {
             cx.background_spawn(async move { session.close() }).detach();

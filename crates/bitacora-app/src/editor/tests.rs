@@ -217,6 +217,7 @@ fn pair(depth: usize, text: &str) -> (usize, String) {
     (depth, text.to_owned())
 }
 
+mod ai_tests;
 mod dnd_tests;
 mod slash_tests;
 

@@ -146,7 +146,21 @@
       "escape": "outliner::ExitEdit",
       "ctrl-cmd-space": "outliner::ShowCharacterPalette",
       "secondary-e": "outliner::CopyEmbed",
-      "secondary-alt-backspace": "outliner::DeleteAsset"
+      "secondary-alt-backspace": "outliner::DeleteAsset",
+      "secondary-j": "outliner::AiCompose"
+    }
+  },
+  {
+    "context": "GhostText",
+    "bindings": {
+      "tab": "outliner::AcceptGhost",
+      "escape": "outliner::DismissGhost"
+    }
+  },
+  {
+    "context": "ComposeBox",
+    "bindings": {
+      "escape": "outliner::DismissCompose"
     }
   },
   {

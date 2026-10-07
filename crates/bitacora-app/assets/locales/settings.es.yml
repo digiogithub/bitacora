@@ -162,6 +162,10 @@ settings:
     template: Plantilla de diario predeterminada
     template_help: Nombre de la plantilla que se aplica a los diarios nuevos (:default-templates).
     template_placeholder: Nombre de la plantilla
+    ai_compose: "Cuadro Componer con IA"
+    ai_compose_help: "Pide a un agente que escriba texto con Ctrl/Cmd+J. Requiere Pando conectado y consentimiento para este grafo; las páginas excluidas y privadas nunca se envían."
+    ai_ghost: "Texto fantasma de IA"
+    ai_ghost_help: "Sugiere una continuación en ámbar tras una pausa al escribir. Tab la acepta, Esc o seguir escribiendo la descarta. Nunca durante la composición IME."
   search:
     substring: Búsqueda por subcadenas
     substring_help: Mantiene un índice de trigramas para encontrar fragmentos dentro de palabras y texto CJK. Desactivarlo reduce el índice a la mitad aproximadamente.

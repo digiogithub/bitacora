@@ -39,6 +39,7 @@ use crate::ui::{
     Subscription, Window, div, notify, px,
 };
 
+mod ai;
 mod dnd;
 mod slash;
 
@@ -173,6 +174,8 @@ pub struct OutlineEditor {
     clock: Clock,
     /// The trigger the user dismissed with Esc (it stays closed until the text leaves it).
     dismissed: Option<usize>,
+    /// AI help: ghost text and the compose box (BIT-US-0153).
+    ai: super::ai::AiState,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -255,6 +258,7 @@ impl OutlineEditor {
             scroll_task: None,
             clock: slash::system_clock(),
             dismissed: None,
+            ai: super::ai::AiState::default(),
             _subscriptions: subscriptions,
         }
     }
@@ -461,6 +465,8 @@ impl OutlineEditor {
                 "Outliner BlockEditor Autocomplete DatePicker"
             } else if self.completion.is_some() {
                 "Outliner BlockEditor Autocomplete"
+            } else if self.ghost().is_some() {
+                "Outliner BlockEditor GhostText"
             } else {
                 "Outliner BlockEditor"
             }
@@ -775,7 +781,7 @@ impl OutlineEditor {
 
     fn on_blur(&mut self, cx: &mut Context<Self>) {
         // Clicking the calendar moves the focus into it; the block stays in edit mode.
-        if self.edit.is_some() && self.picker.is_none() {
+        if self.edit.is_some() && self.picker.is_none() && self.ai.compose.is_none() {
             self.exit_edit(cx);
         }
     }
@@ -788,6 +794,7 @@ impl OutlineEditor {
         self.completion = None;
         self.picker = None;
         self.dismissed = None;
+        self.ai_reset();
         self.reload_outline();
         if let Some(r) = self.rebuild_row_model(e.id) {
             cx.emit(EditorEvent::Row(r));
@@ -796,6 +803,7 @@ impl OutlineEditor {
     }
 
     fn exit_edit_silent(&mut self) {
+        self.ai_reset();
         if self.edit.take().is_some() {
             self.queue.set_editing_block(None);
             if let Some(gate) = &self.gate {
@@ -964,16 +972,23 @@ impl OutlineEditor {
         palette: &Palette,
         window: &Window,
     ) -> Rc<BlockLayout> {
-        let runs = style_runs(source_runs(text, marked), &metrics.font, palette);
+        let mut runs = style_runs(source_runs(text, marked), &metrics.font, palette);
+        // The edited block is shaped with its unaccepted AI continuation (BIT-US-0153).
+        let ghost = self
+            .edit
+            .as_ref()
+            .filter(|e| e.buf.text() == text)
+            .and_then(|_| self.ghost());
+        let shaped = match ghost {
+            Some(g) => {
+                runs.push(super::style::ghost_run(g.len(), &metrics.font, palette));
+                format!("{text}{g}")
+            }
+            None => text.to_owned(),
+        };
         let lines = window
             .text_system()
-            .shape_text(
-                text.to_owned().into(),
-                metrics.font_size,
-                &runs,
-                Some(width),
-                None,
-            )
+            .shape_text(shaped.into(), metrics.font_size, &runs, Some(width), None)
             .map(|l| l.into_iter().collect::<Vec<_>>())
             .unwrap_or_default();
         Rc::new(BlockLayout::new(lines, metrics.line_height))
@@ -1297,12 +1312,19 @@ impl OutlineEditor {
             })
         };
         let popup = this.popup_data();
+        let ai_view = if editing { this.ai_view(cx) } else { None };
         let design = cx.bitacora().clone();
         let element = editing.then(|| {
             let ed = ed.clone();
             let popup = popup.clone();
             Rc::new(move |theme: &crate::ui::theme::Theme| {
-                super::element::edit_content(ed.clone(), theme, &design, popup.clone())
+                super::element::edit_content(
+                    ed.clone(),
+                    theme,
+                    &design,
+                    popup.clone(),
+                    ai_view.clone(),
+                )
             }) as Rc<dyn Fn(&crate::ui::theme::Theme) -> _>
         });
         let conflict = if editing {
@@ -1396,6 +1418,7 @@ impl OutlineEditor {
         self.schedule_flush(cx);
         self.restart_blink(cx);
         self.update_completion();
+        self.ai_on_edit(cx);
         if let Some(r) = self.row_of(id) {
             cx.emit(EditorEvent::Row(r));
         }
@@ -1407,6 +1430,7 @@ impl OutlineEditor {
         f(&mut e.buf);
         e.goal_x = None;
         self.restart_blink(cx);
+        self.ai_on_motion(cx);
         let before = self.completion.is_some();
         self.update_completion();
         if (before || self.completion.is_some())
@@ -2807,6 +2831,7 @@ impl OutlineEditor {
         cx: &mut Context<Self>,
     ) {
         self.focus_handle.focus(window, cx);
+        self.ai_cancel(cx);
         let Some(offset) = self.offset_at(position) else {
             return;
         };
@@ -2917,6 +2942,10 @@ pub fn attach<E: crate::ui::InteractiveElement>(
         actions::CompletionNext => on_completion_next,
         actions::CompletionPrevious => on_completion_previous,
         actions::DismissCompletion => on_dismiss_completion,
+        actions::AiCompose => on_ai_compose,
+        actions::AcceptGhost => on_accept_ghost,
+        actions::DismissGhost => on_dismiss_ghost,
+        actions::DismissCompose => on_dismiss_compose,
         actions::PickerPreviousDay => on_picker_previous,
         actions::PickerNextDay => on_picker_next,
     );

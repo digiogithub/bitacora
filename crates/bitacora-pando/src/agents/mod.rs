@@ -11,6 +11,7 @@
 //! - [`lookup`]: [`BlockLookup`], the index reads review and recommendations validate against.
 //! - [`runs`]: one-shot runs and tolerant JSON extraction.
 //! - [`review`] / [`cache`]: the journal review, its machine-local cache and optional schedule.
+//! - [`compose`]: the editor compose box and ghost-text continuations.
 //! - [`recommend`]: recommendations and the debounced auto mode.
 //!
 //! Profiles come from the managed `.pando.toml` ([`crate::managed::config::PROFILES`]); this
@@ -19,6 +20,7 @@
 pub mod approvals;
 pub mod cache;
 pub mod chat;
+pub mod compose;
 pub mod edits;
 pub mod guard;
 pub mod lookup;
@@ -36,6 +38,7 @@ pub use chat::{
     ApprovalCard, CHAT_PROFILE, CardKind, CardState, ChatConfig, ChatDeps, ChatEvent, ChatHandle,
     ChatMessage, ChatModel, ChatSession, RunEnd, WRITER_PROFILE,
 };
+pub use compose::{ComposeDeps, ComposeMode, ComposeRequest, PageLookup, PageMeta, run_compose};
 pub use edits::{
     AppliedEdit, AuditSink, EditApplier, EditError, EditOp, Place, Preview, Proposal,
     QueueEditApplier, validate,

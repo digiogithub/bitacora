@@ -44,6 +44,20 @@ pub struct AppSettings {
     /// Reopen the most recent graph at startup instead of showing the picker (BIT-US-0165).
     /// On by default.
     pub reopen_last_graph: bool,
+    /// AI help inside the editor (BIT-US-0153).
+    pub ai_assist: AiAssistSettings,
+}
+
+/// AI help inside the editor: the compose box and the inline ghost text. Both need Pando
+/// connected with the graph's consent, and never touch excluded or private pages; both are off
+/// until the user turns them on.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct AiAssistSettings {
+    /// The "Compose with AI" box (Ctrl/Cmd+J).
+    pub compose: bool,
+    /// Inline continuations after a pause in typing.
+    pub ghost_text: bool,
 }
 
 impl Default for AppSettings {
@@ -58,6 +72,7 @@ impl Default for AppSettings {
             language: None,
             reduce_motion: false,
             reopen_last_graph: true,
+            ai_assist: AiAssistSettings::default(),
         }
     }
 }
@@ -217,6 +232,10 @@ mod tests {
             language: Some("es".into()),
             reduce_motion: true,
             reopen_last_graph: false,
+            ai_assist: AiAssistSettings {
+                compose: true,
+                ghost_text: false,
+            },
         };
         settings.save(&path).expect("save");
         assert_eq!(AppSettings::load(&path), settings);
@@ -224,6 +243,14 @@ mod tests {
         assert_eq!(AppSettings::load(&path).mode, ThemePreference::Light);
         // A file written before the setting existed still reopens the last graph.
         assert!(AppSettings::load(&path).reopen_last_graph);
+        // AI help in the editor is off until the user turns it on.
+        assert_eq!(
+            AppSettings::load(&path).ai_assist,
+            AiAssistSettings {
+                compose: false,
+                ghost_text: false
+            }
+        );
     }
 
     #[test]

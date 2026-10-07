@@ -54,6 +54,23 @@ Cache (`cache::ReviewCache`): machine-local JSON file `agent-reviews.json` in th
 
 `recommend::run_recommend(&RecommendDeps, &RecommendRequest { page })` runs `bitacora-recommender` the same way. Schema: `related_pages`, `link_suggestions { block_uuid, text, target }`, `tag_suggestions`, `next_actions`. Validation (`parse_suggestions`): link suggestions must name an existing block of the requested page that the guard allows, quote text that is really in the block now (on word boundaries, outside `[[links]]`, code spans, URLs, `](..)` and property lines; stated `start/end` must match) and target a page that is not excluded; the result carries the byte range to replace. Invalid items are dropped and counted (`dropped_links`, `dropped_other`). The page itself must not be excluded. `AutoRecommender` is the optional auto mode: off by default, `touch(page, now)` restarts a debounce, `poll(now, gate)` returns the page to recommend for once the quiet period passed, no run is in flight, the minimum gap since the last start elapsed and Pando is connected with consent. Dismissal memory ("not re-offered for the same content") belongs to the UI story.
 
+## 8. Compose and ghost text in the editor (BIT-US-0153)
+
+`compose::run_compose(&ComposeDeps, &ComposeRequest, on_preview)` runs `bitacora-writer` (the profile from the managed config, no server changes) as a streaming one-shot with **no frontend tools**: the answer is plain text, never an edit the agent applies. Two modes: `Compose` (the user's instruction, the block as optional context) and `Continue` (ghost text: continue the text before the caret, at most two sentences). `on_preview` receives the whole text so far each time it grows; dropping the future cancels the run on the server (`CancelOnDrop`).
+
+Gate first: `check_allowed` refuses with `AgentError::Unavailable` before any request when the graph has no consent, the page is excluded by name, namespace, path or tag, the page or the block is `private:: true`. `PageLookup` (implemented for `IndexReader`) supplies path, tags and the page privacy flag. Session accessor: `Session::compose_deps()`.
+
+App side (`crates/bitacora-app/src/editor/`): `ai.rs` (pure decisions, `AiBackend` global, `SessionAiBackend` on the app's tokio runtime), `view/ai.rs` (editor state and key handling), `ai_view.rs` (drawing with the kit's `PopoverShell`, `Button::ai`, `Chip`, `Kbd` and the `ai`, `ai_bg`, `ai_line` tokens). Settings (`AppSettings::ai_assist`, Settings, Editor): `compose` and `ghost_text`, both **off by default**.
+
+- Ghost text: after `GHOST_DELAY` (1.2 s) without a keystroke, only with the caret at the end of a block with enough text, never on a property line, never during IME composition, never with a popup open. Each keystroke drops the pending timer and the request in flight. The suggestion is shaped after the text in `ai` at 85 % with a hint bar (`Tab` accept, `Esc` dismiss). Typing, caret moves, clicks, composition and leaving the block discard it. A failed request pauses requests for a minute. Tab inserts the text as a `Cmd::SetText` of its own undo step (after flushing what was typed), so `Ctrl/Cmd+Z` removes only the suggestion.
+- Compose box (`Ctrl/Cmd+J`, `outliner::AiCompose`): anchored under the edited block, instruction field, context chips ("this block" toggles whether the block text is sent), streaming amber draft, **Insert below** (one `InsertBlocks` / `InsertSibling` transaction), **Replace block** (one `SetText`), **Retry**, **Discard** (Esc). Nothing reaches the page until Insert or Replace.
+
+Requirements of this section:
+
+- MUST NOT send anything for pages the guard hides; the editor adds no bypass (a private block is also refused editor-side).
+- MUST NOT interrupt IME composition or block typing: requests are debounced, async and cancelled by the next keystroke.
+- MUST apply accepted text only through the core command queue as a normal undoable edit.
+
 ## Requirements
 
 - MUST NOT apply an agent edit except through `QueueEditApplier` after an explicit approval of the exact card.

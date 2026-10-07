@@ -72,6 +72,20 @@ editor:
     at_edge: El bloque no se puede mover más.
     move_caret: "Mueve el cursor a la posición %{offset}."
     nothing_applicable: Ningún bloque seleccionado tiene lo que el comando necesita.
+  ai:
+    unavailable: "Redactar con IA está desactivado o Pando no está conectado. Actívalo en Ajustes, Editor."
+    private: "Este bloque es privado y nunca se envía a un agente."
+    placeholder: "Pide al asistente que escriba..."
+    suggestion: Sugerencia
+    accept: aceptar
+    dismiss: descartar
+    context: "Contexto:"
+    this_block: Este bloque
+    generate: Redactar
+    insert_below: Insertar debajo
+    replace: Reemplazar bloque
+    retry: Reintentar
+    discard: Descartar
 sync:
   onboarding:
     git_hint: Instalar git da acceso a tu agente SSH y a los gestores de credenciales.
