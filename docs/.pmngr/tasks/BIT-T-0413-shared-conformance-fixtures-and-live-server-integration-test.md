@@ -2,7 +2,7 @@
 id: BIT-T-0413
 type: task
 title: Shared conformance fixtures and live-server integration test
-status: in_progress
+status: done
 priority: medium
 parent: BIT-US-0131
 milestone: BIT-M-0007
@@ -10,8 +10,9 @@ author: mcp
 labels: [v2, pando-repo, tests]
 estimate: 2
 created: 2026-10-07T09:15:16Z
-updated: 2026-10-07T10:41:12Z
+updated: 2026-10-07T10:45:40Z
 started: 2026-10-07T10:41:12Z
+closed: 2026-10-07T10:45:40Z
 ---
 
 ## Description
