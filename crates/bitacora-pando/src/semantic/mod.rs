@@ -10,6 +10,7 @@
 
 pub mod doc;
 pub mod ledger;
+pub mod search;
 pub mod session;
 pub mod source;
 pub mod worker;
@@ -19,6 +20,10 @@ pub use doc::{
     doc_id, doc_prefix, map_block,
 };
 pub use ledger::{Ledger, Op, OutboxEntry, StateEntry};
+pub use search::{
+    HybridHit, HybridOptions, HybridResults, HybridSearch, HybridTarget, Remote, SemanticState,
+    Unavailable,
+};
 pub use session::{LEDGER_FILE, SessionInputs, start_session};
 pub use source::{DocSource, IndexSource, SharedPolicy};
 pub use worker::{

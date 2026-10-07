@@ -327,6 +327,12 @@ impl SemanticWorker {
         self.reconcile();
     }
 
+    /// The content policy the worker and the searchers share.
+    #[must_use]
+    pub fn policy(&self) -> SharedPolicy {
+        Arc::clone(&self.policy)
+    }
+
     /// Re-diffs the whole graph (after the exclusions changed, for instance).
     pub fn reconcile(&self) {
         let _ = self.cmd.send(Cmd::Reconcile);

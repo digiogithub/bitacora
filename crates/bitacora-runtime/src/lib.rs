@@ -31,6 +31,9 @@ mod store;
 mod sync_ctl;
 mod writer;
 
+pub use bitacora_pando::semantic::{
+    HybridHit, HybridOptions, HybridResults, HybridTarget, SemanticState, Unavailable,
+};
 pub use bitacora_pando::{
     PandoCredentials, PandoEvent, PandoOptions, PandoService, PandoStatus, Supervisor,
 };
