@@ -313,6 +313,11 @@ impl Workspace {
         {
             return ExternalOutcome::Unchanged;
         }
+        // The file already holds exactly what we would write: nothing to reload or merge, and
+        // block ids stay as they are (an identical echo must never change a page's identity).
+        if !self.conflicted.contains_key(key) && page.serialize() == bytes {
+            return ExternalOutcome::Unchanged;
+        }
         if !page.needs_write() {
             return match self.replace_aligned(key, bytes, None, false) {
                 Some(r) => {

@@ -364,12 +364,14 @@ impl Pump {
         })
     }
 
-    /// Applies the new `bytes` of the loaded page `key` (reload with stable block ids, or a
-    /// block-level merge when it has unsaved edits). `None` on failure.
-    fn apply(&self, key: &PageKey, path: &GraphPath, bytes: Vec<u8>) -> Option<ExternalOutcome> {
-        let req = Request::ExternalChange {
+    /// Applies the loaded page `key`'s file as it is now on disk (reload with stable block ids,
+    /// or a block-level merge when it has unsaved edits); `fallback`, the watcher's bytes, is
+    /// used only when the file cannot be read. The read happens inside the command queue, so it
+    /// cannot be overtaken by one of our own flushes. `None` on failure.
+    fn apply(&self, key: &PageKey, path: &GraphPath, fallback: Vec<u8>) -> Option<ExternalOutcome> {
+        let req = Request::ExternalReload {
             key: key.clone(),
-            bytes,
+            fallback,
         };
         match self.queue.execute(Source::External, req) {
             Ok(Response::External(out)) => Some(out),
@@ -512,12 +514,10 @@ impl Pump {
         let out = match (self.loaded_page(path), f.bytes.as_ref()) {
             (Some(key), Some(bytes)) => {
                 // The event's bytes were read some debounce intervals ago; a later write of ours
-                // (or another tool's) may have superseded them. Apply what is on disk now so a
-                // stale event can never roll a loaded page back; fall back to the event's bytes
-                // when the file cannot be read.
-                let current =
-                    std::fs::read(path.to_fs_path(&self.root)).unwrap_or_else(|_| bytes.to_vec());
-                self.apply(&key, path, current)
+                // (or another tool's) may have superseded them. The queue re-reads the file when
+                // it applies the change, so a stale event can never roll a loaded page back; the
+                // event's bytes are only the fallback for an unreadable file.
+                self.apply(&key, path, bytes.to_vec())
             }
             _ => None,
         };

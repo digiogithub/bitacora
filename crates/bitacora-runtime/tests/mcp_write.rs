@@ -997,3 +997,138 @@ fn agent_write_is_committed_by_sync_as_kind_agent_with_the_token_name() {
     assert_eq!(r["requested"], json!(true));
     env.stop();
 }
+
+/// Records what the pump saw (injected watcher events, runtime events) and prints it when the
+/// test panics, so a CI failure on another OS shows which event touched which page.
+struct Trace {
+    lines: std::cell::RefCell<Vec<String>>,
+    rx: std::sync::mpsc::Receiver<bitacora_runtime::RuntimeEvent>,
+}
+
+impl Trace {
+    fn note(&self, s: impl Into<String>) {
+        self.lines.borrow_mut().push(s.into());
+    }
+    fn drain(&self) {
+        for ev in self.rx.try_iter() {
+            self.lines.borrow_mut().push(format!("runtime: {ev:?}"));
+        }
+    }
+}
+
+impl Drop for Trace {
+    fn drop(&mut self) {
+        if std::thread::panicking() {
+            self.drain();
+            eprintln!("---- watcher/queue trace ----");
+            for l in self.lines.borrow().iter() {
+                eprintln!("{l}");
+            }
+        }
+    }
+}
+
+fn file_ev(
+    rel: &str,
+    kind: bitacora_watch::FileEventKind,
+    bytes: Option<&[u8]>,
+) -> bitacora_watch::WatchEvent {
+    bitacora_watch::WatchEvent::File(bitacora_watch::FileEvent {
+        rel_path: rel.to_owned(),
+        kind,
+        hash: bytes.map(blake3::hash),
+        bytes: bytes.map(std::sync::Arc::from),
+    })
+}
+
+/// Windows reports our own rename as Remove(old) + Create/Modify(new) with timing of its own, and
+/// events can carry bytes older than the latest write. Replaying that sequence must neither touch
+/// the loaded pages nor make the agent undo fail with `Changed`.
+#[test]
+fn windows_style_rename_events_do_not_invalidate_the_agent_undo() {
+    use bitacora_watch::FileEventKind::{Removed, Renamed, Upserted};
+    let old_bytes = "- about Old Name\n  alias-note:: x\n";
+    let linker_old = "- see [[Old Name]] and #[[Old Name]] and [[other]]\n";
+    let env = setup(Opts {
+        files: vec![
+            ("pages/p.md", PAGE),
+            ("pages/Old Name.md", old_bytes),
+            ("pages/Linker.md", linker_old),
+        ],
+        ..Opts::default()
+    });
+    let tr = Trace {
+        lines: std::cell::RefCell::new(Vec::new()),
+        rx: env.s.subscribe(),
+    };
+    let c = env.client("agent");
+    env.indexed("and [[other]]");
+    let inject = |rel: &str, kind: bitacora_watch::FileEventKind, bytes: Option<&[u8]>| {
+        tr.note(format!(
+            "inject {rel} {kind:?} len={:?}",
+            bytes.map(<[u8]>::len)
+        ));
+        env.s.inject_watch_event(file_ev(rel, kind, bytes));
+    };
+
+    let rn = c.ok(
+        "rename_page",
+        json!({"name": "Old Name", "new_name": "New Name"}),
+    );
+    tr.note("rename done (unflushed)");
+    // Before the flush: stale events for the pre-rename content and the old path's removal.
+    inject("pages/Old Name.md", Removed, None);
+    inject("pages/Old Name.md", Upserted, Some(old_bytes.as_bytes()));
+    inject("pages/Linker.md", Upserted, Some(linker_old.as_bytes()));
+    // Early echo: the destination's final bytes reported while the flush is still pending (the
+    // read in the pump then finds no file and falls back to the event's bytes).
+    let linker_expected = "- see [[New Name]] and #[[New Name]] and [[other]]\n";
+    inject(
+        "pages/New Name.md",
+        Renamed {
+            from: "pages/Old Name.md".into(),
+        },
+        Some(old_bytes.as_bytes()),
+    );
+    inject(
+        "pages/Linker.md",
+        Upserted,
+        Some(linker_expected.as_bytes()),
+    );
+    env.s.reindex().unwrap();
+    env.flush();
+    tr.note("flushed");
+    tr.drain();
+
+    // After the flush: the destination reported again with identical bytes, as a rename and as a
+    // plain modify, plus the old path's removal arriving late and a stale event.
+    let new_bytes = std::fs::read(env.graph.join("pages/New Name.md")).unwrap();
+    let linker_new = std::fs::read(env.graph.join("pages/Linker.md")).unwrap();
+    inject(
+        "pages/New Name.md",
+        Renamed {
+            from: "pages/Old Name.md".into(),
+        },
+        Some(&new_bytes),
+    );
+    inject("pages/New Name.md", Upserted, Some(&new_bytes));
+    inject("pages/Linker.md", Upserted, Some(&linker_new));
+    inject("pages/Old Name.md", Removed, None);
+    // A replace-by-rename can surface as Remove + Create of the destination.
+    inject("pages/New Name.md", Removed, None);
+    inject("pages/Linker.md", Removed, None);
+    inject("pages/New Name.md", Upserted, Some(&new_bytes));
+    inject("pages/Linker.md", Upserted, Some(&linker_new));
+    inject("pages/Linker.md", Upserted, Some(linker_old.as_bytes()));
+    env.s.reindex().unwrap();
+    tr.drain();
+
+    let r = env.s.undo_agent_entry(rn["audit_id"].as_str().unwrap());
+    tr.note(format!("undo -> {r:?}"));
+    r.unwrap();
+    env.flush();
+    assert_eq!(env.read("pages/Old Name.md"), old_bytes);
+    assert_eq!(env.read("pages/Linker.md"), linker_old);
+    assert!(!env.graph.join("pages/New Name.md").exists());
+    env.stop();
+}

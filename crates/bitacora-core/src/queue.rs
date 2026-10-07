@@ -144,6 +144,16 @@ pub enum Request {
         /// The new file content.
         bytes: Vec<u8>,
     },
+    /// Like [`Request::ExternalChange`], but the worker re-reads the page's file from its store
+    /// right before applying, so an event whose bytes were read earlier can never roll the page
+    /// back over a newer write (flushes and external changes are serialized by the worker).
+    /// `fallback` is used when the file cannot be read.
+    ExternalReload {
+        /// The loaded page.
+        key: PageKey,
+        /// Bytes reported by the watcher, used only when the file is unreadable.
+        fallback: Vec<u8>,
+    },
     /// Undo the latest committed transaction of the graph-wide history (BIT-US-0039). The
     /// cursor to restore is in the returned [`HistoryStep`].
     Undo,
@@ -1154,6 +1164,19 @@ impl Worker {
                 self.committed_checked(source, tx)
             }
             Request::ExternalChange { key, bytes } => {
+                self.ws.set_editing_block(*lock(&self.inner.editing));
+                let out = self.ws.apply_external(&key, &bytes);
+                self.drain_external();
+                Ok(Response::External(out))
+            }
+            Request::ExternalReload { key, fallback } => {
+                let path = self
+                    .ws
+                    .page(&key)
+                    .and_then(|p| p.disk_path.clone().or_else(|| p.path.clone()));
+                let bytes = path
+                    .and_then(|p| self.store.read(&p).ok().flatten())
+                    .unwrap_or(fallback);
                 self.ws.set_editing_block(*lock(&self.inner.editing));
                 let out = self.ws.apply_external(&key, &bytes);
                 self.drain_external();

@@ -9,6 +9,7 @@ use std::io;
 
 use bitacora_core::editor::{FileStat, FileStore};
 use bitacora_core::graph_path::GraphPath;
+use bitacora_core::recycle::recycle_path;
 use bitacora_watch::EchoFilter;
 
 /// Wraps a store and feeds `echo` before each write or removal.
@@ -49,6 +50,22 @@ impl<S: FileStore> FileStore for EchoStore<S> {
     fn remove(&mut self, path: &GraphPath) -> io::Result<()> {
         self.echo.record_deleted(path);
         self.inner.remove(path)
+    }
+
+    fn recycle(&mut self, path: &GraphPath) -> io::Result<Option<GraphPath>> {
+        // The move removes `path` (rename source) as far as the watcher can tell: register that
+        // before the rename, like every other deletion, and keep the real atomic move of the
+        // inner store instead of the copy + remove default.
+        self.echo.record_deleted(path);
+        self.inner.recycle(path)
+    }
+
+    fn unrecycle(&mut self, path: &GraphPath) -> io::Result<bool> {
+        // The restored file appears at `path` with the recycled bytes (rename destination).
+        if let Ok(Some(bytes)) = self.inner.read(&recycle_path(path)) {
+            self.echo.record_bytes(path.as_str(), &bytes);
+        }
+        self.inner.unrecycle(path)
     }
 
     fn list(&self, dir: &GraphPath) -> io::Result<Vec<String>> {
