@@ -12,8 +12,11 @@ tags:
 > Status: **Linux verified, macOS and Windows unverified (in_review).** Written 2026-10-07 for BIT-US-0119 /
 > BIT-T-0389; implements the investigation part of BIT-SP-0008.R4 and R5. Plan: [[bitacora-v2-plan]].
 > Pins: `gpui-pre 0.3.8` (`gpui_kit::gpui`), `gpui-component 0.7.1` (`gpui_kit::component`).
-> Proof: `crates/bitacora-app/src/spike/csd.rs`, run with `bitacora --spike-csd` (add `--smoke-test` to log the
-> granted mode and exit). The production `AppTitleBar` is BIT-US-0120; this doc does not design it.
+> The throwaway spike (`spike/csd.rs`, `--spike-csd`) was removed when the production `AppTitleBar`
+> (`views/title_bar.rs`, BIT-US-0120/0121, ADR-033) landed. Verify per OS with [[frameless-checklist]].
+>
+> **Outcome (ADR-033):** the kit `TitleBar` was *not* reused because of its fixed 34px height and private
+> constants; `AppTitleBar` ports its logic (52px, left/centre/right slots) and keeps the kit `window_border`.
 
 ## 1. Verified API surface (gpui-pre 0.3.8)
 

@@ -22,5 +22,6 @@ pub mod sync_dialog;
 #[cfg(test)]
 mod sync_flow_tests;
 pub mod sync_panel;
+pub mod title_bar;
 pub mod widgets;
 pub mod workspace;
