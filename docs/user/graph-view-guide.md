@@ -4,8 +4,8 @@ Open it from the sidebar, the palette ("Go to: Graph") or `g g`. Pages are nodes
 
 ## Interaction
 - Drag the background to pan, scroll to zoom at the cursor.
-- Click a node to open the page (Shift+click: right sidebar). Drag a node to pin it; releasing unpins it.
-- Ctrl/Cmd+click toggles a node in the **focus** set. The view shows the focus nodes plus everything within N hops (the - and + buttons, 1 to 6); "Reset focus" clears it.
+- Click a node to open the page (Shift+click: right sidebar, Ctrl/Cmd+click: new tab). Drag a node to pin it; releasing unpins it.
+- Alt+click toggles a node in the **focus** set. The view shows the focus nodes plus everything within N hops (the - and + buttons, 1 to 6); "Reset focus" clears it.
 - The local graph of the current page is in the right panel, Context tab.
 - The view refreshes by itself when pages change, without jumping.
 

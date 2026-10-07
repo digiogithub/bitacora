@@ -19,21 +19,36 @@ pub enum Route {
     Tasks,
 }
 
-/// Where a click on a ref, tag, bullet or list entry opens its target (Shift+click opens the
-/// right sidebar, BIT-US-0080).
+/// Where a click on a ref, tag, block ref, bullet, title or list entry opens its target. The one
+/// place that maps click modifiers to a destination: plain click navigates, Shift+click opens
+/// the right sidebar (BIT-US-0080), Ctrl+click (Cmd on macOS) opens a new tab.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum OpenIn {
-    /// The main area.
+    /// The main area, current tab.
     #[default]
     Main,
     /// The right sidebar stack.
     Sidebar,
+    /// A new top-bar tab; the tab the click came from keeps its route.
+    NewTab,
 }
 
 impl OpenIn {
-    /// Sidebar when Shift is held.
-    pub fn from_shift(shift: bool) -> Self {
-        if shift { Self::Sidebar } else { Self::Main }
+    /// The destination for a click with `shift` / `secondary` (Ctrl, Cmd on macOS) held. Shift
+    /// wins when both are held.
+    pub fn from_flags(shift: bool, secondary: bool) -> Self {
+        if shift {
+            Self::Sidebar
+        } else if secondary {
+            Self::NewTab
+        } else {
+            Self::Main
+        }
+    }
+
+    /// The destination for a click made with `modifiers`.
+    pub fn from_modifiers(modifiers: &crate::ui::text_edit::Modifiers) -> Self {
+        Self::from_flags(modifiers.shift, modifiers.secondary())
     }
 }
 
@@ -143,6 +158,26 @@ mod tests {
 
     fn page(name: &str) -> Route {
         Route::Page(name.into())
+    }
+
+    #[test]
+    fn click_modifiers_map_to_one_destination() {
+        assert_eq!(OpenIn::from_flags(false, false), OpenIn::Main);
+        assert_eq!(OpenIn::from_flags(true, false), OpenIn::Sidebar);
+        assert_eq!(OpenIn::from_flags(false, true), OpenIn::NewTab);
+        // Shift wins when both are held.
+        assert_eq!(OpenIn::from_flags(true, true), OpenIn::Sidebar);
+    }
+
+    #[test]
+    fn from_modifiers_uses_the_platform_secondary_key() {
+        use crate::ui::text_edit::Modifiers;
+        assert_eq!(OpenIn::from_modifiers(&Modifiers::default()), OpenIn::Main);
+        assert_eq!(
+            OpenIn::from_modifiers(&Modifiers::secondary_key()),
+            OpenIn::NewTab
+        );
+        assert_eq!(OpenIn::from_modifiers(&Modifiers::shift()), OpenIn::Sidebar);
     }
 
     #[test]

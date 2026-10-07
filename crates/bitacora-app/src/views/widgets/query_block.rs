@@ -584,7 +584,7 @@ impl QueryBlock {
                             .on_click(move |_, window, cx| {
                                 nav_page(
                                     NavTarget::Page(page.clone()),
-                                    OpenIn::from_shift(window.modifiers().shift),
+                                    OpenIn::from_modifiers(&window.modifiers()),
                                     cx,
                                 );
                             }),
@@ -646,7 +646,7 @@ impl QueryBlock {
                             .on_click(move |_, window, cx| {
                                 nav(
                                     NavTarget::Page(name.clone()),
-                                    OpenIn::from_shift(window.modifiers().shift),
+                                    OpenIn::from_modifiers(&window.modifiers()),
                                     cx,
                                 );
                             }),
@@ -760,7 +760,7 @@ impl QueryBlock {
                                 theme.foreground
                             })
                             .on_click(move |_, window, cx| {
-                                nav(t.clone(), OpenIn::from_shift(window.modifiers().shift), cx);
+                                nav(t.clone(), OpenIn::from_modifiers(&window.modifiers()), cx);
                             })
                             .into_any_element()
                     }

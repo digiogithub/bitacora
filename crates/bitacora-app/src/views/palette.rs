@@ -17,6 +17,7 @@ use rust_i18n::t;
 
 use crate::actions::{ClosePalette, CycleSearchScope, OpenResultInSidebar};
 use crate::data::{self, GraphHandle};
+use crate::nav::OpenIn;
 use crate::nav::Route;
 use crate::ui::button::{Button, ButtonVariants as _};
 use crate::ui::command::{Command, CommandGroup, CommandItem, CommandState, IndexPath};
@@ -234,12 +235,12 @@ impl PaletteCommand {
 /// What the palette asks of its host.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PaletteEvent {
-    /// Open a page or block (in the right sidebar when `sidebar`).
+    /// Open a page or block in `open`.
     Open {
         /// Target.
         route: Route,
-        /// Show it in the right sidebar.
-        sidebar: bool,
+        /// Where to show it: current tab, right sidebar or a new tab.
+        open: OpenIn,
     },
     /// Run an application command.
     Run(PaletteCommand),
@@ -665,7 +666,7 @@ impl Palette {
         }));
     }
 
-    fn confirm(&mut self, path: IndexPath, shift: bool, cx: &mut Context<Self>) {
+    fn confirm(&mut self, path: IndexPath, open: OpenIn, cx: &mut Context<Self>) {
         let Some(pick) = self
             .layout
             .get(path.section)
@@ -674,15 +675,15 @@ impl Palette {
         else {
             return;
         };
-        self.accept(pick, shift, cx);
+        self.accept(pick, open, cx);
     }
 
-    fn accept(&mut self, pick: Pick, sidebar: bool, cx: &mut Context<Self>) {
+    fn accept(&mut self, pick: Pick, open: OpenIn, cx: &mut Context<Self>) {
         match pick {
-            Pick::Route(route) => cx.emit(PaletteEvent::Open { route, sidebar }),
+            Pick::Route(route) => cx.emit(PaletteEvent::Open { route, open }),
             Pick::Create(name) => cx.emit(PaletteEvent::Open {
                 route: Route::Page(name),
-                sidebar,
+                open,
             }),
             Pick::Command(cmd) => cx.emit(PaletteEvent::Run(cmd)),
         }
@@ -691,7 +692,7 @@ impl Palette {
 
     fn open_in_sidebar(&mut self, _: &OpenResultInSidebar, _: &mut Window, cx: &mut Context<Self>) {
         if let Some(path) = self.state.read(cx).selected_index() {
-            self.confirm(path, true, cx);
+            self.confirm(path, OpenIn::Sidebar, cx);
         }
     }
 
@@ -913,8 +914,8 @@ impl Render for Palette {
                 query_this.update(cx, |p, cx| p.set_query(&query, cx));
             })
             .on_confirm(move |path, window, cx| {
-                let shift = window.modifiers().shift;
-                confirm_this.update(cx, |p, cx| p.confirm(path, shift, cx));
+                let open = OpenIn::from_modifiers(&window.modifiers());
+                confirm_this.update(cx, |p, cx| p.confirm(path, open, cx));
             })
             .on_cancel(move |_, cx| {
                 cancel_this.update(cx, |p, cx| p.close(cx));
@@ -1140,7 +1141,7 @@ mod tests {
             events.borrow().first(),
             Some(&PaletteEvent::Open {
                 route: Route::Page("Rust".into()),
-                sidebar: false
+                open: OpenIn::Main
             }),
             "{:?}",
             events.borrow()
@@ -1263,7 +1264,10 @@ mod tests {
         cx.simulate_keystrokes("shift-enter");
         assert!(matches!(
             events.borrow().first(),
-            Some(PaletteEvent::Open { sidebar: true, .. })
+            Some(PaletteEvent::Open {
+                open: OpenIn::Sidebar,
+                ..
+            })
         ));
         palette.update_in(cx, |p, window, cx| {
             p.open_search(Some(g.handle.clone()), None, Vec::new(), window, cx);
@@ -1323,7 +1327,7 @@ mod tests {
             events.borrow().first(),
             Some(&PaletteEvent::Open {
                 route: Route::Page("zzzqqq".into()),
-                sidebar: false
+                open: OpenIn::Main
             })
         );
     }

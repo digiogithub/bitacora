@@ -780,7 +780,7 @@ impl TasksView {
                                     .text_color(c.text);
                                 match click {
                                     // Like Logseq: a click on the text edits the block; Shift
-                                    // opens it in the sidebar.
+                                    // opens it in the sidebar, Ctrl/Cmd in a new tab.
                                     Some(hook) => {
                                         let open_view = open_view.clone();
                                         let open_uuid = open_uuid.clone();
@@ -788,9 +788,10 @@ impl TasksView {
                                             crate::ui::text_edit::MouseButton::Left,
                                             move |ev, window, cx| {
                                                 cx.stop_propagation();
-                                                if ev.modifiers.shift {
+                                                let open = OpenIn::from_modifiers(&ev.modifiers);
+                                                if open != OpenIn::Main {
                                                     open_view.update(cx, |v, cx| {
-                                                        v.open(&open_uuid, OpenIn::Sidebar, cx);
+                                                        v.open(&open_uuid, open, cx);
                                                     });
                                                 } else {
                                                     hook(usize::MAX, false, window, cx);
@@ -802,7 +803,7 @@ impl TasksView {
                                     }
                                     None => area
                                         .on_click(move |ev, _, cx| {
-                                            let open = OpenIn::from_shift(ev.modifiers().shift);
+                                            let open = OpenIn::from_modifiers(&ev.modifiers());
                                             open_view
                                                 .update(cx, |v, cx| v.open(&open_uuid, open, cx));
                                         })
@@ -856,7 +857,7 @@ impl TasksView {
                                         .cursor_pointer()
                                         .hover(|s| s.text_color(c.accent))
                                         .on_click(move |ev, _, cx| {
-                                            let open = OpenIn::from_shift(ev.modifiers().shift);
+                                            let open = OpenIn::from_modifiers(&ev.modifiers());
                                             open_block_view.update(cx, |v, cx| {
                                                 v.open(&open_block_uuid, open, cx)
                                             });

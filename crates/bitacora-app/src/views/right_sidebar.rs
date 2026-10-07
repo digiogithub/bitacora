@@ -31,6 +31,8 @@ const ITEM_HEIGHT: f32 = 340.0;
 pub enum StackEvent {
     /// A link inside an item was clicked: show it in the main area.
     Navigate(NavTarget),
+    /// A link inside an item was Ctrl/Cmd+clicked: show it in a new tab.
+    OpenInNewTab(NavTarget),
     /// An item was promoted to the main area.
     OpenInMain(Route),
     /// The set of items, their order or their folded state changed (persist it).
@@ -81,6 +83,11 @@ impl RightSidebar {
     /// Asks the host to show `target` in the main area (used by the Context tab widgets).
     pub fn navigate(&mut self, target: NavTarget, cx: &mut Context<Self>) {
         cx.emit(StackEvent::Navigate(target));
+    }
+
+    /// Asks the host to show `target` in a new tab (used by the Context tab widgets).
+    pub fn open_in_new_tab(&mut self, target: &NavTarget, cx: &mut Context<Self>) {
+        cx.emit(StackEvent::OpenInNewTab(target.clone()));
     }
 
     /// Opens `target` in the stack (used by the Context tab widgets).
@@ -197,6 +204,7 @@ impl RightSidebar {
         let subscription = cx.subscribe(&view, |this, _, event: &PageEvent, cx| match event {
             PageEvent::Navigate(target) => cx.emit(StackEvent::Navigate(target.clone())),
             PageEvent::OpenInSidebar(target) => this.open_target(target, cx),
+            PageEvent::OpenInNewTab(target) => cx.emit(StackEvent::OpenInNewTab(target.clone())),
             // Sidebar pages are read-only: nothing to delete from here.
             PageEvent::DeleteAsset { .. } | PageEvent::RenamePage { .. } => {}
         });

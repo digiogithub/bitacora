@@ -153,6 +153,19 @@ impl Workspace {
         cx.notify();
     }
 
+    /// Opens `route` in a new tab (Ctrl/Cmd+click on a page or block reference). The tab the
+    /// click came from keeps its route.
+    pub fn open_in_new_tab(&mut self, route: Route, cx: &mut Context<Self>) {
+        self.tabs.open(route.clone());
+        self.navigate(route, cx);
+        cx.notify();
+    }
+
+    /// The tab strip (tests and diagnostics).
+    pub fn tab_strip(&self) -> &TabStrip {
+        &self.tabs
+    }
+
     fn tab_new(&mut self, cx: &mut Context<Self>) {
         self.tabs.open(Route::Journals);
         self.navigate(Route::Journals, cx);

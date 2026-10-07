@@ -14,7 +14,7 @@ use bitacora_core::date::Date;
 use rust_i18n::t;
 
 use crate::data::{self, GraphHandle, SidebarData};
-use crate::nav::Route;
+use crate::nav::{OpenIn, Route};
 use crate::ui::text_edit::FontWeight;
 use crate::ui::theme::{ActiveBitacoraTheme as _, BitacoraTheme, TypeStyleExt as _};
 use crate::ui::{
@@ -62,6 +62,8 @@ pub enum SidebarEvent {
     Navigate(Target),
     /// The user Shift+clicked a page: show it in the right sidebar.
     OpenInSidebar(String),
+    /// The user Ctrl/Cmd+clicked a page: open it in a new tab.
+    OpenInNewTab(String),
     /// The user clicked a calendar day (`yyyyMMdd`): open that journal (nothing is created
     /// until it is edited).
     OpenJournalDay(u32),
@@ -220,6 +222,16 @@ impl LeftSidebar {
         self.active = Some(target.clone());
         cx.emit(SidebarEvent::Navigate(target));
         cx.notify();
+    }
+
+    /// A click on a favorite or recent page: plain navigates, Shift opens the right sidebar,
+    /// Ctrl/Cmd opens a new tab.
+    pub fn click_page(&mut self, page: &str, open: OpenIn, cx: &mut Context<Self>) {
+        match open {
+            OpenIn::Main => self.select(Target::Page(page.to_owned()), cx),
+            OpenIn::Sidebar => cx.emit(SidebarEvent::OpenInSidebar(page.to_owned())),
+            OpenIn::NewTab => cx.emit(SidebarEvent::OpenInNewTab(page.to_owned())),
+        }
     }
 
     /// Connects the sidebar to the graph index (`None` on close) and reads it.
@@ -471,11 +483,7 @@ impl LeftSidebar {
                     .when_some(fill, |d, fill| d.bg(fill))
                     .when(fill.is_none(), |d| d.hover(move |s| s.bg(hover)))
                     .on_click(cx.listener(move |this, _: &ClickEvent, window, cx| {
-                        if window.modifiers().shift {
-                            cx.emit(SidebarEvent::OpenInSidebar(page.clone()));
-                        } else {
-                            this.select(Target::Page(page.clone()), cx);
-                        }
+                        this.click_page(&page, OpenIn::from_modifiers(&window.modifiers()), cx);
                     }))
                     .child(div().min_w_0().truncate().child(name.clone())),
             );
@@ -803,6 +811,32 @@ mod tests {
         assert_eq!(
             *seen.borrow(),
             vec![SidebarEvent::Navigate(Target::Page("Alpha".into()))]
+        );
+    }
+
+    #[gpui_test]
+    fn page_clicks_route_by_modifier(cx: &mut TestAppContext) {
+        setup(cx);
+        let (sidebar, cx) = cx.add_window_view(|_, _| LeftSidebar::new(None));
+        let seen = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+        let sink = seen.clone();
+        let _sub = cx.update(|_, cx| {
+            cx.subscribe(&sidebar, move |_, e: &SidebarEvent, _| {
+                sink.borrow_mut().push(e.clone());
+            })
+        });
+        sidebar.update(cx, |s, cx| {
+            s.click_page("Alpha", OpenIn::Main, cx);
+            s.click_page("Alpha", OpenIn::Sidebar, cx);
+            s.click_page("Alpha", OpenIn::NewTab, cx);
+        });
+        assert_eq!(
+            *seen.borrow(),
+            vec![
+                SidebarEvent::Navigate(Target::Page("Alpha".into())),
+                SidebarEvent::OpenInSidebar("Alpha".into()),
+                SidebarEvent::OpenInNewTab("Alpha".into()),
+            ]
         );
     }
 

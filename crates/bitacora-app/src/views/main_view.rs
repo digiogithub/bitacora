@@ -29,6 +29,8 @@ pub enum MainEvent {
     Visited(Route),
     /// Show this route in the right sidebar (Shift+click).
     OpenInSidebar(Route),
+    /// Show this route in a new tab (Ctrl/Cmd+click).
+    OpenInNewTab(Route),
     /// A block of the page got (or lost) the focus (BIT-T-0344).
     BlockFocus(BlockFocusEvent),
     /// A conflict-marked block was clicked: open the resolver.
@@ -311,7 +313,10 @@ impl MainView {
         event: &PageEvent,
         cx: &mut Context<Self>,
     ) {
-        let (PageEvent::Navigate(target) | PageEvent::OpenInSidebar(target)) = event else {
+        let (PageEvent::Navigate(target)
+        | PageEvent::OpenInSidebar(target)
+        | PageEvent::OpenInNewTab(target)) = event
+        else {
             match event {
                 PageEvent::DeleteAsset { link, block } => cx.emit(MainEvent::DeleteAsset {
                     link: link.clone(),
@@ -325,7 +330,6 @@ impl MainView {
             }
             return;
         };
-        let sidebar = matches!(event, PageEvent::OpenInSidebar(_));
         let route = match target {
             NavTarget::Url(url) => {
                 cx.open_url(url);
@@ -334,10 +338,10 @@ impl MainView {
             NavTarget::Page(name) => Route::Page(name.clone()),
             NavTarget::Block(uuid) => Route::Block(uuid.clone()),
         };
-        if sidebar {
-            cx.emit(MainEvent::OpenInSidebar(route));
-        } else {
-            self.navigate(route, cx);
+        match event {
+            PageEvent::OpenInSidebar(_) => cx.emit(MainEvent::OpenInSidebar(route)),
+            PageEvent::OpenInNewTab(_) => cx.emit(MainEvent::OpenInNewTab(route)),
+            _ => self.navigate(route, cx),
         }
     }
 }

@@ -174,6 +174,9 @@ impl RightPanel {
             PageEvent::OpenInSidebar(target) => this
                 .stack
                 .update(cx, |stack, cx| stack.open_in_stack(target, cx)),
+            PageEvent::OpenInNewTab(target) => this
+                .stack
+                .update(cx, |stack, cx| stack.open_in_new_tab(target, cx)),
             PageEvent::DeleteAsset { .. } | PageEvent::RenamePage { .. } => {}
         });
         Self {
@@ -558,6 +561,7 @@ impl RightPanel {
             stack.update(cx, |stack, cx| match open {
                 OpenIn::Sidebar => stack.open_in_stack(&target, cx),
                 OpenIn::Main => stack.navigate(target, cx),
+                OpenIn::NewTab => stack.open_in_new_tab(&target, cx),
             });
         });
         let remote = self
