@@ -2,7 +2,7 @@
 id: BIT-T-0425
 type: task
 title: ADR-027/028/029/031 and pando-integration design doc
-status: backlog
+status: in_review
 priority: high
 parent: BIT-US-0135
 milestone: BIT-M-0007
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, docs, pando]
 estimate: 1
 created: 2026-10-07T09:16:33Z
-updated: 2026-10-07T09:16:33Z
+updated: 2026-10-07T10:29:46Z
+started: 2026-10-07T10:29:46Z
 ---
 
 ## Description

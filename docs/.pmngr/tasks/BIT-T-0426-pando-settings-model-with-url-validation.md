@@ -2,7 +2,7 @@
 id: BIT-T-0426
 type: task
 title: Pando settings model with URL validation
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0136
 milestone: BIT-M-0007
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, settings, bitacora-config]
 estimate: 2
 created: 2026-10-07T09:16:33Z
-updated: 2026-10-07T09:16:33Z
+updated: 2026-10-07T10:29:39Z
+closed: 2026-10-07T10:29:39Z
 ---
 
 ## Description

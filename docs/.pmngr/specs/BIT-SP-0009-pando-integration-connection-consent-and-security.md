@@ -6,18 +6,40 @@ status: backlog
 author: mcp
 labels: [pando, security, privacy, v2]
 created: 2026-10-07T09:08:04Z
-updated: 2026-10-07T09:10:25Z
+updated: 2026-10-07T10:30:07Z
 requirements:
   R1:
     status: backlog
   R2:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-pando/src/credentials.rs#PandoCredentials
+        - crates/bitacora-config/src/pando.rs#PandoSettings
+      tests:
+        - crates/bitacora-pando/src/credentials.rs#trace_logging_never_leaks_the_secret
+        - crates/bitacora-config/src/pando.rs#serialized_settings_contain_no_token_field
   R3:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-config/src/pando.rs#validate_pando_url
+        - crates/bitacora-pando/src/service.rs#PandoService
+      tests:
+        - crates/bitacora-config/src/pando.rs#remote_needs_allow_remote_then_https
+        - crates/bitacora-pando/src/service.rs#invalid_or_remote_urls_are_unavailable_without_connecting
   R4:
     status: backlog
   R5:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-pando/src/service.rs#PandoService
+        - crates/bitacora-runtime/src/live.rs#Session
+        - xtask/src/deps.rs#check
+      tests:
+        - xtask/src/deps.rs#pando_in_core_closure_fails
+        - crates/bitacora-runtime/tests/pando.rs
   R6:
     status: backlog
   R7:

@@ -2,7 +2,7 @@
 id: BIT-US-0136
 type: story
 title: Pando settings model and keychain credentials
-status: backlog
+status: done
 priority: high
 parent: BIT-EP-0020
 milestone: BIT-M-0007
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, pando, settings, security, bitacora-config]
 estimate: 3
 created: 2026-10-07T09:15:49Z
-updated: 2026-10-07T09:15:49Z
+updated: 2026-10-07T10:29:46Z
+closed: 2026-10-07T10:29:46Z
 ---
 
 ## Description
