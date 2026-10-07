@@ -2,7 +2,7 @@
 
 All notable changes to Bitacora. Format follows Keep a Changelog; versions follow SemVer.
 
-## [2.0.0] - Unreleased
+## [2.0.0] - 2026-10-07
 
 ### Added
 - New design system: Bitacora Light and Bitacora Dark themes generated from design tokens, embedded fonts, a component kit, restyled outline, journals, sidebar, palette, popovers and settings.
