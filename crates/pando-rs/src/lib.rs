@@ -7,12 +7,12 @@
 //! - [`client`]: [`PandoClient`], the authenticated HTTP transport shared by every API.
 //! - [`kb`]: [`kb::KbClient`], the REST knowledge-base API.
 //!
-//! A later AG-UI client (agent run streaming) is meant to live in a sibling `agui`
-//! module that reuses [`PandoClient`] and [`Error`]; it is intentionally not part of
-//! this first cut.
+//! - [`agui`]: [`agui::AguiClient`], the AG-UI agent API (SSE runs, threads, interrupts) with
+//!   its own tolerant event types.
 //!
 //! [Pando]: https://github.com/digiogithub/pando
 
+pub mod agui;
 pub mod client;
 pub mod config;
 pub mod error;
