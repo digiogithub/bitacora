@@ -2,7 +2,7 @@
 id: BIT-T-0404
 type: task
 title: Restyle palette, PDF popover and confirmation dialogs
-status: backlog
+status: in_review
 priority: medium
 parent: BIT-US-0127
 milestone: BIT-M-0006
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, ui]
 estimate: 3
 created: 2026-10-07T09:13:45Z
-updated: 2026-10-07T09:13:45Z
+updated: 2026-10-07T11:41:48Z
+started: 2026-10-07T11:41:44Z
 ---
 
 ## Description

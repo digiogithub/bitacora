@@ -2,7 +2,7 @@
 id: BIT-T-0401
 type: task
 title: Right panel shell with Context and Agent tabs
-status: backlog
+status: done
 priority: medium
 parent: BIT-US-0125
 milestone: BIT-M-0006
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, ui]
 estimate: 3
 created: 2026-10-07T09:13:45Z
-updated: 2026-10-07T09:13:45Z
+updated: 2026-10-07T11:41:51Z
+closed: 2026-10-07T11:41:51Z
 ---
 
 ## Description
