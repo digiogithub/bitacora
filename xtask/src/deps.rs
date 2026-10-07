@@ -89,11 +89,9 @@ fn allowed_edges() -> BTreeMap<&'static str, BTreeSet<&'static str>> {
                 "pando-rs",
             ]),
         ),
-        (
-            "bitacora-app",
-            with_pando(&with_graph(&with_runtime(&frontends))),
-        ),
-        ("bitacora-cli", with_pando(&with_runtime(&frontends))),
+        // BIT-SP-0009.R5: only the runtime names `bitacora-pando`; binaries use its re-exports.
+        ("bitacora-app", with_graph(&with_runtime(&frontends))),
+        ("bitacora-cli", with_runtime(&frontends)),
         // Dev-only helpers: nothing may depend on it in [dependencies].
         ("bitacora-testkit", set(&[])),
         ("xtask", set(&[])),

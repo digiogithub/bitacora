@@ -77,7 +77,7 @@ fixtures/graphs/           # Logseq sample graphs used by tests
 docs/                      # knowledge base (Markdown, wikilinks) + gintrack backlog in docs/.pmngr
 ```
 
-Dependency direction: `markdown` ← `merge` ← `core` ← {`index`, `sync`, `mcp`} ← `runtime` ← {`app`, `cli`} (`sync` also uses `merge` directly). `bitacora-pando` sits between `index` and `runtime` (`{config, core, index, pando-rs}` ← `pando` ← `runtime`); `pando-rs` depends on no bitacora crate and neither it nor `bitacora-pando` may enter the `core` closure (ADR-027/028). `bitacora-graph` is a leaf (no bitacora or UI dependencies) used only by `runtime` and `app`. Never add a reverse edge.
+Dependency direction: `markdown` ← `merge` ← `core` ← {`index`, `sync`, `mcp`} ← `runtime` ← {`app`, `cli`} (`sync` also uses `merge` directly). `bitacora-pando` sits between `index` and `runtime` (`{config, core, index, pando-rs}` ← `pando` ← `runtime`; only `runtime` depends on it); `pando-rs` depends on no bitacora crate and neither it nor `bitacora-pando` may enter the `core` closure (ADR-027/028). `bitacora-graph` is a leaf (no bitacora or UI dependencies) used only by `runtime` and `app`. Never add a reverse edge.
 
 ## 5. MANDATORY: project-specific non-negotiable rules
 
