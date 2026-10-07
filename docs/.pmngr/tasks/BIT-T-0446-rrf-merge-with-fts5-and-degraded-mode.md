@@ -2,7 +2,7 @@
 id: BIT-T-0446
 type: task
 title: RRF merge with FTS5 and degraded mode
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0144
 milestone: BIT-M-0007
@@ -10,7 +10,9 @@ author: mcp
 labels: [v2, search, bitacora-index]
 estimate: 3
 created: 2026-10-07T09:17:36Z
-updated: 2026-10-07T09:17:36Z
+updated: 2026-10-07T11:03:30Z
+started: 2026-10-07T11:03:22Z
+closed: 2026-10-07T11:03:30Z
 ---
 
 ## Description

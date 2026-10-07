@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [ui, graph, v2]
 created: 2026-10-07T09:08:04Z
-updated: 2026-10-07T10:15:47Z
+updated: 2026-10-07T11:02:51Z
 requirements:
   R1:
     status: backlog
@@ -16,21 +16,46 @@ requirements:
   R2:
     status: backlog
     trace:
-      code: [crates/bitacora-index/src/read/graph.rs]
-      tests: [crates/bitacora-index/tests/read_graph.rs]
+      code:
+        - crates/bitacora-index/src/read/graph.rs
+        - crates/bitacora-app/src/graph_view/model.rs#node_radius
+        - crates/bitacora-app/src/views/graph_view.rs#paint_graph
+      tests:
+        - crates/bitacora-index/tests/read_graph.rs
+        - crates/bitacora-app/src/graph_view/model.rs#radius_follows_the_logseq_formula
   R3:
     status: backlog
     trace:
       code:
         - crates/bitacora-graph/src/sim.rs
         - crates/bitacora-graph/src/worker.rs
-      tests: [crates/bitacora-graph/tests/sim.rs]
+        - crates/bitacora-app/src/views/graph_view.rs#wants_frames
+      tests:
+        - crates/bitacora-graph/tests/sim.rs
+        - crates/bitacora-app/src/views/graph_view_tests.rs#layout_settles_and_stops_requesting_frames
   R4:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-app/src/views/graph_view.rs#GraphView
+        - crates/bitacora-app/src/graph_view/viewport.rs
+      tests:
+        - crates/bitacora-app/src/views/graph_view_tests.rs
+        - crates/bitacora-app/src/graph_view/viewport.rs#tests
   R5:
     status: backlog
   R6:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-app/src/graph_view/model.rs#carry_positions
+        - crates/bitacora-app/src/views/graph_view.rs#apply_data
+        - crates/bitacora-app/src/views/right_sidebar.rs#set_local_page
+        - crates/bitacora-graph/src/sim.rs#with_positions
+      tests:
+        - crates/bitacora-app/src/views/graph_view_tests.rs#refresh_keeps_surviving_positions_and_seeds_new_nodes_near_a_neighbour
+        - crates/bitacora-app/src/views/graph_view_tests.rs#right_sidebar_local_graph_follows_the_page_and_click_navigates
+        - crates/bitacora-graph/tests/sim.rs#with_positions_keeps_given_starts_and_alpha
 ---
 
 ## Purpose

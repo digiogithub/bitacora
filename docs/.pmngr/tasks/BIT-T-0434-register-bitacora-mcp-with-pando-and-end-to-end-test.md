@@ -2,7 +2,7 @@
 id: BIT-T-0434
 type: task
 title: Register Bitacora MCP with Pando and end-to-end test
-status: in_progress
+status: in_review
 priority: high
 parent: BIT-US-0139
 milestone: BIT-M-0007
@@ -10,7 +10,7 @@ author: mcp
 labels: [v2, pando, mcp, tests]
 estimate: 3
 created: 2026-10-07T09:16:34Z
-updated: 2026-10-07T10:35:57Z
+updated: 2026-10-07T11:03:08Z
 started: 2026-10-07T10:35:57Z
 ---
 

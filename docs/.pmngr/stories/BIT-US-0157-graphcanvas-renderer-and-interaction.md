@@ -2,7 +2,7 @@
 id: BIT-US-0157
 type: story
 title: GraphCanvas renderer and interaction
-status: in_progress
+status: in_review
 priority: high
 parent: BIT-EP-0024
 milestone: BIT-M-0009
@@ -10,7 +10,7 @@ author: mcp
 labels: [v2, graph, bitacora-app]
 estimate: 8
 created: 2026-10-07T09:19:46Z
-updated: 2026-10-07T10:44:07Z
+updated: 2026-10-07T11:02:43Z
 started: 2026-10-07T10:44:07Z
 ---
 

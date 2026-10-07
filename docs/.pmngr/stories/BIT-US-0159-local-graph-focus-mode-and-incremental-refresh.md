@@ -2,7 +2,7 @@
 id: BIT-US-0159
 type: story
 title: Local graph, focus mode and incremental refresh
-status: backlog
+status: done
 priority: medium
 parent: BIT-EP-0024
 milestone: BIT-M-0009
@@ -10,7 +10,9 @@ author: mcp
 labels: [v2, graph, bitacora-app]
 estimate: 5
 created: 2026-10-07T09:19:46Z
-updated: 2026-10-07T09:19:46Z
+updated: 2026-10-07T11:02:43Z
+started: 2026-10-07T11:02:31Z
+closed: 2026-10-07T11:02:43Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-US-0144
 type: story
 title: Hybrid search engine with local re-resolution
-status: backlog
+status: done
 priority: high
 parent: BIT-EP-0021
 milestone: BIT-M-0007
@@ -10,7 +10,9 @@ author: mcp
 labels: [v2, search, bitacora-pando, bitacora-index]
 estimate: 5
 created: 2026-10-07T09:16:57Z
-updated: 2026-10-07T09:16:57Z
+updated: 2026-10-07T11:03:30Z
+started: 2026-10-07T11:03:22Z
+closed: 2026-10-07T11:03:30Z
 ---
 
 ## Description

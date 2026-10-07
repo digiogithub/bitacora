@@ -6,10 +6,19 @@ status: backlog
 author: mcp
 labels: [ai, pando, agui, v2]
 created: 2026-10-07T09:08:04Z
-updated: 2026-10-07T09:09:54Z
+updated: 2026-10-07T11:03:02Z
 requirements:
   R1:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-mcp/src/exclusion.rs
+        - crates/bitacora-mcp/src/tokens.rs#TokenStore::ensure_token
+        - crates/bitacora-runtime/src/live.rs#provision_pando_mcp
+      tests:
+        - crates/bitacora-mcp/tests/pando_token.rs
+        - crates/bitacora-runtime/tests/pando.rs
+        - crates/bitacora-mcp/src/tokens.rs#ensure_token_is_idempotent_follows_scopes_and_reminted_when_the_secret_is_lost
   R2:
     status: backlog
   R3:
