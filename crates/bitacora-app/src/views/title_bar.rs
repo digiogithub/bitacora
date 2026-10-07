@@ -146,11 +146,12 @@ fn palette(cx: &App) -> Palette {
 
 /// The 52px application title bar with `left`, `center` and `right` placeholder slots
 /// (filled by BIT-US-0122: tabs, search, buttons).
-#[derive(IntoElement, Default)]
+#[derive(IntoElement)]
 pub struct AppTitleBar {
     left: Vec<AnyElement>,
     center: Vec<AnyElement>,
     right: Vec<AnyElement>,
+    center_min: Pixels,
 }
 
 impl std::fmt::Debug for AppTitleBar {
@@ -163,10 +164,21 @@ impl std::fmt::Debug for AppTitleBar {
     }
 }
 
+impl Default for AppTitleBar {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AppTitleBar {
     /// Empty bar.
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            left: Vec::new(),
+            center: Vec::new(),
+            right: Vec::new(),
+            center_min: px(0.),
+        }
     }
 
     /// Adds content to the left slot (after the traffic-light inset).
@@ -178,6 +190,13 @@ impl AppTitleBar {
     /// Adds content to the flexible centre slot.
     pub fn center(mut self, el: impl IntoElement) -> Self {
         self.center.push(el.into_any_element());
+        self
+    }
+
+    /// Smallest width the centre slot keeps; the left slot gives way (clips) before the
+    /// centre drops below it, and the centre never paints outside its own bounds.
+    pub fn center_min_width(mut self, min: Pixels) -> Self {
+        self.center_min = min;
         self
     }
 
@@ -277,17 +296,37 @@ impl RenderOnce for AppTitleBar {
                     window.show_window_menu(ev.position)
                 })
             })
-            .children(self.left)
             .child(
+                // Each slot clips its own content so one slot never paints over another
+                // (the bug: a fixed-width search field spilled over tabs and buttons).
                 h_flex()
-                    .flex_1()
+                    .debug_selector(|| "title-left".to_string())
                     .min_w_0()
                     .h_full()
                     .items_center()
+                    .gap_3()
+                    .overflow_hidden()
+                    .children(self.left),
+            )
+            .child(
+                h_flex()
+                    .debug_selector(|| "title-center".to_string())
+                    .flex_1()
+                    .min_w(self.center_min)
+                    .h_full()
+                    .items_center()
                     .justify_center()
+                    .overflow_hidden()
                     .children(self.center),
             )
-            .children(self.right);
+            .child(
+                h_flex()
+                    .debug_selector(|| "title-right".to_string())
+                    .flex_shrink_0()
+                    .h_full()
+                    .items_center()
+                    .children(self.right),
+            );
 
         div().flex_shrink_0().child(
             h_flex()
@@ -302,6 +341,7 @@ impl RenderOnce for AppTitleBar {
                 .child(
                     h_flex()
                         .id("window-controls")
+                        .debug_selector(|| "window-controls".to_string())
                         .h_full()
                         .flex_shrink_0()
                         .items_center()
