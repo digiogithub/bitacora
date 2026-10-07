@@ -31,6 +31,8 @@ use crate::ui::button::{Button, ButtonVariants as _};
 use crate::ui::input::{Input, InputEvent, InputState};
 use crate::ui::popover::Popover;
 use crate::ui::text_edit::{FontWeight, ListAlignment, ListOffset, ListState, list};
+use crate::ui::theme::ActiveBitacoraTheme as _;
+use crate::ui::theme::TypeStyleExt as _;
 use crate::ui::{
     ActiveTheme as _, Anchor, AnyElement, App, AppContext as _, Context, EventEmitter,
     FluentBuilder as _, Focusable as _, IconName, InteractiveElement as _, IntoElement,
@@ -1185,6 +1187,8 @@ impl PageView {
         }
         self.rendered_rows += 1;
         let theme = cx.theme().clone();
+        let bt = cx.bitacora().clone();
+        let reading_width = bt.metrics.reading_max + bt.metrics.reading_pad_x * 2.;
         let nav = self.nav_for(cx);
         let root = self.handle.as_ref().map(|h| h.root.clone());
         let element = match item {
@@ -1223,7 +1227,7 @@ impl PageView {
                         edit,
                         widgets,
                     };
-                    let block = render_block_row(r, row, root.as_deref(), &theme, &actions);
+                    let block = render_block_row(r, row, root.as_deref(), &theme, &bt, &actions);
                     let conflicted = row
                         .uuid
                         .as_deref()
@@ -1314,7 +1318,7 @@ impl PageView {
                             | ((g & 0xFFF) << 28)
                             | ((h & 0x3FFF) << 14)
                             | (r & 0x3FFF);
-                        render_block_row(id, row, root.as_deref(), &theme, &actions)
+                        render_block_row(id, row, root.as_deref(), &theme, &bt, &actions)
                     }
                     None => div().into_any_element(),
                 }
@@ -1324,7 +1328,7 @@ impl PageView {
             .w_full()
             .flex()
             .justify_center()
-            .child(div().w_full().max_w(px(900.)).child(element))
+            .child(div().w_full().max_w(reading_width).child(element))
             .into_any_element()
     }
 
@@ -1655,8 +1659,8 @@ impl PageView {
         }
         let title = div()
             .id("page-title")
-            .text_size(px(26.))
-            .font_weight(FontWeight::BOLD)
+            .type_style(&cx.bitacora().type_scale.page_title)
+            .text_color(cx.bitacora().colors.text)
             .child(self.header.title.clone());
         if self.can_rename() {
             title

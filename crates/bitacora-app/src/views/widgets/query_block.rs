@@ -17,6 +17,7 @@ use crate::render::model::Row;
 use crate::render::query::table::{PageNames, RowTarget, Table, table_of};
 use crate::render::query::{self, Body, Failure, Output, Scope};
 use crate::render::widget::{QueryKind, QueryProps, QuerySpec};
+use crate::ui::theme::ActiveBitacoraTheme as _;
 use crate::ui::{
     ActiveTheme as _, AnyElement, App, Context, FluentBuilder as _, IconName,
     InteractiveElement as _, IntoElement, ParentElement as _, Render, SharedString,
@@ -513,6 +514,7 @@ impl QueryBlock {
         eid: u64,
         loaded: &Loaded,
         theme: &crate::ui::theme::Theme,
+        bt: &crate::ui::theme::BitacoraTheme,
         root: Option<&std::path::Path>,
     ) -> AnyElement {
         let nav = self.nav.clone();
@@ -558,6 +560,7 @@ impl QueryBlock {
                             row,
                             root,
                             theme,
+                            bt,
                             &actions,
                         ));
                     }
@@ -744,6 +747,7 @@ impl Render for QueryBlock {
             self.run(cx);
         }
         let theme = cx.theme().clone();
+        let bt = cx.bitacora().clone();
         let eid = cx.entity_id().as_u64();
         let root = Some(self.handle.root.clone());
         let mut frame = v_flex()
@@ -807,7 +811,8 @@ impl Render for QueryBlock {
                         frame = frame.child(self.render_table(eid, &table, &theme, cx));
                     }
                 } else {
-                    frame = frame.child(self.render_list(eid, &loaded, &theme, root.as_deref()));
+                    frame =
+                        frame.child(self.render_list(eid, &loaded, &theme, &bt, root.as_deref()));
                 }
             }
         }

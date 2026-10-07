@@ -19,13 +19,16 @@ use crate::nav::Scroll;
 use crate::render::inline::NavTarget;
 use crate::render::model::{Row, toggle_row, visible_rows};
 use crate::session::SessionLink;
-use crate::ui::text_edit::{FontWeight, ListAlignment, ListOffset, ListState, list};
+use crate::ui::text_edit::{ListAlignment, ListOffset, ListState, list};
+use crate::ui::theme::ActiveBitacoraTheme as _;
+use crate::ui::theme::TypeStyleExt as _;
 use crate::ui::{
-    ActiveTheme as _, AnyElement, App, AppContext as _, Context, EventEmitter,
+    ActiveTheme as _, AnyElement, App, AppContext as _, Context, EventEmitter, FluentBuilder as _,
     InteractiveElement as _, IntoElement, ParentElement as _, Render,
     StatefulInteractiveElement as _, Styled as _, Task, Window, div, h_flex, px, v_flex,
 };
 use crate::views::block_view::{Nav, RowActions, render_block_row};
+use crate::views::kit::{Chip, ChipTone};
 use crate::views::page_view::PageEvent;
 
 /// Days added per scroll step.
@@ -580,6 +583,7 @@ impl JournalsView {
             self.ensure_editor(ix, window, cx);
         }
         let theme = cx.theme().clone();
+        let bt = cx.bitacora().clone();
         let this = cx.entity();
         let nav: Nav = {
             let this = this.clone();
@@ -592,17 +596,30 @@ impl JournalsView {
             return div().into_any_element();
         };
         let title_this = this.clone();
-        let mut col = v_flex().w_full().px(px(24.)).py(px(12.)).gap_1().child(
-            div()
-                .id(("journal-title", ix))
-                .text_size(px(22.))
-                .font_weight(FontWeight::BOLD)
-                .cursor_pointer()
-                .child(entry.day.title.clone())
-                .on_click(move |_, _, cx| {
-                    title_this.update(cx, |v, cx| v.open_entry(ix, cx));
-                }),
-        );
+        let title = div()
+            .id(("journal-title", ix))
+            .type_style(&bt.type_scale.display)
+            .text_color(bt.colors.text)
+            .cursor_pointer()
+            .child(entry.day.title.clone())
+            .on_click(move |_, _, cx| {
+                title_this.update(cx, |v, cx| v.open_entry(ix, cx));
+            });
+        let header = h_flex()
+            .w_full()
+            .items_center()
+            .gap(bt.metrics.space[5])
+            .pb(bt.metrics.space[4])
+            .child(title)
+            .when(entry.is_today, |d| {
+                d.child(Chip::new(t!("journals.today_badge").to_string()).tone(ChipTone::Accent))
+            });
+        let mut col = v_flex()
+            .w_full()
+            .px(bt.metrics.reading_pad_x)
+            .py(px(12.))
+            .gap_1()
+            .child(header);
         // An editable day shows core's rows; the others the index rows.
         let day_editor = self.editors.get(&entry.day.day).cloned();
         let live_rows: Option<Vec<Row>> = day_editor.as_ref().map(|e| e.read(cx).rows().to_vec());
@@ -657,6 +674,7 @@ impl JournalsView {
                 &rows[r],
                 root.as_deref(),
                 &theme,
+                &bt,
                 &actions,
             ));
         }
@@ -690,7 +708,7 @@ impl JournalsView {
             .child(
                 v_flex()
                     .w_full()
-                    .max_w(px(900.))
+                    .max_w(bt.metrics.reading_max + bt.metrics.reading_pad_x * 2.)
                     .child(match &day_editor {
                         Some(ed) => editor::element::wrap(col.into_any_element(), ed, cx),
                         None => col.into_any_element(),

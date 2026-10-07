@@ -127,7 +127,7 @@ fn open_page_without_setup<'a>(
     &'a mut VisualTestContext,
 ) {
     let (view, cx) = cx.add_window_view(|_, cx| PageView::new(cx));
-    cx.simulate_resize(size(px(900.), px(700.)));
+    cx.simulate_resize(size(px(840.), px(700.)));
     let link = env.link.clone();
     view.update_in(cx, |v, window, cx| {
         v.set_session_link(Some(link), window, cx);
@@ -1115,7 +1115,7 @@ fn journal_days_are_editable_in_the_feed(cx: &mut TestAppContext) {
     let day = Date::new(2025, 3, 9).expect("date");
     let (feed, cx) =
         cx.add_window_view(|_, _| JournalsView::with_clock(std::rc::Rc::new(move || Some(day))));
-    cx.simulate_resize(size(px(900.), px(700.)));
+    cx.simulate_resize(size(px(840.), px(700.)));
     let link = env.link.clone();
     feed.update(cx, |v, cx| v.set_session_link(Some(link), cx));
     let handle = env.handle.clone();
@@ -1319,7 +1319,7 @@ fn up_and_down_continue_across_journal_days(cx: &mut TestAppContext) {
     let day = Date::new(2025, 3, 9).expect("date");
     let (feed, cx) =
         cx.add_window_view(|_, _| JournalsView::with_clock(std::rc::Rc::new(move || Some(day))));
-    cx.simulate_resize(size(px(900.), px(700.)));
+    cx.simulate_resize(size(px(840.), px(700.)));
     let link = env.link.clone();
     feed.update(cx, |v, cx| v.set_session_link(Some(link), cx));
     let handle = env.handle.clone();

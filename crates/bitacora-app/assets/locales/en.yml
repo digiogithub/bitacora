@@ -97,6 +97,7 @@ page:
   logbook: "LOGBOOK (%{count} entries)"
   logbook_total: "LOGBOOK (%{count} entries, %{total})"
 journals:
+  today_badge: Today
   today_empty: Nothing written today yet
   more: More blocks on the page...
 refs:
