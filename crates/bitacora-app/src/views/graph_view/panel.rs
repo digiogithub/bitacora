@@ -12,7 +12,7 @@ use super::{
     Card, Entity, ExportError, Format, GraphEdit, GraphForce, GraphToggle, Input, InputEvent,
     InputState, Palette, Rgb, Rgba, Scene, Segmented, edit_config, stepped,
 };
-use super::{GraphSettings, GraphView, PanelSection};
+use super::{GraphSettings, GraphView, PanelSection, Relayout};
 use bitacora_graph::Control;
 use rust_i18n::t;
 
@@ -148,12 +148,7 @@ impl GraphView {
     /// Starts a new layout with the current force settings, keeping the positions.
     fn apply_forces(&mut self, cx: &mut Context<Self>) {
         self.settings.forces = GraphSettings::from_prefs(&self.prefs).forces;
-        self.sim = None;
-        self.rebuild(cx);
-        if self.paused {
-            self.send(Control::Pause(true));
-        }
-        cx.notify();
+        self.rebuild(Relayout::Params, cx);
     }
 
     /// Pauses or resumes the layout simulation.

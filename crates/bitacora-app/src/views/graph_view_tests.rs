@@ -53,6 +53,19 @@ fn open<'a>(
     (view, cx)
 }
 
+/// Waits for the off-screen layout in flight (focus, refresh, force changes).
+fn wait_layout(cx: &mut VisualTestContext, view: &Entity<GraphView>) {
+    cx.executor().allow_parking();
+    for _ in 0..400 {
+        cx.run_until_parked();
+        if !view.read_with(cx, |v, _| v.is_laying_out()) {
+            return;
+        }
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    panic!("layout did not finish");
+}
+
 fn settle(cx: &mut VisualTestContext, view: &Entity<GraphView>) {
     for _ in 0..1000 {
         let done = view.update(cx, |v, _| {
@@ -234,12 +247,15 @@ fn focus_limits_the_graph_to_n_hops_and_resets(cx: &mut TestAppContext) {
         v.pointer_up(false, cx);
     });
     assert_eq!(view.read_with(cx, |v, _| v.focus().to_vec()), [delta]);
+    wait_layout(cx, &view);
     assert_eq!(names(&view, cx), ["Delta", "Gamma"]);
     view.update(cx, |v, cx| v.set_hops(2, cx));
+    wait_layout(cx, &view);
     assert_eq!(names(&view, cx), ["Alpha", "Beta", "Delta", "Gamma"]);
     view.update(cx, |v, cx| v.set_hops(99, cx));
     assert_eq!(view.read_with(cx, |v, _| v.hops()), 6);
     view.update(cx, |v, cx| v.reset_focus(cx));
+    wait_layout(cx, &view);
     assert_eq!(names(&view, cx).len(), 4);
     assert!(view.read_with(cx, |v, _| v.focus().is_empty()));
 }
@@ -274,23 +290,31 @@ fn refresh_keeps_surviving_positions_and_seeds_new_nodes_near_a_neighbour(cx: &m
         src: 99_999,
         dst: beta,
     });
-    // Read inside the same update: a later render would already pull a ticked snapshot.
-    let (kept, fresh) = view.update(cx, |v, cx| {
-        v.apply_data(&data, None, cx);
-        let at = |name: &str| {
-            let ix = v.model().nodes().iter().position(|n| n.name == name);
-            v.positions()[ix.expect("node")]
-        };
-        (at("Beta"), at("Fresh"))
+    let all_before = view.read_with(cx, |v, _| {
+        v.model()
+            .nodes()
+            .iter()
+            .map(|n| n.name.clone())
+            .zip(v.positions().iter().copied())
+            .collect::<Vec<_>>()
     });
-    assert_eq!(kept, before);
+    view.update(cx, |v, cx| v.apply_data(&data, None, cx));
+    // The old layout stays on screen, untouched, while the new one is computed off-screen.
+    assert_eq!(world_of(&view, cx, "Beta"), before);
+    wait_layout(cx, &view);
+    assert_eq!(names(&view, cx).len(), 5);
+    // Every surviving node is exactly where it was; nothing animates.
+    for (name, at) in &all_before {
+        assert_eq!(world_of(&view, cx, name), *at, "{name} moved");
+    }
+    let fresh = world_of(&view, cx, "Fresh");
     let d = (fresh[0] - before[0]).hypot(fresh[1] - before[1]);
-    assert!((d - 30.0).abs() < 0.01, "distance {d}");
-    // The refresh reheats the layout, which then settles again.
-    settle(cx, &view);
+    assert!(d < 400.0, "Fresh is {d} px from its neighbour");
+    assert!(view.read_with(cx, |v, _| v.is_settled() && !v.wants_frames()));
     // Identical data is a no-op: the layout is not restarted.
     let ptr = view.read_with(cx, |v, _| v.positions().as_ptr());
     view.update(cx, |v, cx| v.apply_data(&data, None, cx));
+    assert!(!view.read_with(cx, |v, _| v.is_laying_out()));
     assert_eq!(view.read_with(cx, |v, _| v.positions().as_ptr()), ptr);
 }
 
@@ -566,4 +590,55 @@ fn the_scene_and_both_formats_follow_the_visible_graph(cx: &mut TestAppContext) 
     }
     let png = Format::Png.render(&scene).expect("png");
     assert_eq!(&png[..4], b"\x89PNG");
+}
+
+#[gpui_test]
+fn initial_layout_is_static_from_the_first_display(cx: &mut TestAppContext) {
+    setup(cx);
+    let g = graph();
+    let (view, cx) = open(cx, GraphMode::Global, &g);
+    // No animated settling: the layout is already at rest when it first appears.
+    assert!(view.read_with(cx, |v, _| v.is_settled() && !v.wants_frames()));
+    let first = view.read_with(cx, |v, _| v.positions().to_vec());
+    for _ in 0..20 {
+        view.update(cx, |v, _| v.sync_snapshot());
+        std::thread::sleep(Duration::from_millis(5));
+        assert_eq!(view.read_with(cx, |v, _| v.positions().to_vec()), first);
+        assert!(!view.read_with(cx, |v, _| v.wants_frames()));
+    }
+}
+
+#[gpui_test]
+fn drag_runs_the_simulation_live_then_freezes_everything(cx: &mut TestAppContext) {
+    setup(cx);
+    let g = graph();
+    let (view, cx) = open(cx, GraphMode::Global, &g);
+    settle(cx, &view);
+    let rest = view.read_with(cx, |v, _| v.positions().to_vec());
+    let at = screen_of(&view, cx, "Gamma");
+    // Many pointer moves, as a real drag sends: one Pin message each.
+    view.update(cx, |v, cx| {
+        v.pointer_down(at, false, cx);
+        for i in 1..=25 {
+            v.pointer_move([at[0] + 6.0 * i as f32, at[1] + 4.0 * i as f32], cx);
+        }
+    });
+    std::thread::sleep(Duration::from_millis(150));
+    view.update(cx, |v, _| v.sync_snapshot());
+    assert!(
+        view.read_with(cx, |v, _| v.wants_frames()),
+        "live while held"
+    );
+    let live = view.read_with(cx, |v, _| v.positions().to_vec());
+    assert_ne!(live, rest);
+    view.update(cx, |v, cx| v.pointer_up(false, cx));
+    settle(cx, &view);
+    // Once settled the positions are frozen and no frames are requested.
+    let frozen = view.read_with(cx, |v, _| v.positions().to_vec());
+    for _ in 0..20 {
+        std::thread::sleep(Duration::from_millis(5));
+        view.update(cx, |v, _| v.sync_snapshot());
+        assert_eq!(view.read_with(cx, |v, _| v.positions().to_vec()), frozen);
+        assert!(!view.read_with(cx, |v, _| v.wants_frames()));
+    }
 }
