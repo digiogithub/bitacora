@@ -648,6 +648,41 @@ fn rebinding_an_action_takes_effect_immediately_and_conflicts_wait_for_confirmat
 }
 
 #[gpui_test]
+fn recording_a_keystroke_binds_it_and_a_restart_reloads_the_override(cx: &mut TestAppContext) {
+    use crate::ui::{KeyDownEvent, Keystroke};
+    let env = Env::new(CONFIG);
+    setup(cx, None);
+    let (view, cx) = view(cx, env.context());
+    let toggle = Some("Workspace".to_owned());
+    let press = |key: &str| KeyDownEvent {
+        keystroke: Keystroke::parse(key).expect("keystroke"),
+        is_held: false,
+        prefer_character_input: false,
+    };
+    view.update_in(cx, |v, _, cx| {
+        v.start_recording(toggle.clone(), "bitacora::ToggleLeftSidebar".into(), cx);
+    });
+    // A lone modifier keeps listening; the real key binds.
+    view.update_in(cx, |v, window, cx| {
+        v.record_key(&press("shift"), window, cx)
+    });
+    assert!(view.read_with(cx, |v, _| v.recording.is_some()));
+    view.update_in(cx, |v, window, cx| {
+        v.record_key(&press("alt-j"), window, cx)
+    });
+    assert!(view.read_with(cx, |v, _| v.recording.is_none()));
+    let eff = cx.update(|_, cx| cx.global::<keymap::InstalledKeymap>().0.clone());
+    assert!(eff.contains_key(&(toggle.clone(), keymap::normalize_keys("alt-j"))));
+    // A fresh model (restart) reads the saved override back.
+    view.update_in(cx, |v, _, cx| v.reload_keymap(cx));
+    let rows = view.read_with(cx, |v, _| v.keymap.rows("ToggleLeftSidebar"));
+    assert!(
+        rows.iter()
+            .any(|r| r.customised() && r.keys == [keymap::normalize_keys("alt-j")])
+    );
+}
+
+#[gpui_test]
 fn a_rebound_shortcut_drives_the_workspace_and_the_old_one_goes_quiet(cx: &mut TestAppContext) {
     setup(cx, None);
     let tmp = tempfile::tempdir().unwrap();

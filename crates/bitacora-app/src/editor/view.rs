@@ -2042,6 +2042,46 @@ impl OutlineEditor {
         self.structural("Cycle task", |ids| Cmd::CycleMarker { ids }, window, cx);
     }
 
+    fn set_marker_to(&mut self, marker: &str, window: &mut Window, cx: &mut Context<Self>) {
+        let marker = marker.to_owned();
+        self.structural(
+            "Set task marker",
+            |ids| Cmd::SetMarker {
+                ids,
+                marker: Some(marker),
+            },
+            window,
+            cx,
+        );
+    }
+
+    fn on_set_marker_todo(
+        &mut self,
+        _: &actions::SetMarkerTodo,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.set_marker_to("TODO", window, cx);
+    }
+
+    fn on_set_marker_doing(
+        &mut self,
+        _: &actions::SetMarkerDoing,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.set_marker_to("DOING", window, cx);
+    }
+
+    fn on_set_marker_done(
+        &mut self,
+        _: &actions::SetMarkerDone,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.set_marker_to("DONE", window, cx);
+    }
+
     fn on_zoom_in(&mut self, _: &actions::ZoomIn, _: &mut Window, cx: &mut Context<Self>) {
         if let Some(id) = self.zoom_target() {
             self.zoom_to(Some(id), cx);
@@ -2928,6 +2968,9 @@ pub fn attach<E: crate::ui::InteractiveElement>(
         actions::CollapseBlock => on_collapse,
         actions::ExpandBlock => on_expand,
         actions::CycleMarker => on_cycle_marker,
+        actions::SetMarkerTodo => on_set_marker_todo,
+        actions::SetMarkerDoing => on_set_marker_doing,
+        actions::SetMarkerDone => on_set_marker_done,
         actions::ZoomIn => on_zoom_in,
         actions::ZoomOut => on_zoom_out,
         actions::Undo => on_undo,

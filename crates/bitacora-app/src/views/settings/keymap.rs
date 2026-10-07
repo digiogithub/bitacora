@@ -184,7 +184,21 @@ impl SettingsView {
         let recording = self.recording.clone();
 
         let mut list = v_flex().id("settings-keymap-rows").gap_0p5();
+        let mut group: Option<Option<String>> = None;
         for (ix, row) in rows.into_iter().take(MAX_ROWS).enumerate() {
+            if group.as_ref() != Some(&row.context) {
+                group = Some(row.context.clone());
+                list = list.child(
+                    div()
+                        .id(("settings-keymap-group", ix))
+                        .pt_2()
+                        .px_2()
+                        .text_xs()
+                        .font_weight(crate::ui::text_edit::FontWeight::SEMIBOLD)
+                        .text_color(theme.muted_foreground)
+                        .child(row.context.as_deref().unwrap_or("Global").to_owned()),
+                );
+            }
             let is_recording = recording
                 .as_ref()
                 .is_some_and(|(c, a)| *c == row.context && *a == row.action);
