@@ -471,3 +471,8 @@ tasks:
   empty: Ninguna tarea abierta coincide.
   err_page: "No se puede abrir la página %{page}."
   err_moved: La tarea cambió en disco; recarga e inténtalo de nuevo.
+migrate:
+  theme_replaced: "Tu tema fue sustituido por el tema Bitacora (los demás temas se eliminaron en 2.0)."
+  custom_themes: "%{count} archivo(s) de tema propio en tu carpeta de temas ya no se cargan y se dejaron intactos; los archivos de esquema de color volverán después de 2.0."
+  layout_reset: "La disposición de la ventana se restableció para el nuevo diseño."
+  settings_unreadable: "No se pudo leer settings.json; se usan los valores por defecto y el archivo se guardó como settings.json.1x.bak."

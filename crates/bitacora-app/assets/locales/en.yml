@@ -471,3 +471,8 @@ tasks:
   empty: No open tasks match.
   err_page: "Cannot open the page %{page}."
   err_moved: The task changed on disk; reload and try again.
+migrate:
+  theme_replaced: "Your theme choice was replaced by the Bitacora theme (other themes were removed in 2.0)."
+  custom_themes: "%{count} custom theme file(s) in your themes folder are no longer loaded and were left untouched; colour-scheme files will return after 2.0."
+  layout_reset: "The window layout was reset for the new design."
+  settings_unreadable: "settings.json could not be read; defaults are used and the file was kept as settings.json.1x.bak."
