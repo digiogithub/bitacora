@@ -33,6 +33,8 @@ pub struct Simulation {
     order: Vec<u32>,
     grid: Grid,
     ticks: u64,
+    /// Per-tick alpha decay overriding the parameters' (quick cool-down after a drag).
+    fast_decay: Option<f32>,
 }
 
 impl Simulation {
@@ -88,6 +90,7 @@ impl Simulation {
             rng,
             tree: Quadtree::default(),
             ticks: 0,
+            fast_decay: None,
         }
     }
 
@@ -110,6 +113,62 @@ impl Simulation {
         }
         sim.alpha = alpha.clamp(0.0, 1.0);
         sim
+    }
+
+    /// Lays `input` out completely off-screen and returns the frozen result: nodes with
+    /// `Some` in `initial` start there, those flagged in `pinned` are held exactly in place
+    /// during the layout (a refresh keeps surviving nodes put), and the others find their
+    /// equilibrium around them. Runs at most `max_ticks` ticks, then freezes.
+    #[must_use]
+    pub fn layout_offscreen(
+        input: &GraphInput,
+        params: ForceParams,
+        seed: u64,
+        initial: &[Option<[f32; 2]>],
+        pinned: &[bool],
+        max_ticks: u32,
+    ) -> Self {
+        let any_pinned = pinned.iter().any(|p| *p);
+        let alpha = if any_pinned { 0.5 } else { 1.0 };
+        let mut sim = Self::with_positions(input, params, seed, initial, alpha);
+        for (i, held) in pinned.iter().enumerate() {
+            if *held && let Some(Some(at)) = initial.get(i) {
+                sim.pin(i, *at);
+            }
+        }
+        sim.settle(max_ticks);
+        for i in 0..sim.len() {
+            sim.unpin(i);
+        }
+        sim
+    }
+
+    /// Ticks until cooled (at most `max_ticks`), then freezes. Returns the ticks run.
+    pub fn settle(&mut self, max_ticks: u32) -> u32 {
+        let mut n = 0;
+        while n < max_ticks && self.tick() {
+            n += 1;
+        }
+        self.freeze();
+        n
+    }
+
+    /// Stops all motion for good: velocities are zeroed and alpha drops to 0, so the layout
+    /// is settled until something reheats it.
+    pub fn freeze(&mut self) {
+        self.vel.fill([0.0; 2]);
+        self.alpha = 0.0;
+        self.fast_decay = None;
+    }
+
+    /// Make the layout cool down within about `ticks` ticks from its current alpha (the end
+    /// of a drag). A later [`Simulation::reheat`] restores the normal cooling.
+    pub fn cool_quickly(&mut self, ticks: u32) {
+        let min = self.params.alpha_min.clamp(1e-6, 0.999);
+        let from = self.alpha.max(min * 2.0);
+        let decay = 1.0 - (min / from).powf(1.0 / ticks.max(1) as f32);
+        self.fast_decay = Some(decay.clamp(0.0, 1.0));
+        self.params.alpha_target = 0.0;
     }
 
     /// Number of nodes.
@@ -174,6 +233,7 @@ impl Simulation {
 
     /// Raise alpha to at least `alpha` so the layout moves again.
     pub fn reheat(&mut self, alpha: f32) {
+        self.fast_decay = None;
         self.alpha = self.alpha.max(alpha.clamp(0.0, 1.0));
     }
 
@@ -197,7 +257,8 @@ impl Simulation {
             return false;
         }
         let p = self.params;
-        self.alpha += (p.alpha_target - self.alpha) * p.alpha_decay();
+        let decay = self.fast_decay.unwrap_or_else(|| p.alpha_decay());
+        self.alpha += (p.alpha_target - self.alpha) * decay;
         let alpha = self.alpha;
         self.apply_links(alpha);
         self.apply_many_body(alpha);
@@ -221,6 +282,11 @@ impl Simulation {
             }
         }
         self.ticks += 1;
+        if self.is_settled() {
+            // Residual velocity (collide is not scaled by alpha) must not survive the cool-down:
+            // a settled layout is exactly frozen.
+            self.freeze();
+        }
         true
     }
 

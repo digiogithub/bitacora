@@ -50,8 +50,17 @@ mod panel;
 const REFRESH_DEBOUNCE: Duration = Duration::from_millis(400);
 /// Simulation tick interval (~60 Hz).
 const TICK: Duration = Duration::from_millis(16);
-/// Alpha a refresh reheats the layout to (BIT-SP-0012.R6).
-const REFRESH_ALPHA: f32 = 0.3;
+/// Most ticks the off-screen layout runs before it is frozen (cooling needs ~300).
+const LAYOUT_TICKS: u32 = 600;
+/// How a new layout treats the nodes already on screen.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Relayout {
+    /// Data or focus changed: surviving nodes stay exactly where they are.
+    Refresh,
+    /// Force settings changed: start from the current positions but let everything move.
+    Params,
+}
+
 /// Pointer travel (px) under which a press is a click, not a drag.
 const CLICK_SLOP: f32 = 3.0;
 /// Most labels drawn at once.
@@ -188,6 +197,15 @@ pub struct GraphView {
     loaded: bool,
     load_task: Option<Task<()>>,
     refresh_task: Option<Task<()>>,
+    /// Off-screen layout in flight (replaced, so cancelled, by a newer one).
+    layout_task: Option<Task<()>>,
+    /// The next data is a different graph (the local graph switched page): lay it out afresh.
+    fresh_layout: bool,
+    /// A layout is being computed; the previous one stays on screen meanwhile.
+    layout_pending: bool,
+    /// Canvas size the viewport was last fitted for (refit when it changes and the user has not
+    /// panned or zoomed); there are no frames to do it lazily once the layout is static.
+    fit_size: [f32; 2],
     // ---- settings panel (BIT-US-0158) ----
     prefs: GraphViewSettings,
     /// The graph `prefs` were read for (they are read again only when the graph changes).
@@ -241,6 +259,10 @@ impl GraphView {
             loaded: false,
             load_task: None,
             refresh_task: None,
+            layout_task: None,
+            fresh_layout: false,
+            layout_pending: false,
+            fit_size: [-1.0; 2],
             prefs: GraphViewSettings::default(),
             prefs_root: None,
             queue: None,
@@ -277,6 +299,7 @@ impl GraphView {
     pub fn clear(&mut self, cx: &mut Context<Self>) {
         self.handle = None;
         self.sim = None;
+        self.layout_task = None;
         self.full = GraphModel::default();
         self.model = Arc::new(GraphModel::default());
         self.positions = Arc::from(Vec::new());
@@ -298,6 +321,7 @@ impl GraphView {
         if self.page != page {
             self.page = page;
             self.user_moved = false;
+            self.fresh_layout = true;
             self.reload(cx);
         }
     }
@@ -342,9 +366,15 @@ impl GraphView {
         self.settled
     }
 
+    /// A new layout is being computed off-screen.
+    pub fn is_laying_out(&self) -> bool {
+        self.layout_pending
+    }
+
     /// Whether the view still wants animation frames.
     pub fn wants_frames(&self) -> bool {
-        !self.settled || self.drag.is_some() || self.wake_generation.is_some()
+        // A paused layout never moves, whatever its last snapshot said.
+        (!self.settled && !self.paused) || self.drag.is_some() || self.wake_generation.is_some()
     }
 
     // ---- data ---------------------------------------------------------------------------
@@ -381,13 +411,16 @@ impl GraphView {
     }
 
     /// Installs freshly loaded data: diffs against the current layout, keeps the positions of
-    /// surviving pages, seeds new ones next to a neighbour and reheats gently.
+    /// surviving pages, seeds new ones next to a neighbour and lays the result out off-screen.
     pub fn apply_data(&mut self, data: &GraphData, current: Option<i64>, cx: &mut Context<Self>) {
-        self.loaded = true;
         self.current_id = current;
         self.full = GraphModel::from_data(data);
-        self.rebuild(cx);
-        cx.notify();
+        let how = if std::mem::take(&mut self.fresh_layout) {
+            Relayout::Params
+        } else {
+            Relayout::Refresh
+        };
+        self.rebuild(how, cx);
     }
 
     /// The model that should be drawn given the focus.
@@ -399,32 +432,75 @@ impl GraphView {
             .restrict(&self.full.within_hops(&self.focus, self.hops))
     }
 
-    fn rebuild(&mut self, cx: &mut Context<Self>) {
+    /// Computes the layout for the shown model on a background thread and installs it frozen:
+    /// nothing is drawn animating. `how` decides whether surviving nodes stay pinned.
+    fn rebuild(&mut self, how: Relayout, cx: &mut Context<Self>) {
         // Focus pages that vanished from the graph drop out of the focus.
         let full = &self.full;
         self.focus.retain(|id| full.index_of(*id).is_some());
         let shown = self.shown_model();
-        if self.sim.is_some() && shown == *self.model {
+        if self.sim.is_some() && how == Relayout::Refresh && shown == *self.model {
+            self.loaded = true;
             return;
         }
-        let first = self.sim.is_none();
+        let first = self.sim.is_none() && self.model.is_empty();
         let initial = carry_positions(&self.model, &self.positions, &shown);
-        let alpha = if first { 1.0 } else { REFRESH_ALPHA };
-        let simulation = Simulation::with_positions(
-            &shown.to_input(),
-            self.settings.forces,
-            SEED,
-            &initial,
-            alpha,
-        );
+        let pinned: Vec<bool> = match how {
+            Relayout::Refresh if !first => shown
+                .nodes()
+                .iter()
+                .map(|n| self.model.index_of(n.id).is_some())
+                .collect(),
+            _ => vec![false; shown.len()],
+        };
+        let refit = first || how == Relayout::Params;
+        let input = shown.to_input();
+        let forces = self.settings.forces;
+        self.layout_pending = true;
+        self.layout_task = Some(cx.spawn(async move |this, cx| {
+            let laid_out = cx
+                .background_executor()
+                .spawn(async move {
+                    Simulation::layout_offscreen(
+                        &input,
+                        forces,
+                        SEED,
+                        &initial,
+                        &pinned,
+                        LAYOUT_TICKS,
+                    )
+                })
+                .await;
+            let _ = this.update(cx, |view, cx| {
+                view.install_layout(shown, laid_out, refit, cx)
+            });
+        }));
+    }
+
+    /// Swaps in a finished layout. Everything is already at rest: no frames are needed.
+    fn install_layout(
+        &mut self,
+        shown: GraphModel,
+        simulation: Simulation,
+        refit: bool,
+        cx: &mut Context<Self>,
+    ) {
         self.positions = simulation.snapshot();
         self.sim = SimulationHandle::spawn(simulation, TICK);
         self.last_generation = 0;
-        self.settled = self.sim.is_none();
+        self.settled = true;
         self.wake_generation = None;
         self.hover = None;
         self.drag = None;
         self.model = Arc::new(shown);
+        self.loaded = true;
+        self.layout_pending = false;
+        if self.paused {
+            self.send(Control::Pause(true));
+        }
+        if refit {
+            self.fit_size = [-1.0; 2];
+        }
         cx.notify();
     }
 
@@ -456,15 +532,20 @@ impl GraphView {
     }
 
     fn after_focus_change(&mut self, cx: &mut Context<Self>) {
-        self.rebuild(cx);
-        cx.notify();
+        self.rebuild(Relayout::Refresh, cx);
     }
 
     // ---- interaction ---------------------------------------------------------------------
 
     fn send(&mut self, control: Control) {
         if let Some(sim) = &self.sim {
-            self.wake_generation = Some(sim.snapshot().generation);
+            // Only messages that can make the layout move need frames until it settles again.
+            if matches!(
+                control,
+                Control::Pin { .. } | Control::Unpin(_) | Control::Reheat(_)
+            ) {
+                self.wake_generation = Some(sim.snapshot().generation);
+            }
             sim.send(control);
         }
     }
@@ -599,9 +680,6 @@ impl GraphView {
             && snap.settled
         {
             self.wake_generation = None;
-        }
-        if changed && !self.user_moved {
-            self.fit_now();
         }
     }
 
@@ -822,15 +900,25 @@ fn paint_graph(bounds: Bounds<crate::ui::Pixels>, d: &PaintData, window: &mut Wi
 impl Render for GraphView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.sync_snapshot();
-        if self.wants_frames() {
+        let bounds = self.bounds.clone();
+        let b = bounds.get();
+        let size = [f32::from(b.size.width), f32::from(b.size.height)];
+        let mut frames = self.wants_frames();
+        if !self.user_moved && size != self.fit_size && !self.positions.is_empty() {
+            if size[0] > 0.0 && size[1] > 0.0 {
+                self.fit_now();
+                self.fit_size = size;
+            } else {
+                // The canvas is measured while painting: come back once for the real size.
+                frames = true;
+            }
+        }
+        if frames {
             window.request_animation_frame();
         }
         let theme = cx.bitacora().clone();
         let colors = Self::colors(cx);
         let data = self.paint_data(cx);
-        let bounds = self.bounds.clone();
-        let b = bounds.get();
-        let size = [f32::from(b.size.width), f32::from(b.size.height)];
 
         let rel = {
             let bounds = bounds.clone();

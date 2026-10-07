@@ -1,5 +1,6 @@
 //! Background simulation thread: control messages in, position snapshots out.
 
+use std::collections::HashSet;
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread::JoinHandle;
@@ -72,7 +73,7 @@ impl SimulationHandle {
         let latest = Arc::new(Mutex::new(Snapshot {
             generation: 0,
             alpha: sim.alpha(),
-            settled: false,
+            settled: sim.is_settled(),
             positions: sim.snapshot(),
         }));
         let (tx, rx) = mpsc::channel();
@@ -109,8 +110,13 @@ impl Drop for SimulationHandle {
     }
 }
 
+/// Ticks a released drag takes to cool down (about 0.7 s at 60 Hz), then everything is frozen.
+const RELEASE_COOL_TICKS: u32 = 40;
+/// Alpha kept while a node is held, so its neighbours follow.
+const DRAG_ALPHA: f32 = 0.3;
+
 /// Apply one message. Returns `false` on stop.
-fn handle(sim: &mut Simulation, paused: &mut bool, held: &mut u32, msg: Msg) -> bool {
+fn handle(sim: &mut Simulation, paused: &mut bool, held: &mut HashSet<usize>, msg: Msg) -> bool {
     let Msg::Control(c) = msg else {
         return false;
     };
@@ -122,22 +128,23 @@ fn handle(sim: &mut Simulation, paused: &mut bool, held: &mut u32, msg: Msg) -> 
         Control::Pause(p) => *paused = p,
         Control::Reheat(a) => sim.reheat(a),
         Control::Pin { node, at } => {
-            if *held == 0 {
+            // One `Pin` arrives per pointer move: track the held *set*, not message counts.
+            if held.is_empty() {
                 let mut p = sim.params();
-                p.alpha_target = 0.3;
+                p.alpha_target = DRAG_ALPHA;
                 sim.set_params(p);
-                sim.reheat(0.3);
             }
-            *held = held.saturating_add(1);
+            held.insert(node);
+            sim.reheat(DRAG_ALPHA);
             sim.pin(node, at);
         }
         Control::Unpin(node) => {
             sim.unpin(node);
-            *held = held.saturating_sub(1);
-            if *held == 0 {
+            if held.remove(&node) && held.is_empty() {
                 let mut p = sim.params();
                 p.alpha_target = 0.0;
                 sim.set_params(p);
+                sim.cool_quickly(RELEASE_COOL_TICKS);
             }
         }
     }
@@ -145,7 +152,7 @@ fn handle(sim: &mut Simulation, paused: &mut bool, held: &mut u32, msg: Msg) -> 
 }
 
 fn run(mut sim: Simulation, rx: &Receiver<Msg>, shared: &Mutex<Snapshot>, tick_interval: Duration) {
-    let (mut paused, mut held) = (false, 0u32);
+    let (mut paused, mut held) = (false, HashSet::new());
     let mut generation = 0u64;
     loop {
         // Idle (paused or settled): block until something arrives.
