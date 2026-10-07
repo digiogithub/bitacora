@@ -5,8 +5,9 @@ use std::path::Path;
 use crate::settings::write_atomic;
 use crate::ui::dock::DockAreaState;
 
-/// Bump when the panel structure changes incompatibly; older files are ignored.
-pub const LAYOUT_VERSION: usize = 1;
+/// Bump when the panel structure or dock sizes change incompatibly; older files are ignored.
+/// v2: the right dock is 360px wide (`sidebar_right` token) instead of 280px.
+pub const LAYOUT_VERSION: usize = 2;
 
 /// Loads a saved layout. Returns `None` for a missing file (silently) and for an
 /// unreadable, corrupt or outdated file (with a warning): the caller then builds

@@ -48,6 +48,7 @@ use crate::views::page_view::PageView;
 use crate::views::palette::{Palette, PaletteCommand, PaletteEvent};
 use crate::views::panels::{HubEvent, PaneHub, PanelKind, PlaceholderPanel, SharedHub};
 use crate::views::picker::{GraphPicker, PickerEvent};
+use crate::views::responsive::Breakpoint;
 use crate::views::right_panel::{PanelTab, RightPanel};
 use crate::views::right_sidebar::{RightSidebar, StackEvent};
 use crate::views::settings::{SettingsContext, SettingsEvent, SettingsView};
@@ -160,6 +161,10 @@ pub struct Workspace {
     link: Option<SessionLink>,
     session_task: Option<Task<()>>,
     picker_visible: bool,
+    /// Breakpoint applied by the last render (BIT-US-0128).
+    breakpoint: Option<Breakpoint>,
+    /// The sidebar overlay is open (only meaningful at [`Breakpoint::Narrow`]).
+    narrow_sidebar_open: bool,
     tabs: top_bar::TabStrip,
     app_menu_open: bool,
     save_task: Option<Task<()>>,
@@ -300,6 +305,8 @@ impl Workspace {
             link: None,
             session_task: None,
             picker_visible: true,
+            breakpoint: None,
+            narrow_sidebar_open: false,
             tabs: top_bar::TabStrip::new(),
             app_menu_open: false,
             save_task: None,
@@ -2234,6 +2241,11 @@ impl Workspace {
     }
 
     fn toggle_left(&mut self, _: &ToggleLeftSidebar, _: &mut Window, cx: &mut Context<Self>) {
+        if self.breakpoint == Some(Breakpoint::Narrow) {
+            self.narrow_sidebar_open = !self.narrow_sidebar_open;
+            cx.notify();
+            return;
+        }
         self.sidebar.update(cx, |sidebar, cx| sidebar.toggle(cx));
     }
 
@@ -2330,26 +2342,64 @@ impl Focusable for Workspace {
 }
 
 impl Render for Workspace {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let title_bar = self.title_bar(cx);
-        let sidebar_visible = self.sidebar.read(cx).is_visible();
+        let breakpoint = Breakpoint::for_width(f32::from(window.viewport_size().width));
+        let previous = self.breakpoint.replace(breakpoint);
+        if previous != Some(breakpoint) {
+            // A window that is (or becomes) too narrow for the right panel closes it; the user
+            // can reopen it.
+            let was_inline = previous.is_none_or(|p| p.right_panel_inline());
+            if !breakpoint.right_panel_inline() && was_inline {
+                let dock = self.dock.clone();
+                cx.defer_in(window, move |_, window, cx| {
+                    dock.update(cx, |area, cx| {
+                        if area.is_dock_open(DockPlacement::Right) {
+                            area.toggle_dock(DockPlacement::Right, window, cx);
+                        }
+                    });
+                });
+            }
+            if breakpoint.sidebar_inline() {
+                self.narrow_sidebar_open = false;
+            }
+        }
+        let sidebar_visible = self.sidebar.read(cx).is_visible() && breakpoint.sidebar_inline();
+        let sidebar_overlay = self.narrow_sidebar_open && !breakpoint.sidebar_inline();
         let main = if self.picker_visible {
             div().flex_1().min_h_0().child(self.picker.clone())
         } else {
-            div().flex_1().min_h_0().child(
-                v_flex().size_full().child(self.disk_banner.clone()).child(
-                    div().flex_1().min_h_0().child(
-                        h_flex()
-                            .size_full()
-                            .child(
-                                div()
-                                    .h_full()
-                                    .when(sidebar_visible, |d| d.child(self.sidebar.clone())),
-                            )
-                            .child(div().flex_1().min_w_0().h_full().child(self.dock.clone())),
+            div()
+                .flex_1()
+                .min_h_0()
+                .relative()
+                .child(
+                    v_flex().size_full().child(self.disk_banner.clone()).child(
+                        div().flex_1().min_h_0().child(
+                            h_flex()
+                                .size_full()
+                                .child(
+                                    div()
+                                        .h_full()
+                                        .when(sidebar_visible, |d| d.child(self.sidebar.clone())),
+                                )
+                                .child(div().flex_1().min_w_0().h_full().child(self.dock.clone())),
+                        ),
                     ),
-                ),
-            )
+                )
+                .when(sidebar_overlay, |d| {
+                    d.child(
+                        div()
+                            .id("sidebar-overlay")
+                            .absolute()
+                            .top_0()
+                            .left_0()
+                            .bottom_0()
+                            .shadow_lg()
+                            .occlude()
+                            .child(self.sidebar.clone()),
+                    )
+                })
         };
         let content = v_flex()
             .id("workspace")
@@ -2491,6 +2541,69 @@ mod tests {
         assert!(!sidebar.read_with(cx, |s, _| s.is_visible()));
         cx.dispatch_action(ToggleLeftSidebar);
         assert!(sidebar.read_with(cx, |s, _| s.is_visible()));
+    }
+
+    #[gpui_test]
+    fn narrow_windows_close_the_right_panel_and_overlay_the_sidebar(cx: &mut TestAppContext) {
+        setup(cx);
+        let data = tempfile::tempdir().expect("data");
+        let g = graph();
+        let (ws, cx) = cx.add_window_view(|window, cx| {
+            Workspace::new(
+                WorkspaceConfig {
+                    index_data_dir: Some(data.path().to_path_buf()),
+                    initial_page: Some("Home".into()),
+                    ..WorkspaceConfig::default()
+                },
+                window,
+                cx,
+            )
+        });
+        let path = g.path().to_path_buf();
+        ws.update_in(cx, |w, window, cx| w.open_graph(path, window, cx));
+        cx.executor().allow_parking();
+        let bar = ws.read_with(cx, |w, _| w.status_bar().clone());
+        for _ in 0..200 {
+            cx.run_until_parked();
+            if bar.read_with(cx, |b, _| b.slot(Slot::Index)) == SlotState::Idle {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        let dock = ws.read_with(cx, |w, _| w.dock().clone());
+        let right_open = |cx: &mut VisualTestContext| {
+            dock.read_with(cx, |d, _| d.is_dock_open(DockPlacement::Right))
+        };
+        cx.simulate_resize(gpui::size(px(1400.), px(800.)));
+        cx.run_until_parked();
+        assert!(right_open(cx), "wide: right panel inline");
+        assert!(cx.debug_bounds("left-sidebar").is_some());
+
+        // 1000px: the right panel does not fit; the sidebar stays inline.
+        cx.simulate_resize(gpui::size(px(1000.), px(800.)));
+        cx.run_until_parked();
+        assert!(!right_open(cx));
+        assert!(cx.debug_bounds("left-sidebar").is_some());
+
+        // 640px: the sidebar leaves the layout and comes back as an overlay on demand.
+        cx.simulate_resize(gpui::size(px(640.), px(800.)));
+        cx.run_until_parked();
+        assert!(cx.debug_bounds("left-sidebar").is_none());
+        cx.dispatch_action(ToggleLeftSidebar);
+        cx.run_until_parked();
+        assert!(cx.debug_bounds("left-sidebar").is_some());
+        cx.dispatch_action(ToggleLeftSidebar);
+        cx.run_until_parked();
+        assert!(cx.debug_bounds("left-sidebar").is_none());
+
+        // The user can still reopen the right panel by hand.
+        cx.dispatch_action(ToggleRightSidebar);
+        assert!(right_open(cx));
+
+        // Widening restores the inline sidebar.
+        cx.simulate_resize(gpui::size(px(1000.), px(800.)));
+        cx.run_until_parked();
+        assert!(cx.debug_bounds("left-sidebar").is_some());
     }
 
     #[gpui_test]
