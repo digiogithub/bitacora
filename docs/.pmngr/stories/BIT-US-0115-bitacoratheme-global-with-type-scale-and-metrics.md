@@ -2,7 +2,7 @@
 id: BIT-US-0115
 type: story
 title: BitacoraTheme global with type scale and metrics
-status: backlog
+status: done
 priority: high
 parent: BIT-EP-0015
 milestone: BIT-M-0006
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, design-system, bitacora-app, theme]
 estimate: 5
 created: 2026-10-07T09:11:26Z
-updated: 2026-10-07T09:11:26Z
+updated: 2026-10-07T10:40:54Z
+closed: 2026-10-07T10:40:54Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-T-0381
 type: task
 title: Port TypeScale, Metrics and BitacoraTheme to gpui-pre
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0115
 milestone: BIT-M-0006
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, theme, bitacora-app]
 estimate: 3
 created: 2026-10-07T09:12:05Z
-updated: 2026-10-07T09:12:05Z
+updated: 2026-10-07T10:40:49Z
+closed: 2026-10-07T10:40:49Z
 ---
 
 ## Description

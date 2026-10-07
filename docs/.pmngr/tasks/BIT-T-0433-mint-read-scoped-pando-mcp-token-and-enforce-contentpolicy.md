@@ -2,7 +2,7 @@
 id: BIT-T-0433
 type: task
 title: Mint Read-scoped pando MCP token and enforce ContentPolicy
-status: backlog
+status: in_progress
 priority: high
 parent: BIT-US-0139
 milestone: BIT-M-0007
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, bitacora-mcp, security]
 estimate: 2
 created: 2026-10-07T09:16:34Z
-updated: 2026-10-07T09:16:34Z
+updated: 2026-10-07T10:35:57Z
+started: 2026-10-07T10:35:57Z
 ---
 
 ## Description

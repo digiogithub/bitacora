@@ -2,7 +2,7 @@
 id: BIT-T-0489
 type: task
 title: "Spike: managed instance on the user's shared KB"
-status: backlog
+status: in_progress
 priority: high
 parent: BIT-US-0141
 milestone: BIT-M-0007
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, bitacora-pando, managed, spike]
 estimate: 2
 created: 2026-10-07T09:54:20Z
-updated: 2026-10-07T09:54:20Z
+updated: 2026-10-07T10:35:57Z
+started: 2026-10-07T10:35:57Z
 ---
 
 ## Description

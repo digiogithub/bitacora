@@ -2,7 +2,7 @@
 id: BIT-T-0390
 type: task
 title: Facade re-exports and client-decoration WindowOptions
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0120
 milestone: BIT-M-0006
@@ -10,7 +10,9 @@ author: mcp
 labels: [v2, frameless]
 estimate: 1
 created: 2026-10-07T09:13:08Z
-updated: 2026-10-07T09:13:08Z
+updated: 2026-10-07T10:39:16Z
+started: 2026-10-07T10:39:10Z
+closed: 2026-10-07T10:39:16Z
 ---
 
 ## Description

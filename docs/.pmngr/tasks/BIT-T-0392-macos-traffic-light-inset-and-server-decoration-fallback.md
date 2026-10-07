@@ -2,7 +2,7 @@
 id: BIT-T-0392
 type: task
 title: macOS traffic-light inset and server-decoration fallback
-status: backlog
+status: in_review
 priority: high
 parent: BIT-US-0120
 milestone: BIT-M-0006
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, frameless, macos, linux]
 estimate: 2
 created: 2026-10-07T09:13:09Z
-updated: 2026-10-07T09:13:09Z
+updated: 2026-10-07T10:39:17Z
+started: 2026-10-07T10:39:17Z
 ---
 
 ## Description

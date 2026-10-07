@@ -2,7 +2,7 @@
 id: BIT-T-0437
 type: task
 title: Supervise the managed pando serve process
-status: backlog
+status: in_progress
 priority: high
 parent: BIT-US-0141
 milestone: BIT-M-0007
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, bitacora-pando]
 estimate: 5
 created: 2026-10-07T09:16:34Z
-updated: 2026-10-07T09:54:20Z
+updated: 2026-10-07T10:35:57Z
+started: 2026-10-07T10:35:57Z
 ---
 
 ## Description

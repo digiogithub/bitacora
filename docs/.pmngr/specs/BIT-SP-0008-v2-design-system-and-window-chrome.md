@@ -6,13 +6,21 @@ status: backlog
 author: mcp
 labels: [ui, design-system, v2]
 created: 2026-10-07T09:08:04Z
-updated: 2026-10-07T10:22:20Z
+updated: 2026-10-07T10:41:01Z
 requirements:
   R1:
     status: backlog
     trace:
-      code: [crates/bitacora-app/src/ui/theme/palette.rs, xtask/src/tokens.rs]
-      tests: [crates/bitacora-app/src/ui/theme/palette_tests.rs]
+      code:
+        - crates/bitacora-app/src/ui/theme/palette.rs
+        - crates/bitacora-app/src/ui/theme/scale.rs
+        - crates/bitacora-app/src/ui/theme/bitacora.rs
+        - crates/bitacora-app/assets/themes/bitacora.json
+        - crates/bitacora-app/src/theme.rs
+        - xtask/src/tokens.rs
+      tests:
+        - crates/bitacora-app/src/ui/theme/palette_tests.rs
+        - crates/bitacora-app/src/theme.rs#tests
   R2:
     status: backlog
     trace:
@@ -30,8 +38,24 @@ requirements:
       tests: [crates/bitacora-app/src/fonts.rs#embedded_families_resolve]
   R4:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-app/src/views/title_bar.rs#AppTitleBar
+        - crates/bitacora-app/src/views/title_bar.rs#main_window_options
+        - crates/bitacora-app/src/views/workspace.rs#Workspace
+      tests:
+        - crates/bitacora-app/src/views/title_bar.rs#client_draws_all_supported_controls
+        - crates/bitacora-app/src/views/title_bar.rs#server_decorations_and_macos_draw_no_controls
+        - crates/bitacora-app/src/views/title_bar.rs#main_window_options_are_frameless_but_titled
   R5:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-app/src/views/title_bar.rs#AppTitleBar
+        - crates/bitacora-app/src/views/workspace.rs#Workspace
+      tests:
+        - crates/bitacora-app/src/views/title_bar.rs#title_bar_renders_with_all_slots
+        - docs/design/frameless-checklist.md
   R6:
     status: backlog
 ---

@@ -2,7 +2,7 @@
 id: BIT-T-0393
 type: task
 title: Resize zones, tiling/maximized insets and minimum size
-status: backlog
+status: in_review
 priority: medium
 parent: BIT-US-0121
 milestone: BIT-M-0006
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, frameless, linux]
 estimate: 2
 created: 2026-10-07T09:13:09Z
-updated: 2026-10-07T09:13:09Z
+updated: 2026-10-07T10:39:17Z
+started: 2026-10-07T10:39:17Z
 ---
 
 ## Description
