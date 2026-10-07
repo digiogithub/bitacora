@@ -1,0 +1,30 @@
+ai:
+  close: Close
+  cancel: Cancel
+  retry: Try again
+  not_connected: Pando is not connected.
+  no_graph: Open a graph first.
+  review:
+    title: AI review
+    hint: Summarize your journal with the assistant. Nothing is written to your graph.
+    today: Review today
+    week: Review this week
+    refresh: Review again
+    running: "Reviewing %{range}..."
+    cached: From the saved review
+    tasks: Still open
+    actions: Next actions
+    off: Journal review is off for this graph.
+    cmd_unavailable: "Journal review is not available: %{reason}"
+  suggest:
+    title: AI suggestions
+    run: Suggest
+    refresh: Suggest again
+    hint: Ask for related pages, links, tags and next actions for this page.
+    running: Looking for suggestions...
+    none: No suggestions for this page.
+    off: Recommendations are off for this graph.
+    stale: The block changed since the suggestion was made; ask again.
+    page_unavailable: The page could not be opened for editing.
+    tags_front_matter: This page keeps its properties in front matter; add the tag by hand.
+    link_title: "Link to [[%{target}]]"

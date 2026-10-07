@@ -27,6 +27,7 @@ use crate::ui::{
     InteractiveElement as _, IntoElement, ParentElement as _, Render,
     StatefulInteractiveElement as _, Styled as _, Task, Window, div, h_flex, px, v_flex,
 };
+use crate::views::ai_assist::review_card::ReviewCard;
 use crate::views::block_view::{Nav, RowActions, render_block_row};
 use crate::views::kit::{Chip, ChipTone};
 use crate::views::page_view::PageEvent;
@@ -90,6 +91,9 @@ pub struct JournalsView {
     /// One editor per day (keyed by `yyyyMMdd`), created when the day is drawn.
     editors: std::collections::HashMap<u32, crate::ui::Entity<OutlineEditor>>,
     editor_subs: Vec<crate::ui::Subscription>,
+    /// The AI review card shown above the feed (BIT-US-0151); it renders nothing while the
+    /// feature is off.
+    review: Option<crate::ui::Entity<ReviewCard>>,
 }
 
 impl std::fmt::Debug for JournalsView {
@@ -129,7 +133,18 @@ impl JournalsView {
             link: None,
             editors: std::collections::HashMap::new(),
             editor_subs: Vec::new(),
+            review: None,
         }
+    }
+
+    /// Mounts the review card above the feed.
+    pub fn set_review_card(
+        &mut self,
+        card: Option<crate::ui::Entity<ReviewCard>>,
+        cx: &mut Context<Self>,
+    ) {
+        self.review = card;
+        cx.notify();
     }
 
     /// Connects the feed to the live session: days drawn from now on are editable.
@@ -741,6 +756,7 @@ impl Render for JournalsView {
             .size_full()
             .bg(theme.background)
             .text_color(theme.foreground)
+            .children(self.review.clone())
             .child(div().flex_1().min_h_0().child(body))
     }
 }

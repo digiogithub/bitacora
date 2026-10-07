@@ -1,0 +1,30 @@
+ai:
+  close: Cerrar
+  cancel: Cancelar
+  retry: Reintentar
+  not_connected: Pando no está conectado.
+  no_graph: Abre primero un grafo.
+  review:
+    title: Revisión con IA
+    hint: Resume tu diario con el asistente. No se escribe nada en tu grafo.
+    today: Revisar hoy
+    week: Revisar esta semana
+    refresh: Revisar de nuevo
+    running: "Revisando %{range}..."
+    cached: De la revisión guardada
+    tasks: Aún abiertas
+    actions: Próximas acciones
+    off: La revisión del diario está desactivada para este grafo.
+    cmd_unavailable: "La revisión del diario no está disponible: %{reason}"
+  suggest:
+    title: Sugerencias de IA
+    run: Sugerir
+    refresh: Sugerir de nuevo
+    hint: Pide páginas relacionadas, enlaces, etiquetas y próximas acciones para esta página.
+    running: Buscando sugerencias...
+    none: No hay sugerencias para esta página.
+    off: Las recomendaciones están desactivadas para este grafo.
+    stale: El bloque cambió desde la sugerencia; vuelve a pedirla.
+    page_unavailable: No se pudo abrir la página para editarla.
+    tags_front_matter: Esta página guarda sus propiedades en front matter; añade la etiqueta a mano.
+    link_title: "Enlazar con [[%{target}]]"

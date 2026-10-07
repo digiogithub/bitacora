@@ -122,6 +122,10 @@ pub enum PaletteCommand {
     AgentActivity,
     /// Attach the selected blocks (or the page) to the assistant chat.
     AskAboutSelection,
+    /// Review today's journal with the assistant (BIT-US-0151).
+    ReviewToday,
+    /// Review the last seven days of journals with the assistant (BIT-US-0151).
+    ReviewWeek,
     /// Open the visual conflict resolver.
     ResolveConflicts,
     /// Open a graph from a git remote (clone).
@@ -138,7 +142,7 @@ pub enum PaletteCommand {
 
 impl PaletteCommand {
     /// Every command, in palette order.
-    pub const ALL: [Self; 24] = [
+    pub const ALL: [Self; 26] = [
         Self::GoJournals,
         Self::GoAllPages,
         Self::GoGraph,
@@ -156,6 +160,8 @@ impl PaletteCommand {
         Self::PageHistory,
         Self::AgentActivity,
         Self::AskAboutSelection,
+        Self::ReviewToday,
+        Self::ReviewWeek,
         Self::ResolveConflicts,
         Self::CloneGraph,
         Self::SwitchGraph,
@@ -187,6 +193,8 @@ impl PaletteCommand {
             Self::PageHistory => t!("palette.cmd_page_history"),
             Self::AgentActivity => t!("palette.cmd_agent_activity"),
             Self::AskAboutSelection => t!("palette.cmd_ask_selection"),
+            Self::ReviewToday => t!("palette.cmd_review_today"),
+            Self::ReviewWeek => t!("palette.cmd_review_week"),
             Self::ResolveConflicts => t!("palette.cmd_conflicts"),
             Self::CloneGraph => t!("palette.cmd_clone"),
             Self::OpenGraph => t!("palette.cmd_open_graph"),
@@ -214,7 +222,7 @@ impl PaletteCommand {
             Self::SyncSettings | Self::OpenSettings => IconName::Settings,
             Self::PageHistory => IconName::Undo2,
             Self::AgentActivity => IconName::Bot,
-            Self::AskAboutSelection => IconName::Bot,
+            Self::AskAboutSelection | Self::ReviewToday | Self::ReviewWeek => IconName::Bot,
             Self::ResolveConflicts => IconName::TriangleAlert,
             Self::CloneGraph => IconName::FolderOpen,
             Self::CheckForUpdates => IconName::LoaderCircle,

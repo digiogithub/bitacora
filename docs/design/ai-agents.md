@@ -85,6 +85,17 @@ Requirements of this section:
 - MUST NOT interrupt IME composition or block typing: requests are debounced, async and cancelled by the next keystroke.
 - MUST apply accepted text only through the core command queue as a normal undoable edit.
 
+## 10. Review card and suggestion chips (BIT-US-0151, BIT-US-0152)
+
+`bitacora-app/src/views/ai_assist/` is the UI of sections 6 and 7; it reaches the backend only through `bitacora_runtime::ai` and `Session::{review_deps, recommend_deps, agent_edit_applier}` (called on the session thread through `SessionHandle::run`). Runs are awaited on the tokio bridge, never on the UI thread; the consent guard, the exclusions and the machine-local review cache are the backend's.
+
+- **Gate** (`AiGate`): a surface shows when its feature (`PandoFeature::JournalReview` / `Recommendations`, on by default once Pando is active) is on and the graph consented; runs start only when Pando is connected. Turning the feature off clears the card or the chips at once.
+- **Review card** (`ReviewCard`, above the journals feed, `Card::ai()` amber treatment): entry points "Review today" / "Review this week" (also palette commands `ReviewToday` / `ReviewWeek`, which switch to the journals and start a run), summary, mood, themes, still-open tasks (click opens the block) and next actions, a "from the saved review" note for cache hits and "Review again" (`force`). Nothing is written to the graph.
+- **Suggestion chips** (`SuggestionsView`, Context tab under the related blocks): related pages (click opens), missing links, tags and next actions for the page on screen. Results belong to one page; another page drops them.
+- **Accept** = an ordinary undoable edit through the command queue. A link goes through `QueueEditApplier` as one `UpdateBlock` (`id::`/`collapsed::` stripped from the proposal, restored by the applier; stale text is refused and audited like chat edits): the quoted span becomes `[[Target]]`, or `[text]([[Target]])` when the text differs from the page title. A tag runs `Cmd::SetPageProperty { key: "tags" }` (source `Ui`) with the merged value; pages whose properties are YAML front matter are not edited automatically. A page or block that changed since the suggestion refuses the edit (`ai.suggest.stale`).
+- **Dismiss memory** (`DismissStore`, `ai-dismissed.json` in the app state directory, per graph, 1000 entries): a suggestion is keyed by a hash of kind, page and its own content, so the same suggestion is not offered again while another one for the page still is. Only hashes are stored.
+- **Automation** (Settings > Pando, `PandoSettings::ai`, all off by default): `review_daily` + `review_at_minute` drive `DailySchedule::due`, `recommend_auto` drives `AutoRecommender::touch/poll/finished`; one 20 s workspace timer (`workspace/ai_ui.rs`) checks both. A failed scheduled review is retried after 10 minutes. These switches and the two feature switches apply without reopening the graph.
+
 ## Requirements
 
 - MUST NOT apply an agent edit except through `QueueEditApplier` after an explicit approval of the exact card.
@@ -96,5 +107,5 @@ Requirements of this section:
 ## Open questions
 
 - Pando's own approval timeout is not known to the client; the default card timeout (120 s) is a guess below Pando's. A resume that fails because Pando already denied is reported as `Error` and the remaining cards are denied (`ServerExpired`).
-- Review and recommendation views, the settings switches for the schedule and auto mode, and dismissal memory are UI stories (BIT-US-0151, 0152).
+- The app side of review and recommendations is described in section 8.
 - `ChatEvent::State` carries the whole shared-state document; `AgentState::from_value` reads only `model`, `tokenUsage` and `subAgents` leniently. Todos and touched files of that document are not shown yet.

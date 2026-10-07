@@ -42,11 +42,47 @@ pub enum PandoFeature {
     AgentChat,
     /// Let agents use Bitacora's MCP endpoint through Pando.
     McpBridge,
+    /// Journal review cards (manual "Review today / this week" and the optional daily schedule).
+    JournalReview,
+    /// Suggestion chips (related pages, links, tags, next actions) for the page on screen.
+    Recommendations,
 }
 
 impl PandoFeature {
     /// Every feature, in display order.
-    pub const ALL: [Self; 3] = [Self::SemanticSearch, Self::AgentChat, Self::McpBridge];
+    pub const ALL: [Self; 5] = [
+        Self::SemanticSearch,
+        Self::AgentChat,
+        Self::McpBridge,
+        Self::JournalReview,
+        Self::Recommendations,
+    ];
+}
+
+/// Default time of the daily journal review: 18:00 local, as minutes since midnight.
+pub const DEFAULT_REVIEW_AT_MINUTE: u32 = 18 * 60;
+
+/// Automatic behaviour of the AI features. Everything here is off by default: manual requests
+/// work without it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct AiAuto {
+    /// Review today's journal by itself once a day.
+    pub review_daily: bool,
+    /// Minutes since local midnight from which the daily review may run.
+    pub review_at_minute: u32,
+    /// Recommend for the page on screen after it has been quiet for a while.
+    pub recommend_auto: bool,
+}
+
+impl Default for AiAuto {
+    fn default() -> Self {
+        Self {
+            review_daily: false,
+            review_at_minute: DEFAULT_REVIEW_AT_MINUTE,
+            recommend_auto: false,
+        }
+    }
 }
 
 /// What the user agreed to for one graph.
@@ -84,6 +120,8 @@ pub struct PandoSettings {
     pub profiles: BTreeMap<PandoFeature, String>,
     /// Feature switches; a missing feature is on when [`enabled`](Self::enabled) is.
     pub features: BTreeMap<PandoFeature, bool>,
+    /// Daily review schedule and auto recommendations (both off by default).
+    pub ai: AiAuto,
     /// Consent and exclusions per graph, keyed by the canonical graph path.
     pub graphs: BTreeMap<String, GraphConsent>,
 }
@@ -99,6 +137,7 @@ impl Default for PandoSettings {
             binary: None,
             profiles: BTreeMap::new(),
             features: BTreeMap::new(),
+            ai: AiAuto::default(),
             graphs: BTreeMap::new(),
         }
     }
@@ -513,6 +552,18 @@ mod tests {
         s.features.insert(PandoFeature::AgentChat, false);
         assert!(!s.feature_enabled(PandoFeature::AgentChat));
         assert!(s.feature_enabled(PandoFeature::SemanticSearch));
+        // The v2 AI features default to on, their automation to off.
+        assert!(s.feature_enabled(PandoFeature::JournalReview));
+        assert!(s.feature_enabled(PandoFeature::Recommendations));
+        assert!(!s.ai.review_daily && !s.ai.recommend_auto);
+        assert_eq!(s.ai.review_at_minute, DEFAULT_REVIEW_AT_MINUTE);
+        let old: PandoSettings = serde_json::from_str(r#"{"enabled": true}"#).unwrap();
+        assert_eq!(old.ai, AiAuto::default());
+        let on: PandoSettings =
+            serde_json::from_str(r#"{"ai": {"review_daily": true, "review_at_minute": 600}}"#)
+                .unwrap();
+        assert!(on.ai.review_daily && !on.ai.recommend_auto);
+        assert_eq!(on.ai.review_at_minute, 600);
     }
 
     #[test]

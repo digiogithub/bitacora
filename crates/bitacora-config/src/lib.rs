@@ -26,8 +26,8 @@ pub use edn::{Edn, read_str};
 pub use error::{Diagnostic, DiagnosticKind, Error};
 pub use graph_view::{GraphForce, GraphToggle, GraphViewSettings};
 pub use pando::{
-    GraphConsent, PandoFeature, PandoMode, PandoSettings, PandoSettingsError, PandoUrl, UrlRole,
-    validate_pando_url,
+    AiAuto, DEFAULT_REVIEW_AT_MINUTE, GraphConsent, PandoFeature, PandoMode, PandoSettings,
+    PandoSettingsError, PandoUrl, UrlRole, validate_pando_url,
 };
 
 /// Crate name, used by smoke tests.
