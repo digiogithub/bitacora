@@ -131,8 +131,6 @@ theme:
   system: Seguir el sistema
   light: Claro
   dark: Oscuro
-  light_themes: Temas claros
-  dark_themes: Temas oscuros
 notice:
   write_failed: "No se pudieron guardar %{count} página(s); Bitacora sigue reintentando"
   conflict: "%{count} página(s) cambiaron en disco y no se sobrescribieron"

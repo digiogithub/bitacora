@@ -26,10 +26,6 @@ pub enum ThemePreference {
 pub struct AppSettings {
     /// Light / dark / system.
     pub mode: ThemePreference,
-    /// Name of the bundled theme used in light mode (`None` = default).
-    pub light_theme: Option<String>,
-    /// Name of the bundled theme used in dark mode (`None` = default).
-    pub dark_theme: Option<String>,
     /// Keep the process (and the MCP server) alive when the last window closes (BIT-T-0155).
     pub keep_running_in_background: bool,
     /// Update checks (BIT-US-0100).
@@ -54,8 +50,6 @@ impl Default for AppSettings {
     fn default() -> Self {
         Self {
             mode: ThemePreference::default(),
-            light_theme: None,
-            dark_theme: None,
             keep_running_in_background: false,
             updates: crate::update::UpdateSettings::default(),
             font_size: None,
@@ -211,8 +205,6 @@ mod tests {
         let path = tmp.path().join("nested/settings.json");
         let settings = AppSettings {
             mode: ThemePreference::Dark,
-            light_theme: None,
-            dark_theme: Some("Ayu Dark".into()),
             keep_running_in_background: false,
             updates: crate::update::UpdateSettings::default(),
             font_size: Some(14),

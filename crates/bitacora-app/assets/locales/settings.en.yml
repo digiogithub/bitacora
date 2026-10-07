@@ -146,10 +146,6 @@ settings:
     reduce_motion_help: Keeps the caret steady and draws spinners and transitions without movement.
     language_help: Applies at once.
     language_system: Follow the system
-    user_themes: Your themes
-    user_themes_help: Put theme JSON files in the themes folder of the app config directory.
-    user_themes_reload: Reload themes
-    user_themes_reloaded: Themes reloaded.
     css: Graph custom.css
     css_help: Colours and fonts from logseq/custom.css are applied; the file is never modified.
     css_none: This graph has no logseq/custom.css.

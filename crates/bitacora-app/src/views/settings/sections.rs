@@ -531,7 +531,6 @@ impl SettingsView {
                         this.say(Level::Success, t!("settings.saved").to_string(), cx);
                     })),
             ))
-            .child(self.user_themes_row(theme, cx))
             .child(self.custom_css_block(theme, cx))
             .into_any_element()
     }
@@ -576,35 +575,6 @@ impl SettingsView {
                     }
                     menu
                 }),
-        )
-    }
-
-    fn user_themes_row(&self, theme: &Theme, cx: &mut Context<Self>) -> AnyElement {
-        let errors = crate::theme::user_theme_errors(cx);
-        let mut help = t!("settings.appearance.user_themes_help").to_string();
-        for err in &errors {
-            help.push_str(&format!("\n{err}"));
-        }
-        row(
-            theme,
-            t!("settings.appearance.user_themes").to_string(),
-            Some(help),
-            Button::new("settings-themes-reload")
-                .small()
-                .label(t!("settings.appearance.user_themes_reload").to_string())
-                .on_click(cx.listener(|this, _: &ClickEvent, window, cx| {
-                    let errors = crate::theme::reload_user_themes(cx);
-                    crate::theme::apply(cx, Some(window));
-                    this.say(
-                        if errors.is_empty() {
-                            Level::Success
-                        } else {
-                            Level::Warning
-                        },
-                        t!("settings.appearance.user_themes_reloaded").to_string(),
-                        cx,
-                    );
-                })),
         )
     }
 

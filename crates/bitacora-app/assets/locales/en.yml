@@ -131,8 +131,6 @@ theme:
   system: Follow system
   light: Light
   dark: Dark
-  light_themes: Light themes
-  dark_themes: Dark themes
 notice:
   write_failed: "%{count} page(s) could not be saved; Bitacora keeps retrying"
   conflict: "%{count} page(s) changed on disk and were not overwritten"
