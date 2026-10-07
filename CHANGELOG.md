@@ -2,6 +2,24 @@
 
 All notable changes to Bitacora. Format follows Keep a Changelog; versions follow SemVer.
 
+## [2.0.1] - 2026-10-07
+
+### Added
+- Click a SCHEDULED/DEADLINE date chip to pick another date (or remove it) from a calendar, in outlines, tasks and references.
+- Edit any block in place from linked references, backlinks, query results, tasks and the sidebar.
+- Ctrl/Cmd+1/2/3 set the block marker to TODO / DOING / DONE; keymap settings show bindings grouped by context.
+- Logseq special blocks: code fences with copy button, quotes, NOTE/TIP/IMPORTANT/CAUTION/WARNING/PINNED callouts, EXAMPLE/CENTER/VERSE, with `<` commands inserting Logseq markers; Enter and Tab stay inside code regions.
+- Click modifiers everywhere: Shift+click opens in the right sidebar, Ctrl/Cmd+click opens in a new tab (graph focus toggle moved to Alt+click).
+- Chat auto-approves Pando read tools and can remember allow/deny decisions for write tools per graph.
+
+### Changed
+- Pando settings keep a single "Revoke and remove my data" action.
+
+### Fixed
+- Graph view nodes no longer jitter: layouts are computed off-screen and only move while dragging.
+- Title-bar search no longer overlaps other controls in narrow windows.
+- macOS DMG smoke test, Flatpak build flags and runtime, and CI on all platforms.
+
 ## [2.0.0] - 2026-10-07
 
 ### Added
