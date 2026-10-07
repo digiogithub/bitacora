@@ -44,7 +44,7 @@ id_allocation:
     epic: 25
     spec: 12
     story: 166
-    task: 493
+    task: 494
 priorities:
   - critical
   - high
