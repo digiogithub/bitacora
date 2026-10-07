@@ -64,6 +64,11 @@ authors = ["Digio <jose@digio.es>"]
 publisher = "Digio"
 copyright = "Copyright (c) Digio. MIT licensed."
 license-file = "../../LICENSE"
+# The fonts are embedded in the binary; OFL 1.1 requires shipping the licence texts with it.
+resources = [
+    { src = "assets/fonts/OFL-AtkinsonHyperlegible.txt", target = "licenses/OFL-AtkinsonHyperlegible.txt" },
+    { src = "assets/fonts/OFL-Literata.txt", target = "licenses/OFL-Literata.txt" },
+]
 category = "Productivity"
 out-dir = "../../target/packager"
 binaries-dir = "../../target/release"

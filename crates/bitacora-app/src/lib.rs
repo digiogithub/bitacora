@@ -24,6 +24,7 @@ pub mod data;
 pub mod editing;
 pub mod editor;
 pub mod events;
+pub mod fonts;
 pub mod graph_ops;
 pub mod graph_state;
 pub mod i18n;

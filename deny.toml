@@ -31,6 +31,10 @@ allow = [
 # `vendored-openssl`) so no system library is needed. Disable the `git2-push` feature of
 # `bitacora-sync` to drop libgit2 entirely.
 
+# Embedded fonts (bitacora-app/assets/fonts) are SIL OFL 1.1 data files, not crates, so
+# cargo-deny does not scan them and "OFL-1.1" is intentionally not in the allowlist. Their
+# notices live in crates/bitacora-app/NOTICE and assets/fonts/OFL-*.txt.
+
 [bans]
 multiple-versions = "warn"
 wildcards = "allow"
