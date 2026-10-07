@@ -68,6 +68,23 @@ Code: `crates/bitacora-app/src/views/chat/` (`mod.rs` state and behaviour, `rend
 - **Context (BIT-US-0150)**: "+ Page" and "+ Selection" chips attach the page on screen (a journal page counts as "journal day") or the selected blocks; the chip is exactly what is sent and is consumed by the message. `attached_blocks` builds `AttachedBlock`s with the live `ContentGuard` (tags and privacy from the page properties) and `ChatHandle::send` filters them again; nothing else from the graph is attached. The palette command "Ask Pando about the selection" attaches the selection (or the page) and focuses the composer. There is no block context menu in the app yet, so the command is the entry point.
 - **Frontend tools**: `AppHost` answers `open_page` (only pages the index knows) and `get_selection` (asks the UI thread through a channel, 3 s timeout, result filtered by the guard).
 
+## 9. Compose and ghost text in the editor (BIT-US-0153)
+
+`compose::run_compose(&ComposeDeps, &ComposeRequest, on_preview)` runs `bitacora-writer` (the profile from the managed config, no server changes) as a streaming one-shot with **no frontend tools**: the answer is plain text, never an edit the agent applies. Two modes: `Compose` (the user's instruction, the block as optional context) and `Continue` (ghost text: continue the text before the caret, at most two sentences). `on_preview` receives the whole text so far each time it grows; dropping the future cancels the run on the server (`CancelOnDrop`).
+
+Gate first: `check_allowed` refuses with `AgentError::Unavailable` before any request when the graph has no consent, the page is excluded by name, namespace, path or tag, the page or the block is `private:: true`. `PageLookup` (implemented for `IndexReader`) supplies path, tags and the page privacy flag. Session accessor: `Session::compose_deps()`.
+
+App side (`crates/bitacora-app/src/editor/`): `ai.rs` (pure decisions, `AiBackend` global, `SessionAiBackend` on the app's tokio runtime), `view/ai.rs` (editor state and key handling), `ai_view.rs` (drawing with the kit's `PopoverShell`, `Button::ai`, `Chip`, `Kbd` and the `ai`, `ai_bg`, `ai_line` tokens). Settings (`AppSettings::ai_assist`, Settings, Editor): `compose` and `ghost_text`, both **off by default**.
+
+- Ghost text: after `GHOST_DELAY` (1.2 s) without a keystroke, only with the caret at the end of a block with enough text, never on a property line, never during IME composition, never with a popup open. Each keystroke drops the pending timer and the request in flight. The suggestion is shaped after the text in `ai` at 85 % with a hint bar (`Tab` accept, `Esc` dismiss). Typing, caret moves, clicks, composition and leaving the block discard it. A failed request pauses requests for a minute. Tab inserts the text as a `Cmd::SetText` of its own undo step (after flushing what was typed), so `Ctrl/Cmd+Z` removes only the suggestion.
+- Compose box (`Ctrl/Cmd+J`, `outliner::AiCompose`): anchored under the edited block, instruction field, context chips ("this block" toggles whether the block text is sent), streaming amber draft, **Insert below** (one `InsertBlocks` / `InsertSibling` transaction), **Replace block** (one `SetText`), **Retry**, **Discard** (Esc). Nothing reaches the page until Insert or Replace.
+
+Requirements of this section:
+
+- MUST NOT send anything for pages the guard hides; the editor adds no bypass (a private block is also refused editor-side).
+- MUST NOT interrupt IME composition or block typing: requests are debounced, async and cancelled by the next keystroke.
+- MUST apply accepted text only through the core command queue as a normal undoable edit.
+
 ## Requirements
 
 - MUST NOT apply an agent edit except through `QueueEditApplier` after an explicit approval of the exact card.

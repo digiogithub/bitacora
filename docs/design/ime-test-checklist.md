@@ -70,6 +70,9 @@ Each case starts in a block with the text `alpha beta gamma` and the caret after
 | C18 | Tab and arrows during composition | Compose and press Tab, then arrows. | Tab does not indent the block while marked text exists; the arrows move inside the candidate list, not the caret (IME-dependent). |
 | C19 | Focus loss during composition | Start composing, then switch to another app and back. | No stuck underline or phantom preedit after returning. |
 | C20 | Typing speed | Type fast (a long ASCII paragraph) and mash Backspace/Enter. | No dropped characters, no panic, the caret never lags visibly behind the text. |
+| C21 | AI ghost text and IME (BIT-US-0153) | Turn on Settings, Editor, AI ghost text. Type a sentence, pause until the amber suggestion shows, then start composing (`日本語`). | The suggestion disappears at the first preedit character and no request is made while marked text exists. Tab during composition does not accept anything. |
+| C22 | Accepting a suggestion next to composed text | After committing composed text, pause for a suggestion and press Tab. | The suggestion is inserted after the committed text as one undo step; `Ctrl/Cmd+Z` removes only the suggestion. |
+| C23 | Compose box field and IME | Open the compose box with `Ctrl/Cmd+J` and write the instruction with an IME. | Composition works in the field, Enter commits the preedit instead of sending, a second Enter sends. Esc closes the box and the block keeps its caret. |
 
 ## Results table template
 

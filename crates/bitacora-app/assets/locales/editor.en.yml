@@ -72,6 +72,20 @@ editor:
     at_edge: The block cannot move any further.
     move_caret: "Move the caret to offset %{offset}."
     nothing_applicable: No selected block has what the command needs.
+  ai:
+    unavailable: "AI compose is off or Pando is not connected. Turn it on in Settings, Editor."
+    private: "This block is private and is never sent to an agent."
+    placeholder: "Ask the assistant to write..."
+    suggestion: Suggestion
+    accept: accept
+    dismiss: dismiss
+    context: "Context:"
+    this_block: This block
+    generate: Write
+    insert_below: Insert below
+    replace: Replace block
+    retry: Retry
+    discard: Discard
 sync:
   onboarding:
     git_hint: Installing git gives access to your SSH agent and credential helpers.

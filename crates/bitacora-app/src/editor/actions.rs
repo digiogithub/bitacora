@@ -8,6 +8,8 @@
 //! | `BlockEditor` | one block is in edit mode | Enter, Tab, arrows |
 //! | `Autocomplete` | a completion popup is open | Enter, Up/Down, Esc |
 //! | `DatePicker` | the calendar popup is open (with `Autocomplete`) | Left/Right |
+//! | `GhostText` | an AI continuation is shown after the caret (with `BlockEditor`) | Tab, Esc |
+//! | `ComposeBox` | the compose box has focus (it sits inside the outline) | Esc |
 //!
 //! Precedence is `Autocomplete` > `BlockEditor` > `BlockSelection` > `Outliner`: a focused outline
 //! sets the context to `Outliner` plus the mode it is in, and the keymap lists the more specific
@@ -81,6 +83,11 @@ actions!(
         // Calendar popup (`/date picker`, `/scheduled`, `/deadline`).
         PickerPreviousDay,
         PickerNextDay,
+        // AI help (BIT-US-0153): the compose box and the inline ghost text.
+        AiCompose,
+        AcceptGhost,
+        DismissGhost,
+        DismissCompose,
     ]
 );
 
@@ -94,6 +101,10 @@ pub mod context {
     pub const BLOCK_SELECTION: &str = "BlockSelection";
     /// A completion popup is open.
     pub const AUTOCOMPLETE: &str = "Autocomplete";
+    /// An AI continuation is shown after the caret.
+    pub const GHOST_TEXT: &str = "GhostText";
+    /// The "Compose with AI" box.
+    pub const COMPOSE_BOX: &str = "ComposeBox";
 }
 
 /// Platform word-motion modifier (Alt on macOS, Ctrl elsewhere).

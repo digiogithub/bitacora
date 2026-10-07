@@ -7,6 +7,7 @@ use std::ops::Range;
 use bitacora_markdown::inline::{InlineToken, scan_line};
 
 use crate::ui::text_edit::{Font, FontWeight, StrikethroughStyle, TextRun, UnderlineStyle};
+use crate::ui::theme::ActiveBitacoraTheme as _;
 use crate::ui::{ActiveTheme as _, App, Hsla, Pixels, Window, px};
 
 /// Visual role of a source range.
@@ -218,6 +219,8 @@ pub struct Palette {
     pub selection: Hsla,
     /// Caret.
     pub caret: Hsla,
+    /// Unaccepted AI text (ghost continuation): the design system's AI amber at 85 %.
+    pub ghost: Hsla,
 }
 
 impl Palette {
@@ -232,7 +235,20 @@ impl Palette {
             done: t.success,
             selection: t.selection,
             caret: t.caret,
+            ghost: cx.bitacora().colors.ai.opacity(0.85),
         }
+    }
+}
+
+/// The run of an unaccepted AI continuation of `len` bytes appended to the block text.
+pub fn ghost_run(len: usize, font: &Font, p: &Palette) -> TextRun {
+    TextRun {
+        len,
+        font: font.clone(),
+        color: p.ghost,
+        background_color: None,
+        underline: None,
+        strikethrough: None,
     }
 }
 

@@ -164,6 +164,10 @@ settings:
     template: Default journal template
     template_help: Name of the template applied to new journals (:default-templates).
     template_placeholder: Template name
+    ai_compose: "AI compose box"
+    ai_compose_help: "Ask an agent to write text with Ctrl/Cmd+J. Needs Pando connected and consent for this graph; excluded and private pages are never sent."
+    ai_ghost: "AI ghost text"
+    ai_ghost_help: "Suggest a continuation in amber after a pause in typing. Tab accepts it, Esc or typing dismisses it. Never during IME composition."
   search:
     substring: Substring search
     substring_help: Keep a trigram index so fragments inside words and CJK text are found. Turning it off roughly halves the index size.

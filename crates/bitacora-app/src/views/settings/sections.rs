@@ -231,6 +231,7 @@ impl SettingsView {
             return self.no_graph(theme);
         };
         let workflow = values.workflow;
+        let ai = self.app(cx).ai_assist;
         v_flex()
             .gap_1()
             .child(row(
@@ -276,6 +277,34 @@ impl SettingsView {
                     240.,
                     self.commit_listener(Field::Template, cx),
                 ),
+            ))
+            .child(row(
+                theme,
+                t!("settings.editor.ai_compose").to_string(),
+                Some(t!("settings.editor.ai_compose_help").to_string()),
+                Switch::new("settings-ai-compose")
+                    .checked(ai.compose)
+                    .on_click(cx.listener(|this, on: &bool, window, cx| {
+                        let on = *on;
+                        crate::theme::edit_settings(cx, Some(window), |s| {
+                            s.ai_assist.compose = on;
+                        });
+                        this.say(Level::Success, t!("settings.saved").to_string(), cx);
+                    })),
+            ))
+            .child(row(
+                theme,
+                t!("settings.editor.ai_ghost").to_string(),
+                Some(t!("settings.editor.ai_ghost_help").to_string()),
+                Switch::new("settings-ai-ghost")
+                    .checked(ai.ghost_text)
+                    .on_click(cx.listener(|this, on: &bool, window, cx| {
+                        let on = *on;
+                        crate::theme::edit_settings(cx, Some(window), |s| {
+                            s.ai_assist.ghost_text = on;
+                        });
+                        this.say(Level::Success, t!("settings.saved").to_string(), cx);
+                    })),
             ))
             .into_any_element()
     }

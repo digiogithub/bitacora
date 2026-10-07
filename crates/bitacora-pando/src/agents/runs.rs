@@ -82,7 +82,7 @@ async fn drive(thread: &mut Thread, prompt: &str) -> Result<(), AgentError> {
     Ok(())
 }
 
-fn final_text(messages: &[Message]) -> Option<String> {
+pub(super) fn final_text(messages: &[Message]) -> Option<String> {
     messages
         .iter()
         .rev()

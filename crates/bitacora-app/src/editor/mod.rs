@@ -7,6 +7,8 @@
 //!   are the pure helpers.
 
 pub mod actions;
+pub mod ai;
+pub mod ai_view;
 pub mod assets;
 pub mod autopair;
 pub mod buffer;
