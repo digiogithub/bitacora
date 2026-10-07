@@ -1859,7 +1859,8 @@ impl Workspace {
     fn close_topmost_overlay(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
         if self.credential_dialog.read(cx).is_open() {
             // Escape declines the credential prompt, like its Cancel button.
-            self.credential_dialog.update(cx, |d, cx| d.cancel(window, cx));
+            self.credential_dialog
+                .update(cx, |d, cx| d.cancel(window, cx));
         } else if self.settings.read(cx).is_open() {
             // Escape first cancels a shortcut recording, then closes the settings.
             self.settings.update(cx, |s, cx| s.escape(cx));
