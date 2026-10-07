@@ -20,7 +20,8 @@ pub use gpui_kit::{
     EventEmitter, FocusHandle, Focusable, Global, Hsla, KeyBinding, KeyBindingContextPredicate,
     KeyDownEvent, KeyUpEvent, Keystroke, NoAction, PathPromptOptions, Pixels, Point, Render, Rgba,
     SharedString, Size, StyledImage, Subscription, Task, TextSystem, TitlebarOptions, WeakEntity,
-    Window, WindowAppearance, WindowBounds, WindowOptions, deferred, div, point, px, size,
+    Window, WindowAppearance, WindowBounds, WindowOptions, anchored, deferred, div, point, px,
+    size,
 };
 pub use gpui_kit::{rgb, rgba};
 
