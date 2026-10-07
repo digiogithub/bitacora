@@ -66,6 +66,7 @@ crates/
   bitacora-merge/          # block-aware 3-way merge (used by core for external edits and by sync for git)
   bitacora-sync/           # GitBackend (git CLI + gix), sync loop, conflict state
   bitacora-mcp/            # rmcp + axum Streamable HTTP server
+  bitacora-graph/          # GPUI-free force-directed graph layout engine (ADR-034); leaf, no bitacora deps
   bitacora-runtime/        # headless graph session: composes core+index+watch+sync+mcp (ADR-024); no UI
   bitacora-app/            # GPUI Kit desktop binary (the ONLY crate depending on gpui-kit)
   bitacora-cli/            # headless binary (serve, reindex, sync, doctor)
@@ -74,7 +75,7 @@ fixtures/graphs/           # Logseq sample graphs used by tests
 docs/                      # knowledge base (Markdown, wikilinks) + gintrack backlog in docs/.pmngr
 ```
 
-Dependency direction: `markdown` ← `merge` ← `core` ← {`index`, `sync`, `mcp`} ← `runtime` ← {`app`, `cli`} (`sync` also uses `merge` directly). Never add a reverse edge.
+Dependency direction: `markdown` ← `merge` ← `core` ← {`index`, `sync`, `mcp`} ← `runtime` ← {`app`, `cli`} (`sync` also uses `merge` directly). `bitacora-graph` is a leaf (no bitacora or UI dependencies) used only by `runtime` and `app`. Never add a reverse edge.
 
 ## 5. MANDATORY: project-specific non-negotiable rules
 

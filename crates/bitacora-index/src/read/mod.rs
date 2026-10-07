@@ -5,6 +5,7 @@
 //! duration of the call.
 
 mod diagnostics;
+mod graph;
 mod misc;
 mod outline;
 mod refs;
@@ -16,6 +17,7 @@ use crate::Error;
 use crate::pool::ReaderPool;
 
 pub use diagnostics::{DiagnosticCount, DiagnosticFilter, DiagnosticRow};
+pub use graph::{GraphData, GraphDataEdge, GraphDataNode, GraphFilter};
 pub use misc::{
     AgendaItem, AgendaKind, GraphEdge, GraphEdgeKind, GraphNode, GraphOptions, GraphView,
     NamespaceNode, TaskFilter, TaskItem,

@@ -38,8 +38,9 @@ pub use parsed::*;
 pub use pool::{PooledReader, ReaderPool};
 pub use read::{
     AgendaItem, AgendaKind, BlockRow, Crumb, DiagnosticCount, DiagnosticFilter, DiagnosticRow,
-    GraphEdge, GraphEdgeKind, GraphNode, GraphOptions, GraphView, IndexReader, NamespaceNode,
-    PageFilter, PageRow, PageSort, RefFilters, RefGroup, RefHit, TaskFilter, TaskItem,
+    GraphData, GraphDataEdge, GraphDataNode, GraphEdge, GraphEdgeKind, GraphFilter, GraphNode,
+    GraphOptions, GraphView, IndexReader, NamespaceNode, PageFilter, PageRow, PageSort, RefFilters,
+    RefGroup, RefHit, TaskFilter, TaskItem,
 };
 pub use reconcile::{FsChange, Indexer, IndexerOptions, ReconcileStats};
 pub use replace::{

@@ -46,6 +46,7 @@ bitacora-merge = { path = "crates/bitacora-merge" }
 bitacora-sync = { path = "crates/bitacora-sync" }
 bitacora-mcp = { path = "crates/bitacora-mcp" }
 bitacora-runtime = { path = "crates/bitacora-runtime" }
+bitacora-graph = { path = "crates/bitacora-graph" }
 bitacora-testkit = { path = "crates/bitacora-testkit" }
 # Generic Pando SDK; depends on no bitacora crate (ADR-027)
 pando-rs = { path = "crates/pando-rs" }

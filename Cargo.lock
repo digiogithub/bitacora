@@ -867,6 +867,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "bitacora-graph"
+version = "0.1.0"
+dependencies = [
+ "proptest",
+]
+
+[[package]]
 name = "bitacora-index"
 version = "0.1.0"
 dependencies = [

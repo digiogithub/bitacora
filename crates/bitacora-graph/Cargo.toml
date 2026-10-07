@@ -1,0 +1,19 @@
+[package]
+name = "bitacora-graph"
+description = "Bitacora: GPUI-free force-directed graph layout engine (ADR-034)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+# Leaf crate: depends on no other bitacora crate and on no UI toolkit. The app / runtime feed it
+# index data (`bitacora_index::GraphData`) converted to `GraphInput`.
+[dependencies]
+
+[dev-dependencies]
+proptest.workspace = true
