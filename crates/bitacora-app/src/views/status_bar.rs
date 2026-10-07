@@ -1,5 +1,6 @@
 //! Bottom status bar with sync, MCP and index slots plus a heartbeat demo slot.
 
+use crate::views::dims;
 use async_channel::Receiver;
 use bitacora_runtime::SyncStatusView;
 use bitacora_sync::state::SyncState;
@@ -14,7 +15,7 @@ use crate::ui::status_bar::StatusBar;
 use crate::ui::{
     Context, EventEmitter, FluentBuilder as _, IconName, InteractiveElement as _, IntoElement,
     ParentElement as _, Render, Sizable as _, StatefulInteractiveElement as _, Styled as _, Task,
-    Window, h_flex, icon, px,
+    Window, h_flex, icon,
 };
 
 /// Which subsystem a slot describes.
@@ -227,7 +228,11 @@ impl AppStatusBar {
                 } else {
                     done as f32 * 100.0 / total as f32
                 };
-                row.child(Progress::new("index-progress").w(px(80.)).value(percent))
+                row.child(
+                    Progress::new("index-progress")
+                        .w(dims::PX_80)
+                        .value(percent),
+                )
             })
     }
 }

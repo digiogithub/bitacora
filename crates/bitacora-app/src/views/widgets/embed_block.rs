@@ -10,6 +10,7 @@
 //! Embeds nest. [`Chain`] refuses a target that is already being drawn above it ("circular
 //! embed") and a nesting deeper than [`DEFAULT_MAX_DEPTH`].
 
+use crate::views::dims;
 use std::rc::Rc;
 use std::time::Duration;
 
@@ -29,7 +30,7 @@ use crate::ui::{
     ActiveTheme as _, AnyElement, App, AppContext as _, Context, Entity, FluentBuilder as _,
     IconName, InteractiveElement as _, IntoElement, ParentElement as _, Render,
     StatefulInteractiveElement as _, Styled as _, Subscription, Task, Window, div, h_flex, icon,
-    px, v_flex,
+    v_flex,
 };
 use crate::views::block_view::{Action, Nav, RowActions, render_block_row};
 
@@ -376,16 +377,16 @@ impl EmbedBlock {
             .gap_2()
             .items_center()
             .px_2()
-            .py(px(4.))
+            .py(dims::PX_4)
             .text_sm()
             .text_color(color)
             .when(warn, |d| {
-                d.child(icon(IconName::TriangleAlert).size(px(14.)))
+                d.child(icon(IconName::TriangleAlert).size(dims::PX_14))
             })
             .child(text)
             .border_1()
             .border_color(theme.border)
-            .rounded(px(6.))
+            .rounded(dims::PX_6)
             .into_any_element()
     }
 
@@ -396,7 +397,7 @@ impl EmbedBlock {
         theme: &crate::ui::theme::Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        let mut bar = h_flex().gap_1().items_center().px_2().py(px(2.)).child(
+        let mut bar = h_flex().gap_1().items_center().px_2().py(dims::PX_2).child(
             div()
                 .id(("emb-fold", element_id(eid, 1)))
                 .cursor_pointer()
@@ -406,7 +407,7 @@ impl EmbedBlock {
                     } else {
                         IconName::ChevronDown
                     })
-                    .size(px(14.)),
+                    .size(dims::PX_14),
                 )
                 .on_click(cx.listener(|this, _, _, cx| this.toggle_collapsed(cx))),
         );
@@ -442,8 +443,8 @@ impl EmbedBlock {
             bar = bar.child(
                 div()
                     .id(("emb-edit", element_id(eid, 2)))
-                    .px(px(6.))
-                    .rounded(px(4.))
+                    .px(dims::PX_6)
+                    .rounded(dims::PX_4)
                     .text_xs()
                     .cursor_pointer()
                     .text_color(theme.muted_foreground)
@@ -537,7 +538,7 @@ impl Render for EmbedBlock {
         }
         let frame = v_flex()
             .w_full()
-            .rounded(px(6.))
+            .rounded(dims::PX_6)
             .border_l_2()
             .border_color(theme.primary)
             .bg(theme.secondary.opacity(0.5))

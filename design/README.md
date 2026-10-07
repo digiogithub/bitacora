@@ -17,4 +17,4 @@ cargo xtask tokens --check    # fail if the generated file is stale (CI)
 cargo xtask tokens --contrast # WCAG 4.5:1 check of text tokens on every surface (CI)
 ```
 
-Never edit `palette.rs` by hand.
+Never edit the generated files by hand. Full pipeline and the no-magic-values test: `docs/design/design-tokens.md`.

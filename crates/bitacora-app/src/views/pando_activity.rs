@@ -6,6 +6,7 @@
 //! Nothing here shows page text. "Clear" empties the Pando log; MCP audit entries belong to the
 //! agent activity dialog, which stays reachable from here with its undo buttons.
 
+use crate::views::dims;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use bitacora_mcp::{AuditEvent, AuditFilter, AuditRecord, PANDO_TOKEN_NAME};
@@ -17,7 +18,7 @@ use crate::ui::theme::{ActiveBitacoraTheme as _, TypeStyleExt as _};
 use crate::ui::{
     ActiveTheme as _, AnyElement, AppContext as _, Context, EventEmitter, FluentBuilder as _,
     InteractiveElement as _, IntoElement, ParentElement as _, Render,
-    StatefulInteractiveElement as _, Styled as _, Task, Window, div, h_flex, px, v_flex,
+    StatefulInteractiveElement as _, Styled as _, Task, Window, div, h_flex, v_flex,
 };
 use crate::views::kit::{Button, Chip, ChipTone};
 use crate::views::modal::{modal, title_bar};
@@ -353,7 +354,7 @@ impl Render for PandoActivityView {
             .id("pando-log-list")
             .gap(m.space[2])
             .overflow_y_scroll()
-            .h(px(380.));
+            .h(dims::PX_380);
         if visible.is_empty() {
             list = list.child(
                 div()

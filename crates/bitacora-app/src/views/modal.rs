@@ -4,15 +4,13 @@
 //! The frame follows the popover surface of the design system (`raised`, `line` border,
 //! `radius_popover`, `shadow_lg`), styled from the `BitacoraTheme` global at render time.
 
-use crate::ui::text_edit::{MouseButton, hsla};
+use crate::ui::text_edit::MouseButton;
 use crate::ui::theme::{ActiveBitacoraTheme as _, BitacoraTheme, Theme, TypeStyleExt as _};
 use crate::ui::{
     AnyElement, App, InteractiveElement as _, IntoElement, ParentElement as _, RenderOnce,
     StatefulInteractiveElement as _, Styled as _, Window, div, h_flex, px, v_flex,
 };
-
-/// Opacity of the black scrim behind a dialog. The design system has no scrim token.
-const SCRIM_ALPHA: f32 = 0.4;
+use crate::views::dims;
 
 /// An element built from the design theme at render time, so the helpers below keep their
 /// `theme`-only signatures while styling from the design tokens.
@@ -47,7 +45,7 @@ pub fn modal(
             .flex()
             .justify_center()
             .items_center()
-            .bg(hsla(0., 0., 0., SCRIM_ALPHA))
+            .bg(dims::SCRIM)
             .on_mouse_down(MouseButton::Left, move |_, window, cx| {
                 on_dismiss(window, cx);
             })

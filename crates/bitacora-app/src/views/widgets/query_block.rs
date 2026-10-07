@@ -6,6 +6,7 @@
 //! after a 300 ms pause, but only while the widget is on screen: a widget that was not drawn
 //! for a while only marks itself stale and re-runs when drawn again.
 
+use crate::views::dims;
 use std::time::{Duration, Instant};
 
 use rust_i18n::t;
@@ -21,7 +22,7 @@ use crate::ui::theme::ActiveBitacoraTheme as _;
 use crate::ui::{
     ActiveTheme as _, AnyElement, App, Context, FluentBuilder as _, IconName,
     InteractiveElement as _, IntoElement, ParentElement as _, Render, SharedString,
-    StatefulInteractiveElement as _, Styled as _, Task, Window, div, h_flex, icon, px, v_flex,
+    StatefulInteractiveElement as _, Styled as _, Task, Window, div, h_flex, icon, v_flex,
 };
 use crate::views::block_view::{Action, Nav, RowActions, render_block_row, text_element_owned};
 
@@ -410,7 +411,7 @@ impl QueryBlock {
             .gap_2()
             .items_center()
             .px_2()
-            .py(px(3.))
+            .py(dims::PX_3)
             .child(
                 div()
                     .id(("qb-fold", id(1)))
@@ -421,7 +422,7 @@ impl QueryBlock {
                         } else {
                             IconName::ChevronDown
                         })
-                        .size(px(14.)),
+                        .size(dims::PX_14),
                     )
                     .on_click(cx.listener(|this, _, _, cx| this.toggle_collapsed(cx))),
             )
@@ -499,10 +500,10 @@ impl QueryBlock {
             .gap_2()
             .items_start()
             .px_2()
-            .py(px(4.))
+            .py(dims::PX_4)
             .text_sm()
             .text_color(color)
-            .child(icon(IconName::TriangleAlert).size(px(14.)))
+            .child(icon(IconName::TriangleAlert).size(dims::PX_14))
             .child(div().flex_1().min_w_0().child(text))
             .border_t_1()
             .border_color(theme.border)
@@ -548,7 +549,7 @@ impl QueryBlock {
                         if let Some(trail) = trail {
                             col = col.child(
                                 div()
-                                    .pl(px(22.))
+                                    .pl(dims::PX_22)
                                     .text_xs()
                                     .text_color(theme.muted_foreground)
                                     .child(trail.join(" \u{203a} ")),
@@ -608,8 +609,8 @@ impl QueryBlock {
                 chips = chips.child(
                     div()
                         .id(("qb-pick", crate::views::widgets::element_id(eid, 300 + i)))
-                        .px(px(6.))
-                        .rounded(px(4.))
+                        .px(dims::PX_6)
+                        .rounded(dims::PX_4)
                         .text_xs()
                         .cursor_pointer()
                         .border_1()
@@ -627,7 +628,7 @@ impl QueryBlock {
         }
         let mut head = h_flex()
             .gap_2()
-            .py(px(2.))
+            .py(dims::PX_2)
             .border_b_1()
             .border_color(theme.border);
         for (c, name) in table.columns.iter().enumerate() {
@@ -645,8 +646,8 @@ impl QueryBlock {
                 div()
                     .id(("qb-head", crate::views::widgets::element_id(eid, 400 + c)))
                     .flex_1()
-                    .min_w(px(60.))
-                    .when(c == 0, |d| d.min_w(px(220.)))
+                    .min_w(dims::PX_60)
+                    .when(c == 0, |d| d.min_w(dims::PX_220))
                     .text_xs()
                     .font_weight(crate::ui::text_edit::FontWeight::SEMIBOLD)
                     .text_color(theme.muted_foreground)
@@ -659,7 +660,7 @@ impl QueryBlock {
         for (r, row) in table.rows.iter().enumerate() {
             let mut line = h_flex()
                 .gap_2()
-                .py(px(2.))
+                .py(dims::PX_2)
                 .items_start()
                 .border_b_1()
                 .border_color(theme.border.opacity(0.4));
@@ -709,9 +710,9 @@ impl QueryBlock {
                 line = line.child(
                     div()
                         .flex_1()
-                        .min_w(px(60.))
+                        .min_w(dims::PX_60)
                         .text_sm()
-                        .when(c == 0, |d| d.min_w(px(220.)))
+                        .when(c == 0, |d| d.min_w(dims::PX_220))
                         .child(cell),
                 );
             }
@@ -729,8 +730,8 @@ fn chip(
 ) -> AnyElement {
     div()
         .id(id)
-        .px(px(6.))
-        .rounded(px(4.))
+        .px(dims::PX_6)
+        .rounded(dims::PX_4)
         .text_xs()
         .cursor_pointer()
         .text_color(theme.muted_foreground)
@@ -752,7 +753,7 @@ impl Render for QueryBlock {
         let root = Some(self.handle.root.clone());
         let mut frame = v_flex()
             .w_full()
-            .rounded(px(6.))
+            .rounded(dims::PX_6)
             .border_1()
             .border_color(theme.border)
             .bg(theme.background)
@@ -765,7 +766,7 @@ impl Render for QueryBlock {
             frame = frame.child(
                 div()
                     .px_2()
-                    .pb(px(2.))
+                    .pb(dims::PX_2)
                     .text_xs()
                     .font_family(theme.mono_font_family.clone())
                     .text_color(theme.muted_foreground)

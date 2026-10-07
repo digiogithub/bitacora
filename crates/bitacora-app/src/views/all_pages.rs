@@ -2,6 +2,7 @@
 //! journal flag; sortable by clicking a header, filterable by name, journals and built-ins hidden
 //! by default. Built on GPUI Kit's `DataTable`.
 
+use crate::views::dims;
 use std::rc::Rc;
 use std::time::Duration;
 
@@ -18,7 +19,7 @@ use crate::ui::{
     ActiveTheme as _, App, AppContext as _, Context, Entity, EventEmitter, FocusHandle, Focusable,
     InteractiveElement as _, IntoElement, ParentElement as _, Render, Selectable as _,
     Sizable as _, StatefulInteractiveElement as _, Styled as _, Subscription, Task, Window, div,
-    h_flex, px, v_flex,
+    h_flex, v_flex,
 };
 use crate::views::page_view::PageEvent;
 
@@ -55,20 +56,20 @@ impl PagesDelegate {
     fn new(open: OpenPage) -> Self {
         let columns = vec![
             Column::new("name", t!("all_pages.name").to_string())
-                .width(px(260.))
+                .width(dims::PX_260)
                 .ascending(),
             Column::new("backlinks", t!("all_pages.backlinks").to_string())
-                .width(px(90.))
+                .width(dims::PX_90)
                 .text_right()
                 .sortable(),
             Column::new("created", t!("all_pages.created").to_string())
-                .width(px(100.))
+                .width(dims::PX_100)
                 .sortable(),
             Column::new("updated", t!("all_pages.updated").to_string())
-                .width(px(100.))
+                .width(dims::PX_100)
                 .sortable(),
             Column::new("journal", t!("all_pages.journal").to_string())
-                .width(px(80.))
+                .width(dims::PX_80)
                 .sortable(),
         ];
         Self {
@@ -406,7 +407,7 @@ impl Render for AllPagesView {
             .track_focus(&self.focus)
             .on_action(cx.listener(Self::open_selected))
             .size_full()
-            .p(px(16.))
+            .p(dims::PX_16)
             .gap_2()
             .child(
                 div()
@@ -418,7 +419,7 @@ impl Render for AllPagesView {
                 h_flex()
                     .gap_2()
                     .items_center()
-                    .child(div().w(px(280.)).child(Input::new(&self.filter)))
+                    .child(div().w(dims::PX_280).child(Input::new(&self.filter)))
                     .child(
                         Button::new("all-pages-journals")
                             .ghost()

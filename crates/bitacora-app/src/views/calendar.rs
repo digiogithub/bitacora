@@ -4,6 +4,7 @@
 //! [`cell_look`]) so tests need no window. [`render_calendar`] paints a [`CalendarState`] and
 //! reports clicks through callbacks; it owns no state.
 
+use crate::views::dims;
 use std::collections::HashSet;
 use std::rc::Rc;
 
@@ -270,7 +271,7 @@ pub fn render_calendar(
                     .flex_col()
                     .items_center()
                     .justify_center()
-                    .gap(px(1.0))
+                    .gap(dims::PX_1)
                     .rounded(m.radius_control)
                     .cursor_pointer()
                     .when_some(look.fill, |d, fill| d.bg(fill))

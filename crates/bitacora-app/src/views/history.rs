@@ -6,6 +6,7 @@
 //! Restores are ordinary core transactions, so the page keeps being written by the single
 //! writer and the whole restore can be undone from the panel.
 
+use crate::views::dims;
 use std::collections::BTreeSet;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -19,8 +20,7 @@ use crate::ui::button::{Button, ButtonVariants as _};
 use crate::ui::{
     ActiveTheme as _, Context, Disableable as _, EventEmitter, FluentBuilder as _, IconName,
     InteractiveElement as _, IntoElement, ParentElement as _, Render, Selectable as _,
-    Sizable as _, StatefulInteractiveElement as _, Styled as _, Task, Window, div, h_flex, px,
-    v_flex,
+    Sizable as _, StatefulInteractiveElement as _, Styled as _, Task, Window, div, h_flex, v_flex,
 };
 use crate::views::modal::{modal, title_bar, word_diff};
 use crate::views::sync_panel::ago;
@@ -393,7 +393,7 @@ impl Render for HistoryView {
             .id("history-list")
             .gap_1()
             .overflow_y_scroll()
-            .w(px(260.));
+            .w(dims::PX_260);
         if self.loading {
             list = list.child(
                 div()
@@ -433,7 +433,7 @@ impl Render for HistoryView {
                     .id(("history-entry", ix))
                     .p_2()
                     .gap_0p5()
-                    .rounded(px(6.))
+                    .rounded(dims::PX_6)
                     .cursor_pointer()
                     .when(self.selected == Some(ix), |d| d.bg(theme.secondary))
                     .hover(|d| d.bg(theme.secondary))
@@ -512,7 +512,7 @@ impl Render for HistoryView {
                             .id(("history-block", ix))
                             .gap_1()
                             .p_2()
-                            .rounded(px(6.))
+                            .rounded(dims::PX_6)
                             .border_1()
                             .border_color(theme.border)
                             .child(
@@ -665,7 +665,7 @@ impl Render for HistoryView {
                     h_flex()
                         .gap_3()
                         .p_4()
-                        .h(px(440.))
+                        .h(dims::PX_440)
                         .items_start()
                         .child(list.h_full())
                         .child(diff_col.h_full()),

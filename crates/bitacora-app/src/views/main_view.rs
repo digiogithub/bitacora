@@ -4,6 +4,7 @@
 //! `MainView` owns the [`PageView`] and the [`JournalsView`], turns clicks on refs, tags and
 //! breadcrumbs into [`Route`]s and remembers where each visited route was scrolled to.
 
+use crate::views::dims;
 use bitacora_index::IndexEvent;
 
 use crate::data::GraphHandle;
@@ -13,7 +14,7 @@ use crate::ui::button::{Button, ButtonVariants as _};
 use crate::ui::{
     ActiveTheme as _, App, AppContext as _, Context, Disableable as _, Entity, EventEmitter,
     IconName, IntoElement, ParentElement as _, Render, Sizable as _, Styled as _, Subscription,
-    Window, div, h_flex, px, v_flex,
+    Window, div, h_flex, v_flex,
 };
 use crate::views::all_pages::AllPagesView;
 use crate::views::graph_view::{GraphMode, GraphView};
@@ -357,8 +358,8 @@ impl Render for MainView {
             .bg(theme.background)
             .child(
                 h_flex()
-                    .px(px(8.))
-                    .py(px(4.))
+                    .px(dims::PX_8)
+                    .py(dims::PX_4)
                     .gap_1()
                     .border_b_1()
                     .border_color(theme.border)

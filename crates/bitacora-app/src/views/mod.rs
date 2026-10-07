@@ -8,6 +8,7 @@ pub mod calendar;
 pub mod chat;
 pub mod conflicts;
 pub mod credential_dialog;
+pub mod dims;
 pub mod disk_conflict;
 pub mod graph_view;
 #[cfg(test)]

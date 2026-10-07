@@ -1,5 +1,6 @@
 //! `Tab` (title-bar page tab) and `Segmented` (mutually exclusive options).
 
+use crate::views::dims;
 use std::rc::Rc;
 
 use super::icons::{Glyph, glyph};
@@ -9,7 +10,7 @@ use crate::ui::theme::{ActiveBitacoraTheme as _, BitacoraTheme, TypeStyleExt as 
 use crate::ui::{
     App, ClickEvent, ElementId, FluentBuilder as _, Hsla, InteractiveElement as _, IntoElement,
     ParentElement as _, RenderOnce, SharedString, StatefulInteractiveElement as _, Styled as _,
-    Window, div, h_flex, px,
+    Window, div, h_flex,
 };
 
 type ClickHandler = Rc<dyn Fn(&ClickEvent, &mut Window, &mut App)>;
@@ -105,7 +106,7 @@ impl RenderOnce for Tab {
             .border_b_0()
             .border_color(border.unwrap_or(transparent))
             .when_some(bg, |d, bg| d.bg(bg))
-            .when(self.active, |d| d.mb(px(-1.0)))
+            .when(self.active, |d| d.mb(dims::PX_NEG_1))
             .text_color(fg)
             .type_style(&theme.type_scale.ui_small)
             .font_weight(weight)
@@ -114,7 +115,7 @@ impl RenderOnce for Tab {
             .when_some(self.on_click, |d, h| {
                 d.on_click(move |ev, window, cx| h(ev, window, cx))
             })
-            .child(glyph(self.icon, m.icon_sm - px(1.0), fg, cx))
+            .child(glyph(self.icon, m.icon_sm - dims::PX_1, fg, cx))
             .child(div().min_w_0().flex_1().truncate().child(self.title))
             .when_some(self.on_close, |d, h| {
                 d.child(
@@ -132,7 +133,7 @@ impl RenderOnce for Tab {
                         })
                         .child(glyph(
                             Glyph::Close,
-                            m.icon_sm - px(2.0),
+                            m.icon_sm - dims::PX_2,
                             theme.colors.muted,
                             cx,
                         )),

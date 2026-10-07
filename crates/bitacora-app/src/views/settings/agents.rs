@@ -2,6 +2,7 @@
 //! token table (BIT-T-0116, BIT-US-0016). Token changes act on the running server's
 //! [`TokenStore`], so a revoked token is refused on its next request without a restart.
 
+use crate::views::dims;
 use bitacora_mcp::{Scope, TokenStorage, TokenSummary};
 use rust_i18n::t;
 
@@ -443,7 +444,7 @@ impl SettingsView {
                     .id("settings-secret")
                     .gap_1()
                     .p_3()
-                    .rounded(crate::ui::px(6.))
+                    .rounded(dims::PX_6)
                     .border_1()
                     .border_color(theme.warning)
                     .child(
@@ -620,7 +621,7 @@ impl SettingsView {
                 .items_center()
                 .child(
                     div()
-                        .w(crate::ui::px(200.))
+                        .w(dims::PX_200)
                         .child(crate::ui::input::Input::new(&self.inputs.token_name)),
                 )
                 .child(

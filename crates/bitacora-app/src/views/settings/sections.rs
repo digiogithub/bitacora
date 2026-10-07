@@ -1,5 +1,6 @@
 //! General, Editor, Search & Index, Sync and Appearance sections.
 
+use crate::views::dims;
 use bitacora_config::{NameFormat, PreferredWorkflow};
 use rust_i18n::t;
 
@@ -14,7 +15,7 @@ use crate::ui::theme::Theme;
 use crate::ui::{
     AnyElement, ClickEvent, Context, Disableable as _, FluentBuilder as _, IconName,
     InteractiveElement as _, IntoElement, Level, ParentElement as _, Sizable as _,
-    StatefulInteractiveElement as _, Styled as _, div, h_flex, px, v_flex,
+    StatefulInteractiveElement as _, Styled as _, div, h_flex, v_flex,
 };
 
 impl SettingsView {
@@ -431,17 +432,17 @@ impl SettingsView {
                     .children(mode_badge(theme, AppKey::SyncTiming.apply_mode()))
                     .child(
                         div()
-                            .w(crate::ui::px(64.))
+                            .w(dims::PX_64)
                             .child(crate::ui::input::Input::new(&self.inputs.sync_idle)),
                     )
                     .child(
                         div()
-                            .w(crate::ui::px(64.))
+                            .w(dims::PX_64)
                             .child(crate::ui::input::Input::new(&self.inputs.sync_max)),
                     )
                     .child(
                         div()
-                            .w(crate::ui::px(64.))
+                            .w(dims::PX_64)
                             .child(crate::ui::input::Input::new(&self.inputs.sync_fetch)),
                     )
                     .child(
@@ -622,7 +623,7 @@ impl SettingsView {
         let mut list = v_flex()
             .id("settings-css-diagnostics")
             .gap_0p5()
-            .max_h(px(160.));
+            .max_h(dims::PX_160);
         for d in &diagnostics {
             list = list.child(
                 div()

@@ -1,5 +1,6 @@
 //! Drawing of one block row, shared by the page view, the references and the journals feed.
 
+use crate::views::dims;
 use std::ops::Range;
 use std::path::{Component, Path, PathBuf};
 
@@ -14,7 +15,7 @@ use crate::render::model::{BlockModel, BodyItem, CodeBlock, PropertyRow, Row};
 use crate::ui::a11y;
 use crate::ui::text_edit::{
     FontStyle, FontWeight, HighlightStyle, InteractiveText, ObjectFit, StrikethroughStyle,
-    StyledText, UnderlineStyle, hsla, img,
+    StyledText, UnderlineStyle, img,
 };
 use crate::ui::theme::{BitacoraTheme, TypeStyle, TypeStyleExt as _};
 use crate::ui::{
@@ -104,7 +105,7 @@ pub(crate) fn highlights(
     strike_all: bool,
 ) -> Vec<(Range<usize>, HighlightStyle)> {
     let strike = StrikethroughStyle {
-        thickness: px(1.),
+        thickness: dims::PX_1,
         color: None,
     };
     let mut out = Vec::new();
@@ -155,7 +156,7 @@ pub(crate) fn style_for(
             style.color = Some(theme.foreground);
             style.background_color = Some(theme.muted);
             style.underline = Some(UnderlineStyle {
-                thickness: px(1.),
+                thickness: dims::PX_1,
                 color: Some(theme.muted_foreground),
                 wavy: false,
             });
@@ -179,12 +180,12 @@ pub(crate) fn style_for(
     }
     if emphasis.strike || strike_all {
         style.strikethrough = Some(StrikethroughStyle {
-            thickness: px(1.),
+            thickness: dims::PX_1,
             color: None,
         });
     }
     if emphasis.highlight {
-        style.background_color = Some(hsla(0.14, 0.9, 0.55, 0.35));
+        style.background_color = Some(dims::HIGHLIGHT_BG);
     }
     style
 }
@@ -253,8 +254,8 @@ fn image_element(
         Some(path) => {
             let mut el = img(path)
                 .object_fit(ObjectFit::Contain)
-                .max_w(px(640.))
-                .rounded(px(4.));
+                .max_w(dims::PX_640)
+                .rounded(dims::PX_4);
             if let Some(w) = image.width {
                 el = el.w(px(w));
             }
@@ -286,7 +287,7 @@ pub(crate) fn code_element(
         .iter()
         .map(|(range, class)| {
             let color: Hsla = match class {
-                TokenClass::Keyword => hsla(0.75, 0.65, 0.7, 1.),
+                TokenClass::Keyword => dims::SYNTAX_KEYWORD,
                 TokenClass::String => theme.success,
                 TokenClass::Comment => theme.muted_foreground,
                 TokenClass::Number => theme.warning,
@@ -305,7 +306,7 @@ pub(crate) fn code_element(
         .id(("code", ix))
         .w_full()
         .p_2()
-        .rounded(px(6.))
+        .rounded(dims::PX_6)
         .bg(theme.muted)
         .border_1()
         .border_color(theme.border)
@@ -330,8 +331,8 @@ pub(crate) fn code_element(
 
 fn checkbox(checked: bool, bt: &BitacoraTheme) -> AnyElement {
     div()
-        .mt(px(3.))
-        .size(px(14.))
+        .mt(dims::PX_3)
+        .size(dims::PX_14)
         .flex_none()
         .flex()
         .items_center()
@@ -346,7 +347,7 @@ fn checkbox(checked: bool, bt: &BitacoraTheme) -> AnyElement {
         .when(checked, |d| {
             d.bg(bt.colors.accent)
                 .text_color(bt.colors.on_accent)
-                .child(icon(IconName::Check).size(px(10.)))
+                .child(icon(IconName::Check).size(dims::PX_10))
         })
         .into_any_element()
 }
@@ -354,8 +355,8 @@ fn checkbox(checked: bool, bt: &BitacoraTheme) -> AnyElement {
 fn badge(text: String, color: Hsla, theme: &crate::ui::theme::Theme) -> AnyElement {
     let _ = theme;
     div()
-        .px(px(6.))
-        .rounded(px(4.))
+        .px(dims::PX_6)
+        .rounded(dims::PX_4)
         .text_xs()
         .text_color(color)
         .border_1()
@@ -480,7 +481,7 @@ pub fn render_block_row(
             )),
     );
     // `min_h`: an empty block still has a line to click on.
-    let mut content = v_flex().flex_1().min_w_0().min_h(px(22.)).gap_1();
+    let mut content = v_flex().flex_1().min_w_0().min_h(dims::PX_22).gap_1();
     // A block that is only a query or an embed has no title line above its widget.
     let widget_only = block.title.is_empty()
         && block.marker.is_none()
@@ -500,11 +501,11 @@ pub fn render_block_row(
             chips = chips.child(
                 h_flex()
                     .gap_1()
-                    .px(px(6.))
-                    .rounded(px(4.))
+                    .px(dims::PX_6)
+                    .rounded(dims::PX_4)
                     .bg(theme.secondary)
                     .text_xs()
-                    .child(icon(IconName::Calendar).size(px(12.)))
+                    .child(icon(IconName::Calendar).size(dims::PX_12))
                     .child(format!("{} {}", chip.keyword, chip.text)),
             );
         }
@@ -573,7 +574,7 @@ pub fn render_block_row(
                 .gap_1()
                 .text_xs()
                 .text_color(theme.muted_foreground)
-                .child(icon(IconName::ChevronRight).size(px(12.)))
+                .child(icon(IconName::ChevronRight).size(dims::PX_12))
                 .child(summary.to_string()),
         );
     }
@@ -640,7 +641,7 @@ pub fn render_block_row(
         bt.metrics.bullet_child
     };
     let bullet = div()
-        .mt(px(8.))
+        .mt(dims::PX_8)
         .size(bullet_size)
         .flex_none()
         .rounded_full()
@@ -648,11 +649,11 @@ pub fn render_block_row(
         .when(!collapsed, |d| d.bg(bullet_color));
     let toggle_slot = div()
         .id(("toggle", id))
-        .w(px(14.))
+        .w(dims::PX_14)
         .flex_none()
         .flex()
         .justify_center()
-        .pt(px(4.))
+        .pt(dims::PX_4)
         .text_color(theme.muted_foreground)
         .when(row.has_children && toggle_hook.is_some(), |d| {
             d.role(a11y::Role::Button)
@@ -670,7 +671,7 @@ pub fn render_block_row(
                 } else {
                     IconName::ChevronDown
                 })
-                .size(px(12.)),
+                .size(dims::PX_12),
             )
         })
         .when_some(
@@ -683,7 +684,7 @@ pub fn render_block_row(
     let bullet_uuid = row.uuid.clone();
     let bullet_slot = div()
         .id(("bullet", id))
-        .w(px(12.))
+        .w(dims::PX_12)
         .flex_none()
         .flex()
         .justify_center()
@@ -726,8 +727,8 @@ pub fn render_block_row(
             let line = div()
                 .absolute()
                 .left(indicator_left(zone, e.drag.depth))
-                .right(px(12.))
-                .h(px(2.))
+                .right(dims::PX_12)
+                .h(dims::PX_2)
                 .bg(theme.primary);
             match zone {
                 crate::editor::dnd::DropZone::Before => line.top_0(),
@@ -738,9 +739,9 @@ pub fn render_block_row(
     let bubble = (row.ref_count > 0).then(|| {
         div()
             .id(("refcount", id))
-            .mt(px(2.))
-            .px(px(6.))
-            .h(px(18.))
+            .mt(dims::PX_2)
+            .px(dims::PX_6)
+            .h(dims::PX_18)
             .flex_none()
             .rounded_full()
             .bg(if row.referrers.is_some() {
@@ -781,9 +782,9 @@ pub fn render_block_row(
         .w_full()
         .items_start()
         .gap_1()
-        .py(px(2.))
-        .pl(px(8. + row.depth as f32 * 24.))
-        .pr(px(12.))
+        .py(dims::PX_2)
+        .pl(dims::PX_8 + px(row.depth as f32 * 24.))
+        .pr(dims::PX_12)
         .when(edit.is_some_and(|e| e.editing.is_some()), |d| {
             d.bg(bt.colors.edit_bg).rounded(bt.metrics.radius_control)
         })
@@ -833,9 +834,9 @@ pub fn render_block_row(
             div()
                 .id(("delete-asset", id))
                 .flex_none()
-                .mt(px(2.))
+                .mt(dims::PX_2)
                 .px_1()
-                .rounded(px(4.))
+                .rounded(dims::PX_4)
                 .cursor_pointer()
                 .text_color(theme.muted_foreground)
                 .hover(|d| d.bg(theme.muted))
@@ -858,7 +859,7 @@ fn guide_line(level: usize, bt: &BitacoraTheme) -> Div {
         .top_0()
         .bottom_0()
         .left(px(x - 0.5))
-        .w(px(1.))
+        .w(dims::PX_1)
         .bg(bt.colors.line)
 }
 
@@ -875,8 +876,8 @@ fn widget_source(
         Widget::Embed(EmbedTarget::Page(p)) => format!("{{{{embed [[{p}]]}}}}"),
     };
     div()
-        .px(px(6.))
-        .rounded(px(4.))
+        .px(dims::PX_6)
+        .rounded(dims::PX_4)
         .bg(theme.muted)
         .text_color(theme.muted_foreground)
         .text_sm()
@@ -894,7 +895,7 @@ pub fn properties_table(
     let mut table = v_flex()
         .gap_0p5()
         .p_2()
-        .rounded(px(6.))
+        .rounded(dims::PX_6)
         .bg(theme.secondary)
         .text_sm();
     for (n, prop) in properties.iter().enumerate() {
@@ -903,7 +904,7 @@ pub fn properties_table(
                 .gap_3()
                 .child(
                     div()
-                        .w(px(110.))
+                        .w(dims::PX_110)
                         .flex_none()
                         .text_color(theme.muted_foreground)
                         .child(prop.key.clone()),

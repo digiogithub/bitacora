@@ -7,6 +7,7 @@
 //! preferences with enable / turn off, and the `bitacora-cli` commands that do the same
 //! headlessly. Actions leave through [`SyncPanelEvent`]; the workspace performs them.
 
+use crate::views::dims;
 use std::path::PathBuf;
 use std::time::SystemTime;
 
@@ -19,7 +20,7 @@ use crate::ui::button::{Button, ButtonVariants as _};
 use crate::ui::{
     ActiveTheme as _, Context, Disableable as _, EventEmitter, FluentBuilder as _, IconName,
     InteractiveElement as _, IntoElement, ParentElement as _, Render, Sizable as _,
-    StatefulInteractiveElement as _, Styled as _, Window, div, h_flex, icon, px, v_flex,
+    StatefulInteractiveElement as _, Styled as _, Window, div, h_flex, icon, v_flex,
 };
 use crate::views::modal::{labelled, modal, title_bar};
 use crate::views::status_bar::{SlotState, slot_state_for};
@@ -371,7 +372,7 @@ impl Render for SyncPanel {
                         .id(("sync-panel-cli", n))
                         .px_2()
                         .py_1()
-                        .rounded(px(4.))
+                        .rounded(dims::PX_4)
                         .bg(theme.secondary)
                         .text_xs()
                         .font_family("monospace")
@@ -392,7 +393,7 @@ impl Render for SyncPanel {
             .gap_4()
             .p_4()
             .overflow_y_scroll()
-            .max_h(px(560.))
+            .max_h(dims::PX_560)
             .child(status)
             .children(backend_section)
             .child(settings)

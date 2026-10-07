@@ -6,6 +6,7 @@
 //! written by the single writer and the normal undo history is untouched). Both run on the
 //! session thread through [`SessionHandle::run`].
 
+use crate::views::dims;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use bitacora_mcp::{AuditEvent, AuditFilter, AuditRecord};
@@ -16,8 +17,7 @@ use crate::ui::button::{Button, ButtonVariants as _};
 use crate::ui::{
     ActiveTheme as _, Context, Disableable as _, EventEmitter, FluentBuilder as _, IconName,
     InteractiveElement as _, IntoElement, ParentElement as _, Render, Selectable as _,
-    Sizable as _, StatefulInteractiveElement as _, Styled as _, Task, Window, div, h_flex, px,
-    v_flex,
+    Sizable as _, StatefulInteractiveElement as _, Styled as _, Task, Window, div, h_flex, v_flex,
 };
 use crate::views::modal::{labelled, modal, title_bar};
 use crate::views::sync_panel::ago;
@@ -397,7 +397,7 @@ impl Render for AgentActivityView {
             .id("activity-list")
             .gap_1()
             .overflow_y_scroll()
-            .w(px(380.));
+            .w(dims::PX_380);
         let visible = self.visible();
         if self.loading && visible.is_empty() {
             list = list.child(
@@ -432,7 +432,7 @@ impl Render for AgentActivityView {
                     .id(("activity-entry", ix))
                     .p_2()
                     .gap_0p5()
-                    .rounded(px(6.))
+                    .rounded(dims::PX_6)
                     .cursor_pointer()
                     .when(self.selected.as_deref() == Some(record.id.as_str()), |d| {
                         d.bg(theme.secondary)
@@ -575,7 +575,7 @@ impl Render for AgentActivityView {
                     h_flex()
                         .gap_3()
                         .p_4()
-                        .h(px(420.))
+                        .h(dims::PX_420)
                         .items_start()
                         .child(list.h_full())
                         .child(detail.h_full()),

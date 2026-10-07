@@ -4,6 +4,7 @@
 //!
 //! Every button calls the same handler as its action, so shortcuts and menus keep working.
 
+use crate::views::dims;
 use rust_i18n::t;
 
 use super::Workspace;
@@ -15,7 +16,7 @@ use crate::ui::theme::ActiveBitacoraTheme as _;
 use crate::ui::{
     Anchor, AnyElement, Context, FluentBuilder as _, InteractiveElement as _, IntoElement,
     ParentElement as _, StatefulInteractiveElement as _, Styled as _, anchored, deferred, div,
-    h_flex, px, v_flex,
+    h_flex, v_flex,
 };
 use crate::views::kit::{Button, Glyph, IconButton, Kbd, PopoverShell, Tab, glyph};
 use crate::views::title_bar::AppTitleBar;
@@ -256,9 +257,9 @@ impl Workspace {
         let search = h_flex()
             .id("top-search")
             .debug_selector(|| "top-search".to_string())
-            .min_w(px(150.))
-            .max_w(px(300.))
-            .w(px(240.))
+            .min_w(dims::PX_150)
+            .max_w(dims::PX_300)
+            .w(dims::PX_240)
             .h(metrics.icon_button_sm)
             .px(metrics.space[5])
             .gap(metrics.space[4])
@@ -383,7 +384,7 @@ impl Workspace {
                 anchored().anchor(Anchor::TopLeft).snap_to_window().child(
                     div().mt(metrics.space[2]).child(
                         PopoverShell::new("app-menu")
-                            .width(px(240.))
+                            .width(dims::PX_240)
                             .on_dismiss(move |_, cx| {
                                 let _ = weak.update(cx, |this, cx| this.set_app_menu(false, cx));
                             })

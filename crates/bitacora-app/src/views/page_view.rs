@@ -6,6 +6,7 @@
 //! linked and unlinked references) is one flat list of [`Item`]s inside a single GPUI `list`, so
 //! long pages and large reference sets stay virtualized. Collapse state is view-only.
 
+use crate::views::dims;
 use std::collections::{BTreeSet, HashMap};
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -229,7 +230,7 @@ impl PageView {
             loading_more: false,
             state: LoadState::Empty,
             items: Vec::new(),
-            list_state: ListState::new(0, ListAlignment::Top, px(400.)),
+            list_state: ListState::new(0, ListAlignment::Top, dims::PX_400),
             cfg: PropertyConfig::default(),
             generation: 0,
             refs_generation: 0,
@@ -1194,8 +1195,8 @@ impl PageView {
         let element = match item {
             Item::Header => self.render_header(&nav, cx),
             Item::Empty => div()
-                .px(px(24.))
-                .py(px(8.))
+                .px(dims::PX_24)
+                .py(dims::PX_8)
                 .text_color(theme.muted_foreground)
                 .child(t!("page.empty").to_string())
                 .into_any_element(),
@@ -1267,7 +1268,7 @@ impl PageView {
                     Some(hit) => {
                         let mut line = h_flex()
                             .gap_1()
-                            .px(px(24.))
+                            .px(dims::PX_24)
                             .text_xs()
                             .flex_wrap()
                             .text_color(theme.muted_foreground);
@@ -1373,9 +1374,9 @@ impl PageView {
         let target = page.to_owned();
         div()
             .id(("refgroup", page.len()))
-            .px(px(24.))
-            .pt(px(10.))
-            .pb(px(2.))
+            .px(dims::PX_24)
+            .pt(dims::PX_10)
+            .pb(dims::PX_2)
             .font_weight(FontWeight::SEMIBOLD)
             .text_color(theme.info)
             .cursor_pointer()
@@ -1403,9 +1404,9 @@ impl PageView {
         let this = cx.entity();
         let toggle = this.clone();
         let mut line = h_flex()
-            .px(px(24.))
-            .pt(px(24.))
-            .pb(px(4.))
+            .px(dims::PX_24)
+            .pt(dims::PX_24)
+            .pb(dims::PX_4)
             .gap_2()
             .items_center()
             .child(
@@ -1422,7 +1423,7 @@ impl PageView {
                         } else {
                             IconName::ChevronRight
                         })
-                        .size(px(14.)),
+                        .size(dims::PX_14),
                     )
                     .child(label)
                     .on_click(move |_, _, cx| {
@@ -1472,7 +1473,11 @@ impl PageView {
             )
             .content(move |_, _, cx| {
                 let theme = cx.theme().clone();
-                let mut body = v_flex().gap_1().p_2().min_w(px(220.)).max_h(px(320.));
+                let mut body = v_flex()
+                    .gap_1()
+                    .p_2()
+                    .min_w(dims::PX_220)
+                    .max_h(dims::PX_320);
                 body = body.child(
                     div()
                         .text_xs()
@@ -1490,23 +1495,22 @@ impl PageView {
                         Some(false) => Some((IconName::Ban, theme.danger)),
                         None => None,
                     };
-                    body =
-                        body.child(
-                            h_flex()
-                                .id(("filter", n))
-                                .gap_2()
-                                .px_1()
-                                .rounded(px(4.))
-                                .cursor_pointer()
-                                .hover(|d| d.bg(theme.muted))
-                                .child(div().w(px(14.)).children(
-                                    mark.map(|(i, c)| icon(i).size(px(14.)).text_color(c)),
-                                ))
-                                .child(name.clone())
-                                .on_click(move |_, _, cx| {
-                                    this.update(cx, |v, cx| v.cycle_filter(&page, cx));
-                                }),
-                        );
+                    body = body.child(
+                        h_flex()
+                            .id(("filter", n))
+                            .gap_2()
+                            .px_1()
+                            .rounded(dims::PX_4)
+                            .cursor_pointer()
+                            .hover(|d| d.bg(theme.muted))
+                            .child(div().w(dims::PX_14).children(
+                                mark.map(|(i, c)| icon(i).size(dims::PX_14).text_color(c)),
+                            ))
+                            .child(name.clone())
+                            .on_click(move |_, _, cx| {
+                                this.update(cx, |v, cx| v.cycle_filter(&page, cx));
+                            }),
+                    );
                 }
                 if active {
                     let this = this.clone();
@@ -1570,7 +1574,11 @@ impl PageView {
     fn render_header(&self, nav: &Nav, cx: &mut Context<Self>) -> AnyElement {
         let theme = cx.theme().clone();
         let header = &self.header;
-        let mut col = v_flex().px(px(24.)).pt(px(16.)).pb(px(8.)).gap_2();
+        let mut col = v_flex()
+            .px(dims::PX_24)
+            .pt(dims::PX_16)
+            .pb(dims::PX_8)
+            .gap_2();
         let live_crumbs = self
             .editor
             .as_ref()
@@ -1648,7 +1656,7 @@ impl PageView {
             return div()
                 .id("page-title-input")
                 .w_full()
-                .max_w(px(640.))
+                .max_w(dims::PX_640)
                 .on_key_down(cx.listener(|this, event: &crate::ui::KeyDownEvent, _, cx| {
                     if event.keystroke.key == "escape" {
                         this.cancel_rename(cx);

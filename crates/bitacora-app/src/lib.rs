@@ -131,6 +131,125 @@ mod i18n_tests {
         }
     }
 
+    /// Production part of a `views/` source: skips test files, comment lines and the inline
+    /// `#[cfg(test)] mod x { .. }` tail, and the allowlisted `dims.rs`.
+    fn view_production_lines() -> Vec<(PathBuf, usize, String)> {
+        let views = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/views");
+        let mut out = Vec::new();
+        for (file, text) in sources().into_iter().filter(|(f, _)| f.starts_with(&views)) {
+            let name = file.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            if name == "dims.rs" || name == "tests.rs" || name.ends_with("_tests.rs") {
+                continue;
+            }
+            let mut skipping = false;
+            let mut pending_cfg_test = false;
+            for (idx, line) in text.lines().enumerate() {
+                let trimmed = line.trim_start();
+                if trimmed.starts_with("#[cfg(test)]") {
+                    pending_cfg_test = true;
+                    continue;
+                }
+                if pending_cfg_test {
+                    pending_cfg_test = false;
+                    let inline_mod = (trimmed.starts_with("mod ")
+                        || trimmed.starts_with("pub(crate) mod "))
+                        && trimmed.ends_with('{');
+                    if inline_mod {
+                        skipping = true;
+                    }
+                }
+                if skipping || trimmed.starts_with("//") {
+                    continue;
+                }
+                out.push((file.clone(), idx + 1, line.to_owned()));
+            }
+        }
+        out
+    }
+
+    /// Byte offsets where `call(` appears as a standalone identifier (not `my_call(`).
+    fn calls(line: &str, call: &str) -> Vec<usize> {
+        let needle = format!("{call}(");
+        line.match_indices(&needle)
+            .map(|(at, _)| at)
+            .filter(|at| {
+                let before = line[..*at].chars().next_back();
+                !before.is_some_and(|c| c.is_alphanumeric() || c == '_')
+            })
+            .collect()
+    }
+
+    /// BIT-SP-0008.R1: no raw colour or size literals in `views/`. Colours come from
+    /// `cx.bitacora().colors`, sizes from `metrics` / `type_scale`; literals that have no
+    /// token live as named constants in `views/dims.rs` (the single allowlist).
+    #[test]
+    fn views_have_no_magic_ui_values() {
+        let mut offenders = Vec::new();
+        for (file, line_no, line) in view_production_lines() {
+            let code = line.split("//").next().unwrap_or("");
+            let mut bad = false;
+            for call in ["rgb", "rgba", "hsl", "hsla", "rems"] {
+                bad |= !calls(code, call).is_empty();
+            }
+            for at in calls(code, "px") {
+                let rest = code[at + 3..].trim_start();
+                let rest = rest.strip_prefix('-').unwrap_or(rest);
+                let zero = ["0.)", "0.0)", "0)"].iter().any(|z| rest.starts_with(z));
+                if rest.chars().next().is_some_and(|c| c.is_ascii_digit()) && !zero {
+                    bad = true;
+                }
+            }
+            if let Some(at) = code.find("0x") {
+                let hex = code[at + 2..].chars().take_while(char::is_ascii_hexdigit);
+                bad |= hex.count() >= 6;
+            }
+            // "#rrggbb" string colours
+            bad |= code.split("\"#").skip(1).any(|t| {
+                let hex = t.chars().take_while(char::is_ascii_hexdigit);
+                hex.count() >= 6
+            });
+            if bad {
+                offenders.push(format!("{}:{line_no}: {}", file.display(), line.trim()));
+            }
+        }
+        assert!(
+            offenders.is_empty(),
+            "raw colour/size literals in views/ (use tokens or a named constant in views/dims.rs):\n{}",
+            offenders.join("\n")
+        );
+    }
+
+    /// BIT-SP-0008.R2: the `ok` colour is only for status dots and icons, never text or fills.
+    #[test]
+    fn ok_colour_is_only_used_for_dots_and_icons() {
+        const ALLOWED: [&str; 5] = ["Glyph::", "tag:", "SlotState::", "Self::Ok", "status_dot"];
+        let ident = |c: Option<char>| c.is_some_and(|c| c.is_alphanumeric() || c == '_');
+        let mut offenders = Vec::new();
+        let mut seen = 0;
+        for (file, line_no, line) in view_production_lines() {
+            let code = line.split("//").next().unwrap_or("");
+            let uses_ok = ["colors.ok", "c.ok", "palette.ok"].iter().any(|p| {
+                code.match_indices(p).any(|(at, _)| {
+                    !ident(code[..at].chars().next_back())
+                        && !ident(code[at + p.len()..].chars().next())
+                })
+            });
+            if !uses_ok {
+                continue;
+            }
+            seen += 1;
+            if !ALLOWED.iter().any(|a| code.contains(a)) {
+                offenders.push(format!("{}:{line_no}: {}", file.display(), line.trim()));
+            }
+        }
+        assert!(seen > 0, "expected to find uses of the ok colour");
+        assert!(
+            offenders.is_empty(),
+            "`ok` colour used outside dots/icons:\n{}",
+            offenders.join("\n")
+        );
+    }
+
     /// Flattens one of our simple locale files (nested maps, one scalar per line) into
     /// `dotted.key -> value`.
     fn flatten(text: &str) -> std::collections::BTreeMap<String, String> {

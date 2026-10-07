@@ -6,6 +6,7 @@
 //! user decides. Both resolutions go through `Request::Resolve` on the command queue (the
 //! overwritten side is backed up to `logseq/bak` by core).
 
+use crate::views::dims;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -17,7 +18,7 @@ use crate::ui::button::{Button, ButtonVariants as _};
 use crate::ui::{
     ActiveTheme as _, Context, EventEmitter, FluentBuilder as _, IconName, InteractiveElement as _,
     IntoElement, ParentElement as _, Render, Sizable as _, StatefulInteractiveElement as _,
-    Styled as _, Window, div, h_flex, icon, px, v_flex,
+    Styled as _, Window, div, h_flex, icon, v_flex,
 };
 use crate::views::modal::{modal, title_bar, word_diff};
 
@@ -276,7 +277,7 @@ impl Render for DiskDiffView {
             .gap_2()
             .p_4()
             .overflow_y_scroll()
-            .max_h(px(520.));
+            .max_h(dims::PX_520);
         if self.diffs.is_empty() {
             body = body.child(
                 div()
@@ -306,7 +307,7 @@ impl Render for DiskDiffView {
                     .id(("disk-diff-block", ix))
                     .gap_1()
                     .p_2()
-                    .rounded(px(6.))
+                    .rounded(dims::PX_6)
                     .border_1()
                     .border_color(theme.border)
                     .child(
