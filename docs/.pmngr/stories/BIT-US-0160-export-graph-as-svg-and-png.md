@@ -2,7 +2,7 @@
 id: BIT-US-0160
 type: story
 title: Export graph as SVG and PNG
-status: backlog
+status: done
 priority: low
 parent: BIT-EP-0024
 milestone: BIT-M-0009
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, graph, bitacora-graph]
 estimate: 3
 created: 2026-10-07T09:19:46Z
-updated: 2026-10-07T09:19:46Z
+updated: 2026-10-07T11:30:55Z
+closed: 2026-10-07T11:30:55Z
 ---
 
 ## Description

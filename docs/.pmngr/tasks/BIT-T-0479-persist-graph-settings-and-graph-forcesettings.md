@@ -2,7 +2,7 @@
 id: BIT-T-0479
 type: task
 title: Persist :graph/settings and :graph/forcesettings
-status: backlog
+status: done
 priority: medium
 parent: BIT-US-0158
 milestone: BIT-M-0009
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, graph, bitacora-config]
 estimate: 2
 created: 2026-10-07T09:20:34Z
-updated: 2026-10-07T09:20:34Z
+updated: 2026-10-07T11:30:51Z
+closed: 2026-10-07T11:30:51Z
 ---
 
 ## Description

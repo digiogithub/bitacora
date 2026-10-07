@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [ui, graph, v2]
 created: 2026-10-07T09:08:04Z
-updated: 2026-10-07T11:02:51Z
+updated: 2026-10-07T11:31:06Z
 requirements:
   R1:
     status: backlog
@@ -44,6 +44,16 @@ requirements:
         - crates/bitacora-app/src/graph_view/viewport.rs#tests
   R5:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-config/src/graph_view.rs
+        - crates/bitacora-app/src/views/graph_view/panel.rs
+        - crates/bitacora-app/src/views/settings/graph_config.rs#GraphEdit
+      tests:
+        - crates/bitacora-config/src/graph_view.rs#existing_values_are_replaced_in_place
+        - crates/bitacora-config/src/graph_view.rs#new_entries_keep_every_other_byte
+        - crates/bitacora-app/src/views/graph_view_tests.rs#force_steps_persist_and_reset_removes_the_map
+        - crates/bitacora-app/src/views/graph_view_tests.rs#toggling_journals_reloads_the_graph_and_persists_the_key
   R6:
     status: backlog
     trace:
@@ -52,10 +62,16 @@ requirements:
         - crates/bitacora-app/src/views/graph_view.rs#apply_data
         - crates/bitacora-app/src/views/right_sidebar.rs#set_local_page
         - crates/bitacora-graph/src/sim.rs#with_positions
+        - crates/bitacora-app/src/graph_view/export.rs
+        - crates/bitacora-app/src/views/graph_view/panel.rs#export
       tests:
         - crates/bitacora-app/src/views/graph_view_tests.rs#refresh_keeps_surviving_positions_and_seeds_new_nodes_near_a_neighbour
         - crates/bitacora-app/src/views/graph_view_tests.rs#right_sidebar_local_graph_follows_the_page_and_click_navigates
         - crates/bitacora-graph/tests/sim.rs#with_positions_keeps_given_starts_and_alpha
+        - crates/bitacora-app/src/graph_view/export.rs#svg_has_nodes_edges_and_escaped_labels
+        - crates/bitacora-app/src/graph_view/export.rs#png_is_a_decodable_image_with_the_background_and_node_colours
+        - crates/bitacora-app/src/views/graph_view_tests.rs#the_scene_and_both_formats_follow_the_visible_graph
+        - crates/bitacora-app/src/views/graph_view/panel.rs#exports_are_written_atomically_with_the_format_extension
 ---
 
 ## Purpose

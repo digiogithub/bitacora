@@ -2,7 +2,7 @@
 id: BIT-T-0478
 type: task
 title: Graph settings panel UI
-status: backlog
+status: done
 priority: medium
 parent: BIT-US-0158
 milestone: BIT-M-0009
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, graph, bitacora-app]
 estimate: 3
 created: 2026-10-07T09:20:34Z
-updated: 2026-10-07T09:20:34Z
+updated: 2026-10-07T11:30:55Z
+closed: 2026-10-07T11:30:55Z
 ---
 
 ## Description
