@@ -6,8 +6,14 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
+# Stays `publish = false` (workspace default) until the owner publishes: flip to `true` (or
+# remove the line) in the same commit that runs `cargo publish`. See README "Releasing".
 publish.workspace = true
 readme = "README.md"
+homepage = "https://github.com/digiogithub/pando"
+documentation = "https://docs.rs/pando-rs"
+keywords = ["pando", "ag-ui", "sse", "knowledge-base", "agent"]
+categories = ["api-bindings", "asynchronous", "web-programming::http-client"]
 
 # Generic SDK: it must never depend on a bitacora crate, so it can move to Pando `sdk/rust/`.
 [lib]
