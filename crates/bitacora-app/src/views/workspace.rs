@@ -2559,8 +2559,8 @@ impl Focusable for Workspace {
 
 impl Render for Workspace {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let title_bar = self.title_bar(cx);
         let breakpoint = Breakpoint::for_width(f32::from(window.viewport_size().width));
+        let title_bar = self.title_bar(breakpoint, cx);
         let previous = self.breakpoint.replace(breakpoint);
         if previous != Some(breakpoint) {
             // A window that is (or becomes) too narrow for the right panel closes it; the user
@@ -3450,6 +3450,86 @@ mod tests {
         cx.update(|_, cx| theme::set_preference(cx, None, ThemePreference::Light));
         click_bar(cx, "top-theme");
         assert!(cx.read(|cx| Theme::global(cx).is_dark()));
+    }
+
+    /// BIT-US-0128 bug fix: the search field used to spill over the tabs, the right-hand
+    /// buttons and the window controls in narrow windows.
+    #[gpui_test]
+    fn title_bar_slots_never_overlap_at_any_width(cx: &mut TestAppContext) {
+        setup(cx);
+        let (ws, cx) = open(cx, None);
+        ws.update(cx, |w, cx| {
+            w.picker_visible = false;
+            cx.notify();
+        });
+        for width in [1400., 1000., 760., 640., 480.] {
+            cx.simulate_resize(gpui::size(px(width), px(800.)));
+            cx.run_until_parked();
+            let mut slot = |id: &'static str| {
+                cx.debug_bounds(id)
+                    .unwrap_or_else(|| panic!("`{id}` missing at {width}px"))
+            };
+            let (left, centre, right) = (
+                slot("title-left"),
+                slot("title-center"),
+                slot("title-right"),
+            );
+            let search = slot("top-search");
+            let eps = px(0.5);
+            assert!(
+                left.right() <= centre.left() + eps,
+                "left/centre overlap at {width}px"
+            );
+            assert!(
+                centre.right() <= right.left() + eps,
+                "centre/right overlap at {width}px"
+            );
+            assert!(
+                search.left() >= centre.left() - eps && search.right() <= centre.right() + eps,
+                "search escapes the centre slot at {width}px: {search:?} vs {centre:?}"
+            );
+            // Window controls (when drawn by us) end inside the window and clear the right slot.
+            if let Some(controls) = cx.debug_bounds("window-controls") {
+                assert!(
+                    right.right() <= controls.left() + eps,
+                    "controls overlapped at {width}px"
+                );
+                assert!(
+                    controls.right() <= px(width) + eps,
+                    "controls off screen at {width}px"
+                );
+                assert!(
+                    // Zero when the platform grants server decorations (no controls drawn by us),
+                    // otherwise every button keeps its full 46px.
+                    controls.size.width == px(0.) || controls.size.width >= px(46.),
+                    "controls squeezed at {width}px"
+                );
+            }
+            // The right-hand buttons keep their size; the least important ones leave at Narrow.
+            assert!(
+                cx.debug_bounds("top-right-panel")
+                    .is_some_and(|b| b.size.width > px(0.))
+            );
+            assert_eq!(
+                cx.debug_bounds("top-theme").is_some(),
+                width >= crate::views::responsive::SIDEBAR_INLINE_MIN,
+                "theme button visibility at {width}px"
+            );
+            // The search is always reachable: a field when wide, an icon button when narrow.
+            let min = if width >= crate::views::responsive::SIDEBAR_INLINE_MIN {
+                100.
+            } else {
+                20.
+            };
+            assert!(
+                search.size.width >= px(min),
+                "search too small at {width}px: {search:?}"
+            );
+        }
+        // Narrow search still opens the palette.
+        let palette = ws.read_with(cx, |w, _| w.palette().clone());
+        click_bar(cx, "top-search");
+        assert!(palette.read_with(cx, |p, _| p.is_open()));
     }
 
     #[gpui_test]

@@ -19,6 +19,7 @@ use crate::ui::{
     h_flex, v_flex,
 };
 use crate::views::kit::{Button, Glyph, IconButton, Kbd, PopoverShell, Tab, glyph};
+use crate::views::responsive::Breakpoint;
 use crate::views::title_bar::AppTitleBar;
 
 /// Whether the bar hosts the in-window application menu: everywhere but macOS, where the
@@ -166,7 +167,12 @@ impl Workspace {
     }
 
     /// The title bar with its slots filled.
-    pub(super) fn title_bar(&mut self, cx: &mut Context<Self>) -> AppTitleBar {
+    pub(super) fn title_bar(
+        &mut self,
+        breakpoint: Breakpoint,
+        cx: &mut Context<Self>,
+    ) -> AppTitleBar {
+        let narrow = breakpoint == Breakpoint::Narrow;
         let macos = cfg!(target_os = "macos");
         let theme = cx.bitacora().clone();
         let colors = theme.colors;
@@ -233,8 +239,10 @@ impl Workspace {
             .collect::<Vec<_>>();
         bar = bar.left(
             h_flex()
+                .debug_selector(|| "title-tabs".to_string())
                 .h_full()
                 .min_w_0()
+                .overflow_hidden()
                 .items_end()
                 .gap(metrics.space[2])
                 .on_mouse_down(MouseButton::Left, |_, window, cx| {
@@ -253,52 +261,69 @@ impl Workspace {
                 }),
         );
 
-        // Search field: opens the palette like the shortcut does.
-        let search = h_flex()
-            .id("top-search")
-            .debug_selector(|| "top-search".to_string())
-            .min_w(dims::PX_150)
-            .max_w(dims::PX_300)
-            .w(dims::PX_240)
-            .h(metrics.icon_button_sm)
-            .px(metrics.space[5])
-            .gap(metrics.space[4])
-            .items_center()
-            .bg(colors.bg)
-            .border_1()
-            .border_color(colors.line)
-            .rounded(metrics.radius_control)
-            .cursor_pointer()
-            .on_mouse_down(MouseButton::Left, |_, window, cx| {
-                window.prevent_default();
-                cx.stop_propagation();
-            })
-            .on_click(cx.listener(|this, _, window, cx| {
-                this.open_search(&OpenSearch, window, cx);
-            }))
-            .child(glyph(Glyph::Search, metrics.icon_sm, colors.muted, cx))
-            .child(
-                div()
-                    .flex_1()
-                    .min_w_0()
-                    .truncate()
-                    .text_color(colors.muted)
-                    .child(t!("top_bar.search").to_string()),
-            )
-            .child(Kbd::new(search_hint(macos)));
-        bar = bar.center(div().flex_shrink_0().child(search));
+        // Search: opens the palette like the shortcut does. Medium widths shrink the field
+        // (it keeps a minimum and clips its label); Narrow collapses it to an icon button.
+        let open_search = cx.listener(|this, _, window, cx| {
+            this.open_search(&OpenSearch, window, cx);
+        });
+        if narrow {
+            bar = bar.center_min_width(metrics.icon_button_sm).center(no_drag(
+                IconButton::new("top-search", Glyph::Search)
+                    .small()
+                    .on_click(open_search),
+            ));
+        } else {
+            let search = h_flex()
+                .id("top-search")
+                .debug_selector(|| "top-search".to_string())
+                .flex_1()
+                .min_w_0()
+                .max_w(dims::PX_300)
+                .h(metrics.icon_button_sm)
+                .px(metrics.space[5])
+                .gap(metrics.space[4])
+                .items_center()
+                .overflow_hidden()
+                .bg(colors.bg)
+                .border_1()
+                .border_color(colors.line)
+                .rounded(metrics.radius_control)
+                .cursor_pointer()
+                .on_mouse_down(MouseButton::Left, |_, window, cx| {
+                    window.prevent_default();
+                    cx.stop_propagation();
+                })
+                .on_click(open_search)
+                .child(glyph(Glyph::Search, metrics.icon_sm, colors.muted, cx))
+                .child(
+                    div()
+                        .flex_1()
+                        .min_w_0()
+                        .truncate()
+                        .text_color(colors.muted)
+                        .child(t!("top_bar.search").to_string()),
+                )
+                .child(Kbd::new(search_hint(macos)));
+            bar = bar
+                .center_min_width(dims::PX_150)
+                .center(div().flex_1().min_w_0().max_w(dims::PX_300).child(search));
+        }
 
         bar.right(no_drag(
             h_flex()
                 .gap(metrics.space[2])
-                .child(
-                    IconButton::new("top-theme", if dark { Glyph::Sun } else { Glyph::Moon })
-                        .on_click(cx.listener(|_, _, window, cx| {
-                            crate::theme::toggle(cx, Some(window));
-                        })),
-                )
-                // PDF export has no backend yet: shown disabled until it lands.
-                .child(IconButton::new("top-pdf", Glyph::Printer).disabled(true))
+                // Theme and PDF are the least important: dropped at Narrow widths (the theme
+                // stays reachable from settings and the command palette).
+                .when(!narrow, |d| {
+                    d.child(
+                        IconButton::new("top-theme", if dark { Glyph::Sun } else { Glyph::Moon })
+                            .on_click(cx.listener(|_, _, window, cx| {
+                                crate::theme::toggle(cx, Some(window));
+                            })),
+                    )
+                    // PDF export has no backend yet: shown disabled until it lands.
+                    .child(IconButton::new("top-pdf", Glyph::Printer).disabled(true))
+                })
                 // Connection status and quick settings of Pando (BIT-T-0429).
                 .child(no_drag_inner(self.pando_control(cx)))
                 // The assistant lives in the right panel's Agent tab.
