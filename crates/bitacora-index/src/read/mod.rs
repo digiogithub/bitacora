@@ -9,6 +9,7 @@ mod graph;
 mod misc;
 mod outline;
 mod refs;
+mod semantic;
 mod unlinked;
 
 use rusqlite::{Connection, Row};
@@ -24,6 +25,7 @@ pub use misc::{
 };
 pub use outline::{PageFilter, PageSort};
 pub use refs::{Crumb, RefFilters, RefGroup, RefHit};
+pub use semantic::SemanticBlock;
 
 /// SQL used by the read API that tests assert query plans on.
 #[doc(hidden)]
@@ -175,6 +177,23 @@ pub(crate) fn load_properties(conn: &Connection, blocks: &mut [BlockRow]) -> Res
             .collect::<Result<_, _>>()?;
     }
     Ok(())
+}
+
+/// Properties of the blocks with the given internal ids, in the order of `ids`.
+pub(crate) fn load_properties_for(
+    conn: &Connection,
+    ids: &[i64],
+) -> Result<Vec<Vec<(String, String)>>, Error> {
+    let mut st = conn.prepare_cached(
+        "SELECT raw_key, raw_value FROM block_properties WHERE block_id = ?1 ORDER BY pos",
+    )?;
+    ids.iter()
+        .map(|id| {
+            Ok(st
+                .query_map([id], |r| Ok((r.get(0)?, r.get(1)?)))?
+                .collect::<Result<Vec<_>, _>>()?)
+        })
+        .collect()
 }
 
 /// Read API handle. Cheap to clone; shares the reader pool.

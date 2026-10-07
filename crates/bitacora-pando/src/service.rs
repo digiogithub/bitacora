@@ -108,6 +108,33 @@ impl Shared {
     }
 }
 
+/// A cheap, cloneable view of a [`PandoService`] for background workers (they must not borrow the
+/// service itself, which the session owns and stops).
+#[derive(Clone)]
+pub struct ServiceProbe {
+    shared: Arc<Shared>,
+}
+
+impl std::fmt::Debug for ServiceProbe {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("ServiceProbe")
+    }
+}
+
+impl ServiceProbe {
+    /// The REST client once the endpoint is resolved.
+    #[must_use]
+    pub fn client(&self) -> Option<PandoClient> {
+        self.shared.client.lock().clone()
+    }
+
+    /// Whether the last health probe succeeded.
+    #[must_use]
+    pub fn is_connected(&self) -> bool {
+        matches!(*self.shared.status.lock(), PandoStatus::Connected { .. })
+    }
+}
+
 /// A running (or inert) Pando integration for one graph.
 pub struct PandoService {
     shared: Arc<Shared>,
@@ -233,6 +260,14 @@ impl PandoService {
         // a status change racing with this call yields at most a duplicate, never a gap.
         self.shared.events.emit(&PandoEvent::Status(self.status()));
         rx
+    }
+
+    /// A view of the service for background workers such as the semantic sync.
+    #[must_use]
+    pub fn probe(&self) -> ServiceProbe {
+        ServiceProbe {
+            shared: Arc::clone(&self.shared),
+        }
     }
 
     /// Event sink for the sync and chat stories to publish progress and run events.
