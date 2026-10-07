@@ -2,7 +2,7 @@
 id: BIT-US-0123
 type: story
 title: "Left sidebar: navigation, calendar, favorites and status footer"
-status: backlog
+status: in_review
 priority: high
 parent: BIT-EP-0017
 milestone: BIT-M-0006
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, ui, bitacora-app, bitacora-index]
 estimate: 8
 created: 2026-10-07T09:13:09Z
-updated: 2026-10-07T09:13:09Z
+updated: 2026-10-07T11:21:20Z
+started: 2026-10-07T11:21:09Z
 ---
 
 ## Description

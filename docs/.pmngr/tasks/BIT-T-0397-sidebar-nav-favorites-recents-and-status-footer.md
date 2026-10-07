@@ -2,7 +2,7 @@
 id: BIT-T-0397
 type: task
 title: Sidebar nav, favorites/recents and status footer
-status: backlog
+status: in_review
 priority: high
 parent: BIT-US-0123
 milestone: BIT-M-0006
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, ui]
 estimate: 3
 created: 2026-10-07T09:13:45Z
-updated: 2026-10-07T09:13:45Z
+updated: 2026-10-07T11:21:14Z
+started: 2026-10-07T11:21:09Z
 ---
 
 ## Description

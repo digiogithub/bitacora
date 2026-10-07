@@ -2,7 +2,7 @@
 id: BIT-T-0450
 type: task
 title: MCP semantic_search and related_blocks tools
-status: backlog
+status: done
 priority: medium
 parent: BIT-US-0146
 milestone: BIT-M-0007
@@ -10,7 +10,9 @@ author: mcp
 labels: [v2, bitacora-mcp]
 estimate: 2
 created: 2026-10-07T09:17:36Z
-updated: 2026-10-07T09:17:36Z
+updated: 2026-10-07T11:21:10Z
+started: 2026-10-07T11:21:00Z
+closed: 2026-10-07T11:21:10Z
 ---
 
 ## Description

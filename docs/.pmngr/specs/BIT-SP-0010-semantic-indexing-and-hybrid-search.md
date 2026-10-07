@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [search, pando, index, v2]
 created: 2026-10-07T09:08:04Z
-updated: 2026-10-07T10:51:15Z
+updated: 2026-10-07T11:20:55Z
 requirements:
   R1:
     status: backlog
@@ -39,8 +39,18 @@ requirements:
     status: backlog
   R5:
     status: backlog
+    trace:
+      code:
+        - crates/bitacora-mcp/src/semantic.rs
+        - crates/bitacora-runtime/src/mcp_semantic.rs
+      tests: [crates/bitacora-mcp/tests/semantic_tools.rs]
   R6:
     status: backlog
+    trace:
+      code: [crates/bitacora-cli/src/cmd/semantic.rs]
+      tests:
+        - crates/bitacora-cli/src/cmd/semantic.rs
+        - crates/bitacora-cli/src/main.rs
 ---
 
 ## Purpose

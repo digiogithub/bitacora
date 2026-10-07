@@ -2,7 +2,7 @@
 id: BIT-US-0146
 type: story
 title: Semantic search over MCP and CLI
-status: backlog
+status: in_review
 priority: medium
 parent: BIT-EP-0021
 milestone: BIT-M-0007
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, search, bitacora-mcp, bitacora-cli]
 estimate: 3
 created: 2026-10-07T09:16:57Z
-updated: 2026-10-07T09:16:57Z
+updated: 2026-10-07T11:21:04Z
+started: 2026-10-07T11:21:00Z
 ---
 
 ## Description
