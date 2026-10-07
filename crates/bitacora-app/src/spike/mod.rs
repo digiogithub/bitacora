@@ -2,3 +2,4 @@
 //! (BIT-EP-0007) is re-implemented on top of `bitacora-core`.
 
 pub mod block_editor;
+pub mod csd;

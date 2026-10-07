@@ -60,8 +60,11 @@ pub fn run(args: Args) -> anyhow::Result<()> {
     tracing::info!(log_dir = %dirs.log_dir.display(), "app directories ready");
 
     // Smoke tests and the editor spike must not fight a real instance for the lock.
-    let single_instance =
-        !(args.smoke_test || args.spike_editor || args.spike_bench || args.perf_bench);
+    let single_instance = !(args.smoke_test
+        || args.spike_editor
+        || args.spike_bench
+        || args.spike_csd
+        || args.perf_bench);
     let mut instance_guard = None;
     let mut launches = None;
     let mut previous_crash_pid = None;
@@ -146,6 +149,11 @@ fn start(cx: &mut App, args: &Args, dirs: &AppDirs, services: Services) -> anyho
         }
     })
     .detach();
+
+    if args.spike_csd {
+        crate::spike::csd::open(cx, args.smoke_test)?;
+        return Ok(());
+    }
 
     if args.spike_editor || args.spike_bench {
         let options = crate::spike::block_editor::SpikeOptions {

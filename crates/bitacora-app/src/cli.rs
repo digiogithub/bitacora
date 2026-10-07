@@ -29,6 +29,10 @@ pub struct Args {
     #[arg(long)]
     pub spike_editor: bool,
 
+    /// Open the client-side-decorations spike window (BIT-US-0119) instead of the workspace.
+    #[arg(long)]
+    pub spike_csd: bool,
+
     /// Number of generated blocks in the spike page.
     #[arg(long, value_name = "N", default_value_t = 1000)]
     pub spike_blocks: usize,
