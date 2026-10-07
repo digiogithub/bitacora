@@ -2,7 +2,7 @@
 id: BIT-T-0377
 type: task
 title: Vendor tokens.json and add `cargo xtask tokens` generator
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0113
 milestone: BIT-M-0006
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, design-system, xtask]
 estimate: 2
 created: 2026-10-07T09:12:05Z
-updated: 2026-10-07T09:12:05Z
+updated: 2026-10-07T10:22:20Z
+closed: 2026-10-07T10:22:20Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-US-0113
 type: story
 title: Vendor design tokens and generate the Rust palette
-status: backlog
+status: done
 priority: high
 parent: BIT-EP-0015
 milestone: BIT-M-0006
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, design-system, bitacora-app, xtask]
 estimate: 3
 created: 2026-10-07T09:11:26Z
-updated: 2026-10-07T09:11:26Z
+updated: 2026-10-07T10:22:28Z
+closed: 2026-10-07T10:22:28Z
 ---
 
 ## Description

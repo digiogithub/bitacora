@@ -6,12 +6,21 @@ status: backlog
 author: mcp
 labels: [ui, design-system, v2]
 created: 2026-10-07T09:08:04Z
-updated: 2026-10-07T10:21:44Z
+updated: 2026-10-07T10:22:20Z
 requirements:
   R1:
     status: backlog
+    trace:
+      code: [crates/bitacora-app/src/ui/theme/palette.rs, xtask/src/tokens.rs]
+      tests: [crates/bitacora-app/src/ui/theme/palette_tests.rs]
   R2:
     status: backlog
+    trace:
+      code:
+        - xtask/src/tokens.rs
+        - design/tokens/tokens.json
+        - .github/workflows/ci.yml
+      tests: [xtask/src/tokens.rs#vendored_tokens_pass_contrast]
   R3:
     status: backlog
     trace:

@@ -2,7 +2,7 @@
 id: BIT-T-0389
 type: task
 title: CSD spike branch and frameless-window findings doc
-status: backlog
+status: in_review
 priority: high
 parent: BIT-US-0119
 milestone: BIT-M-0006
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, frameless, spike]
 estimate: 3
 created: 2026-10-07T09:13:08Z
-updated: 2026-10-07T09:13:08Z
+updated: 2026-10-07T10:22:16Z
+started: 2026-10-07T10:22:16Z
 ---
 
 ## Description

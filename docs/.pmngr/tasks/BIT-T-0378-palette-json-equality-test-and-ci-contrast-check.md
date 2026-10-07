@@ -2,7 +2,7 @@
 id: BIT-T-0378
 type: task
 title: Palette/JSON equality test and CI contrast check
-status: backlog
+status: done
 priority: high
 parent: BIT-US-0113
 milestone: BIT-M-0006
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, design-system, ci]
 estimate: 1
 created: 2026-10-07T09:12:05Z
-updated: 2026-10-07T09:12:05Z
+updated: 2026-10-07T10:22:24Z
+closed: 2026-10-07T10:22:24Z
 ---
 
 ## Description
