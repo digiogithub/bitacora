@@ -1,0 +1,21 @@
+{
+  "mode": "dark",
+  "light_theme": "Solarized Light",
+  "dark_theme": "My Custom Dark",
+  "keep_running_in_background": true,
+  "updates": {},
+  "font_size": 15,
+  "search": { "substring": false },
+  "mcp": {
+    "enabled": true,
+    "port": 7777,
+    "allow_writes": true,
+    "allow_deletes": false,
+    "api_enabled": false,
+    "allowed_origins": ["http://localhost:3000"],
+    "protected_namespaces": [],
+    "writes_per_minute": 30
+  },
+  "language": "es",
+  "reduce_motion": true
+}

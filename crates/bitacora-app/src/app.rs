@@ -35,6 +35,7 @@ impl Global for CurrentWorkspace {}
 
 /// Services handed to [`start`].
 struct Services {
+    migration: crate::migrate::Report,
     launches: Option<mpsc::Receiver<Launch>>,
     crash: bitacora_runtime::crash::CrashConfig,
 }
@@ -77,9 +78,17 @@ pub fn run(args: Args) -> anyhow::Result<()> {
             }
         }
     }
+    // 1.x files are upgraded once, by the instance that owns the lock (BIT-US-0162); throwaway
+    // runs (smoke test, spikes) must not touch the user's real files.
+    let migration = if single_instance {
+        crate::migrate::run(&dirs)
+    } else {
+        crate::migrate::Report::default()
+    };
     let crash_cfg = crash::config(&dirs);
     crash::init(&crash_cfg, previous_crash_pid);
     let services = Services {
+        migration,
         launches,
         crash: crash_cfg,
     };
@@ -190,7 +199,11 @@ fn start(cx: &mut App, args: &Args, dirs: &AppDirs, services: Services) -> anyho
 
     let smoke = args.smoke_test;
     let perf_bench = args.perf_bench;
+    let migration_notes = services.migration.messages();
     handle.update(cx, |_, window, cx| {
+        for note in migration_notes {
+            ui::notify(window, cx, ui::Level::Info, note);
+        }
         if perf_bench {
             crate::perf::bench::start(workspace.clone(), window, cx);
         }

@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "center": { "Split": { "axis": "horizontal", "sizes": [], "children": [] } },
+  "left_dock": { "visible": true, "size": 240.0 },
+  "right_dock": { "visible": true, "size": 280.0 }
+}

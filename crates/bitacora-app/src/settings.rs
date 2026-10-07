@@ -20,10 +20,16 @@ pub enum ThemePreference {
     Dark,
 }
 
+/// Current layout of `settings.json`. 1.x files carry no `settings_version` (read as 1);
+/// [`crate::migrate`] upgrades them once and stamps this value.
+pub const SETTINGS_VERSION: u32 = 2;
+
 /// Persisted application settings.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct AppSettings {
+    /// File format version (see [`SETTINGS_VERSION`]).
+    pub settings_version: u32,
     /// Light / dark / system.
     pub mode: ThemePreference,
     /// Keep the process (and the MCP server) alive when the last window closes (BIT-T-0155).
@@ -49,6 +55,7 @@ pub struct AppSettings {
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
+            settings_version: SETTINGS_VERSION,
             mode: ThemePreference::default(),
             keep_running_in_background: false,
             updates: crate::update::UpdateSettings::default(),
@@ -204,6 +211,7 @@ mod tests {
         let tmp = tempfile::tempdir().expect("tempdir");
         let path = tmp.path().join("nested/settings.json");
         let settings = AppSettings {
+            settings_version: SETTINGS_VERSION,
             mode: ThemePreference::Dark,
             keep_running_in_background: false,
             updates: crate::update::UpdateSettings::default(),
