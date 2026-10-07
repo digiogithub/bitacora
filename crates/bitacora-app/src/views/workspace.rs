@@ -124,6 +124,7 @@ pub struct WorkspaceConfig {
     pub pando_settings_path: Option<PathBuf>,
 }
 
+mod ai_ui;
 mod pando_ui;
 mod top_bar;
 
@@ -152,6 +153,7 @@ pub struct Workspace {
     activity: Entity<AgentActivityView>,
     pando_activity: Entity<PandoActivityView>,
     pando_ui: pando_ui::PandoUi,
+    ai_ui: ai_ui::AiUi,
     conflicts: Entity<ConflictsView>,
     disk_banner: Entity<DiskConflictBanner>,
     disk_diff: Entity<DiskDiffView>,
@@ -204,6 +206,13 @@ impl Workspace {
         let chat = cx.new(|cx| ChatView::new(window, cx));
         panel.update(cx, |panel, cx| {
             panel.set_agent_slot(Some(chat.clone().into()), cx)
+        });
+        let ai_ui = ai_ui::AiUi::new(cx);
+        panel.update(cx, |panel, cx| {
+            panel.set_suggestions(Some(ai_ui.suggestions.clone()), cx)
+        });
+        main.read(cx).journals().clone().update(cx, |journals, cx| {
+            journals.set_review_card(Some(ai_ui.review.clone()), cx)
         });
         let hub = cx.new(|_| PaneHub::new(main.clone(), panel.clone()));
         cx.set_global(SharedHub(hub.clone()));
@@ -330,6 +339,7 @@ impl Workspace {
             activity,
             pando_activity,
             pando_ui: pando_ui::PandoUi::default(),
+            ai_ui,
             conflicts,
             disk_banner,
             disk_diff,
@@ -642,6 +652,7 @@ impl Workspace {
             cx.background_spawn(async move { session.close() }).detach();
         }
         self.link = None;
+        self.push_ai_context(cx);
         self.day_task = None;
         self.rollover = None;
         self.handle = None;
@@ -1019,6 +1030,7 @@ impl Workspace {
                 self.link = Some(link.clone());
                 self.chat
                     .update(cx, |chat, _| chat.set_link(Some(link.clone())));
+                self.push_ai_context(cx);
                 self.settings.update(cx, |s, cx| {
                     s.set_mcp_endpoint(link.mcp_endpoint.clone(), cx)
                 });
@@ -1081,6 +1093,7 @@ impl Workspace {
                 self.handle = Some(handle.clone());
                 self.chat
                     .update(cx, |chat, cx| chat.set_graph(Some(handle.clone()), cx));
+                self.push_ai_context(cx);
                 self.hub
                     .update(cx, |hub, _| hub.set_handle(Some(handle.clone())));
                 let favorites = handle.settings.config.favorites();
@@ -1109,6 +1122,7 @@ impl Workspace {
                 }
                 self.panel
                     .update(cx, |panel, cx| panel.on_index_event(&event, cx));
+                self.ai_page_activity(cx);
             }
             SessionEvent::Ready(summary) => {
                 crate::perf::mark("index_ready");
@@ -1579,6 +1593,8 @@ impl Workspace {
             PaletteCommand::PageHistory => self.open_history(window, cx),
             PaletteCommand::AgentActivity => self.open_agent_activity(window, cx),
             PaletteCommand::AskAboutSelection => self.ask_about_selection(window, cx),
+            PaletteCommand::ReviewToday => self.run_review_command(false, window, cx),
+            PaletteCommand::ReviewWeek => self.run_review_command(true, window, cx),
             PaletteCommand::ResolveConflicts => self.open_conflicts(window, cx),
             PaletteCommand::CloneGraph => self.open_clone_dialog(window, cx),
         }
@@ -2457,6 +2473,7 @@ impl Workspace {
         self.chat.update(cx, |chat, cx| chat.disconnect(reason, cx));
         self.link = None;
         self.session_handle = None;
+        self.push_ai_context(cx);
         self.session_task = None;
         self.session.take()
     }

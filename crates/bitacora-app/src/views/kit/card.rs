@@ -34,6 +34,7 @@ pub struct Card {
     surface: Surface,
     radius: Option<Pixels>,
     padding: Option<(Pixels, Pixels)>,
+    ai: bool,
     children: Vec<AnyElement>,
 }
 
@@ -44,6 +45,7 @@ impl Card {
             surface: Surface::Raised,
             radius: None,
             padding: None,
+            ai: false,
             children: Vec::new(),
         }
     }
@@ -56,6 +58,13 @@ impl Card {
     /// Overrides the corner radius (default `radius_card`).
     pub fn radius(mut self, radius: Pixels) -> Self {
         self.radius = Some(radius);
+        self
+    }
+
+    /// The amber AI treatment: `ai_bg` fill and `ai_line` border, for content an agent produced
+    /// that the user has not accepted yet.
+    pub fn ai(mut self) -> Self {
+        self.ai = true;
         self
     }
 
@@ -87,9 +96,17 @@ impl RenderOnce for Card {
         div()
             .flex()
             .flex_col()
-            .bg(self.surface.fill(theme))
+            .bg(if self.ai {
+                theme.colors.ai_bg
+            } else {
+                self.surface.fill(theme)
+            })
             .border_1()
-            .border_color(theme.colors.line)
+            .border_color(if self.ai {
+                theme.colors.ai_line
+            } else {
+                theme.colors.line
+            })
             .rounded(self.radius.unwrap_or(theme.metrics.radius_card))
             .py(py)
             .px(px)

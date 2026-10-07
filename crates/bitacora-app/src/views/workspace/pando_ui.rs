@@ -41,9 +41,11 @@ pub(super) struct PandoUi {
 
 fn feature_key(feature: PandoFeature) -> &'static str {
     match feature {
-        PandoFeature::SemanticSearch => "semantic_search",
-        PandoFeature::AgentChat => "agent_chat",
-        PandoFeature::McpBridge => "mcp_bridge",
+        PandoFeature::SemanticSearch => "semantic",
+        PandoFeature::AgentChat => "chat",
+        PandoFeature::McpBridge => "bridge",
+        PandoFeature::JournalReview => "review",
+        PandoFeature::Recommendations => "recommend",
     }
 }
 
@@ -89,6 +91,7 @@ impl Workspace {
         let state = self.pando_state();
         self.sidebar
             .update(cx, |s, cx| s.set_pando_state(state, cx));
+        self.refresh_ai_ui(cx);
     }
 
     pub(super) fn apply_pando_live(

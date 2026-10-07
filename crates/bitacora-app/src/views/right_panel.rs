@@ -21,6 +21,7 @@ use crate::ui::{
     StatefulInteractiveElement as _, Styled as _, Subscription, Task, Window, div, h_flex, px,
     v_flex,
 };
+use crate::views::ai_assist::suggestions::SuggestionsView;
 use crate::views::block_view::properties_table;
 use crate::views::graph_view::{GraphMode, GraphView};
 use crate::views::kit::{Card, Glyph, Overline, Segmented, glyph};
@@ -144,6 +145,8 @@ pub struct RightPanel {
     related_generation: u64,
     agent_configured: bool,
     agent_slot: Option<AnyView>,
+    /// AI suggestion chips of the Context tab (BIT-US-0152).
+    suggestions: Option<Entity<SuggestionsView>>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -184,6 +187,7 @@ impl RightPanel {
             related_generation: 0,
             agent_configured: false,
             agent_slot: None,
+            suggestions: None,
             _subscriptions: vec![subscription],
         }
     }
@@ -244,11 +248,28 @@ impl RightPanel {
     pub fn set_local_page(&mut self, page: Option<String>, cx: &mut Context<Self>) {
         if self.local_page != page {
             self.local_page = page.clone();
-            self.local.update(cx, |v, cx| v.set_page(page, cx));
+            self.local.update(cx, |v, cx| v.set_page(page.clone(), cx));
+            if let Some(chips) = &self.suggestions {
+                chips.update(cx, |v, cx| v.set_page(page, cx));
+            }
             self.reload_context(cx);
             self.reload_related(cx);
             cx.notify();
         }
+    }
+
+    /// Mounts the AI suggestion chips under the related blocks of the Context tab.
+    pub fn set_suggestions(
+        &mut self,
+        view: Option<Entity<SuggestionsView>>,
+        cx: &mut Context<Self>,
+    ) {
+        self.suggestions = view;
+        if let Some(chips) = &self.suggestions {
+            let page = self.local_page.clone();
+            chips.update(cx, |v, cx| v.set_page(page, cx));
+        }
+        cx.notify();
     }
 
     /// Connects the panel (and the stack) to an open graph.
@@ -407,6 +428,9 @@ impl RightPanel {
             col = col.child(self.backlinks_section(cx));
             if let Some(section) = self.related_section(cx) {
                 col = col.child(section);
+            }
+            if let Some(chips) = &self.suggestions {
+                col = col.child(chips.clone());
             }
         }
         col.child(self.stack.clone()).into_any_element()

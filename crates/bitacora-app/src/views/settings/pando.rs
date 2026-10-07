@@ -28,7 +28,7 @@ use crate::ui::{
     InteractiveElement as _, IntoElement, Level, ParentElement as _, Sizable as _,
     StatefulInteractiveElement as _, Styled as _, Window, div, h_flex, v_flex,
 };
-use crate::views::kit::{Chip, ChipTone, Overline, Segmented};
+use crate::views::kit::{Chip, ChipTone, Glyph, IconButton, Overline, Segmented};
 
 /// How long "Test connection" waits for the server.
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
@@ -183,6 +183,8 @@ fn feature_key(feature: PandoFeature) -> &'static str {
         PandoFeature::SemanticSearch => "semantic",
         PandoFeature::AgentChat => "chat",
         PandoFeature::McpBridge => "bridge",
+        PandoFeature::JournalReview => "review",
+        PandoFeature::Recommendations => "recommend",
     }
 }
 
@@ -360,11 +362,29 @@ impl SettingsView {
         self.save_pando(s, true, cx);
     }
 
-    /// Switches one feature on or off.
+    /// Switches one feature on or off. The review and recommendation features are read at each
+    /// request, so they apply without reopening the graph.
     pub fn set_pando_feature(&mut self, feature: PandoFeature, on: bool, cx: &mut Context<Self>) {
         let mut s = self.pando.settings.clone();
         s.features.insert(feature, on);
-        self.save_pando(s, true, cx);
+        let reopen = !matches!(
+            feature,
+            PandoFeature::JournalReview | PandoFeature::Recommendations
+        );
+        self.save_pando(s, reopen, cx);
+    }
+
+    /// Changes the automatic behaviour of the AI features (daily review, auto recommendations).
+    /// Applies without reopening the graph.
+    pub fn set_pando_ai_auto(
+        &mut self,
+        update: impl FnOnce(&mut bitacora_config::AiAuto),
+        cx: &mut Context<Self>,
+    ) {
+        let mut s = self.pando.settings.clone();
+        update(&mut s.ai);
+        s.ai.review_at_minute = s.ai.review_at_minute.min(23 * 60 + 59);
+        self.save_pando(s, false, cx);
     }
 
     /// Agent writes for the open graph (the `pando` MCP token gets the Write scope).
@@ -694,6 +714,8 @@ impl SettingsView {
             ));
         }
 
+        col = col.child(self.ai_auto_rows(theme, cx));
+
         // ---- Graph ----
         col = col.child(self.pando_heading("settings.pando.graph"));
         col = col.child(self.graph_rows(theme, &consent, key.is_some(), cx));
@@ -702,6 +724,76 @@ impl SettingsView {
         col = col.child(self.pando_heading("settings.pando.activity"));
         col = col.child(self.activity_rows(theme, cx));
         col.into_any_element()
+    }
+
+    /// Daily review and auto recommendations: off by default, shown under the features.
+    fn ai_auto_rows(&self, theme: &Theme, cx: &mut Context<Self>) -> AnyElement {
+        let ai = self.pando.settings.ai.clone();
+        let at = ai.review_at_minute;
+        let time = format!("{:02}:{:02}", at / 60, at % 60);
+        let step = |id: &'static str, glyph: Glyph, delta: i32, cx: &mut Context<Self>| {
+            IconButton::new(id, glyph)
+                .small()
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.set_pando_ai_auto(
+                        |ai| {
+                            let minute = i64::from(ai.review_at_minute) + i64::from(delta);
+                            ai.review_at_minute =
+                                u32::try_from(minute.rem_euclid(24 * 60)).unwrap_or(0);
+                        },
+                        cx,
+                    );
+                }))
+        };
+        v_flex()
+            .child(row(
+                theme,
+                tr("settings.pando.review_daily"),
+                Some(tr("settings.pando.review_daily_help")),
+                Switch::new("settings-pando-review-daily")
+                    .checked(ai.review_daily)
+                    .on_click(cx.listener(|this, on: &bool, _, cx| {
+                        let on = *on;
+                        this.set_pando_ai_auto(|ai| ai.review_daily = on, cx);
+                    })),
+            ))
+            .child(row(
+                theme,
+                tr("settings.pando.review_at"),
+                Some(tr("settings.pando.review_at_help")),
+                h_flex()
+                    .gap_2()
+                    .items_center()
+                    .child(step(
+                        "settings-pando-review-earlier",
+                        Glyph::ChevronLeft,
+                        -30,
+                        cx,
+                    ))
+                    .child(
+                        div()
+                            .debug_selector(|| "settings-pando-review-time".to_string())
+                            .child(time),
+                    )
+                    .child(step(
+                        "settings-pando-review-later",
+                        Glyph::ChevronRight,
+                        30,
+                        cx,
+                    )),
+            ))
+            .child(row(
+                theme,
+                tr("settings.pando.recommend_auto"),
+                Some(tr("settings.pando.recommend_auto_help")),
+                Switch::new("settings-pando-recommend-auto")
+                    .checked(ai.recommend_auto)
+                    .on_click(cx.listener(|this, on: &bool, _, cx| {
+                        let on = *on;
+                        this.set_pando_ai_auto(|ai| ai.recommend_auto = on, cx);
+                    })),
+            ))
+            .into_any_element()
     }
 
     fn url_row(&self, theme: &Theme, key: &str, input: &Entity<InputState>) -> AnyElement {

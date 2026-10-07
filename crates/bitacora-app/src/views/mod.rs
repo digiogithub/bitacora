@@ -1,6 +1,7 @@
 //! Views of the main window.
 
 pub mod agent_activity;
+pub mod ai_assist;
 pub mod all_pages;
 pub mod block_view;
 pub mod calendar;

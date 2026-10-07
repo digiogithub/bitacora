@@ -80,6 +80,16 @@ settings:
     feature_chat_help: Conversa con los agentes de Pando desde el panel derecho.
     feature_bridge: Dejar que los agentes lean este grafo
     feature_bridge_help: Da a los agentes de Pando un token de solo lectura para el servidor MCP de Bitacora.
+    feature_review: Revisión del diario
+    feature_review_help: Tarjetas que resumen un día o una semana de tus diarios.
+    feature_recommend: Recomendaciones
+    feature_recommend_help: Sugiere páginas relacionadas, enlaces, etiquetas y próximas acciones para la página en pantalla.
+    review_daily: Revisar hoy automáticamente
+    review_daily_help: Una vez al día, después de la hora indicada, con Pando conectado.
+    review_at: Hora de la revisión
+    review_at_help: Hora local (HH:MM) a partir de la cual puede ejecutarse la revisión diaria.
+    recommend_auto: Recomendar automáticamente
+    recommend_auto_help: Sugiere para la página en pantalla cuando dejas de editarla un rato.
     graph: Este grafo
     consent: Consentimiento
     consent_given: "Aceptaste el %{date}."

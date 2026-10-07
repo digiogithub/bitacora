@@ -395,3 +395,51 @@ fn agent_tab_configuration_reads_the_settings_file() {
     assert!(!agent_configured_for(None, Some(&root)));
     assert!(!agent_configured_for(Some(&file), None));
 }
+
+#[gpui_test]
+fn ai_switches_apply_live_and_are_off_by_default(cx: &mut TestAppContext) {
+    // BIT-US-0151, BIT-US-0152: the review and recommendation switches and their automation.
+    let env = Env::new(CONFIG);
+    setup(cx, None);
+    let (ctx, file) = ctx_with_pando(&env);
+    let (view, cx) = view(cx, ctx);
+    let (seen, _sub) = events(&view, cx);
+    view.update(cx, |v, _| {
+        let s = v.pando_settings();
+        assert!(!s.ai.review_daily && !s.ai.recommend_auto);
+        assert!(!s.features.contains_key(&PandoFeature::JournalReview));
+    });
+
+    view.update(cx, |v, cx| {
+        v.set_pando_ai_auto(|ai| ai.review_daily = true, cx);
+        v.set_pando_ai_auto(|ai| ai.review_at_minute = 24 * 60 + 90, cx);
+        v.set_pando_ai_auto(|ai| ai.recommend_auto = true, cx);
+        v.set_pando_feature(PandoFeature::Recommendations, false, cx);
+    });
+    let saved = bitacora_config::PandoSettings::load(&file).unwrap();
+    assert!(saved.ai.review_daily && saved.ai.recommend_auto);
+    assert_eq!(
+        saved.ai.review_at_minute,
+        23 * 60 + 59,
+        "clamped to the day"
+    );
+    assert_eq!(
+        saved.features.get(&PandoFeature::Recommendations),
+        Some(&false)
+    );
+    // None of these restarts the session.
+    assert!(
+        seen.borrow()
+            .iter()
+            .all(|e| matches!(e, SettingsEvent::PandoChanged { reopen: false }))
+    );
+    assert!(!seen.borrow().is_empty());
+    // A feature that shapes the session still reopens the graph.
+    view.update(cx, |v, cx| {
+        v.set_pando_feature(PandoFeature::AgentChat, false, cx)
+    });
+    assert!(matches!(
+        seen.borrow().last(),
+        Some(SettingsEvent::PandoChanged { reopen: true })
+    ));
+}
