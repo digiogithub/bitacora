@@ -16,7 +16,7 @@ use crate::render::inline::NavTarget;
 use crate::render::model::PropertyRow;
 use crate::ui::theme::{ActiveBitacoraTheme as _, TypeStyleExt as _};
 use crate::ui::{
-    ActiveTheme as _, AnyElement, AnyView, AppContext as _, Context, Entity,
+    ActiveTheme as _, AnyElement, AnyView, AppContext as _, Context, Entity, FluentBuilder as _,
     InteractiveElement as _, IntoElement, ParentElement as _, Render, SharedString,
     StatefulInteractiveElement as _, Styled as _, Subscription, Task, Window, div, h_flex, px,
     v_flex,
@@ -25,6 +25,7 @@ use crate::views::block_view::properties_table;
 use crate::views::graph_view::{GraphMode, GraphView};
 use crate::views::kit::{Card, Glyph, Overline, Segmented, glyph};
 use crate::views::page_view::PageEvent;
+use crate::views::related::{self, Related};
 use crate::views::right_sidebar::RightSidebar;
 
 /// Height of the local graph widget.
@@ -137,6 +138,10 @@ pub struct RightPanel {
     context: ContextInfo,
     context_task: Option<Task<()>>,
     generation: u64,
+    hybrid: Option<bitacora_runtime::HybridSearch>,
+    related: Related,
+    related_task: Option<Task<()>>,
+    related_generation: u64,
     agent_configured: bool,
     agent_slot: Option<AnyView>,
     _subscriptions: Vec<Subscription>,
@@ -173,6 +178,10 @@ impl RightPanel {
             context: ContextInfo::default(),
             context_task: None,
             generation: 0,
+            hybrid: None,
+            related: Related::Idle,
+            related_task: None,
+            related_generation: 0,
             agent_configured: false,
             agent_slot: None,
             _subscriptions: vec![subscription],
@@ -237,6 +246,7 @@ impl RightPanel {
             self.local_page = page.clone();
             self.local.update(cx, |v, cx| v.set_page(page, cx));
             self.reload_context(cx);
+            self.reload_related(cx);
             cx.notify();
         }
     }
@@ -247,11 +257,60 @@ impl RightPanel {
         self.local.update(cx, |v, cx| v.show(handle.clone(), cx));
         self.stack.update(cx, |s, cx| s.set_graph(handle, cx));
         self.reload_context(cx);
+        self.reload_related(cx);
+    }
+
+    /// Gives the panel the session's hybrid searcher for the Related blocks section.
+    pub fn set_hybrid(
+        &mut self,
+        hybrid: Option<bitacora_runtime::HybridSearch>,
+        cx: &mut Context<Self>,
+    ) {
+        self.hybrid = hybrid;
+        self.reload_related(cx);
+    }
+
+    /// The Related blocks section state.
+    pub fn related(&self) -> &Related {
+        &self.related
+    }
+
+    fn reload_related(&mut self, cx: &mut Context<Self>) {
+        self.related_generation += 1;
+        let generation = self.related_generation;
+        self.related_task = None;
+        let (Some(handle), Some(hybrid), Some(page)) = (
+            self.handle.clone(),
+            self.hybrid.clone(),
+            self.local_page.clone(),
+        ) else {
+            self.related = Related::Idle;
+            return;
+        };
+        self.related = Related::Loading;
+        self.related_task = Some(cx.spawn(async move |this, cx| {
+            let result = cx
+                .background_executor()
+                .spawn(async move { related::load_related(&handle, &hybrid, &page) })
+                .await;
+            let _ = this.update(cx, |panel, cx| {
+                if panel.related_generation == generation {
+                    panel.related = result.unwrap_or_else(|message| {
+                        tracing::warn!("related blocks failed: {message}");
+                        Related::Idle
+                    });
+                    cx.notify();
+                }
+            });
+        }));
     }
 
     /// Forgets the graph and empties the stack.
     pub fn clear(&mut self, cx: &mut Context<Self>) {
         self.handle = None;
+        self.related = Related::Idle;
+        self.related_task = None;
+        self.related_generation += 1;
         self.local.update(cx, |v, cx| v.clear(cx));
         self.stack.update(cx, |s, cx| s.clear(cx));
         self.context = ContextInfo::default();
@@ -346,6 +405,9 @@ impl RightPanel {
                 );
             }
             col = col.child(self.backlinks_section(cx));
+            if let Some(section) = self.related_section(cx) {
+                col = col.child(section);
+            }
         }
         col.child(self.stack.clone()).into_any_element()
     }
@@ -406,6 +468,80 @@ impl RightPanel {
             section = section.child(div().id(("backlink", ix)).child(card));
         }
         section.into_any_element()
+    }
+
+    /// The "Related blocks" section; hidden unless semantic search is working or failing.
+    fn related_section(&mut self, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let bt = cx.bitacora().clone();
+        let m = &bt.metrics;
+        let note = |text: String| {
+            div()
+                .text_color(bt.colors.muted)
+                .type_style(&bt.type_scale.ui_small)
+                .child(text)
+        };
+        let mut section = v_flex().id("context-related").gap(m.space[2]);
+        match &self.related {
+            Related::Idle => return None,
+            Related::Loading => {
+                section = section
+                    .child(Overline::new(t!("right.related").to_string()))
+                    .child(note(t!("right.related_loading").to_string()));
+            }
+            Related::Unavailable(why) => {
+                section = section
+                    .child(Overline::new(t!("right.related").to_string()))
+                    .child(note(why.clone()));
+            }
+            Related::Ready(blocks) => {
+                section = section
+                    .child(Overline::new(t!("right.related").to_string()).count(blocks.len()));
+                if blocks.is_empty() {
+                    section = section.child(note(related::empty_text()));
+                }
+                for (ix, block) in blocks.iter().enumerate() {
+                    let uuid = block.uuid.clone();
+                    section = section.child(
+                        v_flex()
+                            .id(("related-block", ix))
+                            .gap(m.space[1])
+                            .cursor_pointer()
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                let target = NavTarget::Block(uuid.clone());
+                                this.stack.update(cx, |s, cx| s.navigate(target, cx));
+                            }))
+                            .child(
+                                div()
+                                    .truncate()
+                                    .text_color(bt.colors.text)
+                                    .type_style(&bt.type_scale.ui)
+                                    .child(SharedString::from(block.text.clone())),
+                            )
+                            .child(
+                                h_flex()
+                                    .gap(m.space[2])
+                                    .child(glyph(Glyph::File, m.icon_sm, bt.colors.muted, cx))
+                                    .child(
+                                        div()
+                                            .truncate()
+                                            .text_color(bt.colors.muted)
+                                            .type_style(&bt.type_scale.ui_small)
+                                            .child(SharedString::from(block.page.clone())),
+                                    )
+                                    .when(block.stale, |row| {
+                                        row.child(
+                                            div()
+                                                .text_color(bt.colors.muted)
+                                                .type_style(&bt.type_scale.ui_small)
+                                                .child(t!("palette.semantic_stale").to_string()),
+                                        )
+                                    }),
+                            ),
+                    );
+                }
+            }
+        }
+        Some(section.into_any_element())
     }
 
     fn agent_tab(&mut self, cx: &mut Context<Self>) -> AnyElement {

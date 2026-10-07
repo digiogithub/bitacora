@@ -19,6 +19,7 @@ pub mod page_view;
 pub mod palette;
 pub mod panels;
 pub mod picker;
+pub mod related;
 pub mod responsive;
 pub mod right_panel;
 pub mod right_sidebar;

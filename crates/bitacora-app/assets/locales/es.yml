@@ -50,6 +50,13 @@ palette:
   searching: Buscando...
   no_results: Sin resultados
   type_to_search: Escribe para buscar páginas y bloques
+  semantic_toggle: Semántica
+  semantic_badge: semántico
+  semantic_stale: puede estar desactualizado
+  semantic_unavailable: "semántica no disponible: %{why}"
+  semantic_why_disabled: Pando está desactivado para este grafo
+  semantic_why_offline: Pando no responde
+  semantic_why_timeout: Pando tardó demasiado
   reindexing: Reconstruyendo el índice...
   cmd_journals: "Ir a: Diarios"
   cmd_all_pages: "Ir a: Todas las páginas"
@@ -169,6 +176,9 @@ right:
   properties: Propiedades
   backlinks: Enlaces entrantes
   no_backlinks: Nada enlaza aquí todavía.
+  related: Bloques relacionados
+  related_loading: Buscando bloques relacionados...
+  no_related: No se encontraron bloques relacionados.
   agent_empty_title: Pregunta a tu grafo
   agent_empty_hint: El asistente conversará aquí sobre la página en pantalla.
   agent_unconfigured_title: Pando no configurado

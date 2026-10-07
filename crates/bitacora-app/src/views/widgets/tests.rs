@@ -263,6 +263,7 @@ impl Env {
             mcp_endpoint: None,
             gate: Arc::default(),
             lookup: session.ref_lookup(),
+            hybrid: None,
         };
         Self {
             graph,

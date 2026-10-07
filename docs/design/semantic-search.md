@@ -88,6 +88,12 @@ Code: `semantic/search.rs` (`HybridSearch`), runtime API `Session::hybrid_search
 
 Lexical results are *not* filtered by the exclusions: those only govern what leaves the machine, and the user's own local search keeps finding their own pages.
 
+## 4. UI (BIT-US-0145)
+
+- **Palette** (`views/palette.rs`): when the session has a hybrid searcher (`SessionLink::hybrid`, a clone of `Session::hybrid()`) the search palette shows a "Semantic" toggle chip (on by default). Each query first shows the lexical answer, then the hybrid answer replaces it when it arrives (both run on the background executor after the debounce; a newer query cancels the older one). Block rows that Pando also found carry a semantic badge (and "may be outdated" when `HybridHit::stale`). When the semantic half is missing a subtle "semantic unavailable: <reason>" hint sits next to the chips.
+- **Related blocks** (`views/related.rs`, Context tab of `views/right_panel.rs`): the query is the page title plus its first blocks; the semantic block hits of the hybrid answer (minus the page's own blocks) are listed, click opens the block. The section is hidden when Pando is off for the graph, shows the reason when Pando is offline or failing. This is the same logic as MCP `related_blocks` (hybrid search with the block text as query).
+- **Index status** (settings Pando page, Activity row): synced/pending counts, the latest failed send (`SemanticStatus::last_error`, from `Ledger::last_error`), **Resync** (`reconcile` + `retry_now`) and **Remove semantic data** (`purge`, confirmed; the consent stays and Resync sends everything again). "Revoke and remove my data" remains in the Consent row.
+
 ## Requirements
 
 - MUST NOT write `id::` or any other marker to user files for indexing.

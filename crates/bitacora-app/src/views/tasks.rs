@@ -844,6 +844,7 @@ mod tests {
             mcp_endpoint: None,
             gate: Arc::default(),
             lookup: session.ref_lookup(),
+            hybrid: None,
         };
         let model = load_tasks(&handle, TODAY).expect("tasks");
         let second = model

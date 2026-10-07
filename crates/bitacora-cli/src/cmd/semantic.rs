@@ -215,8 +215,8 @@ fn status(c: &CommonArgs) -> anyhow::Result<u8> {
     let out = StatusOut {
         eligibility: elig,
         pando: describe(&st),
-        synced: counts.map(|s| s.synced),
-        pending: counts.map(|s| s.pending),
+        synced: counts.as_ref().map(|s| s.synced),
+        pending: counts.as_ref().map(|s| s.pending),
     };
     if c.graph.json {
         println!("{}", serde_json::to_string_pretty(&out)?);

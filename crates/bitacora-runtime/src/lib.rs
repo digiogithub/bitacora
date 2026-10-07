@@ -35,7 +35,7 @@ mod sync_ctl;
 mod writer;
 
 pub use bitacora_pando::semantic::{
-    HybridHit, HybridOptions, HybridResults, HybridTarget, SemanticState, Unavailable,
+    HybridHit, HybridOptions, HybridResults, HybridSearch, HybridTarget, SemanticState, Unavailable,
 };
 pub use bitacora_pando::{
     ConnectionReport, KbSharing, ManagedState, ManagedStatus, MemoryBackend as PandoMemoryBackend,

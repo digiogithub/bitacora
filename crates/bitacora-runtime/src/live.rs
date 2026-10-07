@@ -417,6 +417,13 @@ impl Session {
             .map_err(|e| RuntimeError::Search(e.to_string()))
     }
 
+    /// A cheap clone of the hybrid searcher, for callers that search off the session thread
+    /// (the UI keeps one so its queries never wait for the session's control loop).
+    #[must_use]
+    pub fn hybrid(&self) -> Option<bitacora_pando::semantic::HybridSearch> {
+        self.hybrid.clone()
+    }
+
     /// The semantic sync worker, to change exclusions, resync or purge (BIT-SP-0010.R6).
     #[must_use]
     pub fn semantic(&self) -> Option<&bitacora_pando::semantic::SemanticWorker> {

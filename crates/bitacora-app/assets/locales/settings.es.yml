@@ -97,6 +97,11 @@ settings:
     sync: Sincronización semántica
     sync_counts: "%{synced} documentos en Pando, %{pending} en espera."
     sync_none: No está en marcha.
+    resync: Resincronizar
+    purge_index: Quitar datos semánticos
+    purge_index_title: ¿Quitar los datos semánticos de este grafo?
+    purge_index_body: Los bloques del grafo se borran del índice semántico de Pando. Tus archivos no se tocan. Resincronizar los envía de nuevo.
+    sync_error: "último error: %{error}"
     refresh: Actualizar
     target_managed: un servidor Pando que Bitacora arranca en este equipo
     consent_title: "¿Enviar las notas de este grafo a Pando?"
