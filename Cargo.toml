@@ -61,7 +61,7 @@ axum = "0.8.9"
 rmcp = { version = "~3.5", features = ["server", "macros", "schemars", "transport-streamable-http-server", "transport-streamable-http-server-session", "transport-io"] }
 schemars = "1"
 subtle = "2.6"
-getrandom = "0.3"
+getrandom = "0.4"
 async-channel = "2.5"
 # pando-rs HTTP client (rustls only, no native-tls); already in the lock via gix
 reqwest = { version = "0.13", default-features = false, features = ["json", "query", "rustls"] }
