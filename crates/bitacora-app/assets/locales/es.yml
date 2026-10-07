@@ -13,6 +13,17 @@ sidebar:
   empty: Todavía no hay nada aquí
   no_graph: Ningún grafo abierto
   graph_view: Vista de grafo
+  tasks: Tareas
+  graph: Grafo
+  overdue: "%{count} tareas vencidas"
+  pages_count: "%{count} páginas"
+  mcp_active: Servidor MCP activo
+  go_to_date: Ir a fecha...
+calendar:
+  prev_month: Mes anterior
+  next_month: Mes siguiente
+  weekdays: "L M X J V S D"
+  months: "enero,febrero,marzo,abril,mayo,junio,julio,agosto,septiembre,octubre,noviembre,diciembre"
 all_pages:
   title: Todas las páginas
   name: Nombre
@@ -43,6 +54,7 @@ palette:
   cmd_journals: "Ir a: Diarios"
   cmd_all_pages: "Ir a: Todas las páginas"
   cmd_graph_view: "Ir a: Vista de grafo"
+  cmd_tasks: "Ir a: Tareas"
   cmd_back: "Volver atrás"
   cmd_forward: "Ir adelante"
   cmd_left_sidebar: Mostrar u ocultar la barra lateral izquierda
@@ -389,3 +401,25 @@ graph_view:
   reset_focus: Restablecer foco
   empty: No hay páginas que mostrar
   loading: Cargando grafo...
+tasks:
+  title: Tareas
+  summary: "%{count} abiertas en todo el grafo"
+  overdue_count: "%{count} vencidas"
+  filter_all: Todas
+  filter_overdue: Vencidas
+  filter_doing: En curso
+  filter_todo: Por hacer
+  filter_later: Más tarde
+  priority: "Prioridad %{letter}"
+  group_overdue: Vencidas
+  group_week: Esta semana
+  group_later: Más tarde
+  group_none: Sin fecha
+  scheduled: "programada %{date}"
+  deadline: "vence %{date}"
+  overdue_tag: vencida
+  no_date: sin fecha
+  in_page: "en %{page}"
+  empty: Ninguna tarea abierta coincide.
+  err_page: "No se puede abrir la página %{page}."
+  err_moved: La tarea cambió en disco; recarga e inténtalo de nuevo.

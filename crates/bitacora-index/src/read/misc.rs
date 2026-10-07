@@ -30,6 +30,66 @@ pub struct TaskItem {
     pub page_name: String,
 }
 
+/// Which section of the tasks view an open task belongs to (BIT-US-0126).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum TaskGroup {
+    /// Its earliest `SCHEDULED`/`DEADLINE` date is before today.
+    Overdue,
+    /// Dated from today to six days ahead.
+    ThisWeek,
+    /// Dated further ahead.
+    Later,
+    /// Neither `SCHEDULED` nor `DEADLINE`.
+    NoDate,
+}
+
+impl TaskGroup {
+    /// The groups in display order.
+    pub const ALL: [TaskGroup; 4] = [Self::Overdue, Self::ThisWeek, Self::Later, Self::NoDate];
+}
+
+/// Open tasks bucketed by date.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct TaskGroups {
+    /// Dated before today, oldest first.
+    pub overdue: Vec<TaskItem>,
+    /// Dated today to today + 6, by date.
+    pub this_week: Vec<TaskItem>,
+    /// Dated later, by date.
+    pub later: Vec<TaskItem>,
+    /// Undated, by page and outline order.
+    pub no_date: Vec<TaskItem>,
+}
+
+impl TaskGroups {
+    /// The tasks of `group`.
+    pub fn get(&self, group: TaskGroup) -> &[TaskItem] {
+        match group {
+            TaskGroup::Overdue => &self.overdue,
+            TaskGroup::ThisWeek => &self.this_week,
+            TaskGroup::Later => &self.later,
+            TaskGroup::NoDate => &self.no_date,
+        }
+    }
+
+    /// Number of open tasks.
+    pub fn total(&self) -> usize {
+        self.overdue.len() + self.this_week.len() + self.later.len() + self.no_date.len()
+    }
+}
+
+impl TaskItem {
+    /// The earliest of `SCHEDULED` and `DEADLINE` (`yyyyMMdd`).
+    pub fn due(&self) -> Option<i64> {
+        match (self.block.scheduled, self.block.deadline) {
+            (Some(a), Some(b)) => Some(a.min(b)),
+            (a, b) => a.or(b),
+        }
+    }
+}
+
+const OPEN_TASKS: &str = "b.marker IS NOT NULL AND b.marker NOT IN ('DONE','CANCELED','CANCELLED')";
+
 /// Why an item is on the agenda.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AgendaKind {
@@ -180,6 +240,80 @@ impl IndexReader {
         self.task_items(&sql, args)
     }
 
+    /// Open tasks (not `DONE`/`CANCELED`/`CANCELLED`) in `filter`, bucketed by their earliest
+    /// `SCHEDULED`/`DEADLINE` date relative to `today` (`yyyyMMdd`). `filter.markers` still
+    /// narrows the markers.
+    pub fn task_groups(&self, today: i64, filter: &TaskFilter) -> Result<TaskGroups, Error> {
+        let week_end = self.add_days(today, 6)?;
+        let mut sql = format!(
+            "SELECT {BLOCK_COLS}, p.original_name FROM blocks b JOIN pages p ON p.id = b.page_id \
+             WHERE {OPEN_TASKS}"
+        );
+        let mut args: Vec<Value> = Vec::new();
+        if !filter.markers.is_empty() {
+            let marks = vec!["?"; filter.markers.len()].join(",");
+            sql.push_str(&format!(" AND b.marker IN ({marks})"));
+            args.extend(filter.markers.iter().map(|m| Value::Text(m.clone())));
+        }
+        if let Some(p) = &filter.priority {
+            sql.push_str(" AND b.priority = ?");
+            args.push(Value::Text(p.clone()));
+        }
+        if let Some(id) = filter.page_id {
+            sql.push_str(" AND b.page_id = ?");
+            args.push(Value::Integer(id));
+        }
+        sql.push_str(" ORDER BY p.name, b.file_id, b.ord");
+        let mut groups = TaskGroups::default();
+        for item in self.task_items(&sql, args)? {
+            match item.due() {
+                Some(d) if d < today => groups.overdue.push(item),
+                Some(d) if d <= week_end => groups.this_week.push(item),
+                Some(_) => groups.later.push(item),
+                None => groups.no_date.push(item),
+            }
+        }
+        // Stable sorts keep page/outline order within a date.
+        groups.overdue.sort_by_key(TaskItem::due);
+        groups.this_week.sort_by_key(TaskItem::due);
+        groups.later.sort_by_key(TaskItem::due);
+        Ok(groups)
+    }
+
+    /// Number of open tasks dated before `today` (`yyyyMMdd`); the one overdue count shared by
+    /// the Tasks view and the sidebar badge.
+    pub fn overdue_count(&self, today: i64) -> Result<usize, Error> {
+        let conn = self.conn()?;
+        let n: i64 = conn.query_row(
+            &format!(
+                "SELECT COUNT(*) FROM blocks b WHERE {OPEN_TASKS} AND \
+                 MIN(COALESCE(b.scheduled, b.deadline), COALESCE(b.deadline, b.scheduled)) < ?1"
+            ),
+            [today],
+            |r| r.get(0),
+        )?;
+        Ok(usize::try_from(n).unwrap_or(0))
+    }
+
+    /// `day + days` for a `yyyyMMdd` day (`day` itself when it is not a valid date).
+    fn add_days(&self, day: i64, days: u32) -> Result<i64, Error> {
+        let conn = self.conn()?;
+        let t = day.to_string();
+        let date = format!(
+            "{}-{}-{}",
+            t.get(0..4).unwrap_or("0000"),
+            t.get(4..6).unwrap_or("00"),
+            t.get(6..8).unwrap_or("00")
+        );
+        Ok(conn
+            .query_row(
+                "SELECT CAST(strftime('%Y%m%d', ?1, '+' || ?2 || ' days') AS INTEGER)",
+                params![date, days],
+                |r| r.get::<_, Option<i64>>(0),
+            )?
+            .unwrap_or(day))
+    }
+
     fn task_items(&self, sql: &str, args: Vec<Value>) -> Result<Vec<TaskItem>, Error> {
         let conn = self.conn()?;
         let mut st = conn.prepare(sql)?;
@@ -249,6 +383,34 @@ impl IndexReader {
                 .then_with(|| a.task.block.ord.cmp(&b.task.block.ord))
         });
         Ok(out)
+    }
+
+    /// Journal days (`yyyyMMdd`) within `[from_day, to_day]` whose page has at least one
+    /// non-blank block (the calendar's "has notes" dots), ascending.
+    pub fn journal_days_with_notes(&self, from_day: i64, to_day: i64) -> Result<Vec<i64>, Error> {
+        let conn = self.conn()?;
+        let mut st = conn.prepare_cached(
+            "SELECT p.journal_day FROM pages p WHERE p.is_journal = 1 AND p.file_id IS NOT NULL \
+             AND p.journal_day BETWEEN ?1 AND ?2 \
+             AND EXISTS (SELECT 1 FROM blocks b WHERE b.page_id = p.id AND b.is_pre_block = 0 \
+                         AND trim(b.content, ' ' || char(9) || char(10) || char(13)) <> '') \
+             ORDER BY p.journal_day",
+        )?;
+        let rows = st
+            .query_map(params![from_day, to_day], |r| r.get::<_, i64>(0))?
+            .collect::<Result<_, _>>()?;
+        Ok(rows)
+    }
+
+    /// Number of pages backed by a file (journals included), for the sidebar footer.
+    pub fn file_page_count(&self) -> Result<usize, Error> {
+        let conn = self.conn()?;
+        let n: i64 = conn.query_row(
+            "SELECT count(*) FROM pages WHERE file_id IS NOT NULL AND is_builtin = 0",
+            [],
+            |r| r.get(0),
+        )?;
+        Ok(usize::try_from(n).unwrap_or(0))
     }
 
     /// Direct namespace children of a page, by name.

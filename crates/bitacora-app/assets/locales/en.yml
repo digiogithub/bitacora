@@ -13,6 +13,17 @@ sidebar:
   empty: Nothing here yet
   no_graph: No graph open
   graph_view: Graph view
+  tasks: Tasks
+  graph: Graph
+  overdue: "%{count} overdue tasks"
+  pages_count: "%{count} pages"
+  mcp_active: MCP server active
+  go_to_date: Go to date...
+calendar:
+  prev_month: Previous month
+  next_month: Next month
+  weekdays: "M T W T F S S"
+  months: "January,February,March,April,May,June,July,August,September,October,November,December"
 all_pages:
   title: All pages
   name: Name
@@ -43,6 +54,7 @@ palette:
   cmd_journals: "Go to: Journals"
   cmd_all_pages: "Go to: All pages"
   cmd_graph_view: "Go to: Graph view"
+  cmd_tasks: "Go to: Tasks"
   cmd_back: "Go back"
   cmd_forward: "Go forward"
   cmd_left_sidebar: Toggle left sidebar
@@ -389,3 +401,25 @@ graph_view:
   reset_focus: Reset focus
   empty: No pages to show
   loading: Loading graph...
+tasks:
+  title: Tasks
+  summary: "%{count} open across the graph"
+  overdue_count: "%{count} overdue"
+  filter_all: All
+  filter_overdue: Overdue
+  filter_doing: In progress
+  filter_todo: To do
+  filter_later: Later
+  priority: "Priority %{letter}"
+  group_overdue: Overdue
+  group_week: This week
+  group_later: Later
+  group_none: No date
+  scheduled: "scheduled %{date}"
+  deadline: "due %{date}"
+  overdue_tag: overdue
+  no_date: no date
+  in_page: "in %{page}"
+  empty: No open tasks match.
+  err_page: "Cannot open the page %{page}."
+  err_moved: The task changed on disk; reload and try again.

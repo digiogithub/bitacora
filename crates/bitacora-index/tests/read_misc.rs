@@ -120,6 +120,32 @@ fn agenda_window_excludes_done_and_includes_repeating() {
 }
 
 #[test]
+fn journal_days_with_notes_skips_blank_days_and_other_months() {
+    let fx = indexed(&[
+        ("journals/2026_10_03.md", "- met Ana\n"),
+        ("journals/2026_10_04.md", "- \n"),
+        ("journals/2026_10_20.md", "- later\n- more\n"),
+        ("journals/2026_09_30.md", "- september\n"),
+        ("pages/NotAJournal.md", "- text\n"),
+    ]);
+    let days = fx
+        .reader
+        .journal_days_with_notes(20_261_001, 20_261_031)
+        .expect("days");
+    assert_eq!(days, [20_261_003, 20_261_020]);
+}
+
+#[test]
+fn overdue_count_ignores_done_future_and_undated() {
+    let fx = tasks_graph();
+    // On 2026-10-07: write report (10-06), weekly (09-01), past (09-30) are overdue; DONE and
+    // CANCELED, "review" (deadline 10-08), "far away" and undated tasks are not.
+    assert_eq!(fx.reader.overdue_count(20_261_007).expect("n"), 3);
+    assert_eq!(fx.reader.overdue_count(20_000_101).expect("n"), 0);
+    assert_eq!(fx.reader.file_page_count().expect("pages"), 2);
+}
+
+#[test]
 fn namespace_children_and_tree_depth_three() {
     let fx = indexed(&[
         ("pages/plan.md", "title:: work/q3/plan\n\n- plan\n"),
@@ -262,4 +288,37 @@ fn templates_are_listed_by_name_with_their_page() {
             ("meeting".to_owned(), "Tpl".to_owned())
         ]
     );
+}
+
+#[test]
+fn task_groups_bucket_open_tasks_by_earliest_date() {
+    let fx = tasks_graph();
+    let r = &fx.reader;
+    let today = 20_261_007;
+    let g = r
+        .task_groups(today, &TaskFilter::default())
+        .expect("groups");
+    let t = |v: &[bitacora_index::TaskItem]| -> Vec<String> {
+        v.iter().map(|i| i.block.title.clone()).collect()
+    };
+    assert_eq!(t(&g.overdue), ["weekly", "past", "write report"]);
+    assert_eq!(t(&g.this_week), ["review"]);
+    assert_eq!(t(&g.later), ["far away"]);
+    let mut none = t(&g.no_date);
+    none.sort();
+    assert_eq!(none, ["someday", "water plants"]);
+    assert_eq!(g.total(), 7, "DONE and CANCELED are excluded");
+    assert_eq!(r.overdue_count(today).expect("count"), 3);
+    // `review` (deadline 2026-10-08) is overdue from the 9th on.
+    assert_eq!(r.overdue_count(20_261_009).expect("count"), 4);
+    let only_a = r
+        .task_groups(
+            today,
+            &TaskFilter {
+                priority: Some("A".into()),
+                ..TaskFilter::default()
+            },
+        )
+        .expect("groups");
+    assert_eq!(only_a.total(), 1);
 }

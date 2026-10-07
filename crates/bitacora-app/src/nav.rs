@@ -15,6 +15,8 @@ pub enum Route {
     AllPages,
     /// The graph view (BIT-US-0157).
     Graph,
+    /// The open tasks of the graph (BIT-US-0126).
+    Tasks,
 }
 
 /// Where a click on a ref, tag, bullet or list entry opens its target (Shift+click opens the

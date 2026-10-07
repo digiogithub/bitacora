@@ -3,6 +3,7 @@
 pub mod agent_activity;
 pub mod all_pages;
 pub mod block_view;
+pub mod calendar;
 pub mod conflicts;
 pub mod credential_dialog;
 pub mod disk_conflict;
@@ -26,6 +27,7 @@ pub mod sync_dialog;
 #[cfg(test)]
 mod sync_flow_tests;
 pub mod sync_panel;
+pub mod tasks;
 pub mod title_bar;
 pub mod widgets;
 pub mod workspace;
