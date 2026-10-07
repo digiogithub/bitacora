@@ -146,10 +146,6 @@ settings:
     reduce_motion_help: Mantiene el cursor fijo y dibuja indicadores y transiciones sin movimiento.
     language_help: Se aplica al instante.
     language_system: Seguir el sistema
-    user_themes: Tus temas
-    user_themes_help: Pon archivos JSON de tema en la carpeta themes del directorio de configuración de la aplicación.
-    user_themes_reload: Recargar temas
-    user_themes_reloaded: Temas recargados.
     css: custom.css del grafo
     css_help: Se aplican los colores y las fuentes de logseq/custom.css; el archivo nunca se modifica.
     css_none: Este grafo no tiene logseq/custom.css.

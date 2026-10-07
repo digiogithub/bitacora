@@ -82,9 +82,13 @@ pub mod progress {
 
 /// Theme registry and modes.
 pub mod theme {
+    pub mod bitacora;
     pub mod palette;
+    pub mod scale;
 
+    pub use bitacora::{ActiveBitacoraTheme, BitacoraTheme, Mode, TypeStyleExt};
     pub use palette::Palette;
+    pub use scale::{Metrics, TypeScale, TypeStyle};
 
     #[cfg(test)]
     mod palette_tests;
