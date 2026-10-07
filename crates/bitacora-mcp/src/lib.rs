@@ -14,6 +14,7 @@ mod audit;
 mod bridge;
 mod compat;
 mod dates;
+mod exclusion;
 mod guard;
 mod handler;
 mod index_reader;
@@ -31,6 +32,7 @@ mod write_tools;
 
 pub use audit::{AuditEvent, AuditFilter, AuditLog, AuditRecord, UndoError};
 pub use bridge::QueueBridge;
+pub use exclusion::{FilteredReader, PRIVATE_PROPERTY, ReadExclusions};
 pub use index_reader::IndexGraphReader;
 pub use policy::{DEFAULT_WRITES_PER_MINUTE, OpenGate, WriteGate, WritePolicy};
 pub use reader::{
@@ -43,8 +45,8 @@ pub use status::{DisabledSync, SyncState, SyncStatus, SyncStatusProvider};
 #[cfg(feature = "keyring-store")]
 pub use tokens::KeyringBackend;
 pub use tokens::{
-    MemoryBackend, Scope, SecretBackend, TokenInfo, TokenStorage, TokenStore, TokenSummary,
-    default_audit_dir, default_token_path, os_keychain,
+    MemoryBackend, PANDO_TOKEN_NAME, Scope, SecretBackend, TokenInfo, TokenStorage, TokenStore,
+    TokenSummary, default_audit_dir, default_token_path, os_keychain,
 };
 
 use bitacora_core as _;

@@ -199,7 +199,7 @@ where
     if !token.scopes.contains(&Scope::Read) {
         return Err(forbidden(Scope::Read));
     }
-    let reader = Arc::clone(&svc.reader);
+    let reader = svc.reader_for(Some(&token.name));
     tokio::task::spawn_blocking(move || f(&*reader))
         .await
         .map_err(|e| ToolError::new(Code::Internal, format!("reader task failed: {e}")))?

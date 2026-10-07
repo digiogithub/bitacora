@@ -29,6 +29,9 @@ pub enum Scope {
     Delete,
 }
 
+/// Name of the dedicated token Pando agents use (ADR-031): Read scope unless the user grants more.
+pub const PANDO_TOKEN_NAME: &str = "pando";
+
 /// Public view of a token (never includes the secret).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TokenInfo {
@@ -424,6 +427,27 @@ impl TokenStore {
         Ok(true)
     }
 
+    /// Makes sure a token `name` exists with exactly `scopes` and returns its secret, creating it
+    /// (and re-minting it when its secret is no longer available, e.g. a wiped keychain entry) as
+    /// needed. Idempotent: an existing healthy token keeps its secret.
+    pub fn ensure_token(&self, name: &str, scopes: &[Scope]) -> Result<String, Error> {
+        match self.secret_of(name) {
+            Some(secret) => {
+                let current = self.list().into_iter().find(|t| t.name == name);
+                if current.is_none_or(|t| t.scopes != scopes) {
+                    self.set_scopes(name, scopes)?;
+                }
+                Ok(secret)
+            }
+            None => {
+                if self.list().iter().any(|t| t.name == name) {
+                    self.revoke(name)?;
+                }
+                self.create(name, scopes)
+            }
+        }
+    }
+
     /// Replace a token's secret, keeping name and scopes. Returns the new secret.
     pub fn rotate(&self, name: &str) -> Result<String, Error> {
         let secret = generate_secret()?;
@@ -648,6 +672,60 @@ mod tests {
         let again = TokenStore::load_or_init(&path).expect("reload");
         assert_eq!(again.secret_of(DEFAULT_TOKEN_NAME), Some(secret));
         assert_eq!(again.list().len(), 1);
+    }
+
+    #[test]
+    fn ensure_token_is_idempotent_follows_scopes_and_reminted_when_the_secret_is_lost() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("mcp-tokens.json");
+        let mem = Arc::new(MemoryBackend::new());
+        let backend: Arc<dyn SecretBackend> = Arc::clone(&mem) as Arc<dyn SecretBackend>;
+        let store = TokenStore::load_or_init_with(&path, Some(backend)).expect("init");
+
+        let s1 = store
+            .ensure_token(PANDO_TOKEN_NAME, &[Scope::Read])
+            .expect("mint");
+        assert_eq!(
+            store
+                .ensure_token(PANDO_TOKEN_NAME, &[Scope::Read])
+                .expect("again"),
+            s1
+        );
+        let info = store.verify(&s1).expect("verifies");
+        assert_eq!(info.name, PANDO_TOKEN_NAME);
+        assert_eq!(info.scopes, vec![Scope::Read]);
+
+        // A write grant changes the scopes, not the secret; withdrawing it narrows again.
+        assert_eq!(
+            store
+                .ensure_token(PANDO_TOKEN_NAME, &[Scope::Read, Scope::Write])
+                .expect("grant"),
+            s1
+        );
+        assert_eq!(
+            store.verify(&s1).expect("v").scopes,
+            vec![Scope::Read, Scope::Write]
+        );
+        store
+            .ensure_token(PANDO_TOKEN_NAME, &[Scope::Read])
+            .expect("narrow");
+        assert_eq!(store.verify(&s1).expect("v").scopes, vec![Scope::Read]);
+
+        // The secret lives in the keychain, not in the file.
+        let file = std::fs::read_to_string(&path).expect("file");
+        assert!(!file.contains(&s1));
+
+        // A wiped keychain entry is replaced by a fresh token of the same name and scopes.
+        mem.wipe(PANDO_TOKEN_NAME);
+        let reloaded =
+            TokenStore::load_or_init_with(&path, Some(Arc::clone(&mem) as Arc<dyn SecretBackend>))
+                .expect("reload");
+        let s2 = reloaded
+            .ensure_token(PANDO_TOKEN_NAME, &[Scope::Read])
+            .expect("remint");
+        assert_ne!(s1, s2);
+        assert!(reloaded.verify(&s1).is_none());
+        assert_eq!(reloaded.verify(&s2).expect("v").scopes, vec![Scope::Read]);
     }
 
     #[test]

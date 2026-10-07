@@ -59,6 +59,9 @@ pub struct GraphConsent {
     pub granted_at: Option<i64>,
     /// Graph-relative path prefixes or page names never sent to Pando.
     pub exclusions: Vec<String>,
+    /// Also grant the dedicated `pando` MCP token the Write scope for this graph (ADR-031). Off
+    /// by default: agents read through MCP and propose edits instead of writing.
+    pub agent_writes: bool,
 }
 
 /// Pando settings of this machine.
@@ -75,6 +78,8 @@ pub struct PandoSettings {
     pub agui_url: String,
     /// Allow non-loopback URLs (they then must be `https`).
     pub allow_remote: bool,
+    /// Path of the `pando` executable for managed mode; `None` looks it up on `PATH`.
+    pub binary: Option<String>,
     /// Pando profile (agent persona) per feature.
     pub profiles: BTreeMap<PandoFeature, String>,
     /// Feature switches; a missing feature is on when [`enabled`](Self::enabled) is.
@@ -91,6 +96,7 @@ impl Default for PandoSettings {
             rest_url: DEFAULT_REST_URL.to_owned(),
             agui_url: DEFAULT_AGUI_URL.to_owned(),
             allow_remote: false,
+            binary: None,
             profiles: BTreeMap::new(),
             features: BTreeMap::new(),
             graphs: BTreeMap::new(),
