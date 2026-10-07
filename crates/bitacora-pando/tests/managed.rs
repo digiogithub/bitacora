@@ -136,11 +136,26 @@ fn wait_until(what: &str, mut f: impl FnMut() -> bool) {
     panic!("timed out waiting for {what}");
 }
 
+/// True while `pid` is a live, non-zombie process. Linux reads `/proc`; other Unixes
+/// (macOS) have no procfs, so ask `ps` for the process state.
 fn pid_alive(pid: u32) -> bool {
-    Path::new(&format!("/proc/{pid}")).exists()
-        && !std::fs::read_to_string(format!("/proc/{pid}/stat"))
-            .unwrap_or_default()
-            .contains(") Z")
+    if cfg!(target_os = "linux") {
+        return Path::new(&format!("/proc/{pid}")).exists()
+            && !std::fs::read_to_string(format!("/proc/{pid}/stat"))
+                .unwrap_or_default()
+                .contains(") Z");
+    }
+    let out = std::process::Command::new("ps")
+        .args(["-o", "stat=", "-p", &pid.to_string()])
+        .output();
+    match out {
+        Ok(o) => {
+            let stat = String::from_utf8_lossy(&o.stdout);
+            let stat = stat.trim();
+            o.status.success() && !stat.is_empty() && !stat.starts_with('Z')
+        }
+        Err(_) => false,
+    }
 }
 
 fn read_pid(dir: &InstanceDir) -> u32 {

@@ -51,7 +51,15 @@ mod tests {
     use crate::ui::testing::platform_text_system;
     use crate::ui::text_edit::{Font, FontWeight};
 
+    // The test needs the real platform font stack on the test thread. macOS creates its
+    // platform on the main thread only (libtest runs tests elsewhere) and the Windows
+    // DirectWrite `all_font_names` does not list fonts added from memory, so it only
+    // runs against the Linux (cosmic-text) stack.
     #[test]
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "needs the Linux cosmic-text font stack"
+    )]
     fn embedded_families_resolve() {
         let system = platform_text_system();
         add(&system);

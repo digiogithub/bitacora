@@ -8,11 +8,11 @@
 # For Flathub, replace the `dir` source below by the tagged git source (see docs/design/release-process.md).
 app-id: es.digio.bitacora
 runtime: org.freedesktop.Platform
-runtime-version: "24.08"
+runtime-version: "25.08"
 sdk: org.freedesktop.Sdk
 sdk-extensions:
   - org.freedesktop.Sdk.Extension.rust-stable
-  - org.freedesktop.Sdk.Extension.llvm19
+  - org.freedesktop.Sdk.Extension.llvm20
 command: bitacora
 
 finish-args:
@@ -32,7 +32,7 @@ finish-args:
   - --filesystem=xdg-documents
 
 build-options:
-  append-path: /usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm19/bin
+  append-path: /usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm20/bin
   env:
     CARGO_HOME: /run/build/bitacora/cargo
     CARGO_NET_OFFLINE: "true"
