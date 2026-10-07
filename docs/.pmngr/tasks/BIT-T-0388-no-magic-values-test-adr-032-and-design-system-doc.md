@@ -2,7 +2,7 @@
 id: BIT-T-0388
 type: task
 title: No-magic-values test, ADR-032 and design-system doc
-status: backlog
+status: done
 priority: medium
 parent: BIT-US-0118
 milestone: BIT-M-0006
@@ -10,7 +10,9 @@ author: mcp
 labels: [v2, tests, docs]
 estimate: 2
 created: 2026-10-07T09:12:06Z
-updated: 2026-10-07T09:12:06Z
+updated: 2026-10-07T13:08:18Z
+started: 2026-10-07T13:08:10Z
+closed: 2026-10-07T13:08:18Z
 ---
 
 ## Description

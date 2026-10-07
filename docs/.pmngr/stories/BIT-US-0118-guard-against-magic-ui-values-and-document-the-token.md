@@ -2,7 +2,7 @@
 id: BIT-US-0118
 type: story
 title: Guard against magic UI values and document the token pipeline
-status: backlog
+status: done
 priority: medium
 parent: BIT-EP-0015
 milestone: BIT-M-0006
@@ -10,7 +10,9 @@ author: mcp
 labels: [v2, design-system, bitacora-app, docs]
 estimate: 2
 created: 2026-10-07T09:11:26Z
-updated: 2026-10-07T09:11:26Z
+updated: 2026-10-07T13:08:21Z
+started: 2026-10-07T13:08:10Z
+closed: 2026-10-07T13:08:21Z
 ---
 
 ## Description

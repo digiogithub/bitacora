@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [ui, design-system, v2]
 created: 2026-10-07T09:08:04Z
-updated: 2026-10-07T10:41:01Z
+updated: 2026-10-07T13:08:02Z
 requirements:
   R1:
     status: backlog
@@ -18,9 +18,12 @@ requirements:
         - crates/bitacora-app/assets/themes/bitacora.json
         - crates/bitacora-app/src/theme.rs
         - xtask/src/tokens.rs
+        - crates/bitacora-app/src/views/dims.rs
+        - docs/design/design-tokens.md
       tests:
         - crates/bitacora-app/src/ui/theme/palette_tests.rs
         - crates/bitacora-app/src/theme.rs#tests
+        - crates/bitacora-app/src/lib.rs#views_have_no_magic_ui_values
   R2:
     status: backlog
     trace:
@@ -28,7 +31,10 @@ requirements:
         - xtask/src/tokens.rs
         - design/tokens/tokens.json
         - .github/workflows/ci.yml
-      tests: [xtask/src/tokens.rs#vendored_tokens_pass_contrast]
+        - crates/bitacora-app/src/views/chat/render.rs
+      tests:
+        - xtask/src/tokens.rs#vendored_tokens_pass_contrast
+        - crates/bitacora-app/src/lib.rs#ok_colour_is_only_used_for_dots_and_icons
   R3:
     status: backlog
     trace:
