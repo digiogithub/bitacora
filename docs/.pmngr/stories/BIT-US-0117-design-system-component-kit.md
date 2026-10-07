@@ -2,7 +2,7 @@
 id: BIT-US-0117
 type: story
 title: Design system component kit
-status: backlog
+status: done
 priority: high
 parent: BIT-EP-0015
 milestone: BIT-M-0006
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, design-system, bitacora-app, components]
 estimate: 8
 created: 2026-10-07T09:11:26Z
-updated: 2026-10-07T09:11:26Z
+updated: 2026-10-07T11:00:59Z
+closed: 2026-10-07T11:00:59Z
 ---
 
 ## Description
