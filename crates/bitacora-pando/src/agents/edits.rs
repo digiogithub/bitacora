@@ -15,6 +15,7 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
+use super::guard::{GuardSource, under_private_block};
 use bitacora_core::editor::{
     BlockId, Cmd, CommitError, Op, Refusal, Target, Transaction, text_is_representable,
 };
@@ -565,6 +566,7 @@ pub struct QueueEditApplier {
     queue: CommandQueue,
     audit: Option<Arc<dyn AuditSink>>,
     resolver: Option<Arc<dyn PageResolver>>,
+    guard: Option<GuardSource>,
 }
 
 impl std::fmt::Debug for QueueEditApplier {
@@ -581,7 +583,66 @@ impl QueueEditApplier {
             queue,
             audit: None,
             resolver: None,
+            guard: None,
         }
+    }
+
+    /// Refuses proposals that touch what the guard hides from agents: every page of a graph
+    /// without consent, excluded or private pages, and blocks under a `private:: true` block.
+    /// An agent has no legitimate way to read those, so a proposal on them is never shown.
+    #[must_use]
+    pub fn with_guard(mut self, guard: GuardSource) -> Self {
+        self.guard = Some(guard);
+        self
+    }
+
+    fn check_guard(&self, snap: &PageSnapshot, proposal: &Proposal) -> Result<(), EditError> {
+        let Some(source) = &self.guard else {
+            return Ok(());
+        };
+        let guard = source();
+        let refused = || EditError::Refused("this page is excluded from agent access".into());
+        let path = snap.path.as_ref().map(|p| p.as_str()).unwrap_or_default();
+        let probe = guard.page_blocks(
+            &snap.title,
+            path,
+            snap.preamble.as_deref(),
+            &[(None, String::new())],
+        );
+        if !probe.iter().all(|b| guard.allows(b)) {
+            return Err(refused());
+        }
+        for op in &proposal.ops {
+            let uuids: Vec<&str> = match op {
+                EditOp::InsertBlock {
+                    parent_uuid,
+                    after_uuid,
+                    ..
+                } => parent_uuid
+                    .iter()
+                    .chain(after_uuid)
+                    .map(String::as_str)
+                    .collect(),
+                EditOp::UpdateBlock { uuid, .. }
+                | EditOp::DeleteBlock { uuid, .. }
+                | EditOp::SetProperty { uuid, .. } => vec![uuid.as_str()],
+                EditOp::MoveBlock {
+                    uuid, target_uuid, ..
+                } => vec![uuid.as_str(), target_uuid.as_str()],
+            };
+            for u in uuids {
+                let want = u.to_lowercase();
+                if let Some(b) = snap
+                    .blocks
+                    .iter()
+                    .find(|b| b.uuid.is_some_and(|x| x.to_string() == want))
+                    && under_private_block(&snap.blocks, b.id)
+                {
+                    return Err(refused());
+                }
+            }
+        }
+        Ok(())
     }
 
     /// Records every applied edit in `audit`.
@@ -728,11 +789,13 @@ fn map_queue(e: QueueError) -> EditError {
 impl EditApplier for QueueEditApplier {
     fn preview(&self, proposal: &Proposal) -> Result<Preview, EditError> {
         let snap = self.snapshot(&proposal.page)?;
+        self.check_guard(&snap, proposal)?;
         validate(proposal, &snap).map(|v| v.preview)
     }
 
     fn apply(&self, proposal: &Proposal) -> Result<AppliedEdit, EditError> {
         let snap = self.snapshot(&proposal.page)?;
+        self.check_guard(&snap, proposal)?;
         let v = validate(proposal, &snap)?;
         let mut txs: Vec<Transaction> = Vec::new();
         for op in &v.ops {
@@ -762,6 +825,7 @@ impl EditApplier for QueueEditApplier {
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
+    use crate::agents::ContentGuard;
     use bitacora_core::editor::{MemStore, Workspace};
     use bitacora_core::graph_path::GraphPath;
     use bitacora_core::queue::QueueConfig;
@@ -998,6 +1062,73 @@ mod tests {
             applier.preview(&none),
             Err(EditError::PageNotLoaded(_))
         ));
+        drop(applier);
+        drop(q);
+        let _ = join.shutdown();
+    }
+
+    #[test]
+    fn the_guard_refuses_proposals_on_hidden_pages_and_private_subtrees() {
+        use bitacora_config::pando::GraphConsent;
+        use std::sync::atomic::{AtomicBool, Ordering};
+
+        const C: &str = "33333333-3333-4333-8333-333333333333";
+        const D: &str = "44444444-4444-4444-8444-444444444444";
+        const E: &str = "55555555-5555-4555-8555-555555555555";
+        let (q, join) = queue();
+        q.execute(
+            Source::Ui,
+            Request::LoadPage {
+                key: PageKey::from_title("Vault"),
+                title: "Vault".into(),
+                path: GraphPath::new("pages/Vault.md").ok(),
+                bytes: format!(
+                    "- open\n  id:: {C}\n- vault\n  private:: true\n  id:: {D}\n  - inside\n    id:: {E}\n"
+                )
+                .into_bytes(),
+            },
+        )
+        .expect("load");
+        let consent = Arc::new(AtomicBool::new(true));
+        let flag = Arc::clone(&consent);
+        let source: GuardSource = Arc::new(move || {
+            ContentGuard::from_consent(&GraphConsent {
+                granted: flag.load(Ordering::SeqCst),
+                exclusions: vec!["Notes".into()],
+                ..GraphConsent::default()
+            })
+        });
+        let applier = QueueEditApplier::new(q.clone()).with_guard(source);
+        let on_vault = |ops: serde_json::Value| {
+            let mut p = proposal(ops);
+            p.page = "Vault".into();
+            p
+        };
+        // An excluded page, a private block and a block under it are refused; the rest passes.
+        assert!(matches!(
+            applier.preview(&proposal(json!([{"op": "delete_block", "uuid": A}]))),
+            Err(EditError::Refused(_))
+        ));
+        for uuid in [D, E] {
+            let p = on_vault(json!([{"op": "delete_block", "uuid": uuid}]));
+            assert!(
+                matches!(applier.preview(&p), Err(EditError::Refused(_))),
+                "{uuid}"
+            );
+            assert!(
+                matches!(applier.apply(&p), Err(EditError::Refused(_))),
+                "{uuid}"
+            );
+        }
+        let p = on_vault(json!([{"op": "insert_block", "text": "x", "parent_uuid": D}]));
+        assert!(matches!(applier.preview(&p), Err(EditError::Refused(_))));
+        let ok = on_vault(json!([{"op": "update_block", "uuid": C,
+            "expected_text": format!("open\nid:: {C}"), "text": "OPEN"}]));
+        assert!(applier.preview(&ok).is_ok());
+        // Revoking consent closes the same applier at once.
+        consent.store(false, Ordering::SeqCst);
+        assert!(matches!(applier.preview(&ok), Err(EditError::Refused(_))));
+        assert!(matches!(applier.apply(&ok), Err(EditError::Refused(_))));
         drop(applier);
         drop(q);
         let _ = join.shutdown();

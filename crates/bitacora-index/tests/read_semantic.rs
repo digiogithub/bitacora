@@ -67,3 +67,18 @@ fn semantic_blocks_carry_breadcrumb_tags_and_page_context() {
             .is_empty()
     );
 }
+
+#[test]
+fn semantic_blocks_expose_the_properties_of_their_ancestors() {
+    let fx = indexed(&[(
+        "pages/Vault.md",
+        "- Root\n  private:: true\n  - Child\n    - Grandchild\n- Other\n",
+    )]);
+    let blocks = fx.reader.semantic_blocks("pages/Vault.md").expect("blocks");
+    let by = |t: &str| blocks.iter().find(|b| b.content.starts_with(t)).expect(t);
+    let private = ("private".to_owned(), "true".to_owned());
+    assert!(by("Child").ancestor_properties.contains(&private));
+    assert!(by("Grandchild").ancestor_properties.contains(&private));
+    assert!(by("Root").ancestor_properties.is_empty());
+    assert!(by("Other").ancestor_properties.is_empty());
+}

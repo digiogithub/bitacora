@@ -7,6 +7,8 @@
 //! indexer applies.
 
 use bitacora_config::pando::GraphConsent;
+use bitacora_core::editor::BlockId;
+use bitacora_core::queue::SnapshotBlock;
 use bitacora_markdown::edit::properties::get_property;
 use pando::agui::ContextEntry;
 use serde::{Deserialize, Serialize};
@@ -37,6 +39,33 @@ pub struct AttachedBlock {
     #[serde(default)]
     pub page_private: bool,
 }
+
+/// Whether the block `id` of a page carries `private:: true` itself or sits under a block that
+/// does (a private block hides its whole subtree). A block that is not in `blocks` is private:
+/// the caller cannot prove otherwise.
+#[must_use]
+pub fn under_private_block(blocks: &[SnapshotBlock], id: BlockId) -> bool {
+    let is_private = |b: &SnapshotBlock| {
+        get_property(&b.text, "private").is_some_and(|v| v.trim().eq_ignore_ascii_case("true"))
+    };
+    let mut cur = Some(id);
+    // Bounded by the page size: a corrupt parent cycle cannot loop forever.
+    for _ in 0..=blocks.len() {
+        let Some(at) = cur else { return false };
+        let Some(b) = blocks.iter().find(|b| b.id == at) else {
+            return true;
+        };
+        if is_private(b) {
+            return true;
+        }
+        cur = b.parent;
+    }
+    true
+}
+
+/// Produces the current guard, so a long-lived consumer (a chat session, the edit applier) follows
+/// consent revocations and exclusion changes made while it runs.
+pub type GuardSource = std::sync::Arc<dyn Fn() -> ContentGuard + Send + Sync>;
 
 /// Consent and exclusions of one graph, as a gate.
 #[derive(Debug, Clone)]
@@ -239,6 +268,30 @@ mod tests {
         assert!(private[0].page_private && g.filter(&private).is_empty());
         let open = g.page_blocks("N", "pages/n.md", None, &blocks);
         assert_eq!(g.filter(&open).len(), 1);
+    }
+
+    #[test]
+    fn a_private_block_hides_its_subtree() {
+        let b = |id: u64, parent: Option<u64>, text: &str| SnapshotBlock {
+            id: BlockId::from_raw(id),
+            parent: parent.map(BlockId::from_raw),
+            depth: 1,
+            text: text.into(),
+            uuid: None,
+        };
+        let blocks = vec![
+            b(1, None, "open"),
+            b(2, Some(1), "child"),
+            b(3, None, "vault\nprivate:: true"),
+            b(4, Some(3), "inside"),
+            b(5, Some(4), "deeper"),
+            b(6, None, "flag\nprivate:: false"),
+        ];
+        let hidden = |id| under_private_block(&blocks, BlockId::from_raw(id));
+        assert!(!hidden(1) && !hidden(2) && !hidden(6));
+        assert!(hidden(3) && hidden(4) && hidden(5));
+        // Unknown blocks cannot be proven public.
+        assert!(hidden(99));
     }
 
     #[test]

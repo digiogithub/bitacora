@@ -42,7 +42,9 @@ The profiles come from the managed `.pando.toml` (`managed/config.rs::PROFILES`)
 
 ## 5. Consent and exclusions
 
-`ContentGuard` (`guard.rs`) is the gate for attached context and `get_selection` results: nothing passes without `GraphConsent::granted`; pages matching the consent exclusions (names, namespace children, path prefixes, `#tags`) and `private:: true` blocks or pages are dropped, using the same `ContentPolicy` as the semantic indexer; blocks are capped (50 blocks, 8000 chars). `Session::agent_guard()` follows the semantic worker's live exclusions. Review and recommendation runs refuse to start without consent and drop results that name hidden pages.
+`ContentGuard` (`guard.rs`) is the gate for attached context and `get_selection` results: nothing passes without `GraphConsent::granted`; pages matching the consent exclusions (names, namespace children, path prefixes, `#tags`) and `private:: true` blocks or pages are dropped, using the same `ContentPolicy` as the semantic indexer; blocks are capped (50 blocks, 8000 chars). `Session::agent_guard()` follows the semantic worker's live exclusions. Headless runs (`runs::run_once`, compose) answer only permission prompts, questions and declared frontend tools; they approve a prompt only for the allow-listed read tools (review and recommendations) or none (compose), and ignore the server-side tool calls Pando lists as pending. Review and recommendation runs refuse to start without consent and drop results that name hidden pages.
+
+Privacy review additions (BIT-US-0154, [[ai-privacy-review]]): `ContentPolicy` also honours `#tag` exclusions and `private::` on ancestors (a private block hides its subtree); `ChatDeps::live_guard` (`GuardSource`) makes an open chat follow consent changes; `QueueEditApplier::with_guard` refuses proposals on hidden pages, private subtrees and graphs without consent; attached blocks and the editor skip blocks under a private block (`under_private_block`).
 
 ## 6. Journal review (BIT-T-0461, BIT-T-0463)
 

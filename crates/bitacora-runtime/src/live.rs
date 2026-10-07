@@ -98,7 +98,7 @@ pub struct Session {
     /// FTS5 + semantic search (BIT-US-0144); lexical only when Pando is off.
     hybrid: Option<bitacora_pando::semantic::HybridSearch>,
     /// Consent and feature switches the AI agents obey (BIT-SP-0011); `None` without Pando.
-    agent: Option<parking_lot::RwLock<crate::agents::AgentContext>>,
+    agent: Option<Arc<parking_lot::RwLock<crate::agents::AgentContext>>>,
     sync_watch: Option<SyncWatch>,
     recovery: Option<RecoveryReport>,
     events: Events,
@@ -344,9 +344,9 @@ impl Session {
             if p.supervisor.is_none() && p.settings.mode == bitacora_config::PandoMode::Managed {
                 p.supervisor = default_supervisor(&p.settings);
             }
-            session.agent = Some(parking_lot::RwLock::new(
+            session.agent = Some(Arc::new(parking_lot::RwLock::new(
                 crate::agents::AgentContext::from_options(&p),
-            ));
+            )));
             let service = PandoService::start(p.clone());
             // Semantic search is optional: a failure is logged and never stops the open.
             if let Some(ix) = session.indexer.as_ref() {
@@ -438,6 +438,18 @@ impl Session {
     pub fn agent_guard(&self) -> bitacora_pando::agents::ContentGuard {
         let ctx = self.agent.as_ref().map(|a| a.read().clone());
         crate::agents::guard(ctx.as_ref(), self.semantic.as_ref().map(|w| w.policy()))
+    }
+
+    /// The guard as a live source: every call sees the consent and exclusions as they are at that
+    /// moment (revoking consent or adding an exclusion applies to chats that are already open).
+    #[must_use]
+    pub fn agent_guard_source(&self) -> bitacora_pando::agents::GuardSource {
+        let agent = self.agent.clone();
+        let policy = self.semantic.as_ref().map(|w| w.policy());
+        Arc::new(move || {
+            let ctx = agent.as_ref().map(|a| a.read().clone());
+            crate::agents::guard(ctx.as_ref(), policy.clone())
+        })
     }
 
     /// AG-UI client of the connected Pando, `None` unless it is connected.
@@ -550,9 +562,12 @@ impl Session {
             .and_then(PandoService::handle)
             .ok_or_else(|| RuntimeError::Agent("the Pando runtime is not running".into()))?;
         let mut deps = bitacora_pando::agents::ChatDeps::new(agui, self.agent_guard());
+        deps.live_guard = Some(self.agent_guard_source());
         deps.host = host;
         if config.propose_edit {
-            let mut applier = self.agent_edit_applier();
+            let mut applier = self
+                .agent_edit_applier()
+                .with_guard(self.agent_guard_source());
             if let Some(r) = resolver {
                 applier = applier.with_resolver(r);
             }
@@ -602,10 +617,30 @@ impl Session {
             }
         }
         if let Some(server) = self.mcp.as_ref() {
-            server.set_read_exclusions(
-                bitacora_mcp::PANDO_TOKEN_NAME,
-                Some(bitacora_mcp::ReadExclusions::new(&consent.exclusions)),
-            );
+            use bitacora_mcp::{PANDO_TOKEN_NAME, ReadExclusions, Scope};
+            // Revoked consent closes the `pando` token at once (it keeps existing, so a later
+            // grant only has to lift the restriction); the Write scope follows `agent_writes`.
+            let rules = if consent.granted {
+                ReadExclusions::new(&consent.exclusions)
+            } else {
+                ReadExclusions::deny_all()
+            };
+            server.set_read_exclusions(PANDO_TOKEN_NAME, Some(rules));
+            if server
+                .tokens()
+                .list()
+                .iter()
+                .any(|t| t.name == PANDO_TOKEN_NAME)
+            {
+                let scopes: &[Scope] = if consent.granted && consent.agent_writes {
+                    &[Scope::Read, Scope::Write]
+                } else {
+                    &[Scope::Read]
+                };
+                if let Err(e) = server.tokens().set_scopes(PANDO_TOKEN_NAME, scopes) {
+                    tracing::warn!("cannot update the pando MCP token scopes: {e}");
+                }
+            }
         }
     }
 
@@ -1112,6 +1147,18 @@ fn provision_pando_mcp(server: &McpServer, p: &mut bitacora_pando::PandoOptions)
 
     let key = p.graph_key();
     if !p.settings.feature_enabled(PandoFeature::McpBridge) || !p.settings.has_consent(&key) {
+        // No bridge or no consent: a `pando` token left over from an earlier consent must not
+        // keep reading the graph (its secret sits in a managed instance's config file).
+        if server
+            .tokens()
+            .list()
+            .iter()
+            .any(|t| t.name == PANDO_TOKEN_NAME)
+            && let Err(e) = server.tokens().revoke(PANDO_TOKEN_NAME)
+        {
+            tracing::warn!("cannot revoke the stale pando MCP token: {e}");
+            server.set_read_exclusions(PANDO_TOKEN_NAME, Some(ReadExclusions::deny_all()));
+        }
         return;
     }
     let consent = p.settings.consent(&key);

@@ -44,7 +44,7 @@ pub use edits::{
     AppliedEdit, AuditSink, EditApplier, EditError, EditOp, IndexedBlock, PageResolver, Place,
     Preview, PreviewOp, Proposal, QueueEditApplier, validate,
 };
-pub use guard::{AttachedBlock, ContentGuard};
+pub use guard::{AttachedBlock, ContentGuard, GuardSource, under_private_block};
 pub use lookup::{BlockInfo, BlockLookup};
 pub use recommend::{
     AutoRecommender, RECOMMENDER_PROFILE, RecommendDeps, RecommendOutcome, RecommendRequest,

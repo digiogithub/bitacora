@@ -34,6 +34,8 @@ pub struct ReadExclusions {
     tags: Vec<String>,
     /// Hide `private:: true` pages (always on for restricted tokens).
     hide_private: bool,
+    /// Hide everything (consent revoked).
+    deny_all: bool,
 }
 
 impl ReadExclusions {
@@ -66,9 +68,23 @@ impl ReadExclusions {
         out
     }
 
+    /// A rule set that hides every page and block: what the `pando` token gets when the graph has
+    /// no (or no longer has) consent for agent access.
+    #[must_use]
+    pub fn deny_all() -> Self {
+        Self {
+            hide_private: true,
+            deny_all: true,
+            ..Self::default()
+        }
+    }
+
     /// Whether `page` must stay invisible.
     #[must_use]
     pub fn hides_page(&self, page: &PageInfo) -> bool {
+        if self.deny_all {
+            return true;
+        }
         if self.hide_private
             && page
                 .properties
@@ -93,6 +109,9 @@ impl ReadExclusions {
     }
 
     fn hides_name(&self, name: &str) -> bool {
+        if self.deny_all {
+            return true;
+        }
         let name = name.to_lowercase();
         self.pages.iter().any(|p| {
             name == *p
@@ -101,6 +120,13 @@ impl ReadExclusions {
                     .is_some_and(|r| r.starts_with('/'))
         })
     }
+}
+
+/// Whether the block itself carries `private:: true`.
+fn block_is_private(b: &BlockInfo) -> bool {
+    b.properties
+        .iter()
+        .any(|(k, v)| k.eq_ignore_ascii_case(PRIVATE_PROPERTY) && is_true(v))
 }
 
 fn is_true(v: &str) -> bool {
@@ -139,22 +165,36 @@ impl FilteredReader {
         }
     }
 
+    /// A block is hidden with its page, with its own `private:: true` and with any private
+    /// ancestor (a private block hides its whole subtree, and the breadcrumbs that would quote
+    /// its title). A failed ancestor lookup hides the block.
     fn block_hidden(&self, b: &BlockInfo) -> bool {
-        self.name_hidden(&b.page)
+        if self.name_hidden(&b.page) {
+            return true;
+        }
+        if !self.rules.hide_private {
+            return false;
+        }
+        if block_is_private(b) {
+            return true;
+        }
+        match self.inner.ancestors(&b.uuid) {
+            Ok(ancestors) => ancestors.iter().any(block_is_private),
+            Err(_) => true,
+        }
     }
 
     fn keep_blocks(&self, mut blocks: Vec<BlockInfo>) -> Vec<BlockInfo> {
-        let mut cache: BTreeMap<String, bool> = BTreeMap::new();
-        blocks.retain(|b| {
-            !*cache
-                .entry(b.page.clone())
-                .or_insert_with(|| self.block_hidden(b))
-        });
+        blocks.retain(|b| !self.block_hidden(b));
         blocks
     }
 
     fn keep_groups(&self, mut groups: Vec<RefGroupInfo>) -> Vec<RefGroupInfo> {
         groups.retain(|g| !self.name_hidden(&g.page));
+        for g in &mut groups {
+            g.blocks.retain(|i| !self.block_hidden(&i.block));
+        }
+        groups.retain(|g| !g.blocks.is_empty());
         groups
     }
 
@@ -173,9 +213,21 @@ impl GraphReader for FilteredReader {
         let mut items = self.inner.search(q)?;
         let mut cache: BTreeMap<String, bool> = BTreeMap::new();
         items.retain(|i| {
-            !*cache
+            if *cache
                 .entry(i.page.clone())
                 .or_insert_with(|| self.name_hidden(&i.page))
+            {
+                return false;
+            }
+            // Block hits: a private block (or a block under one) is not searchable either.
+            match (&i.uuid, self.rules.hide_private) {
+                (Some(uuid), true) => match self.inner.block(uuid) {
+                    Ok(Some(b)) => !self.block_hidden(&b),
+                    Ok(None) => true,
+                    Err(_) => false,
+                },
+                _ => true,
+            }
         });
         Ok(items)
     }
@@ -202,7 +254,11 @@ impl GraphReader for FilteredReader {
         if self.rules.hides_page(page) {
             return Ok(Vec::new());
         }
-        self.inner.page_blocks(page, offset, limit, skip_collapsed)
+        let mut blocks = self
+            .inner
+            .page_blocks(page, offset, limit, skip_collapsed)?;
+        blocks.retain(|b| !self.block_hidden(b));
+        Ok(blocks)
     }
 
     fn block(&self, uuid: &str) -> ReaderResult<Option<BlockInfo>> {
@@ -218,7 +274,11 @@ impl GraphReader for FilteredReader {
 
     fn subtree(&self, uuid: &str) -> ReaderResult<Vec<BlockInfo>> {
         match self.block(uuid)? {
-            Some(_) => self.inner.subtree(uuid),
+            Some(_) => {
+                let mut blocks = self.inner.subtree(uuid)?;
+                blocks.retain(|b| !self.block_hidden(b));
+                Ok(blocks)
+            }
             None => Ok(Vec::new()),
         }
     }
@@ -288,6 +348,13 @@ impl GraphReader for FilteredReader {
         if self.rules.hides_page(page) {
             return Ok(None);
         }
+        // The raw file would carry the private blocks: serve it only when there are none.
+        if self.rules.hide_private {
+            let blocks = self.inner.page_blocks(page, 0, 1_000_000, false)?;
+            if blocks.iter().any(|b| self.block_hidden(b)) {
+                return Ok(None);
+            }
+        }
         self.inner.page_file_text(page)
     }
 
@@ -340,6 +407,13 @@ mod tests {
         let mut t = page("Plan", None);
         t.tags.push("Confidential".into());
         assert!(r.hides_page(&t));
+    }
+
+    #[test]
+    fn deny_all_hides_every_page_and_name() {
+        let r = ReadExclusions::deny_all();
+        assert!(r.hides_page(&page("Anything", None)));
+        assert!(r.hides_name("Anything"));
     }
 
     #[test]
