@@ -22,7 +22,11 @@ Right panel > Agent tab (or the sparkle in the top bar). Answers stream as Markd
 By default the assistant is read-only. Turn on "Can propose edits" to let it propose changes: each proposal shows as a diff card with **Apply** and **Deny**. Nothing is written until you apply. An applied edit is a normal undoable change (Ctrl/Cmd+Z), recorded in the agent activity log. Unanswered cards are denied after a timeout and when you close the panel, switch thread or graph, or quit.
 
 ## Journal review and recommendations
-Journal review summarises a range of journal days (themes, mood, still-open tasks, next actions). Recommendations suggest related pages, links and tags for the current page, checked against your real blocks so nothing invented is shown. Both run only on demand by default (an optional daily review and auto-recommend are off by default), reuse a local cache until the text changes, and never write into your graph. Release note for 2.0: the review and recommendation engines are implemented and tested; their dedicated views are tracked in BIT-US-0151 and BIT-US-0152, see the changelog for whether they ship in 2.0.
+Journal review summarises a range of journal days (themes, mood, still-open tasks, next actions). Recommendations suggest related pages, links and tags for the current page, checked against your real blocks so nothing invented is shown. Both run only on demand by default (an optional daily review and auto-recommend are off by default), reuse a local cache until the text changes, and never write into your graph by themselves.
+
+- **Review card:** above the journals feed, with **Review today** and **Review this week** (also in the command palette). It lists the summary, mood, themes, still-open tasks (click to open the block) and next actions.
+- **Suggestion chips:** in the right panel's Context tab. Accepting a link or tag is a normal undoable edit; dismissed suggestions are remembered on this machine and not offered again.
+- **Settings:** Settings > Pando has switches for journal review, recommendations, the daily review (with its time) and auto-recommend.
 
 ## Ghost text and Compose with AI (off by default)
 Enable in Settings > Editor.

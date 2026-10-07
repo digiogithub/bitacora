@@ -21,7 +21,7 @@ Enabling Pando sends nothing by itself. For each graph you grant consent in a di
 Per graph, list page names, namespaces, path prefixes or `#tags` to keep away from Pando. `private:: true` blocks and pages are always excluded. Exclusions apply immediately to semantic sync, chat context, compose, and to what Pando's agents can read back from Bitacora over MCP.
 
 ## Features and agent writes
-Switches for semantic search, chat and the MCP bridge. "Agent writes" is off by default; even when on, every edit still needs your explicit approval (see [[ai-features]]).
+Switches for semantic search, chat, the MCP bridge, journal review and recommendations (plus the optional daily review and auto-recommend). "Agent writes" is off by default; even when on, every edit still needs your explicit approval (see [[ai-features]]).
 
 ## Status and activity log
 The top bar and sidebar footer show Pando's state (connected, offline, unauthorized, too old...) and what degrades: search falls back to keywords; editing, sync and MCP are unaffected. "Pando activity" lists what was sent (batches of blocks, chat runs, approvals, applied edits) and can be cleared. It is stored locally.

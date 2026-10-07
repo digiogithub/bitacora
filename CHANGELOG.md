@@ -14,7 +14,7 @@ All notable changes to Bitacora. Format follows Keep a Changelog; versions follo
 - Optional Pando integration: managed (supervised `pando serve`) and external modes, per-graph consent, exclusions, status and degradation indicator, activity log, keychain tokens.
 - Semantic and hybrid search in the command palette, related blocks, MCP tools `semantic_search` and `related_blocks`, and `bitacora-cli semantic status|resync|purge|search`.
 - AI chat in the right panel with streaming answers, tool cards, threads, context chips, and `propose_edit` diffs that are applied only after explicit approval (undoable and audited).
-- Journal review and recommendation engines (cached locally, never written to the graph).
+- Journal review card (today / this week) and AI suggestion chips for links, tags and related pages; results cached locally, accepted suggestions are undoable edits.
 - Inline ghost text and Compose with AI in the editor (both off by default).
 - `docs/user/`: user guide for all of the above.
 

@@ -2,7 +2,7 @@
 id: BIT-US-0151
 type: story
 title: Journal review
-status: backlog
+status: in_review
 priority: medium
 parent: BIT-EP-0023
 milestone: BIT-M-0008
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, ai, journal, bitacora-app, bitacora-pando]
 estimate: 8
 created: 2026-10-07T09:18:16Z
-updated: 2026-10-07T09:55:09Z
+updated: 2026-10-07T12:54:55Z
+started: 2026-10-07T12:54:55Z
 ---
 
 ## Description
