@@ -56,6 +56,8 @@ palette:
   cmd_agent_activity: Actividad de agentes...
   cmd_conflicts: Resolver conflictos de sincronización...
   cmd_clone: Abrir un grafo desde un remoto...
+  cmd_open_graph: Abrir grafo...
+  cmd_close_graph: Cerrar grafo
 panel:
   page_host:
     title: Página
@@ -104,6 +106,12 @@ refs:
   filters_none: No hay páginas por las que filtrar
   filters_active: Filtrado
   filters_clear: Quitar filtros
+menu:
+  graph: Grafo
+  open_graph: Abrir grafo...
+  open_recent: Abrir reciente
+  close_graph: Cerrar grafo
+  last_graph_missing: "No se puede abrir el último grafo: %{path} ya no existe"
 picker:
   title: Abrir un grafo
   subtitle: Elige la carpeta de un grafo de Logseq para empezar a explorarlo.

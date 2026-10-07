@@ -319,7 +319,10 @@ mod tests {
         assert!(all.len() > 50, "the action registry looks empty: {all:?}");
         let mut missing = Vec::new();
         for name in &all {
-            let exempt = NO_DEFAULT_BINDING.iter().any(|(n, _)| n == name);
+            // The recent-graph menu slots (BIT-US-0165) are menu-only; the graph picker and the
+            // palette cover the keyboard route.
+            let exempt = name.starts_with("bitacora::OpenRecentGraph")
+                || NO_DEFAULT_BINDING.iter().any(|(n, _)| n == name);
             if !bound.contains(name.as_str()) && !platform.contains(name) && !exempt {
                 missing.push(name.clone());
             }

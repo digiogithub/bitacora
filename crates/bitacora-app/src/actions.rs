@@ -31,5 +31,18 @@ actions!(
         SidebarOpenItem,
         // Settings (BIT-US-0107).
         OpenSettings,
+        // Graph menu (BIT-US-0165).
+        OpenGraph,
+        CloseGraph,
+        OpenRecentGraph1,
+        OpenRecentGraph2,
+        OpenRecentGraph3,
+        OpenRecentGraph4,
+        OpenRecentGraph5,
+        OpenRecentGraph6,
+        OpenRecentGraph7,
+        OpenRecentGraph8,
+        OpenRecentGraph9,
+        OpenRecentGraph10,
     ]
 );

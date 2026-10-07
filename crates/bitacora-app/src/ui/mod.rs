@@ -263,24 +263,61 @@ pub fn choose(
     true
 }
 
-/// Installs the application menu: one menu named `name` with a settings entry and a quit entry
-/// (the macOS app menu; platforms without a global menu ignore it).
-pub fn set_app_menu(
-    cx: &mut App,
-    name: &str,
-    settings: (&str, impl Action),
-    quit: (&str, impl Action),
-) {
+/// One entry of an application menu.
+#[allow(missing_debug_implementations)]
+pub enum MenuEntry {
+    /// An item that dispatches an action.
+    Action(String, Box<dyn Action>),
+    /// A separator line.
+    Separator,
+    /// A nested menu.
+    Submenu(String, Vec<MenuEntry>),
+}
+
+/// One top-level application menu.
+#[allow(missing_debug_implementations)]
+pub struct MenuSpec {
+    /// Menu title.
+    pub name: String,
+    /// Menu entries.
+    pub items: Vec<MenuEntry>,
+}
+
+fn kit_items(entries: Vec<MenuEntry>) -> Vec<gpui_kit::MenuItem> {
     use gpui_kit::{Menu, MenuItem};
-    cx.set_menus([Menu {
-        name: name.to_owned().into(),
-        items: vec![
-            MenuItem::action(settings.0.to_owned(), settings.1),
-            MenuItem::separator(),
-            MenuItem::action(quit.0.to_owned(), quit.1),
-        ],
-        disabled: false,
-    }]);
+    entries
+        .into_iter()
+        .map(|entry| match entry {
+            MenuEntry::Action(name, action) => MenuItem::Action {
+                name: name.into(),
+                action,
+                os_action: None,
+                checked: false,
+                disabled: false,
+            },
+            MenuEntry::Separator => MenuItem::separator(),
+            MenuEntry::Submenu(name, items) => MenuItem::submenu(Menu {
+                name: name.into(),
+                items: kit_items(items),
+                disabled: false,
+            }),
+        })
+        .collect()
+}
+
+/// Installs the application menus (the macOS menu bar; platforms without a global menu ignore
+/// them).
+pub fn set_menus(cx: &mut App, menus: Vec<MenuSpec>) {
+    cx.set_menus(
+        menus
+            .into_iter()
+            .map(|menu| gpui_kit::Menu {
+                name: menu.name.into(),
+                items: kit_items(menu.items),
+                disabled: false,
+            })
+            .collect::<Vec<_>>(),
+    );
 }
 
 /// Builds a key binding from raw keymap data (keystrokes, a built action, optional

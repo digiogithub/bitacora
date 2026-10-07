@@ -199,6 +199,20 @@ impl SettingsView {
             ))
             .child(row(
                 theme,
+                t!("settings.general.reopen").to_string(),
+                Some(t!("settings.general.reopen_help").to_string()),
+                Switch::new("settings-reopen")
+                    .checked(app.reopen_last_graph)
+                    .on_click(cx.listener(|this, on: &bool, window, cx| {
+                        let on = *on;
+                        crate::theme::edit_settings(cx, Some(window), |s| {
+                            s.reopen_last_graph = on;
+                        });
+                        this.say(Level::Success, t!("settings.saved").to_string(), cx);
+                    })),
+            ))
+            .child(row(
+                theme,
                 t!("settings.general.updates").to_string(),
                 Some(t!("settings.general.updates_help").to_string()),
                 Switch::new("settings-updates")
