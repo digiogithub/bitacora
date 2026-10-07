@@ -32,6 +32,18 @@ pub enum Error {
     /// The response was not the JSON shape we expected.
     #[error("invalid pando response: {0}")]
     Decode(String),
+    /// The server answered, but not with the protocol we expected (for example an HTML page from
+    /// a proxy where an SSE stream was due).
+    #[error("pando protocol error: {0}")]
+    Protocol(String),
+    /// An AG-UI run reported `RUN_ERROR` (`code` is `session_busy`, `cancelled`, or empty).
+    #[error("pando run failed ({code}): {message}", code = .code.as_deref().unwrap_or("-"))]
+    Run {
+        /// Error code, when the server supplied one.
+        code: Option<String>,
+        /// Human-readable message.
+        message: String,
+    },
     /// The configuration is unusable (bad base URL, TLS init failure).
     #[error("invalid pando configuration: {0}")]
     Config(String),

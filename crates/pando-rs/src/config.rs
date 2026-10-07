@@ -8,6 +8,10 @@ pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 /// Default TCP connect timeout.
 pub const DEFAULT_CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 
+/// Default idle timeout of a streaming (SSE) response: the longest silence tolerated between two
+/// chunks. Pando sends a keep-alive comment every 15 s, so this leaves room for several misses.
+pub const DEFAULT_STREAM_IDLE_TIMEOUT: Duration = Duration::from_secs(90);
+
 /// An API token. `Debug` never prints the secret.
 #[derive(Clone, PartialEq, Eq)]
 pub struct Token(String);
@@ -53,6 +57,9 @@ pub struct PandoConfig {
     pub timeout: Duration,
     /// TCP connect timeout.
     pub connect_timeout: Duration,
+    /// Longest silence tolerated on a streaming response (AG-UI runs). Streams have no overall
+    /// timeout because a run lasts as long as the agent works.
+    pub stream_idle_timeout: Duration,
 }
 
 impl PandoConfig {
@@ -63,6 +70,7 @@ impl PandoConfig {
             token: None,
             timeout: DEFAULT_TIMEOUT,
             connect_timeout: DEFAULT_CONNECT_TIMEOUT,
+            stream_idle_timeout: DEFAULT_STREAM_IDLE_TIMEOUT,
         }
     }
 
@@ -81,6 +89,12 @@ impl PandoConfig {
     /// Sets the connect timeout.
     pub fn with_connect_timeout(mut self, timeout: Duration) -> Self {
         self.connect_timeout = timeout;
+        self
+    }
+
+    /// Sets the idle timeout of streaming responses.
+    pub fn with_stream_idle_timeout(mut self, timeout: Duration) -> Self {
+        self.stream_idle_timeout = timeout;
         self
     }
 }

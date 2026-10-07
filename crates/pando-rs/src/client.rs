@@ -6,6 +6,7 @@ use reqwest::{Method, RequestBuilder, Response, StatusCode};
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
 
+use crate::agui::{AguiClient, AguiOptions};
 use crate::config::PandoConfig;
 use crate::error::{Error, Result};
 use crate::kb::KbClient;
@@ -23,6 +24,8 @@ pub struct ServerInfo {
 #[derive(Debug)]
 struct Inner {
     http: reqwest::Client,
+    /// Same pool settings but no overall timeout, only a per-read idle timeout (SSE streams).
+    stream_http: reqwest::Client,
     base: String,
     config: PandoConfig,
 }
@@ -48,8 +51,18 @@ impl PandoClient {
             .connect_timeout(config.connect_timeout)
             .build()
             .map_err(|e| Error::Config(e.to_string()))?;
+        let stream_http = reqwest::Client::builder()
+            .read_timeout(config.stream_idle_timeout)
+            .connect_timeout(config.connect_timeout)
+            .build()
+            .map_err(|e| Error::Config(e.to_string()))?;
         Ok(Self {
-            inner: Arc::new(Inner { http, base, config }),
+            inner: Arc::new(Inner {
+                http,
+                stream_http,
+                base,
+                config,
+            }),
         })
     }
 
@@ -58,9 +71,35 @@ impl PandoClient {
         KbClient::new(self.clone())
     }
 
+    /// The AG-UI agent API with default options (`/api/v1/agui`, agent `coder`, same server).
+    pub fn agui(&self) -> AguiClient {
+        AguiClient::new(self.clone(), AguiOptions::default())
+    }
+
+    /// The AG-UI agent API with explicit options (dedicated listener, other agent or token).
+    pub fn agui_with(&self, options: AguiOptions) -> AguiClient {
+        AguiClient::new(self.clone(), options)
+    }
+
     /// Server version info from `GET /health` (unauthenticated on the server side).
     pub async fn info(&self) -> Result<ServerInfo> {
         self.send_json(self.request(Method::GET, "/health")).await
+    }
+
+    pub(crate) fn base(&self) -> &str {
+        &self.inner.base
+    }
+
+    pub(crate) fn config(&self) -> &PandoConfig {
+        &self.inner.config
+    }
+
+    pub(crate) fn http(&self) -> &reqwest::Client {
+        &self.inner.http
+    }
+
+    pub(crate) fn stream_http(&self) -> &reqwest::Client {
+        &self.inner.stream_http
     }
 
     pub(crate) fn request(&self, method: Method, path: &str) -> RequestBuilder {

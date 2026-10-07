@@ -1,6 +1,6 @@
 [package]
 name = "pando-rs"
-description = "Generic async Rust SDK for Pando (REST knowledge-base client; AG-UI client planned)"
+description = "Generic async Rust SDK for Pando (REST knowledge-base client and AG-UI agent client)"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

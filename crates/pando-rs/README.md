@@ -23,7 +23,32 @@ reindex (409 -> `Error::ReindexRunning`), embedding-model list and embedder test
 version info. Auth is the `X-Pando-Token` header; the token is redacted in `Debug`. Responses
 tolerate unknown and missing fields.
 
-Planned: an AG-UI client in a sibling `agui` module reusing `PandoClient` and `Error`.
+AG-UI (`client.agui()`, module `pando::agui`): `info`, `run` / `run_text` (SSE stream of tolerant
+`Event`s; unknown or malformed events become `Event::Unknown`), `attach` (reattach to a live run),
+`cancel_run`, `list_threads`, `thread_messages`, `delete_thread`; a `Thread` helper that resends the
+transcript every turn, folds `STATE_SNAPSHOT`/`STATE_DELTA` (RFC 6902) into a state document and
+tracks interrupts; and `agui::hitl` payload helpers for permission prompts and `AskUserQuestion`.
+Auth differs from REST: the adapter reads `Authorization: Bearer`, not `X-Pando-Token`
+(`AguiOptions` can point at a dedicated `--agui-port` listener and carry its own token). Streams use
+no overall timeout, only `stream_idle_timeout` (default 90 s, server heartbeat is 15 s).
+
+```rust
+use pando::agui::{Interrupt, RunOutcome, Thread, hitl};
+
+async fn chat(client: &pando::PandoClient) -> pando::Result<()> {
+    let mut thread = Thread::new(client.agui());
+    let mut run = thread.send("Refactor the parser").await?;
+    while let Some(event) = run.next().await {
+        let _event = event?; // already reduced into the thread
+    }
+    for interrupt in thread.interrupts() {
+        if let Interrupt::Permission { tool_call_id, .. } = interrupt {
+            thread.resume(&tool_call_id, hitl::deny()).await?.drain().await?;
+        }
+    }
+    Ok(())
+}
+```
 
 Errors: `NotConfigured` (503), `Unauthorized` (401/403), `Unreachable`, `Timeout`,
 `ReindexRunning`, `Server { status, message }`, `Decode`, `Config`.
@@ -38,7 +63,7 @@ Facts from crates.io on that date:
 - Neither is published by the AG-UI protocol authors, and the event set Pando emits (see its
   `internal/agui`) evolves with the protocol.
 
-Decision: keep our own small, tolerant event types in this crate when the AG-UI client lands
+Decision (implemented in `agui`): keep our own small, tolerant event types in this crate
 (unknown event types and fields are preserved, never fatal), and revisit if an official Rust SDK
 appears. Licences are not a blocker (all MIT); maintenance and event coverage are.
 
@@ -47,3 +72,8 @@ appears. Licences are not a blocker (all MIT); maintenance and event coverage ar
 Verified against Pando `internal/api/handlers_remembrances_kb.go`,
 `handlers_remembrances_search.go`, `handlers_embedding_models.go`, `handlers_remembrances.go`
 and `server.go` (auth middleware).
+
+Errors added by AG-UI: `Protocol` (200 that is not an SSE stream), `Run { code, message }` (`RUN_ERROR`).
+
+AG-UI shapes were verified against Pando `internal/agui/{events,input,threads,hitl,server,sse}.go`
+and the TypeScript SDK `sdk/typescript/src/agui/{client,thread,hitl}.ts`.
