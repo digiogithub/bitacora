@@ -54,6 +54,8 @@ impl PageBlocks {
                 .blocks
                 .iter()
                 .filter(|b| ids.is_none_or(|ids| ids.contains(&b.id)))
+                // A private block hides its subtree: never attach a block under one.
+                .filter(|b| !bitacora_runtime::ai::under_private_block(&snap.blocks, b.id))
                 .take(MAX_ATTACHED)
                 .map(|b| (b.uuid.map(|u| u.to_string()), b.text.clone()))
                 .collect(),

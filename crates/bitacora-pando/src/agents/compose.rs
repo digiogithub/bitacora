@@ -11,13 +11,12 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bitacora_index::IndexReader;
-use pando::agui::hitl::{self, Interrupt};
-use pando::agui::{AguiClient, Event, Message, RunOutcome, Thread};
+use pando::agui::{AguiClient, Event, RunOutcome, Thread};
 
 use super::AgentError;
 use super::chat::WRITER_PROFILE;
 use super::guard::{AttachedBlock, ContentGuard};
-use super::runs::final_text;
+use super::runs::{fail_closed_answer, final_text};
 
 /// Budget of a compose run.
 pub const COMPOSE_TIMEOUT: Duration = Duration::from_secs(90);
@@ -285,14 +284,9 @@ async fn drive(
                 "the agent kept asking for permission".into(),
             ));
         }
-        let Some(first) = thread.interrupts().into_iter().next() else {
+        // Compose reads nothing beyond its prompt: every permission is denied.
+        let Some(answer) = fail_closed_answer(thread, false) else {
             break;
-        };
-        let id = first.tool_call_id().to_owned();
-        let answer = match first {
-            Interrupt::Permission { .. } => Message::tool_result(&id, hitl::deny()),
-            Interrupt::Question { .. } => Message::tool_result(&id, hitl::cancel_question()),
-            _ => Message::tool_error(&id, "no frontend tool is available in this run"),
         };
         outcome = stream(thread.resume_with(answer).await?, &mut preview, on_preview).await?;
     }

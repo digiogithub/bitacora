@@ -30,6 +30,14 @@ fn is_private(full_text: &str) -> bool {
 }
 
 impl OutlineEditor {
+    /// The edited block is private, or sits under a private block (which hides its subtree).
+    fn edit_is_private(&self, e: &super::EditState) -> bool {
+        is_private(&e.full)
+            || self.outline.as_ref().is_some_and(|o| {
+                bitacora_runtime::ai::under_private_block(&o.snapshot().blocks, e.id)
+            })
+    }
+
     /// The ghost text to draw after the caret, when it still belongs to the buffer as it is.
     #[must_use]
     pub fn ghost(&self) -> Option<&str> {
@@ -162,7 +170,7 @@ impl OutlineEditor {
         }
         let Some(e) = &self.edit else { return };
         if e.conflict.is_some()
-            || is_private(&e.full)
+            || self.edit_is_private(e)
             || !ai::may_request_ghost(
                 e.buf.text(),
                 e.buf.cursor(),
@@ -322,7 +330,7 @@ impl OutlineEditor {
             self.notice(window, cx, rust_i18n::t!("editor.ai.unavailable"));
             return;
         }
-        if self.edit.as_ref().is_none_or(|e| is_private(&e.full)) {
+        if self.edit.as_ref().is_none_or(|e| self.edit_is_private(e)) {
             self.notice(window, cx, rust_i18n::t!("editor.ai.private"));
             return;
         }

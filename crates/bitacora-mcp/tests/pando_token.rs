@@ -15,6 +15,8 @@ use serde_json::{Value, json};
 use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
 use tokio::net::TcpStream;
 
+const HIDDEN_ROOT: &str = "44444444-4444-4444-8444-444444444444";
+const HIDDEN_CHILD: &str = "55555555-5555-4555-8555-555555555555";
 const SECRET_BLOCK: &str = "33333333-3333-4333-8333-333333333333";
 
 fn write(graph: &std::path::Path, rel: &str, text: &str) {
@@ -64,6 +66,13 @@ fn setup(agent_writes: bool) -> Env {
         &graph,
         "pages/Mentions.md",
         "- zebra-marker mentions [[Public]] openly\n",
+    );
+    write(
+        &graph,
+        "pages/Mixed.md",
+        &format!(
+            "- visible-marker first\n- hidden-root-marker plan\n  private:: true\n  id:: {HIDDEN_ROOT}\n  - hidden-child-marker child TODO\n    id:: {HIDDEN_CHILD}\n- visible-marker last\n"
+        ),
     );
     let config = bitacora_config::EffectiveConfig::load(&graph, None);
     let loc = IndexLocation::in_data_dir(&tmp.path().join("data"), &graph).unwrap();
@@ -158,6 +167,60 @@ fn stop(env: Env) {
     } = env;
     off_runtime(move || server.stop());
     indexer.shutdown();
+}
+
+/// `private:: true` on a block hides it and its whole subtree from the `pando` token in every
+/// read path (the privacy rule of BIT-SP-0009 is not only for pages). Other tokens still see it.
+#[tokio::test(flavor = "multi_thread")]
+async fn private_blocks_and_their_subtrees_are_invisible_to_the_pando_token() {
+    let env = setup(false);
+    let all = |v: &Value| serde_json::to_string(v).unwrap();
+
+    let tree = call(
+        &env,
+        &env.pando,
+        "get_page_blocks_tree",
+        json!({"name": "Mixed"}),
+    )
+    .await;
+    let t = all(&tree["structuredContent"]);
+    assert!(
+        t.contains("visible-marker first") && t.contains("visible-marker last"),
+        "{t}"
+    );
+    for hidden in ["hidden-root-marker", "hidden-child-marker"] {
+        assert!(!t.contains(hidden), "{hidden} leaked in tree: {t}");
+    }
+    for uuid in [HIDDEN_ROOT, HIDDEN_CHILD] {
+        let r = call(&env, &env.pando, "get_block", json!({"uuid": uuid})).await;
+        assert_eq!(r["isError"], true, "{uuid}: {r}");
+        let r = call(&env, &env.pando, "get_block_tree", json!({"uuid": uuid})).await;
+        assert_eq!(r["isError"], true, "{uuid}: {r}");
+    }
+    let r = call(
+        &env,
+        &env.pando,
+        "search",
+        json!({"query": "hidden-child-marker", "limit": 20}),
+    )
+    .await;
+    assert_eq!(r["structuredContent"]["hits"], json!([]), "{r}");
+    let r = call(&env, &env.pando, "tasks", json!({})).await;
+    assert!(
+        !all(&r["structuredContent"]).contains("hidden-child"),
+        "{r}"
+    );
+
+    // The unrestricted token still reads them.
+    let r = call(
+        &env,
+        &env.reader,
+        "get_block",
+        json!({"uuid": HIDDEN_CHILD}),
+    )
+    .await;
+    assert_eq!(r["isError"], false, "{r}");
+    stop(env);
 }
 
 #[tokio::test(flavor = "multi_thread")]

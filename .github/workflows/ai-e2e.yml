@@ -1,0 +1,39 @@
+name: ai-e2e
+
+# Opt-in end-to-end tests of the AI features against a real Pando (BIT-US-0154).
+# Manual only: it needs a self-hosted runner with `pando` 1.2.x, `curl` and a local Ollama
+# (embeddings, optionally a tool-calling chat model). Not part of `ci.yml`, not a required check.
+# See docs/design/ai-privacy-review.md section 6.
+
+on:
+  workflow_dispatch:
+    inputs:
+      chat_model:
+        description: "Ollama chat model with tool calling (empty: LLM-dependent tests skip)"
+        required: false
+        default: ""
+      embed_model:
+        description: "Ollama embedding model for Pando's KB"
+        required: false
+        default: "nomic-embed-text:latest"
+
+permissions:
+  contents: read
+
+jobs:
+  ai-e2e:
+    runs-on: [self-hosted, linux, pando]
+    timeout-minutes: 45
+    env:
+      BITACORA_E2E_CHAT_MODEL: ${{ inputs.chat_model }}
+      BITACORA_E2E_EMBED_MODEL: ${{ inputs.embed_model }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tools present
+        run: |
+          pando --version
+          curl -sf http://localhost:11434/api/tags > /dev/null
+      - name: End-to-end AI tests
+        run: >
+          cargo test -p bitacora-runtime --test ai_e2e --locked
+          -- --ignored --test-threads=1 --nocapture

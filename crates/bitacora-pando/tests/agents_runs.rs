@@ -304,6 +304,72 @@ async fn one_shot_runs_deny_permission_prompts_instead_of_blocking() {
     assert_eq!(last["content"], "{\"approved\":false}");
 }
 
+/// Prompts of the allow-listed read tools are approved (a real Pando asks before every MCP call),
+/// every other prompt is denied, and the server's own parked tool calls are never answered.
+#[tokio::test(flavor = "multi_thread")]
+async fn one_shot_runs_approve_only_allow_listed_read_tools() {
+    let script: Script = Arc::new(|n, b| {
+        let t = &b["threadId"];
+        let call = |id: &str, name: &str, args: &str| {
+            vec![
+                json!({"type": "TOOL_CALL_START", "toolCallId": id, "toolCallName": name}),
+                json!({"type": "TOOL_CALL_ARGS", "toolCallId": id, "delta": args}),
+                json!({"type": "TOOL_CALL_END", "toolCallId": id}),
+            ]
+        };
+        let mut out = vec![json!({"type": "RUN_STARTED", "threadId": t, "runId": format!("r{n}")})];
+        match n {
+            1 => {
+                out.extend(call("srv", "bitacora_search", "{}"));
+                out.extend(call(
+                    "p1",
+                    "pando_permission_request",
+                    "{\"toolName\":\"bitacora_search\"}",
+                ));
+                out.push(json!({"type": "RUN_FINISHED", "threadId": t, "runId": "r1", "outcome": "interrupt"}));
+            }
+            2 => {
+                out.extend(call(
+                    "p2",
+                    "pando_permission_request",
+                    "{\"toolName\":\"bitacora_append_block\"}",
+                ));
+                out.push(json!({"type": "RUN_FINISHED", "threadId": t, "runId": "r2", "outcome": "interrupt"}));
+            }
+            _ => out.extend([
+                json!({"type": "TEXT_MESSAGE_START", "messageId": "m", "role": "assistant"}),
+                json!({"type": "TEXT_MESSAGE_CONTENT", "messageId": "m", "delta": "{\"summary\": \"ok\"}"}),
+                json!({"type": "RUN_FINISHED", "threadId": t, "runId": "r3", "outcome": "success"}),
+            ]),
+        }
+        out
+    });
+    let (agui, runs) = serve(script).await;
+    let deps = ReviewDeps::new(agui, lookup(), guard(true), "g");
+    run_review(&deps, ReviewRange::day(DAY), false)
+        .await
+        .unwrap();
+    let r = runs.lock().unwrap();
+    assert_eq!(r.len(), 3);
+    let tool_msgs = |run: usize| -> Vec<Value> {
+        r[run]["messages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|m| m["role"] == "tool")
+            .cloned()
+            .collect()
+    };
+    let first = tool_msgs(1);
+    assert_eq!(first.len(), 1, "{first:?}");
+    assert_eq!(first[0]["toolCallId"], "p1");
+    assert_eq!(first[0]["content"], "{\"approved\":true}");
+    let second = tool_msgs(2);
+    assert_eq!(second.len(), 2, "{second:?}");
+    assert_eq!(second[1]["toolCallId"], "p2");
+    assert_eq!(second[1]["content"], "{\"approved\":false}");
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn a_run_without_any_text_is_invalid_output() {
     let script: Script = Arc::new(|n, b| {

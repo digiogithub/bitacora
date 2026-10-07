@@ -37,6 +37,9 @@ pub struct SemanticBlock {
     pub properties: Vec<(String, String)>,
     /// Properties of the page (those of its page-properties pre-block), in file order.
     pub page_properties: Vec<(String, String)>,
+    /// Properties of every ancestor block (page-properties pre-block excluded), so a privacy
+    /// property on a parent covers its subtree.
+    pub ancestor_properties: Vec<(String, String)>,
 }
 
 struct Raw {
@@ -125,6 +128,7 @@ impl IndexReader {
         let by_id: HashMap<i64, usize> = raws.iter().enumerate().map(|(i, r)| (r.id, i)).collect();
         let ids: Vec<i64> = raws.iter().map(|r| r.id).collect();
         let props = load_properties_for(&conn, &ids)?;
+        let props_by_idx: Vec<Vec<(String, String)>> = props.clone();
         let page_properties = raws
             .iter()
             .zip(&props)
@@ -134,6 +138,7 @@ impl IndexReader {
         let mut out = Vec::with_capacity(raws.len());
         for (r, properties) in raws.iter().zip(props) {
             let mut crumbs = Vec::new();
+            let mut ancestor_properties: Vec<(String, String)> = Vec::new();
             let mut cur = r.parent;
             // Bounded by the number of blocks: a corrupt parent cycle cannot loop forever.
             for _ in 0..raws.len() {
@@ -143,6 +148,7 @@ impl IndexReader {
                 let anc = &raws[i];
                 if !anc.pre {
                     crumbs.push(anc.title.clone());
+                    ancestor_properties.extend(props_by_idx[i].iter().cloned());
                 }
                 cur = anc.parent;
             }
@@ -167,6 +173,7 @@ impl IndexReader {
                 tags,
                 properties,
                 page_properties: page_properties.clone(),
+                ancestor_properties,
             });
         }
         Ok(out)

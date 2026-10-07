@@ -116,7 +116,15 @@ impl ContentPolicy {
             if e.is_empty() {
                 return false;
             }
-            if e.contains('/') {
+            // `#tag` entries (as the settings UI and the MCP read exclusions write them) match
+            // tags only, with or without the hash on the tag.
+            if let Some(tag) = e.strip_prefix('#') {
+                let tag = tag.trim();
+                !tag.is_empty()
+                    && tags
+                        .iter()
+                        .any(|t| t.trim().trim_start_matches('#').to_lowercase() == tag)
+            } else if e.contains('/') {
                 path.starts_with(&e)
             } else {
                 title == e
@@ -137,6 +145,7 @@ impl ContentPolicy {
             .page_properties
             .iter()
             .chain(&block.properties)
+            .chain(&block.ancestor_properties)
             .any(|(k, v)| k.trim().to_lowercase() == key && v.trim().eq_ignore_ascii_case("true"))
     }
 }
@@ -430,6 +439,7 @@ mod tests {
             tags: vec!["travel".into()],
             properties: Vec::new(),
             page_properties: Vec::new(),
+            ancestor_properties: Vec::new(),
         }
     }
 
@@ -569,6 +579,41 @@ mod tests {
             map_block(&graph(), &block("Book the ferry to the island"), &p),
             Err(Skip::Excluded)
         );
+    }
+
+    #[test]
+    fn a_private_ancestor_hides_the_whole_subtree() {
+        let mut b = block("Book the ferry to the island");
+        b.ancestor_properties = vec![("private".into(), "true".into())];
+        assert_eq!(
+            map_block(&graph(), &b, &ContentPolicy::default()),
+            Err(Skip::Private)
+        );
+        b.ancestor_properties = vec![("private".into(), "false".into())];
+        assert!(map_block(&graph(), &b, &ContentPolicy::default()).is_ok());
+    }
+
+    #[test]
+    fn hash_tag_exclusions_match_page_and_block_tags() {
+        let p = ContentPolicy {
+            exclusions: vec!["#Travel".into()],
+            ..ContentPolicy::default()
+        };
+        // `block()` is tagged `travel`.
+        assert_eq!(
+            map_block(&graph(), &block("Book the ferry to the island"), &p),
+            Err(Skip::Excluded)
+        );
+        let mut b = block("Book the ferry to the island");
+        b.tags = vec!["#TRAVEL".into()];
+        assert_eq!(map_block(&graph(), &b, &p), Err(Skip::Excluded));
+        b.tags = vec!["holiday".into()];
+        assert!(map_block(&graph(), &b, &p).is_ok());
+        // A hash entry does not hide a page that is merely named like the tag.
+        let mut b = block("Book the ferry to the island");
+        b.tags.clear();
+        b.page_title = "Travel".into();
+        assert!(map_block(&graph(), &b, &p).is_ok());
     }
 
     #[test]

@@ -113,3 +113,66 @@ fn chat_and_runs_are_unavailable_without_a_connection() {
     assert!(matches!(s.review_deps(), Err(RuntimeError::Agent(m)) if m.contains("consent")));
     s.shutdown(Duration::from_secs(5));
 }
+
+#[test]
+fn a_pando_token_left_by_an_earlier_consent_is_revoked_when_the_graph_has_none() {
+    let dir = tempfile::tempdir().unwrap();
+    let tokens = bitacora_mcp::TokenStore::load_or_init(dir.path().join("tokens.json")).unwrap();
+    tokens
+        .create(bitacora_mcp::PANDO_TOKEN_NAME, &[bitacora_mcp::Scope::Read])
+        .unwrap();
+    drop(tokens);
+
+    let s = open(dir.path(), false);
+    let live = s.mcp_tokens().unwrap();
+    assert!(
+        live.list()
+            .iter()
+            .all(|t| t.name != bitacora_mcp::PANDO_TOKEN_NAME),
+        "the stale pando token survived a session without consent"
+    );
+    s.shutdown(Duration::from_secs(5));
+}
+
+#[test]
+fn revoking_consent_closes_the_pando_token_and_agent_writes_follow_the_setting() {
+    let dir = tempfile::tempdir().unwrap();
+    let s = open(dir.path(), true);
+    let tokens = s.mcp_tokens().unwrap();
+    let scopes = |tokens: &bitacora_mcp::TokenStore| {
+        tokens
+            .list()
+            .into_iter()
+            .find(|t| t.name == bitacora_mcp::PANDO_TOKEN_NAME)
+            .map(|t| t.scopes)
+    };
+    assert_eq!(scopes(&tokens), Some(vec![bitacora_mcp::Scope::Read]));
+
+    let key = std::fs::canonicalize(s.root())
+        .unwrap()
+        .to_string_lossy()
+        .into_owned();
+    let mut settings = PandoSettings {
+        enabled: true,
+        mode: PandoMode::External,
+        ..PandoSettings::default()
+    };
+    settings.grant_consent(&key, 1);
+    settings.graphs.get_mut(&key).unwrap().agent_writes = true;
+    s.apply_pando_consent(&settings, false);
+    assert_eq!(
+        scopes(&tokens),
+        Some(vec![bitacora_mcp::Scope::Read, bitacora_mcp::Scope::Write])
+    );
+    settings.graphs.get_mut(&key).unwrap().agent_writes = false;
+    s.apply_pando_consent(&settings, false);
+    assert_eq!(scopes(&tokens), Some(vec![bitacora_mcp::Scope::Read]));
+
+    // Revoked consent: no write scope whatever `agent_writes` says, and the guard is closed.
+    settings.graphs.get_mut(&key).unwrap().agent_writes = true;
+    settings.revoke_consent(&key);
+    s.apply_pando_consent(&settings, false);
+    assert_eq!(scopes(&tokens), Some(vec![bitacora_mcp::Scope::Read]));
+    assert!(!s.agent_guard().has_consent());
+    s.shutdown(Duration::from_secs(5));
+}

@@ -2,20 +2,24 @@
 //! block on the user (BIT-T-0461, BIT-T-0464).
 //!
 //! Review and recommendation runs have no UI to answer prompts, so every interrupt is resolved
-//! fail-closed: permission prompts are denied, questions cancelled, frontend tools refused.
+//! fail-closed: questions are cancelled and permission prompts denied, except the prompts of the
+//! read-only Bitacora and knowledge-base tools of the profile allow-list (a real Pando asks before
+//! every MCP call, so denying them would blind the agent). Calls Pando lists as pending that are not
+//! prompts (its own parked MCP/KB calls) are never answered.
 
 use std::time::Duration;
 
-use pando::agui::hitl::{self, Interrupt};
+use pando::agui::hitl::{self, Interrupt, PermissionRequest};
 use pando::agui::{AguiClient, ContextEntry, Message, MessageContent, RunOutcome, Thread, role};
 use serde_json::Value;
 
 use super::AgentError;
+use crate::managed::config::{KB_READ_TOOLS, MCP_READ_TOOLS};
 
 /// Default budget of a one-shot run.
 pub const DEFAULT_RUN_TIMEOUT: Duration = Duration::from_secs(300);
 /// Most interrupt rounds a one-shot run may need before it is given up.
-const MAX_ROUNDS: usize = 8;
+const MAX_ROUNDS: usize = 40;
 
 /// The answer of a one-shot run.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -68,18 +72,45 @@ async fn drive(thread: &mut Thread, prompt: &str) -> Result<(), AgentError> {
                 "the agent kept asking for permission".into(),
             ));
         }
-        let Some(first) = thread.interrupts().into_iter().next() else {
+        let Some(answer) = fail_closed_answer(thread, true) else {
             break;
-        };
-        let id = first.tool_call_id().to_owned();
-        let answer = match first {
-            Interrupt::Permission { .. } => Message::tool_result(&id, hitl::deny()),
-            Interrupt::Question { .. } => Message::tool_result(&id, hitl::cancel_question()),
-            _ => Message::tool_error(&id, "no frontend tool is available in this run"),
         };
         outcome = thread.resume_with(answer).await?.drain().await?;
     }
     Ok(())
+}
+
+/// Whether a permission prompt asks to run one of the read-only tools Bitacora's profiles allow:
+/// the `bitacora_*` read tools (served with the read-only `pando` token, exclusions applied
+/// server-side) and Pando's KB read tools. Prompts that demand explicit approval never qualify.
+#[must_use]
+pub fn is_read_only_tool(req: &PermissionRequest) -> bool {
+    !req.require_explicit_approval
+        && !req.never_auto_approve
+        && (MCP_READ_TOOLS.contains(&req.tool_name.as_str())
+            || KB_READ_TOOLS.contains(&req.tool_name.as_str()))
+}
+
+/// The answer of a headless run to the first prompt Pando is waiting on: approve an allow-listed
+/// read tool (when `approve_reads`), deny any other permission, cancel any question. Pending
+/// calls that are not prompts are Pando's own parked tool calls and are never answered.
+pub(super) fn fail_closed_answer(thread: &Thread, approve_reads: bool) -> Option<Message> {
+    thread.interrupts().into_iter().find_map(|i| match i {
+        Interrupt::Permission {
+            tool_call_id,
+            request,
+        } => {
+            let ok = approve_reads && is_read_only_tool(&request);
+            Some(Message::tool_result(
+                &tool_call_id,
+                if ok { hitl::approve() } else { hitl::deny() },
+            ))
+        }
+        Interrupt::Question { tool_call_id, .. } => {
+            Some(Message::tool_result(&tool_call_id, hitl::cancel_question()))
+        }
+        _ => None,
+    })
 }
 
 pub(super) fn final_text(messages: &[Message]) -> Option<String> {

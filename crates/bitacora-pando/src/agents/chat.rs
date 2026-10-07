@@ -37,7 +37,7 @@ use super::approvals::{
     Resolution, SystemClock,
 };
 use super::edits::{EditApplier, EditError, Preview, Proposal};
-use super::guard::{AttachedBlock, ContentGuard};
+use super::guard::{AttachedBlock, ContentGuard, GuardSource};
 use super::tools::{
     FrontendHost, GET_SELECTION_TOOL, NoHost, OPEN_PAGE_TOOL, PROPOSE_EDIT_TOOL, run_get_selection,
     tool_set,
@@ -47,6 +47,14 @@ use super::tools::{
 pub const CHAT_PROFILE: &str = "bitacora-chat";
 /// Profile that may call `propose_edit`.
 pub const WRITER_PROFILE: &str = "bitacora-writer";
+
+/// Whether `name` is one of the frontend tools this client declares to Pando.
+fn is_client_tool(name: &str) -> bool {
+    matches!(
+        name,
+        PROPOSE_EDIT_TOOL | OPEN_PAGE_TOOL | GET_SELECTION_TOOL
+    )
+}
 
 /// How long to keep reading a cancelled run's stream before giving up on it.
 const CANCEL_DRAIN: Duration = Duration::from_secs(3);
@@ -265,6 +273,9 @@ pub struct ChatDeps {
     pub applier: Option<Arc<dyn EditApplier>>,
     /// Consent and exclusions for attached context and selections.
     pub guard: ContentGuard,
+    /// When set, the guard of every send and selection (so revoking consent or adding an
+    /// exclusion applies to a chat that is already open); `guard` is the fallback.
+    pub live_guard: Option<GuardSource>,
     /// Time source for approval deadlines.
     pub clock: Arc<dyn Clock>,
     /// Where runs, approvals and applied edits are logged (BIT-SP-0009.R7); `None` logs nothing.
@@ -287,6 +298,7 @@ impl ChatDeps {
             host: Arc::new(NoHost),
             applier: None,
             guard,
+            live_guard: None,
             clock: Arc::new(SystemClock::default()),
             activity: None,
         }
@@ -563,7 +575,7 @@ impl Ctx {
                     return;
                 }
                 Some(Command::Send { text, context }) => {
-                    thread.set_context(self.deps.guard.context_entries(&context));
+                    thread.set_context(self.guard().context_entries(&context));
                     self.abort = None;
                     self.cancel_sent = false;
                     self.drive(thread, text).await;
@@ -575,6 +587,14 @@ impl Ctx {
                 // Nothing is pending between turns.
                 Some(Command::Decide { .. } | Command::Abort { .. }) => {}
             }
+        }
+    }
+
+    /// The guard as it is now.
+    fn guard(&self) -> ContentGuard {
+        match &self.deps.live_guard {
+            Some(source) => source(),
+            None => self.deps.guard.clone(),
         }
     }
 
@@ -778,7 +798,18 @@ impl Ctx {
 
     /// Prepares and announces cards for every pending interrupt, then answers the first one.
     async fn answer_next(&mut self, thread: &Thread) -> Option<(Option<String>, MessageContent)> {
-        let interrupts = thread.interrupts();
+        // Pando also lists the calls of its own tools (MCP, KB) that are parked behind a
+        // permission prompt as pending: they are not ours to answer. Only prompts and the
+        // frontend tools this client declared are (a real Pando answered "unknown tool" to the
+        // server-side call first and the resume that followed was refused with 409).
+        let interrupts: Vec<Interrupt> = thread
+            .interrupts()
+            .into_iter()
+            .filter(|i| match i {
+                Interrupt::FrontendTool(call) => is_client_tool(&call.name),
+                _ => true,
+            })
+            .collect();
         if interrupts.is_empty() {
             return None;
         }
@@ -903,7 +934,7 @@ impl Ctx {
                 }
                 GET_SELECTION_TOOL => Some(tool_json(run_get_selection(
                     self.deps.host.as_ref(),
-                    &self.deps.guard,
+                    &self.guard(),
                 ))),
                 PROPOSE_EDIT_TOOL => self.answer_edit(&id).await,
                 other => Some(tool_json(Err(format!("unknown tool `{other}`")))),
