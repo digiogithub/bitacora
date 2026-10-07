@@ -31,7 +31,7 @@ mod tokens;
 mod tools;
 mod write_tools;
 
-pub use audit::{AuditEvent, AuditFilter, AuditLog, AuditRecord, UndoError};
+pub use audit::{AgentWrite, AuditEvent, AuditFilter, AuditLog, AuditRecord, UndoError};
 pub use bridge::QueueBridge;
 pub use exclusion::{FilteredReader, PRIVATE_PROPERTY, ReadExclusions};
 pub use index_reader::IndexGraphReader;

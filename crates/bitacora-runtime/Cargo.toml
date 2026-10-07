@@ -19,6 +19,7 @@ bitacora-watch.workspace = true
 bitacora-sync.workspace = true
 bitacora-mcp.workspace = true
 bitacora-pando.workspace = true
+pando-rs.workspace = true
 thiserror.workspace = true
 serde.workspace = true
 jiff.workspace = true

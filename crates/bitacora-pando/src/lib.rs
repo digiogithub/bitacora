@@ -10,9 +10,13 @@
 //! - [`supervisor`]: the [`Supervisor`] seam for managed mode; [`managed`] implements it
 //!   ([`ManagedSupervisor`]: `pando serve` per graph in a cache instance dir, BIT-US-0141).
 //!
+//! - [`agents`]: AG-UI chat sessions, frontend tools with fail-closed approvals, journal review and
+//!   recommendations (BIT-SP-0011); GPUI-free, the app consumes its channels.
+//!
 //! The crate is the only place where the integration's async code lives; `bitacora-core` stays
 //! synchronous and never depends on it.
 
+pub mod agents;
 pub mod credentials;
 pub mod events;
 pub mod managed;

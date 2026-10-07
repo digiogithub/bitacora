@@ -79,6 +79,9 @@ pub enum RuntimeError {
     /// An invalid graph-relative path.
     #[error("invalid graph path `{0}`")]
     BadPath(String),
+    /// AI agents are not available (integration off, not connected, no consent, feature off).
+    #[error("agents: {0}")]
+    Agent(String),
 }
 
 /// MCP endpoint settings.

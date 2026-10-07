@@ -13,10 +13,13 @@ workspace = true
 
 [dependencies]
 bitacora-config.workspace = true
+bitacora-core.workspace = true
 bitacora-index.workspace = true
+bitacora-markdown.workspace = true
 pando-rs.workspace = true
 thiserror.workspace = true
 blake3.workspace = true
+jiff.workspace = true
 rusqlite.workspace = true
 serde_json.workspace = true
 tokio.workspace = true

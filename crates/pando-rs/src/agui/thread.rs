@@ -9,8 +9,8 @@ use super::client::{AguiClient, RunStream};
 use super::hitl::Interrupt;
 use super::patch;
 use super::types::{
-    Event, Message, MessageContent, OUTCOME_INTERRUPT, RunInput, Tool, ToolCall, ToolCallFunction,
-    new_id, role,
+    ContextEntry, Event, Message, MessageContent, OUTCOME_INTERRUPT, RunInput, Tool, ToolCall,
+    ToolCallFunction, new_id, role,
 };
 use crate::error::{Error, Result};
 
@@ -43,6 +43,7 @@ pub struct Thread {
     thread_id: String,
     agent: Option<String>,
     tools: Vec<Tool>,
+    context: Vec<ContextEntry>,
     /// The transcript, exactly what the next run sends.
     pub messages: Vec<Message>,
     /// Reasoning text keyed by the assistant message id it belongs to.
@@ -74,6 +75,7 @@ impl Thread {
             thread_id: thread_id.into(),
             agent: None,
             tools: Vec::new(),
+            context: Vec::new(),
             messages: Vec::new(),
             reasoning: HashMap::new(),
             custom_events: Vec::new(),
@@ -95,6 +97,12 @@ impl Thread {
     pub fn with_tools(mut self, tools: Vec<Tool>) -> Self {
         self.tools = tools;
         self
+    }
+
+    /// Ambient context sent with the following runs (replaces the previous one; pass an empty
+    /// list to send none). It is not part of the transcript.
+    pub fn set_context(&mut self, context: Vec<ContextEntry>) {
+        self.context = context;
     }
 
     /// The thread id.
@@ -189,7 +197,8 @@ impl Thread {
         transcript.push(message.clone());
         let input = RunInput::for_thread(self.thread_id.clone())
             .with_messages(transcript)
-            .with_tools(self.tools.clone());
+            .with_tools(self.tools.clone())
+            .with_context(self.context.clone());
         let agent = self.agent.as_deref().unwrap_or_else(|| self.client.agent());
         let stream = self.client.run_agent(agent, &input).await?;
 

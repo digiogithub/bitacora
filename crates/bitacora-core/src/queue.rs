@@ -59,6 +59,8 @@ pub enum Source {
     Ui,
     /// An MCP client.
     Mcp,
+    /// An approved edit proposed by a Pando agent through a frontend tool (BIT-SP-0011.R2).
+    Agent,
     /// The sync engine.
     Sync,
     /// The file watcher (changes made by other programs).
@@ -1310,7 +1312,7 @@ impl Worker {
         source: Source,
         tx: Transaction,
     ) -> Result<Response, QueueError> {
-        if source == Source::Mcp
+        if matches!(source, Source::Mcp | Source::Agent)
             && let Some(k) = tx
                 .pages
                 .iter()
