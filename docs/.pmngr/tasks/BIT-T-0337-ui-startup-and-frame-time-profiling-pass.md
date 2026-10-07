@@ -2,7 +2,7 @@
 id: BIT-T-0337
 type: task
 title: UI startup and frame-time profiling pass
-status: in_progress
+status: in_review
 priority: medium
 parent: BIT-US-0109
 milestone: BIT-M-0005
@@ -10,7 +10,7 @@ author: mcp
 labels: [bitacora-app, performance]
 estimate: 3
 created: 2026-10-06T14:34:02Z
-updated: 2026-10-06T22:47:18Z
+updated: 2026-10-07T00:10:21Z
 started: 2026-10-06T22:47:18Z
 ---
 

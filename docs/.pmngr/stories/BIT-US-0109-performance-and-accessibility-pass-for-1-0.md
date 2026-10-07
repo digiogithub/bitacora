@@ -2,7 +2,7 @@
 id: BIT-US-0109
 type: story
 title: Performance and accessibility pass for 1.0
-status: in_progress
+status: in_review
 priority: medium
 parent: BIT-EP-0013
 milestone: BIT-M-0005
@@ -10,7 +10,7 @@ author: mcp
 labels: [performance, accessibility, bitacora-app, bitacora-index]
 estimate: 5
 created: 2026-10-06T14:31:47Z
-updated: 2026-10-06T22:47:18Z
+updated: 2026-10-07T00:10:21Z
 started: 2026-10-06T22:47:18Z
 ---
 

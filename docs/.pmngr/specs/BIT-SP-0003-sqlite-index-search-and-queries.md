@@ -6,7 +6,7 @@ status: backlog
 author: mcp
 labels: [index, search]
 created: 2026-10-06T14:21:35Z
-updated: 2026-10-06T22:36:24Z
+updated: 2026-10-07T00:10:13Z
 requirements:
   R1:
     status: backlog
@@ -146,14 +146,19 @@ requirements:
         - crates/bitacora-index/src/search/fuzzy.rs
         - crates/bitacora-index/src/search/snippet.rs
         - crates/bitacora-index/src/read/misc.rs#search
+        - crates/bitacora-index/src/pool.rs
         - crates/bitacora-app/src/views/palette.rs
       tests:
         - crates/bitacora-index/tests/search.rs
+        - crates/bitacora-index/tests/search.rs#cached_fuzzy_titles_follow_writes
+        - crates/bitacora-index/tests/bench_search.rs#search_latency_smoke_on_a_1000_page_graph
+        - crates/bitacora-index/tests/bench_search.rs#search_latency_on_a_5000_page_graph
+        - crates/bitacora-index/tests/bench_large.rs
         - crates/bitacora-index/src/search/snippet.rs
         - crates/bitacora-index/tests/read_misc.rs#backlink_counts_search_and_mentions_back_the_app_views
         - crates/bitacora-app/src/views/palette.rs#run_search_ranks_the_exact_page_first_and_honours_scopes
         - crates/bitacora-app/src/views/palette.rs#typing_searches_and_enter_opens_the_selected_result
-    verified: {rev: "sha256:0de1d55d8b600c57", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
+    verified: {rev: "sha256:0de1d55d8b600c57", commit: b12ad4e73162bfd64905c054c5a1e0d13ae4916e, at: 2026-10-06T22:36:02Z, by: mcp}
   R15:
     status: backlog
     trace:
@@ -180,8 +185,10 @@ requirements:
         - crates/bitacora-index/tests/property.rs
         - crates/bitacora-index/tests/reconcile.rs
         - crates/bitacora-index/tests/bench_cold_build.rs
+        - crates/bitacora-index/tests/bench_cold_build.rs#cold_build_smoke_is_fast_and_consistent
+        - crates/bitacora-index/tests/bench_large.rs
         - crates/bitacora-cli/tests/index_commands.rs
-    verified: {rev: "sha256:dcf89c2b25059c3d", commit: a7b6b731dc4613962d70c4e9e9ac30c002f2f0d1, at: 2026-10-06T21:59:44Z, by: claude}
+    verified: {rev: "sha256:dcf89c2b25059c3d", commit: b12ad4e73162bfd64905c054c5a1e0d13ae4916e, at: 2026-10-06T22:36:02Z, by: mcp}
   R17:
     status: backlog
     trace:

@@ -2,7 +2,7 @@
 id: BIT-T-0336
 type: task
 title: Large-graph index and query benchmarks; decide on materialized path-refs
-status: in_progress
+status: done
 priority: medium
 parent: BIT-US-0109
 milestone: BIT-M-0005
@@ -10,8 +10,9 @@ author: mcp
 labels: [bitacora-index, benchmark, performance]
 estimate: 3
 created: 2026-10-06T14:34:02Z
-updated: 2026-10-06T22:47:18Z
+updated: 2026-10-07T00:10:21Z
 started: 2026-10-06T22:47:18Z
+closed: 2026-10-07T00:10:21Z
 ---
 
 ## Description
