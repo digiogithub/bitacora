@@ -23,6 +23,8 @@ settings:
     status_consent: Consent needed
     status_connected: Connected
     status_unavailable: Unavailable
+    status_unauthorized: Unauthorized
+    status_too_old: Update needed
     status_starting: Starting
     status_pending: Not connected yet
     connection: Connection

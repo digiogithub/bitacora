@@ -23,6 +23,8 @@ settings:
     status_consent: Falta el consentimiento
     status_connected: Conectado
     status_unavailable: No disponible
+    status_unauthorized: No autorizado
+    status_too_old: Actualizar
     status_starting: Iniciando
     status_pending: Aún sin conexión
     connection: Conexión

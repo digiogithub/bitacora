@@ -17,6 +17,8 @@ pub mod main_view;
 pub mod modal;
 pub mod page_view;
 pub mod palette;
+pub mod pando_activity;
+pub mod pando_status;
 pub mod panels;
 pub mod picker;
 pub mod responsive;

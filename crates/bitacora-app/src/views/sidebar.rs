@@ -26,6 +26,7 @@ use crate::views::calendar::{
     CalendarHandlers, CalendarState, Month, month_bounds, render_calendar, shift_month,
 };
 use crate::views::kit::{Glyph, Overline, glyph};
+use crate::views::pando_status::PandoState;
 use crate::views::status_bar::SlotState;
 
 /// Pause after an index event before the sidebar reads the index again.
@@ -66,6 +67,8 @@ pub enum SidebarEvent {
     OpenJournalDay(u32),
     /// The user asked to jump to a date (the "Go to date..." link).
     GoToDate,
+    /// The user clicked the Pando status row of the footer.
+    OpenPando,
 }
 
 /// Source of "today" (replaced in tests).
@@ -103,6 +106,7 @@ pub struct LeftSidebar {
     mcp: SlotState,
     mcp_endpoint: Option<String>,
     sync: SlotState,
+    pando: PandoState,
 }
 
 impl EventEmitter<SidebarEvent> for LeftSidebar {}
@@ -132,6 +136,7 @@ impl LeftSidebar {
             mcp: SlotState::Off,
             mcp_endpoint: None,
             sync: SlotState::Off,
+            pando: PandoState::NotConfigured,
         }
     }
 
@@ -252,6 +257,19 @@ impl LeftSidebar {
             self.sync = sync;
             cx.notify();
         }
+    }
+
+    /// The Pando connection state shown in the footer.
+    pub fn set_pando_state(&mut self, state: PandoState, cx: &mut Context<Self>) {
+        if self.pando != state {
+            self.pando = state;
+            cx.notify();
+        }
+    }
+
+    /// The Pando state of the footer.
+    pub fn pando_state(&self) -> PandoState {
+        self.pando
     }
 
     /// The journal on screen (`yyyyMMdd`); the calendar shows its month.
@@ -557,6 +575,23 @@ impl LeftSidebar {
             .type_style(&theme.type_scale.caption)
             .child(dot(status_dot(self.sync, theme)))
             .child(div().min_w_0().truncate().child(sync_label));
+        let pando_row = h_flex()
+            .id("sidebar-pando")
+            .debug_selector(|| "sidebar-pando".to_string())
+            .px(m.space[5])
+            .gap(m.space[4])
+            .items_center()
+            .cursor_pointer()
+            .text_color(c.text_2)
+            .type_style(&theme.type_scale.caption)
+            .on_click(cx.listener(|_, _, _, cx| cx.emit(SidebarEvent::OpenPando)))
+            .child(dot(self.pando.dot(theme)))
+            .child(
+                div()
+                    .min_w_0()
+                    .truncate()
+                    .child(t!("pando_status.footer", state = self.pando.label()).to_string()),
+            );
         v_flex()
             .flex_shrink_0()
             .gap(m.space[2])
@@ -566,6 +601,7 @@ impl LeftSidebar {
             .child(graph_row)
             .child(mcp_row)
             .child(sync_row)
+            .child(pando_row)
             .into_any_element()
     }
 }

@@ -29,6 +29,9 @@ use pando::agui::{AguiClient, Event, Interrupt, Message, MessageContent, Thread,
 use serde_json::{Value, json};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 
+use crate::activity::{ActivityEntry, ActivityKind};
+use crate::events::EventSink;
+
 use super::approvals::{
     ApprovalKind, Clock, DEFAULT_APPROVAL_TIMEOUT, Decision, DenyReason, PendingApprovals,
     Resolution, SystemClock,
@@ -252,6 +255,8 @@ pub struct ChatDeps {
     pub guard: ContentGuard,
     /// Time source for approval deadlines.
     pub clock: Arc<dyn Clock>,
+    /// Where runs, approvals and applied edits are logged (BIT-SP-0009.R7); `None` logs nothing.
+    pub activity: Option<EventSink>,
 }
 
 impl std::fmt::Debug for ChatDeps {
@@ -271,6 +276,7 @@ impl ChatDeps {
             applier: None,
             guard,
             clock: Arc::new(SystemClock::default()),
+            activity: None,
         }
     }
 }
@@ -472,7 +478,41 @@ impl Ctx {
         }
     }
 
+    fn log_activity(&self, ev: &ChatEvent) {
+        let Some(sink) = &self.deps.activity else {
+            return;
+        };
+        let one =
+            |kind, word: &str, id: &str| ActivityEntry::new(kind, word, 1, vec![id.to_owned()]);
+        let entry = match ev {
+            ChatEvent::RunStarted { run_id } => one(ActivityKind::Run, "started", run_id),
+            ChatEvent::RunFinished(end) => one(
+                ActivityKind::Run,
+                match end {
+                    RunEnd::Finished => "finished",
+                    RunEnd::Failed => "failed",
+                    RunEnd::Cancelled => "cancelled",
+                },
+                &self.thread_id,
+            ),
+            ChatEvent::ApprovalResolved { id, approved, .. } => one(
+                ActivityKind::Approval,
+                if *approved { "approved" } else { "denied" },
+                id,
+            ),
+            ChatEvent::EditApplied { affected, .. } => ActivityEntry::new(
+                ActivityKind::Edit,
+                "applied",
+                u64::try_from(affected.len()).unwrap_or(u64::MAX),
+                affected.clone(),
+            ),
+            _ => return,
+        };
+        sink.record(entry);
+    }
+
     fn emit(&mut self, ev: ChatEvent) {
+        self.log_activity(&ev);
         if self.events.send(ev).is_err() {
             // Nobody is listening any more: same as closing the panel.
             self.abort.get_or_insert((DenyReason::PanelClosed, true));

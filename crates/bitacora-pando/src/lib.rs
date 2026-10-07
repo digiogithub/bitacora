@@ -16,6 +16,7 @@
 //! The crate is the only place where the integration's async code lives; `bitacora-core` stays
 //! synchronous and never depends on it.
 
+pub mod activity;
 pub mod agents;
 pub mod connection;
 pub mod credentials;
@@ -25,6 +26,7 @@ pub mod semantic;
 pub mod service;
 pub mod supervisor;
 
+pub use activity::{ActivityEntry, ActivityKind, ActivityLog};
 pub use connection::{ConnectionReport, KbSharing, kb_sharing, test_connection};
 pub use credentials::{
     CredentialError, MemoryBackend, PandoCredentials, SecretBackend, TokenKind, TokenSource,

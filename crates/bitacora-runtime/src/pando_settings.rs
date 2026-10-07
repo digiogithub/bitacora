@@ -36,7 +36,9 @@ pub fn pando_options_from_file(
     if !settings.is_active() {
         return Ok(None);
     }
-    Ok(Some(PandoOptions::new(settings, graph)))
+    let mut opts = PandoOptions::new(settings, graph);
+    opts.activity = Some(bitacora_pando::ActivityLog::beside(path));
+    Ok(Some(opts))
 }
 
 #[cfg(test)]

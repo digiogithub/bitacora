@@ -149,6 +149,8 @@ pub(crate) fn status_chip(
     match live {
         Some(PandoStatus::Connected { .. }) => ("status_connected", ChipTone::Accent),
         Some(PandoStatus::Unavailable { .. }) => ("status_unavailable", ChipTone::Outline),
+        Some(PandoStatus::Unauthorized) => ("status_unauthorized", ChipTone::Outline),
+        Some(PandoStatus::TooOld { .. }) => ("status_too_old", ChipTone::Outline),
         Some(PandoStatus::Starting) => ("status_starting", ChipTone::Ai),
         Some(PandoStatus::ConsentRequired) => ("status_consent", ChipTone::Outline),
         Some(PandoStatus::Off) | None => ("status_pending", ChipTone::Neutral),

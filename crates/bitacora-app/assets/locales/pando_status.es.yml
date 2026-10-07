@@ -1,0 +1,59 @@
+pando_status:
+  name: Pando
+  state:
+    disabled: Desactivado
+    not_configured: Sin configurar
+    connecting: Conectando
+    ok: Conectado
+    unauthorized: No autorizado
+    unreachable: Inaccesible
+    too_old: Actualizar
+  detail:
+    disabled: Pando esta desactivado. Todo lo demas sigue funcionando.
+    not_configured: Configura Pando para tener busqueda semantica y el asistente.
+    connecting: Contactando con Pando...
+    ok: "Pando %{version}"
+    unauthorized: Pando rechazo el token. Revisalo en los ajustes.
+    unreachable: Pando no responde. Bitacora reintenta con una espera creciente.
+    too_old: "Pando %{version} es anterior al minimo %{min}. Actualiza Pando."
+  degraded:
+    disabled: La busqueda usa solo palabras clave.
+    not_configured: La busqueda usa solo palabras clave.
+    connecting: La busqueda semantica y el asistente arrancan cuando Pando responda.
+    unauthorized: La busqueda semantica y el asistente estan en pausa. La busqueda usa solo palabras clave; la edicion, la sincronizacion y MCP no se ven afectados.
+    unreachable: La busqueda semantica y el asistente no estan disponibles. La busqueda usa solo palabras clave; la edicion, la sincronizacion y MCP no se ven afectados.
+    too_old: La busqueda semantica y el asistente estan en pausa hasta actualizar Pando. La busqueda usa solo palabras clave; la edicion, la sincronizacion y MCP no se ven afectados.
+  popover:
+    graph_features: Para este grafo
+    open_settings: Abrir ajustes de Pando
+    set_up: Configurar Pando
+    activity: Registro de actividad
+    agent_writes: Escrituras del agente
+    sync_counts: "%{synced} sincronizados, %{pending} en espera"
+    sync_none: La sincronizacion semantica no esta activa.
+  footer: "Pando · %{state}"
+  log:
+    title: Actividad de Pando
+    local_note: Se guarda solo en este equipo. Lista recuentos e ids, nunca el texto de las paginas.
+    empty: Todavia nada.
+    clear: Borrar
+    close: Cerrar
+    cleared: Registro de actividad borrado.
+    agent_writes: Escrituras del agente...
+    filter_all: Todo
+    filter_sync: Sincronizacion
+    filter_agent: Agente
+    filter_mcp: MCP
+    filter_status: Estado
+    sync_upserted: "Enviados %{count} bloques"
+    sync_deleted: "Eliminados %{count} bloques"
+    status: "Estado: %{status}"
+    run_started: Ejecucion del agente iniciada
+    run_finished: Ejecucion del agente terminada
+    run_failed: Ejecucion del agente fallida
+    run_cancelled: Ejecucion del agente cancelada
+    approval_approved: Edicion aprobada
+    approval_denied: Edicion denegada
+    edit_applied: "Edicion aplicada a %{count} bloques"
+    mcp_call: "Llamada MCP %{tool}: %{result}"
+    ids: "Bloques: %{ids}"
