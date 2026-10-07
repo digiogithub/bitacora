@@ -766,3 +766,16 @@ fn the_session_applies_search_substring_and_mcp_settings_from_the_app_settings(
             .is_some()
     );
 }
+
+#[test]
+fn navigation_groups_cover_every_section_once_with_a_pando_slot() {
+    let grouped: Vec<Section> = Section::GROUPS
+        .iter()
+        .flat_map(|(_, sections)| sections.iter().copied())
+        .collect();
+    assert_eq!(grouped.len(), Section::ALL.len());
+    for section in Section::ALL {
+        assert_eq!(grouped.iter().filter(|s| **s == section).count(), 1);
+    }
+    assert!(grouped.contains(&Section::Pando));
+}

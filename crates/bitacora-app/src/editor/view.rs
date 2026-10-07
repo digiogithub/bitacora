@@ -33,6 +33,7 @@ use crate::data::GraphHandle;
 use crate::render::model::{BlockModel, Row, visible_rows};
 use crate::ui::calendar::CalendarState;
 use crate::ui::text_edit::{ClipboardItem, EntityInputHandler, UTF16Selection};
+use crate::ui::theme::ActiveBitacoraTheme as _;
 use crate::ui::{
     App, Bounds, Context, Entity, EventEmitter, FocusHandle, Focusable, Level, Pixels, Render,
     Subscription, Window, div, notify, px,
@@ -1296,11 +1297,12 @@ impl OutlineEditor {
             })
         };
         let popup = this.popup_data();
+        let design = cx.bitacora().clone();
         let element = editing.then(|| {
             let ed = ed.clone();
             let popup = popup.clone();
             Rc::new(move |theme: &crate::ui::theme::Theme| {
-                super::element::edit_content(ed.clone(), theme, popup.clone())
+                super::element::edit_content(ed.clone(), theme, &design, popup.clone())
             }) as Rc<dyn Fn(&crate::ui::theme::Theme) -> _>
         });
         let conflict = if editing {

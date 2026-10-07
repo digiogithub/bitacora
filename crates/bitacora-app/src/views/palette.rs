@@ -17,6 +17,7 @@ use crate::nav::Route;
 use crate::ui::button::{Button, ButtonVariants as _};
 use crate::ui::command::{Command, CommandGroup, CommandItem, CommandState, IndexPath};
 use crate::ui::text_edit::{FontWeight, HighlightStyle, StyledText};
+use crate::ui::theme::ActiveBitacoraTheme as _;
 use crate::ui::{
     ActiveTheme as _, App, AppContext as _, Context, Disableable as _, Entity, EventEmitter,
     FocusHandle, Hsla, IconName, InteractiveElement as _, IntoElement, MenuCancel,
@@ -773,6 +774,7 @@ impl Render for Palette {
             }
         }
         let backdrop = this.clone();
+        let design = cx.bitacora().clone();
         div()
             .id("palette-overlay")
             .absolute()
@@ -799,11 +801,13 @@ impl Render for Palette {
                     })
                     .w(px(680.))
                     .max_w_full()
-                    .bg(theme.background)
+                    .bg(design.colors.raised)
+                    .text_color(design.colors.text)
                     .border_1()
-                    .border_color(theme.border)
-                    .rounded(px(8.))
+                    .border_color(design.colors.line)
+                    .rounded(design.metrics.radius_popover)
                     .shadow_lg()
+                    .overflow_hidden()
                     .child(chips)
                     .child(command),
             )
