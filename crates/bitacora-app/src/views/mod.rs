@@ -8,6 +8,7 @@ pub mod credential_dialog;
 pub mod disk_conflict;
 pub mod history;
 pub mod journals;
+pub mod kit;
 pub mod main_view;
 pub mod modal;
 pub mod page_view;
