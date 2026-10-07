@@ -2,13 +2,14 @@
 id: BIT-EP-0006
 type: epic
 title: "Read-only browsing UI: journals, pages, references, search"
-status: backlog
+status: done
 priority: high
 milestone: BIT-M-0002
 author: mcp
 labels: [ui]
 created: 2026-10-06T14:21:13Z
-updated: 2026-10-06T14:21:13Z
+updated: 2026-10-07T00:15:14Z
+closed: 2026-10-07T00:15:14Z
 ---
 
 ## Description

@@ -2,13 +2,14 @@
 id: BIT-EP-0001
 type: epic
 title: Workspace, CI and engineering foundations
-status: backlog
+status: in_review
 priority: critical
 milestone: BIT-M-0001
 author: mcp
 labels: [infra]
 created: 2026-10-06T14:21:13Z
-updated: 2026-10-06T14:21:13Z
+updated: 2026-10-07T00:15:14Z
+started: 2026-10-07T00:15:14Z
 ---
 
 ## Description

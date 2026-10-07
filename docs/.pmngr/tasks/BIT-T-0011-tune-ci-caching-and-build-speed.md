@@ -2,7 +2,7 @@
 id: BIT-T-0011
 type: task
 title: Tune CI caching and build speed
-status: in_review
+status: done
 priority: high
 parent: BIT-US-0003
 milestone: BIT-M-0001
@@ -10,8 +10,9 @@ author: mcp
 labels: [infra, ci]
 estimate: 2
 created: 2026-10-06T14:25:20Z
-updated: 2026-10-06T16:55:34Z
+updated: 2026-10-07T00:14:38Z
 started: 2026-10-06T16:55:34Z
+closed: 2026-10-07T00:14:38Z
 ---
 
 ## Description

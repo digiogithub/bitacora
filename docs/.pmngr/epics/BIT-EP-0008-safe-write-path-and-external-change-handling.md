@@ -2,13 +2,14 @@
 id: BIT-EP-0008
 type: epic
 title: Safe write path and external change handling
-status: backlog
+status: done
 priority: critical
 milestone: BIT-M-0003
 author: mcp
 labels: [core, io]
 created: 2026-10-06T14:21:13Z
-updated: 2026-10-06T15:12:33Z
+updated: 2026-10-07T00:15:14Z
+closed: 2026-10-07T00:15:14Z
 ---
 
 ## Description

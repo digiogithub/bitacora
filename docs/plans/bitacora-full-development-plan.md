@@ -64,3 +64,10 @@ Orchestrated by the main Claude Code session; implementation by Claude Code suba
 ## App UI backlog (pending app tasks collected from core/sync/mcp stories)
 T-0084 today journal startup/rollover; T-0174 delete confirm; T-0157 rename merge dialog; T-0211 Agent activity view; T-0344/T-0349 external-change conflict notice + editing-block protection; T-0291 askpass modal; T-0282 sync onboarding UI; US-0047 status bar sync indicator/Sync now; US-0048 history view; US-0054 visual conflict resolver; T-0116 Settings > Agents; US-0030/0031 editor + keymap/IME; US-0032..0039 key bindings over core semantics; US-0096 assets paste/drop.
 - R17 SHOULD: ignore journal equal to default template (runtime layer, has config) — follow-up.
+
+## Progress (final backlog closure, 2026-10-07)
+- All 112 stories are implemented. Stories done: 91; still in_review: 21 (M0: 7, M1: 3, M2: 2, M3: 1, M4: 8) (only manual / external validation left, see [[owner-manual-validation-checklist]]). Epics: EP-0003, 0005, 0006, 0008, 0012 done; the other 9 epics and milestones BIT-M-0001..0005 are in_review because they contain in_review stories.
+- Closed this pass with GitHub CI evidence: BIT-US-0027 (3-OS path normalisation tests), BIT-T-0011 (warm vs cold cache: test-app windows 749 s to 187 s, macos 802 s to 203 s), BIT-US-0003.
+- Test count: 1538 workspace tests passed, 0 failed, clippy -D warnings clean (last full run reported by BIT-US-0109, 2026-10-07).
+- CI: workflow CI on main, run 37544944693 success on ubuntu, macos and windows for test-core and test-app, plus checks and lint. Earlier red runs were fixed by later commits.
+- Remaining in_review by blocker: workflows to trigger (A), secrets (B), manual desktop checks (C), Logseq oracle (D). Spec verification re-run was not executed in this pass (tool call denied by the sandbox classifier); run it per section E of the owner checklist.

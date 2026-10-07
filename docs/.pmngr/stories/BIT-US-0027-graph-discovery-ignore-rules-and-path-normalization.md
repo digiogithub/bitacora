@@ -2,7 +2,7 @@
 id: BIT-US-0027
 type: story
 title: Graph discovery, ignore rules and path normalization
-status: in_review
+status: done
 priority: critical
 parent: BIT-EP-0004
 milestone: BIT-M-0002
@@ -10,8 +10,9 @@ author: mcp
 labels: [core, compat]
 estimate: 5
 created: 2026-10-06T14:28:02Z
-updated: 2026-10-06T16:59:05Z
+updated: 2026-10-07T00:14:38Z
 started: 2026-10-06T16:54:06Z
+closed: 2026-10-07T00:14:38Z
 ---
 
 ## Description

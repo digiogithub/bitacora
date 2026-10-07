@@ -2,13 +2,14 @@
 id: BIT-EP-0012
 type: epic
 title: Block-aware 3-way merge and visual conflict resolver
-status: backlog
+status: done
 priority: high
 milestone: BIT-M-0004
 author: mcp
 labels: [git, merge, ui]
 created: 2026-10-06T14:21:13Z
-updated: 2026-10-06T15:10:55Z
+updated: 2026-10-07T00:15:14Z
+closed: 2026-10-07T00:15:14Z
 ---
 
 ## Description

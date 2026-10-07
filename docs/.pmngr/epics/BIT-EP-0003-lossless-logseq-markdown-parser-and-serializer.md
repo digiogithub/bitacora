@@ -2,13 +2,14 @@
 id: BIT-EP-0003
 type: epic
 title: Lossless Logseq Markdown parser and serializer
-status: backlog
+status: done
 priority: critical
 milestone: BIT-M-0002
 author: mcp
 labels: [markdown, compat]
 created: 2026-10-06T14:21:13Z
-updated: 2026-10-06T14:21:13Z
+updated: 2026-10-07T00:14:51Z
+closed: 2026-10-07T00:14:51Z
 ---
 
 ## Description

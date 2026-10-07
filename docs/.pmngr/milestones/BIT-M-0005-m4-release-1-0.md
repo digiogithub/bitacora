@@ -2,10 +2,11 @@
 id: BIT-M-0005
 type: milestone
 title: M4 — Release 1.0
-status: backlog
+status: in_review
 author: mcp
 created: 2026-10-06T14:20:19Z
-updated: 2026-10-06T14:20:19Z
+updated: 2026-10-07T00:15:15Z
+started: 2026-10-07T00:15:15Z
 due: 2027-09-30
 ---
 

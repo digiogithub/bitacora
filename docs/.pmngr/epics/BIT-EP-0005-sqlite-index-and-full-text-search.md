@@ -2,13 +2,14 @@
 id: BIT-EP-0005
 type: epic
 title: SQLite index and full-text search
-status: backlog
+status: done
 priority: critical
 milestone: BIT-M-0002
 author: mcp
 labels: [index, search]
 created: 2026-10-06T14:21:13Z
-updated: 2026-10-06T14:21:13Z
+updated: 2026-10-07T00:15:14Z
+closed: 2026-10-07T00:15:14Z
 ---
 
 ## Description

@@ -2,13 +2,14 @@
 id: BIT-EP-0011
 type: epic
 title: Git sync engine
-status: backlog
+status: in_review
 priority: high
 milestone: BIT-M-0004
 author: mcp
 labels: [git, sync]
 created: 2026-10-06T14:21:13Z
-updated: 2026-10-06T15:14:45Z
+updated: 2026-10-07T00:15:15Z
+started: 2026-10-07T00:15:15Z
 ---
 
 ## Description

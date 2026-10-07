@@ -2,10 +2,11 @@
 id: BIT-M-0001
 type: milestone
 title: M0 — Foundations & spikes
-status: backlog
+status: in_review
 author: mcp
 created: 2026-10-06T14:20:19Z
-updated: 2026-10-06T14:20:19Z
+updated: 2026-10-07T00:15:15Z
+started: 2026-10-07T00:15:15Z
 due: 2026-11-15
 ---
 

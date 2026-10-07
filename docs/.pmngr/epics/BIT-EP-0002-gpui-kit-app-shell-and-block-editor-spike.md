@@ -2,13 +2,14 @@
 id: BIT-EP-0002
 type: epic
 title: GPUI Kit app shell and block-editor spike
-status: backlog
+status: in_review
 priority: critical
 milestone: BIT-M-0001
 author: mcp
 labels: [ui, spike]
 created: 2026-10-06T14:21:13Z
-updated: 2026-10-06T14:21:13Z
+updated: 2026-10-07T00:15:15Z
+started: 2026-10-07T00:15:15Z
 ---
 
 ## Description

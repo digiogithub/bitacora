@@ -2,13 +2,14 @@
 id: BIT-EP-0013
 type: epic
 title: Queries, settings, themes and polish
-status: backlog
+status: in_review
 priority: medium
 milestone: BIT-M-0005
 author: mcp
 labels: [ui, query]
 created: 2026-10-06T14:21:13Z
-updated: 2026-10-06T14:21:13Z
+updated: 2026-10-07T00:15:15Z
+started: 2026-10-07T00:15:15Z
 ---
 
 ## Description
