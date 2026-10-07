@@ -210,7 +210,7 @@ pub(crate) fn text_element_owned(
                 if let Some(target) = targets.get(ix) {
                     nav(
                         target.clone(),
-                        OpenIn::from_shift(window.modifiers().shift),
+                        OpenIn::from_modifiers(&window.modifiers()),
                         cx,
                     );
                 }
@@ -600,7 +600,7 @@ pub fn render_block_row(
                     .on_click(move |_, window, cx| {
                         nav(
                             NavTarget::Block(uuid.clone()),
-                            OpenIn::from_shift(window.modifiers().shift),
+                            OpenIn::from_modifiers(&window.modifiers()),
                             cx,
                         );
                     })
@@ -712,13 +712,15 @@ pub fn render_block_row(
                 let zoom = edit.map(|e| e.on_bullet.clone());
                 let nav = actions.nav.clone();
                 let uuid = bullet_uuid.clone();
-                // Shift+click opens the block in the right sidebar; a plain click zooms into
-                // the block when the page is editable, otherwise it folds.
+                // Shift+click opens the block in the right sidebar, Ctrl/Cmd+click in a new tab;
+                // a plain click zooms into the block when the page is editable, otherwise it
+                // folds.
                 d.cursor_pointer().on_click(move |_, window, cx| {
-                    if window.modifiers().shift
+                    let open = OpenIn::from_modifiers(&window.modifiers());
+                    if open != OpenIn::Main
                         && let Some(uuid) = &uuid
                     {
-                        nav(NavTarget::Block(uuid.clone()), OpenIn::Sidebar, cx);
+                        nav(NavTarget::Block(uuid.clone()), open, cx);
                     } else if let Some(zoom) = &zoom {
                         zoom(window, cx);
                     } else if let Some(toggle) = &toggle {

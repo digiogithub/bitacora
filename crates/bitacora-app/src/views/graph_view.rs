@@ -137,7 +137,7 @@ enum Drag {
         ix: usize,
         moved: bool,
         start: [f32; 2],
-        secondary: bool,
+        focus: bool,
     },
     Pan {
         last: [f32; 2],
@@ -551,14 +551,14 @@ impl GraphView {
     }
 
     /// Left button pressed at `pos` (canvas-centre-relative px).
-    pub fn pointer_down(&mut self, pos: [f32; 2], secondary: bool, cx: &mut Context<Self>) {
+    pub fn pointer_down(&mut self, pos: [f32; 2], focus: bool, cx: &mut Context<Self>) {
         self.drag = Some(
             match hit_test(&self.model, &self.positions, &self.viewport, pos) {
                 Some(ix) => Drag::Node {
                     ix,
                     moved: false,
                     start: pos,
-                    secondary,
+                    focus,
                 },
                 None => Drag::Pan { last: pos },
             },
@@ -579,7 +579,7 @@ impl GraphView {
                 ix,
                 moved,
                 start,
-                secondary,
+                focus,
             }) => {
                 let travelled = (pos[0] - start[0]).hypot(pos[1] - start[1]);
                 if moved || travelled > CLICK_SLOP {
@@ -587,7 +587,7 @@ impl GraphView {
                         ix,
                         moved: true,
                         start,
-                        secondary,
+                        focus,
                     });
                     self.user_moved = true;
                     let at = self.viewport.to_world(pos);
@@ -612,29 +612,23 @@ impl GraphView {
     }
 
     /// Left button released at `pos`: ends a drag, or counts as a click on a node.
-    pub fn pointer_up(&mut self, shift: bool, cx: &mut Context<Self>) {
+    pub fn pointer_up(&mut self, open: OpenIn, cx: &mut Context<Self>) {
         let Some(drag) = self.drag.take() else {
             return;
         };
         if let Drag::Node {
-            ix,
-            moved,
-            secondary,
-            ..
+            ix, moved, focus, ..
         } = drag
         {
             if moved {
                 self.send(Control::Unpin(ix));
             } else if let Some(node) = self.model.nodes().get(ix) {
-                if secondary {
+                if focus {
                     let id = node.id;
                     self.toggle_focus(id, cx);
                 } else {
                     let name = node.name.clone();
-                    cx.emit(PageEvent::open(
-                        NavTarget::Page(name),
-                        OpenIn::from_shift(shift),
-                    ));
+                    cx.emit(PageEvent::open(NavTarget::Page(name), open));
                 }
             }
         }
@@ -962,24 +956,24 @@ impl Render for GraphView {
             .on_mouse_down(
                 MouseButton::Left,
                 cx.listener(move |this, e: &MouseDownEvent, _, cx| {
-                    this.pointer_down(down(e.position), e.modifiers.secondary(), cx);
+                    this.pointer_down(down(e.position), e.modifiers.alt, cx);
                 }),
             )
             .on_mouse_move(cx.listener(move |this, e: &MouseMoveEvent, _, cx| {
                 if this.drag.is_some() && e.pressed_button != Some(MouseButton::Left) {
-                    this.pointer_up(false, cx);
+                    this.pointer_up(OpenIn::Main, cx);
                 }
                 this.pointer_move(moving(e.position), cx);
             }))
             .on_mouse_up(
                 MouseButton::Left,
                 cx.listener(move |this, e: &MouseUpEvent, _, cx| {
-                    this.pointer_up(e.modifiers.shift, cx);
+                    this.pointer_up(OpenIn::from_modifiers(&e.modifiers), cx);
                 }),
             )
             .on_mouse_up_out(
                 MouseButton::Left,
-                cx.listener(|this, _: &MouseUpEvent, _, cx| this.pointer_up(false, cx)),
+                cx.listener(|this, _: &MouseUpEvent, _, cx| this.pointer_up(OpenIn::Main, cx)),
             )
             .on_scroll_wheel(cx.listener(move |this, e: &ScrollWheelEvent, window, cx| {
                 let dy = f32::from(e.delta.pixel_delta(window.line_height()).y);

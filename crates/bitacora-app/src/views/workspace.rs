@@ -20,7 +20,7 @@ use crate::editing;
 use crate::graph_ops::{self, AssetOutcome};
 use crate::graph_state::GraphState;
 use crate::layout::{LAYOUT_VERSION, load_layout, save_layout};
-use crate::nav::Route;
+use crate::nav::{OpenIn, Route};
 use crate::recent::{RecentGraphs, graph_name, has_graph_config};
 use crate::session::{
     GraphSession, SessionEvent, SessionHandle, SessionLink, SessionNotice, SessionOptions,
@@ -1271,6 +1271,7 @@ impl Workspace {
             SidebarEvent::OpenInSidebar(name) => {
                 self.open_in_right_sidebar(Route::Page(name.clone()), window, cx);
             }
+            SidebarEvent::OpenInNewTab(name) => self.open_in_new_tab(Route::Page(name.clone()), cx),
             SidebarEvent::OpenJournalDay(day) => {
                 let title = self.handle.as_ref().and_then(|handle| {
                     let date = bitacora_core::date::Date::from_journal_day(*day)?;
@@ -1468,6 +1469,7 @@ impl Workspace {
             MainEvent::OpenInSidebar(route) => {
                 self.open_in_right_sidebar(route.clone(), window, cx);
             }
+            MainEvent::OpenInNewTab(route) => self.open_in_new_tab(route.clone(), cx),
             MainEvent::ConflictJump => self.open_conflicts(window, cx),
             MainEvent::RenamePage { from, to } => {
                 self.rename_page(from.clone(), to.clone(), MergeMode::Refuse, window, cx);
@@ -1513,6 +1515,19 @@ impl Workspace {
         }
     }
 
+    fn on_stack_new_tab(
+        &mut self,
+        target: &crate::render::inline::NavTarget,
+        cx: &mut Context<Self>,
+    ) {
+        use crate::render::inline::NavTarget;
+        match target {
+            NavTarget::Page(name) => self.open_in_new_tab(Route::Page(name.clone()), cx),
+            NavTarget::Block(uuid) => self.open_in_new_tab(Route::Block(uuid.clone()), cx),
+            NavTarget::Url(url) => cx.open_url(url),
+        }
+    }
+
     fn on_stack_event(
         &mut self,
         _: &Entity<RightSidebar>,
@@ -1522,6 +1537,7 @@ impl Workspace {
     ) {
         match event {
             StackEvent::Navigate(target) => self.on_stack_navigate(target, cx),
+            StackEvent::OpenInNewTab(target) => self.on_stack_new_tab(target, cx),
             StackEvent::OpenInMain(route) => self.navigate(route.clone(), cx),
             StackEvent::Changed => {
                 self.graph_state.right_sidebar = self.stack.read(cx).entries();
@@ -1546,13 +1562,11 @@ impl Workspace {
         cx: &mut Context<Self>,
     ) {
         match event {
-            PaletteEvent::Open { route, sidebar } => {
-                if *sidebar {
-                    self.open_in_right_sidebar(route.clone(), window, cx);
-                } else {
-                    self.navigate(route.clone(), cx);
-                }
-            }
+            PaletteEvent::Open { route, open } => match open {
+                OpenIn::Sidebar => self.open_in_right_sidebar(route.clone(), window, cx),
+                OpenIn::NewTab => self.open_in_new_tab(route.clone(), cx),
+                OpenIn::Main => self.navigate(route.clone(), cx),
+            },
             PaletteEvent::Run(command) => self.run_command(*command, window, cx),
             PaletteEvent::Closed => window.focus(&self.focus, cx),
         }
@@ -3579,6 +3593,41 @@ mod tests {
             ws.read_with(cx, |w, _| w.tabs.routes().to_vec()),
             vec![Route::Journals, Route::AllPages]
         );
+    }
+
+    #[gpui_test]
+    fn new_tab_requests_open_a_tab_and_leave_the_current_one(cx: &mut TestAppContext) {
+        setup(cx);
+        let (ws, cx) = open(cx, None);
+        ws.update(cx, |w, cx| {
+            w.picker_visible = false;
+            cx.notify();
+        });
+        cx.run_until_parked();
+        // From a main-area reference, a sidebar page and a stack link.
+        let main = ws.read_with(cx, |w, _| w.main.clone());
+        main.update(cx, |_, cx| {
+            cx.emit(MainEvent::OpenInNewTab(Route::Page("World".into())));
+        });
+        let sidebar = ws.read_with(cx, |w, _| w.sidebar().clone());
+        sidebar.update(cx, |_, cx| {
+            cx.emit(SidebarEvent::OpenInNewTab("Home".into()));
+        });
+        let stack = ws.read_with(cx, |w, _| w.right_sidebar().clone());
+        stack.update(cx, |s, cx| {
+            s.open_in_new_tab(&crate::render::inline::NavTarget::Block("b1".into()), cx);
+        });
+        cx.run_until_parked();
+        assert_eq!(
+            ws.read_with(cx, |w, _| w.tab_strip().routes().to_vec()),
+            vec![
+                Route::Journals,
+                Route::Page("World".into()),
+                Route::Page("Home".into()),
+                Route::Block("b1".into()),
+            ]
+        );
+        assert_eq!(ws.read_with(cx, |w, _| w.tab_strip().active()), 3);
     }
 
     #[gpui_test]

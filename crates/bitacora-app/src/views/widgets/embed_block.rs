@@ -432,7 +432,7 @@ impl EmbedBlock {
                     .on_click(move |_, window, cx| {
                         nav(
                             target.clone(),
-                            OpenIn::from_shift(window.modifiers().shift),
+                            OpenIn::from_modifiers(&window.modifiers()),
                             cx,
                         );
                     }),

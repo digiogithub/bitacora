@@ -59,6 +59,8 @@ pub enum PageEvent {
     Navigate(NavTarget),
     /// The user Shift+clicked: show the target in the right sidebar.
     OpenInSidebar(NavTarget),
+    /// The user Ctrl/Cmd+clicked: show the target in a new tab.
+    OpenInNewTab(NavTarget),
     /// The user renamed the page in its header (BIT-T-0157); the host runs the rename.
     RenamePage {
         /// Current title.
@@ -81,6 +83,7 @@ impl PageEvent {
         match open {
             OpenIn::Main => Self::Navigate(target),
             OpenIn::Sidebar => Self::OpenInSidebar(target),
+            OpenIn::NewTab => Self::OpenInNewTab(target),
         }
     }
 }
@@ -1348,7 +1351,7 @@ impl PageView {
                                     .on_click(move |_, window, cx| {
                                         nav(
                                             NavTarget::Block(uuid.clone()),
-                                            OpenIn::from_shift(window.modifiers().shift),
+                                            OpenIn::from_modifiers(&window.modifiers()),
                                             cx,
                                         )
                                     }),
@@ -1524,7 +1527,7 @@ impl PageView {
             .on_click(move |_, window, cx| {
                 nav(
                     NavTarget::Page(target.clone()),
-                    OpenIn::from_shift(window.modifiers().shift),
+                    OpenIn::from_modifiers(&window.modifiers()),
                     cx,
                 )
             })
@@ -1702,7 +1705,7 @@ impl PageView {
                     .on_click(move |_, window, cx| {
                         nav(
                             target.clone(),
-                            OpenIn::from_shift(window.modifiers().shift),
+                            OpenIn::from_modifiers(&window.modifiers()),
                             cx,
                         )
                     }),
@@ -1852,7 +1855,7 @@ impl PageView {
                     .on_click(move |_, window, cx| {
                         nav(
                             target.clone(),
-                            OpenIn::from_shift(window.modifiers().shift),
+                            OpenIn::from_modifiers(&window.modifiers()),
                             cx,
                         )
                     }),

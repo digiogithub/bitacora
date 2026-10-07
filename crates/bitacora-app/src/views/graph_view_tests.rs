@@ -150,15 +150,18 @@ fn clicking_a_node_opens_its_page_and_shift_opens_the_sidebar(cx: &mut TestAppCo
     let at = screen_of(&view, cx, "Beta");
     view.update(cx, |v, cx| {
         v.pointer_down(at, false, cx);
-        v.pointer_up(false, cx);
+        v.pointer_up(OpenIn::Main, cx);
         v.pointer_down(at, false, cx);
-        v.pointer_up(true, cx);
+        v.pointer_up(OpenIn::Sidebar, cx);
+        v.pointer_down(at, false, cx);
+        v.pointer_up(OpenIn::NewTab, cx);
     });
     assert_eq!(
         *seen.borrow(),
         vec![
             PageEvent::open(NavTarget::Page("Beta".into()), OpenIn::Main),
             PageEvent::open(NavTarget::Page("Beta".into()), OpenIn::Sidebar),
+            PageEvent::open(NavTarget::Page("Beta".into()), OpenIn::NewTab),
         ]
     );
 }
@@ -182,7 +185,7 @@ fn dragging_a_node_moves_it_and_does_not_open_the_page(cx: &mut TestAppContext) 
     assert!(view.read_with(cx, |v, _| v.wants_frames()));
     let moved = screen_of(&view, cx, "Gamma");
     assert!((moved[0] - to[0]).abs() < 1.0 && (moved[1] - to[1]).abs() < 1.0);
-    view.update(cx, |v, cx| v.pointer_up(false, cx));
+    view.update(cx, |v, cx| v.pointer_up(OpenIn::Main, cx));
     assert_eq!(*seen.borrow(), 0);
     // Releasing wakes the simulation to cool again, then frames stop.
     settle(cx, &view);
@@ -198,7 +201,7 @@ fn dragging_empty_space_pans_and_the_wheel_zooms_at_the_cursor(cx: &mut TestAppC
     view.update(cx, |v, cx| {
         v.pointer_down([4000.0, 4000.0], false, cx);
         v.pointer_move([4030.0, 4010.0], cx);
-        v.pointer_up(false, cx);
+        v.pointer_up(OpenIn::Main, cx);
     });
     let panned = view.read_with(cx, |v, _| v.viewport());
     assert!((panned.offset[0] - before.offset[0] - 30.0).abs() < 1e-3);
@@ -244,7 +247,7 @@ fn focus_limits_the_graph_to_n_hops_and_resets(cx: &mut TestAppContext) {
     let at = screen_of(&view, cx, "Delta");
     view.update(cx, |v, cx| {
         v.pointer_down(at, true, cx);
-        v.pointer_up(false, cx);
+        v.pointer_up(OpenIn::Main, cx);
     });
     assert_eq!(view.read_with(cx, |v, _| v.focus().to_vec()), [delta]);
     wait_layout(cx, &view);
@@ -376,7 +379,7 @@ fn right_sidebar_local_graph_follows_the_page_and_click_navigates(cx: &mut TestA
     let at = screen_of(&local, cx, "Gamma");
     local.update(cx, |v, cx| {
         v.pointer_down(at, false, cx);
-        v.pointer_up(false, cx);
+        v.pointer_up(OpenIn::Main, cx);
     });
     assert_eq!(
         *seen.borrow(),
@@ -631,7 +634,7 @@ fn drag_runs_the_simulation_live_then_freezes_everything(cx: &mut TestAppContext
     );
     let live = view.read_with(cx, |v, _| v.positions().to_vec());
     assert_ne!(live, rest);
-    view.update(cx, |v, cx| v.pointer_up(false, cx));
+    view.update(cx, |v, cx| v.pointer_up(OpenIn::Main, cx));
     settle(cx, &view);
     // Once settled the positions are frozen and no frames are requested.
     let frozen = view.read_with(cx, |v, _| v.positions().to_vec());

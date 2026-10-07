@@ -569,10 +569,16 @@ impl JournalsView {
 
     /// Opens the page of entry `ix` (a click on its title).
     pub fn open_entry(&mut self, ix: usize, cx: &mut Context<Self>) {
+        self.open_entry_in(ix, OpenIn::Main, cx);
+    }
+
+    /// Opens the page of entry `ix` in `open` (Shift: sidebar, Ctrl/Cmd: new tab).
+    pub fn open_entry_in(&mut self, ix: usize, open: OpenIn, cx: &mut Context<Self>) {
         if let Some(entry) = self.entries.get(ix) {
-            cx.emit(PageEvent::Navigate(NavTarget::Page(
-                entry.day.title.clone(),
-            )));
+            cx.emit(PageEvent::open(
+                NavTarget::Page(entry.day.title.clone()),
+                open,
+            ));
         }
     }
 
@@ -618,8 +624,9 @@ impl JournalsView {
             .text_color(bt.colors.text)
             .cursor_pointer()
             .child(entry.day.title.clone())
-            .on_click(move |_, _, cx| {
-                title_this.update(cx, |v, cx| v.open_entry(ix, cx));
+            .on_click(move |_, window, cx| {
+                let open = OpenIn::from_modifiers(&window.modifiers());
+                title_this.update(cx, |v, cx| v.open_entry_in(ix, open, cx));
             });
         let header = h_flex()
             .w_full()
@@ -953,10 +960,19 @@ mod tests {
         });
         let rows = view.read_with(cx, |v, _| v.entries()[0].rows.len());
         assert_eq!(rows, 1);
-        view.update(cx, |v, cx| v.open_entry(1, cx));
+        view.update(cx, |v, cx| {
+            v.open_entry(1, cx);
+            v.open_entry_in(1, OpenIn::Sidebar, cx);
+            v.open_entry_in(1, OpenIn::NewTab, cx);
+        });
+        let page = || NavTarget::Page("Jan 2nd, 2024".into());
         assert_eq!(
             *events.borrow(),
-            vec![PageEvent::Navigate(NavTarget::Page("Jan 2nd, 2024".into()))]
+            vec![
+                PageEvent::Navigate(page()),
+                PageEvent::OpenInSidebar(page()),
+                PageEvent::OpenInNewTab(page()),
+            ]
         );
     }
 

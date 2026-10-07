@@ -184,7 +184,7 @@ impl TableDelegate for PagesDelegate {
                     .on_click(move |_, window, cx| {
                         open(
                             name.clone(),
-                            OpenIn::from_shift(window.modifiers().shift),
+                            OpenIn::from_modifiers(&window.modifiers()),
                             cx,
                         );
                     })
@@ -255,7 +255,7 @@ impl AllPagesView {
             }),
             cx.subscribe_in(&table, window, |this, _, event: &TableEvent, window, cx| {
                 if let TableEvent::DoubleClickedRow(ix) = event {
-                    this.open_row(*ix, OpenIn::from_shift(window.modifiers().shift), cx);
+                    this.open_row(*ix, OpenIn::from_modifiers(&window.modifiers()), cx);
                 }
             }),
         ];
@@ -379,7 +379,7 @@ impl AllPagesView {
         cx: &mut Context<Self>,
     ) {
         if let Some(row) = self.table.read(cx).selected_row() {
-            self.open_row(row, OpenIn::from_shift(window.modifiers().shift), cx);
+            self.open_row(row, OpenIn::from_modifiers(&window.modifiers()), cx);
         }
     }
 
@@ -561,12 +561,14 @@ mod tests {
         view.update(cx, |v, cx| {
             v.open_row(1, OpenIn::Main, cx);
             v.open_row(2, OpenIn::Sidebar, cx);
+            v.open_row(1, OpenIn::NewTab, cx);
         });
         assert_eq!(
             *seen.borrow(),
             vec![
                 PageEvent::Navigate(NavTarget::Page("Beta".into())),
                 PageEvent::OpenInSidebar(NavTarget::Page("Gamma".into())),
+                PageEvent::OpenInNewTab(NavTarget::Page("Beta".into())),
             ]
         );
     }
