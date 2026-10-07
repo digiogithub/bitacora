@@ -3,6 +3,7 @@
 pub mod agent_activity;
 pub mod all_pages;
 pub mod block_view;
+pub mod calendar;
 pub mod conflicts;
 pub mod credential_dialog;
 pub mod disk_conflict;

@@ -12,6 +12,17 @@ sidebar:
   group_graph: Graph
   empty: Nothing here yet
   no_graph: No graph open
+  tasks: Tasks
+  graph: Graph
+  overdue: "%{count} overdue tasks"
+  pages_count: "%{count} pages"
+  mcp_active: MCP server active
+  go_to_date: Go to date...
+calendar:
+  prev_month: Previous month
+  next_month: Next month
+  weekdays: "M T W T F S S"
+  months: "January,February,March,April,May,June,July,August,September,October,November,December"
 all_pages:
   title: All pages
   name: Name

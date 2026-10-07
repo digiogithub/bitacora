@@ -120,6 +120,32 @@ fn agenda_window_excludes_done_and_includes_repeating() {
 }
 
 #[test]
+fn journal_days_with_notes_skips_blank_days_and_other_months() {
+    let fx = indexed(&[
+        ("journals/2026_10_03.md", "- met Ana\n"),
+        ("journals/2026_10_04.md", "- \n"),
+        ("journals/2026_10_20.md", "- later\n- more\n"),
+        ("journals/2026_09_30.md", "- september\n"),
+        ("pages/NotAJournal.md", "- text\n"),
+    ]);
+    let days = fx
+        .reader
+        .journal_days_with_notes(20_261_001, 20_261_031)
+        .expect("days");
+    assert_eq!(days, [20_261_003, 20_261_020]);
+}
+
+#[test]
+fn overdue_count_ignores_done_future_and_undated() {
+    let fx = tasks_graph();
+    // On 2026-10-07: write report (10-06), weekly (09-01), past (09-30) are overdue; DONE and
+    // CANCELED, "review" (deadline 10-08), "far away" and undated tasks are not.
+    assert_eq!(fx.reader.overdue_task_count(20_261_007).expect("n"), 3);
+    assert_eq!(fx.reader.overdue_task_count(20_000_101).expect("n"), 0);
+    assert_eq!(fx.reader.file_page_count().expect("pages"), 2);
+}
+
+#[test]
 fn namespace_children_and_tree_depth_three() {
     let fx = indexed(&[
         ("pages/plan.md", "title:: work/q3/plan\n\n- plan\n"),

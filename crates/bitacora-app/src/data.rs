@@ -527,6 +527,47 @@ pub fn journal_days(
     Ok((days, more))
 }
 
+/// What the left sidebar reads from the index (BIT-US-0123).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct SidebarData {
+    /// Journal days (`yyyyMMdd`) of the displayed month that have content.
+    pub with_notes: std::collections::HashSet<u32>,
+    /// Open tasks whose scheduled date or deadline is before today.
+    pub overdue: usize,
+    /// Pages backed by a file.
+    pub pages: usize,
+}
+
+/// Calendar dots for `[first_day, last_day]`, the overdue count as of `today` (`0` when the
+/// date is unknown) and the page count.
+pub fn sidebar_data(
+    h: &GraphHandle,
+    first_day: u32,
+    last_day: u32,
+    today: Option<Date>,
+) -> Result<SidebarData, String> {
+    let with_notes = h
+        .reader
+        .journal_days_with_notes(i64::from(first_day), i64::from(last_day))
+        .map_err(err)?
+        .into_iter()
+        .filter_map(|d| u32::try_from(d).ok())
+        .collect();
+    let overdue = match today {
+        Some(t) => h
+            .reader
+            .overdue_task_count(i64::from(t.journal_day()))
+            .map_err(err)?,
+        None => 0,
+    };
+    let pages = h.reader.file_page_count().map_err(err)?;
+    Ok(SidebarData {
+        with_notes,
+        overdue,
+        pages,
+    })
+}
+
 /// First rows of a journal (properties pre-block kept as a row) for the feed.
 pub fn journal_rows(
     h: &GraphHandle,
