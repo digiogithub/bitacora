@@ -11,6 +11,7 @@ use std::time::Duration;
 use bitacora_core::editor::Cmd;
 use bitacora_core::queue::Source;
 use bitacora_index::{TaskFilter, TaskGroup, TaskGroups, TaskItem};
+use bitacora_markdown::edit::state::{clear_planning, move_planning_date};
 use bitacora_markdown::tasks::head::Marker;
 use rust_i18n::t;
 
@@ -25,8 +26,10 @@ use crate::ui::{
     ParentElement as _, Render, StatefulInteractiveElement as _, Styled as _, Task, Window, div,
     h_flex, v_flex,
 };
+use crate::views::calendar::Month;
 use crate::views::kit::{Card, Overline, Pill, Surface, TaskMarker};
 use crate::views::page_view::PageEvent;
+use crate::views::planning::{self, OpenPicker, PlanningActions, PlanningChipView};
 
 /// Debounce between an index change and the reload.
 const REFRESH_DEBOUNCE: Duration = Duration::from_millis(300);
@@ -228,6 +231,14 @@ pub enum RowAction {
     Complete,
     /// Marker click: next marker of the workflow.
     Cycle,
+    /// Date chip: move (`Some(yyyyMMdd)`) or remove (`None`) the `SCHEDULED:` / `DEADLINE:`
+    /// date.
+    Reschedule {
+        /// Keyword as written in the file.
+        keyword: &'static str,
+        /// The new day.
+        day: Option<u32>,
+    },
 }
 
 /// Applies `action` to the block of `row` through the command queue (one undoable transaction).
@@ -261,10 +272,23 @@ pub fn apply_action(
         RowAction::Cycle => Cmd::CycleMarker {
             ids: vec![block.id],
         },
+        RowAction::Reschedule { keyword, day } => {
+            // Only the planning line changes (BIT-US-0167).
+            let text = match day {
+                Some(key) => {
+                    let (y, m, d) = planning::split_key(key);
+                    move_planning_date(&block.text, keyword, y, m, d)
+                }
+                None => clear_planning(&block.text, keyword),
+            };
+            Cmd::SetText { id: block.id, text }
+        }
     };
     let label = match action {
         RowAction::Complete => "Complete task",
         RowAction::Cycle => "Cycle task marker",
+        RowAction::Reschedule { day: Some(_), .. } => "Reschedule task",
+        RowAction::Reschedule { day: None, .. } => "Remove task date",
     };
     link.queue
         .run(Source::Ui, label, cmd)
@@ -293,6 +317,8 @@ pub struct TasksView {
     load_task: Option<Task<()>>,
     refresh_task: Option<Task<()>>,
     action_task: Option<Task<()>>,
+    /// The open date picker: block uuid and picker (BIT-US-0167).
+    planning: Option<(String, OpenPicker)>,
 }
 
 impl std::fmt::Debug for TasksView {
@@ -318,6 +344,7 @@ impl TasksView {
             load_task: None,
             refresh_task: None,
             action_task: None,
+            planning: None,
         }
     }
 
@@ -416,6 +443,111 @@ impl TasksView {
                 cx.notify();
             });
         }));
+    }
+
+    /// The picker open on the row `uuid`, if any.
+    #[must_use]
+    pub fn planning_open(&self) -> Option<(&str, OpenPicker)> {
+        self.planning.as_ref().map(|(u, o)| (u.as_str(), *o))
+    }
+
+    /// Opens the date picker of the row `uuid` on the month of its date.
+    pub fn open_planning(&mut self, uuid: &str, keyword: &'static str, cx: &mut Context<Self>) {
+        let due = self
+            .model
+            .rows
+            .iter()
+            .find(|r| r.uuid == uuid)
+            .and_then(|r| r.due)
+            .unwrap_or(0);
+        let month = Month {
+            year: i32::try_from(due / 10_000).unwrap_or(1970),
+            month: u8::try_from(due / 100 % 100).unwrap_or(1).clamp(1, 12),
+        };
+        self.planning = Some((uuid.to_owned(), OpenPicker { keyword, month }));
+        cx.notify();
+    }
+
+    /// Closes the date picker.
+    pub fn close_planning(&mut self, cx: &mut Context<Self>) {
+        if self.planning.take().is_some() {
+            cx.notify();
+        }
+    }
+
+    /// The month arrows of the open picker.
+    pub fn shift_planning(&mut self, delta: i32, cx: &mut Context<Self>) {
+        if let Some((_, open)) = self.planning.as_mut() {
+            open.month = crate::views::calendar::shift_month(open.month, delta);
+            cx.notify();
+        }
+    }
+
+    /// Moves (`Some(yyyyMMdd)`) or removes (`None`) the date of the open picker's row.
+    pub fn reschedule(&mut self, day: Option<u32>, cx: &mut Context<Self>) {
+        let Some((uuid, open)) = self.planning.take() else {
+            return;
+        };
+        let keyword = open.keyword;
+        self.act(&uuid, RowAction::Reschedule { keyword, day }, cx);
+    }
+
+    fn planning_actions(&self, uuid: &str, cx: &mut Context<Self>) -> PlanningActions {
+        let view = cx.entity();
+        let open = self
+            .planning
+            .as_ref()
+            .filter(|(u, _)| u == uuid)
+            .map(|(_, o)| *o);
+        let today = jiff::Zoned::now();
+        let today = bitacora_core::date::Date::new(
+            i32::from(today.year()),
+            u8::try_from(today.month()).unwrap_or(1),
+            u8::try_from(today.day()).unwrap_or(1),
+        );
+        let uuid = uuid.to_owned();
+        let on_open = {
+            let (view, uuid) = (view.clone(), uuid);
+            std::rc::Rc::new(
+                move |kw: &'static str, _: &mut Window, cx: &mut crate::ui::App| {
+                    view.update(cx, |v, cx| v.open_planning(&uuid, kw, cx));
+                },
+            )
+        };
+        let on_shift = {
+            let view = view.clone();
+            std::rc::Rc::new(move |delta: i32, _: &mut Window, cx: &mut crate::ui::App| {
+                view.update(cx, |v, cx| v.shift_planning(delta, cx));
+            })
+        };
+        let on_pick = {
+            let view = view.clone();
+            std::rc::Rc::new(
+                move |_: &'static str, key: u32, _: &mut Window, cx: &mut crate::ui::App| {
+                    view.update(cx, |v, cx| v.reschedule(Some(key), cx));
+                },
+            )
+        };
+        let on_clear = {
+            let view = view.clone();
+            std::rc::Rc::new(
+                move |_: &'static str, _: &mut Window, cx: &mut crate::ui::App| {
+                    view.update(cx, |v, cx| v.reschedule(None, cx));
+                },
+            )
+        };
+        let on_close = std::rc::Rc::new(move |_: &mut Window, cx: &mut crate::ui::App| {
+            view.update(cx, |v, cx| v.close_planning(cx));
+        });
+        PlanningActions {
+            open,
+            today,
+            on_open,
+            on_shift,
+            on_pick,
+            on_clear,
+            on_close,
+        }
     }
 
     fn open(&mut self, uuid: &str, open: OpenIn, cx: &mut Context<Self>) {
@@ -599,7 +731,22 @@ impl TasksView {
                                         })
                                         .child(t!("tasks.in_page", page = task.page).to_string()),
                                 )
-                                .child(div().when(overdue, |d| d.text_color(c.warn)).child(sched)),
+                                .child(match task.due {
+                                    Some(d) => div().when(overdue, |d| d.text_color(c.warn)).child(
+                                        PlanningChipView::new(
+                                            format!("task-{}", task.ord),
+                                            if task.deadline {
+                                                "DEADLINE"
+                                            } else {
+                                                "SCHEDULED"
+                                            },
+                                            &format!("<{}>", format_day(d)),
+                                            editable.then(|| self.planning_actions(&uuid, cx)),
+                                        )
+                                        .label(sched),
+                                    ),
+                                    None => div().child(sched),
+                                }),
                         ),
                 ),
         )
@@ -822,6 +969,71 @@ mod tests {
         cfg.debounce = None;
         let session = Session::open(cfg).expect("session");
         (graph, data, session)
+    }
+
+    #[test]
+    fn rescheduling_rewrites_only_the_date_and_is_undoable() {
+        let src = "- TODO first\n  SCHEDULED: <2026-10-06 Tue .+1d>\n  id:: 11111111-1111-1111-1111-111111111111\n- TODO second\n  DEADLINE: <2026-10-09 Fri>\n";
+        let (graph, _data, session) = session(&[("pages/Work.md", src)]);
+        let handle = GraphHandle {
+            reader: session.read_api(),
+            root: session.root().to_path_buf(),
+            settings: Arc::new(crate::data::ViewSettings::from_config(session.config())),
+        };
+        let link = SessionLink {
+            queue: session.queue().clone(),
+            config: Arc::new(session.config().clone()),
+            mcp_endpoint: None,
+            gate: Arc::default(),
+            lookup: session.ref_lookup(),
+            hybrid: None,
+        };
+        let model = load_tasks(&handle, TODAY).expect("tasks");
+        let first = model
+            .rows
+            .iter()
+            .find(|r| r.title == "first")
+            .expect("first");
+        let second = model
+            .rows
+            .iter()
+            .find(|r| r.title == "second")
+            .expect("second");
+        let read = || {
+            let _ = link.queue.flush(Source::Ui).expect("flush");
+            std::fs::read_to_string(graph.path().join("pages/Work.md")).expect("read")
+        };
+        let day = Some(20_261_015);
+        apply_action(
+            &link,
+            &handle,
+            first,
+            RowAction::Reschedule {
+                keyword: planning::SCHEDULED,
+                day,
+            },
+        )
+        .expect("reschedule");
+        assert_eq!(
+            read(),
+            src.replace("2026-10-06 Tue", "2026-10-15 Thu"),
+            "the repeater and the other lines are untouched"
+        );
+        apply_action(
+            &link,
+            &handle,
+            second,
+            RowAction::Reschedule {
+                keyword: planning::DEADLINE,
+                day: None,
+            },
+        )
+        .expect("remove");
+        assert!(!read().contains("DEADLINE"));
+        link.queue.undo(Source::Ui).expect("queue").expect("undo");
+        link.queue.undo(Source::Ui).expect("queue").expect("undo");
+        assert_eq!(read(), src);
+        let _ = session.shutdown(Duration::from_secs(10));
     }
 
     #[test]

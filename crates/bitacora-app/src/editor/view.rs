@@ -41,6 +41,7 @@ use crate::ui::{
 
 mod ai;
 mod dnd;
+mod planning;
 mod slash;
 
 pub use slash::Clock;
@@ -170,6 +171,8 @@ pub struct OutlineEditor {
     scroll_task: Option<crate::ui::Task<()>>,
     /// The open calendar (`/date picker`, `/scheduled`, `/deadline`; BIT-US-0105).
     picker: Option<slash::DatePick>,
+    /// The open SCHEDULED / DEADLINE chip picker (BIT-US-0167).
+    planning: Option<(BlockId, crate::views::planning::OpenPicker)>,
     /// Local date and time (replaced in tests).
     clock: Clock,
     /// The trigger the user dismissed with Esc (it stays closed until the text leaves it).
@@ -253,6 +256,7 @@ impl OutlineEditor {
             flush_epoch: 0,
             completion: None,
             picker: None,
+            planning: None,
             drop_hint: None,
             scroll_dir: 0.,
             scroll_task: None,
@@ -1352,6 +1356,7 @@ impl OutlineEditor {
             on_bullet,
             on_toggle,
             drag: Self::row_drag(editor, r, id, cx),
+            planning: Some(Self::planning_actions(editor, id, cx)),
         })
     }
 

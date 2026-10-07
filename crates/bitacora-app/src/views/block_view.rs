@@ -497,17 +497,14 @@ pub fn render_block_row(
 
     if !block.planning.is_empty() {
         let mut chips = h_flex().gap_2().flex_wrap();
-        for chip in &block.planning {
-            chips = chips.child(
-                h_flex()
-                    .gap_1()
-                    .px(dims::PX_6)
-                    .rounded(dims::PX_4)
-                    .bg(theme.secondary)
-                    .text_xs()
-                    .child(icon(IconName::Calendar).size(dims::PX_12))
-                    .child(format!("{} {}", chip.keyword, chip.text)),
-            );
+        let planning = edit.and_then(|e| e.planning.clone());
+        for (n, chip) in block.planning.iter().enumerate() {
+            chips = chips.child(crate::views::planning::PlanningChipView::new(
+                format!("{id}-{n}"),
+                chip.keyword,
+                &chip.text,
+                planning.clone(),
+            ));
         }
         content = content.child(chips);
     }

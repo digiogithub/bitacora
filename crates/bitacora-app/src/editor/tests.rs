@@ -219,6 +219,7 @@ fn pair(depth: usize, text: &str) -> (usize, String) {
 
 mod ai_tests;
 mod dnd_tests;
+mod planning_tests;
 mod slash_tests;
 
 const HOME: &str = "pages/Home.md";
