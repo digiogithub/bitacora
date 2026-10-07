@@ -35,6 +35,13 @@ fn allowed_edges() -> BTreeMap<&'static str, BTreeSet<&'static str>> {
         s.insert("bitacora-graph");
         s
     };
+    // ADR-028: `bitacora-pando` sits between index and runtime; the runtime and the front ends
+    // may name it (events, settings types).
+    let with_pando = |base: &BTreeSet<&'static str>| {
+        let mut s = base.clone();
+        s.insert("bitacora-pando");
+        s
+    };
     let with_runtime = |base: &BTreeSet<&'static str>| {
         let mut s = base.clone();
         s.insert("bitacora-runtime");
@@ -68,10 +75,25 @@ fn allowed_edges() -> BTreeMap<&'static str, BTreeSet<&'static str>> {
             ]),
         ),
         // ADR-024: the headless session composing core+index+watch+sync+mcp; no UI.
-        ("bitacora-runtime", with_graph(&frontends)),
+        ("bitacora-runtime", with_pando(&with_graph(&frontends))),
         ("bitacora-graph", set(&[])),
-        ("bitacora-app", with_graph(&with_runtime(&frontends))),
-        ("bitacora-cli", with_runtime(&frontends)),
+        // ADR-027: the generic SDK depends on no bitacora crate.
+        ("pando-rs", set(&[])),
+        // ADR-028: index <- pando <- runtime.
+        (
+            "bitacora-pando",
+            set(&[
+                "bitacora-config",
+                "bitacora-core",
+                "bitacora-index",
+                "pando-rs",
+            ]),
+        ),
+        (
+            "bitacora-app",
+            with_pando(&with_graph(&with_runtime(&frontends))),
+        ),
+        ("bitacora-cli", with_pando(&with_runtime(&frontends))),
         // Dev-only helpers: nothing may depend on it in [dependencies].
         ("bitacora-testkit", set(&[])),
         ("xtask", set(&[])),
@@ -210,6 +232,17 @@ pub fn check(pkgs: &[Pkg]) -> Vec<String> {
         errors
             .push("`bitacora-core` has `tokio` in its normal dependency closure (ADR-012)".into());
     }
+    // 5. ADR-028: the Pando SDK and integration crate never enter the core closure.
+    if by_name.contains_key("bitacora-core") {
+        let c = closure("bitacora-core");
+        for banned in ["pando-rs", "bitacora-pando"] {
+            if c.contains(banned) {
+                errors.push(format!(
+                    "`bitacora-core` has `{banned}` in its normal dependency closure (ADR-028)"
+                ));
+            }
+        }
+    }
     errors
 }
 
@@ -329,6 +362,38 @@ mod tests {
         }
         let errs = check(&v);
         assert!(errs.iter().any(|e| e.contains("tokio")), "{errs:?}");
+    }
+
+    #[test]
+    fn pando_in_core_closure_fails() {
+        let mut v = with_app_pin(good(), "=0.7.1");
+        v.push(pkg("pando-rs", true, &[]));
+        for p in &mut v {
+            if p.name == "bitacora-config" {
+                p.deps.insert("pando-rs".into());
+            }
+        }
+        let errs = check(&v);
+        assert!(errs.iter().any(|e| e.contains("ADR-028")), "{errs:?}");
+    }
+
+    #[test]
+    fn pando_sdk_depending_on_bitacora_fails() {
+        let mut v = with_app_pin(good(), "=0.7.1");
+        v.push(pkg("pando-rs", true, &["bitacora-config"]));
+        assert!(!check(&v).is_empty());
+    }
+
+    #[test]
+    fn pando_crate_edges_are_allowed() {
+        let mut v = with_app_pin(good(), "=0.7.1");
+        v.push(pkg("pando-rs", true, &[]));
+        v.push(pkg(
+            "bitacora-pando",
+            true,
+            &["bitacora-config", "bitacora-core", "pando-rs"],
+        ));
+        assert_eq!(check(&v), Vec::<String>::new());
     }
 
     #[test]

@@ -45,6 +45,7 @@ bitacora-index = { path = "crates/bitacora-index" }
 bitacora-merge = { path = "crates/bitacora-merge" }
 bitacora-sync = { path = "crates/bitacora-sync" }
 bitacora-mcp = { path = "crates/bitacora-mcp" }
+bitacora-pando = { path = "crates/bitacora-pando" }
 bitacora-runtime = { path = "crates/bitacora-runtime" }
 bitacora-graph = { path = "crates/bitacora-graph" }
 bitacora-testkit = { path = "crates/bitacora-testkit" }
