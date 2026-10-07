@@ -973,6 +973,8 @@ impl Workspace {
                 });
                 self.refresh_settings(window, cx);
                 self.refresh_agent_configured(cx);
+                self.panel
+                    .update(cx, |panel, cx| panel.set_hybrid(link.hybrid.clone(), cx));
                 for pane in self.panes(cx) {
                     let link = link.clone();
                     pane.update(cx, |main, cx| main.set_session_link(link, window, cx));
@@ -2116,7 +2118,9 @@ impl Workspace {
         let page_id = self.main.read(cx).current_page_id(cx);
         let handle = self.handle.clone();
         let recent = self.graph_state.recent.clone();
+        let hybrid = self.link.as_ref().and_then(|l| l.hybrid.clone());
         self.palette.update(cx, |palette, cx| {
+            palette.set_hybrid(hybrid);
             palette.open_search(handle, page_id, recent, window, cx);
         });
     }

@@ -198,12 +198,14 @@ fn event_paths(ev: &IndexEvent) -> Vec<String> {
 }
 
 /// Snapshot of the worker for the UI.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SemanticStatus {
     /// Documents acknowledged by the server.
     pub synced: u64,
     /// Operations waiting in the outbox.
     pub pending: u64,
+    /// Error of the latest failed send still waiting for a retry.
+    pub last_error: Option<String>,
 }
 
 /// What [`SemanticWorker::start`] needs.
@@ -356,6 +358,7 @@ impl SemanticWorker {
         SemanticStatus {
             synced: self.ledger.synced_count().unwrap_or(0),
             pending: self.ledger.pending_count().unwrap_or(0),
+            last_error: self.ledger.last_error().unwrap_or(None),
         }
     }
 

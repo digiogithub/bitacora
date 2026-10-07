@@ -538,6 +538,24 @@ impl Ledger {
         self.count("semantic_outbox")
     }
 
+    /// The error of the most recent failed send still waiting in the outbox (cleared when the row
+    /// is acknowledged).
+    ///
+    /// # Errors
+    /// SQLite failures.
+    pub fn last_error(&self) -> Result<Option<String>, SemanticError> {
+        let conn = self.conn.lock();
+        let mut st = conn.prepare_cached(
+            "SELECT last_error FROM semantic_outbox WHERE last_error IS NOT NULL \
+             ORDER BY attempts DESC, seq DESC LIMIT 1",
+        )?;
+        let mut rows = st.query([])?;
+        match rows.next()? {
+            Some(row) => Ok(row.get(0)?),
+            None => Ok(None),
+        }
+    }
+
     /// Acknowledged documents (tests and diagnostics).
     ///
     /// # Errors
@@ -557,5 +575,24 @@ impl Ledger {
                 })
             })?
             .collect::<Result<_, _>>()?)
+    }
+}
+
+#[cfg(test)]
+mod last_error_tests {
+    use super::*;
+
+    #[test]
+    fn last_error_reports_the_failed_send_until_it_is_acknowledged() {
+        let ledger = Ledger::open_in_memory("remote").expect("ledger");
+        assert_eq!(ledger.last_error().expect("none"), None);
+        ledger
+            .enqueue_upsert("doc", "uuid", "pages/A.md", "h1")
+            .expect("enqueue");
+        let entry = ledger.due(i64::MAX, 10).expect("due").remove(0);
+        ledger.fail(&entry, 0, "boom").expect("fail");
+        assert_eq!(ledger.last_error().expect("error").as_deref(), Some("boom"));
+        ledger.complete(&entry, None).expect("complete");
+        assert_eq!(ledger.last_error().expect("none"), None);
     }
 }

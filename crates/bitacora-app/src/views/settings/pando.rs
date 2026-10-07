@@ -58,6 +58,8 @@ pub struct LiveStatus {
     pub log: Option<PathBuf>,
     /// `(synced, pending)` documents of the semantic sync.
     pub semantic: Option<(u64, u64)>,
+    /// Latest failed send of the semantic sync still waiting for a retry.
+    pub semantic_error: Option<String>,
 }
 
 /// Everything the Pando section keeps between renders.
@@ -270,6 +272,7 @@ impl SettingsView {
             managed: s.pando().and_then(|p| p.managed_status()),
             log: s.pando().and_then(|p| p.managed_log_path()),
             semantic: s.semantic_status().map(|st| (st.synced, st.pending)),
+            semantic_error: s.semantic_status().and_then(|st| st.last_error),
         });
         cx.spawn(async move |this, cx| {
             if let Ok(live) = rx.recv().await {
@@ -280,6 +283,31 @@ impl SettingsView {
             }
         })
         .detach();
+    }
+
+    /// Sends the whole graph's documents again now (re-diff plus retry of failed sends).
+    pub(crate) fn resync_semantic(&mut self, cx: &mut Context<Self>) {
+        if let Some(session) = self.ctx.session.clone() {
+            let _ = session.run(|s| {
+                if let Some(worker) = s.semantic() {
+                    worker.reconcile();
+                    worker.retry_now();
+                }
+            });
+        }
+        self.refresh_pando_live(cx);
+    }
+
+    /// Removes the graph's documents from Pando's semantic index (after the user confirmed).
+    pub(crate) fn purge_semantic(&mut self, cx: &mut Context<Self>) {
+        if let Some(session) = self.ctx.session.clone() {
+            let _ = session.run(|s| {
+                if let Some(worker) = s.semantic() {
+                    worker.purge();
+                }
+            });
+        }
+        self.refresh_pando_live(cx);
     }
 
     /// Validates and saves `settings`, then tells the workspace. Nothing is written on a
@@ -946,12 +974,38 @@ impl SettingsView {
             None => t!("settings.pando.sync_none").to_string(),
         };
         let log = live.and_then(|l| l.log.clone());
+        let running = live.is_some_and(|l| l.semantic.is_some());
+        let sync = match live.and_then(|l| l.semantic_error.as_deref()) {
+            Some(error) => format!(
+                "{sync} - {}",
+                t!("settings.pando.sync_error", error = error)
+            ),
+            None => sync,
+        };
         row(
             theme,
             t!("settings.pando.sync").to_string(),
             Some(sync),
             h_flex()
                 .gap_2()
+                .child(
+                    Button::new("settings-pando-resync")
+                        .small()
+                        .label(t!("settings.pando.resync").to_string())
+                        .disabled(!running)
+                        .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                            this.resync_semantic(cx);
+                        })),
+                )
+                .child(
+                    Button::new("settings-pando-purge-index")
+                        .small()
+                        .label(t!("settings.pando.purge_index").to_string())
+                        .disabled(!running)
+                        .on_click(cx.listener(|this, _: &ClickEvent, window, cx| {
+                            this.request(Pending::PurgeSemantic, window, cx);
+                        })),
+                )
                 .child(
                     Button::new("settings-pando-refresh")
                         .small()

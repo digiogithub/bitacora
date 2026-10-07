@@ -97,6 +97,11 @@ settings:
     sync: Semantic sync
     sync_counts: "%{synced} documents in Pando, %{pending} waiting."
     sync_none: Not running.
+    resync: Resync
+    purge_index: Remove semantic data
+    purge_index_title: Remove this graph's semantic data?
+    purge_index_body: The graph's blocks are deleted from Pando's semantic index. Your files are not touched. Resync sends them again.
+    sync_error: "last error: %{error}"
     refresh: Refresh
     target_managed: a Pando server that Bitacora starts on this computer
     consent_title: Send this graph's notes to Pando?

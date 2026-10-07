@@ -50,6 +50,13 @@ palette:
   searching: Searching...
   no_results: No results
   type_to_search: Type to search pages and blocks
+  semantic_toggle: Semantic
+  semantic_badge: semantic
+  semantic_stale: may be outdated
+  semantic_unavailable: "semantic unavailable: %{why}"
+  semantic_why_disabled: Pando is off for this graph
+  semantic_why_offline: Pando is offline
+  semantic_why_timeout: Pando timed out
   reindexing: Rebuilding the index...
   cmd_journals: "Go to: Journals"
   cmd_all_pages: "Go to: All pages"
@@ -169,6 +176,9 @@ right:
   properties: Properties
   backlinks: Backlinks
   no_backlinks: Nothing links here yet.
+  related: Related blocks
+  related_loading: Looking for related blocks...
+  no_related: No related blocks found.
   agent_empty_title: Ask your graph
   agent_empty_hint: The assistant will chat here about the page on screen.
   agent_unconfigured_title: Pando not configured

@@ -189,6 +189,9 @@ pub enum Pending {
         /// Also remove the documents already sent.
         purge: bool,
     },
+    /// Remove the graph's documents from Pando's semantic index (consent stays; Resync
+    /// sends them again).
+    PurgeSemantic,
     /// Restore every default shortcut.
     ResetKeymap,
     /// Bind a keystroke that another action in the context already uses.
@@ -812,6 +815,7 @@ impl SettingsView {
             Pending::RotateToken(name) => self.rotate_token(&name, cx),
             Pending::GrantPandoConsent { .. } => self.grant_pando_consent(cx),
             Pending::RevokePandoConsent { purge } => self.revoke_pando_consent(purge, cx),
+            Pending::PurgeSemantic => self.purge_semantic(cx),
             Pending::ResetKeymap => self.reset_keymap(cx),
             Pending::KeymapConflict {
                 context,
@@ -995,6 +999,10 @@ fn confirmation_for(pending: &Pending) -> Confirmation {
             t!("settings.pando.purge_title").to_string(),
             t!("settings.pando.purge_body").to_string(),
         ),
+        Pending::PurgeSemantic => (
+            t!("settings.pando.purge_index_title").to_string(),
+            t!("settings.pando.purge_index_body").to_string(),
+        ),
         Pending::ResetKeymap => (
             t!("settings.confirm.reset_keys_title").to_string(),
             t!("settings.confirm.reset_keys_body").to_string(),
@@ -1013,6 +1021,7 @@ fn confirmation_for(pending: &Pending) -> Confirmation {
     let ok_text = match pending {
         Pending::RevokeToken(_) => t!("settings.agents.revoke"),
         Pending::RotateToken(_) => t!("settings.agents.rotate"),
+        Pending::PurgeSemantic => t!("settings.pando.purge_index"),
         Pending::ResetKeymap => t!("settings.keymap.reset"),
         Pending::GrantPandoConsent { .. } => t!("settings.pando.grant"),
         Pending::RevokePandoConsent { purge: false } => t!("settings.pando.revoke"),

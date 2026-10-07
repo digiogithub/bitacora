@@ -9,6 +9,9 @@
 use std::time::Duration;
 
 use bitacora_index::search::{Scope, SearchHit, SearchOptions, Snippet};
+use bitacora_runtime::{
+    HybridHit, HybridOptions, HybridResults, HybridSearch, HybridTarget, SemanticState, Unavailable,
+};
 use rust_i18n::t;
 
 use crate::actions::{ClosePalette, CycleSearchScope, OpenResultInSidebar};
@@ -24,6 +27,7 @@ use crate::ui::{
     ParentElement as _, Render, Selectable as _, SharedString, Sizable as _, Styled as _,
     Subscription, Task, Window, div, h_flex, icon, px, v_flex,
 };
+use crate::views::kit::{Chip, ChipTone, Glyph};
 
 /// Time the palette waits after a keystroke before querying the index.
 pub const SEARCH_DEBOUNCE: Duration = Duration::from_millis(30);
@@ -249,6 +253,10 @@ pub enum Hit {
         page: String,
         /// Content window with highlight ranges.
         snippet: Snippet,
+        /// Pando's semantic search also returned it (shows the semantic badge).
+        semantic: bool,
+        /// Changed locally since Pando embedded it: the semantic match may be outdated.
+        stale: bool,
     },
 }
 
@@ -274,6 +282,8 @@ impl Hit {
                 uuid,
                 page: page_title,
                 snippet,
+                semantic: false,
+                stale: false,
             },
         }
     }
@@ -293,23 +303,89 @@ pub fn run_search(
     scope: SearchScope,
     current_page: Option<i64>,
 ) -> Result<Vec<Hit>, String> {
+    let opts = search_options(scope, current_page);
+    handle
+        .reader
+        .search(query, &opts)
+        .map(|hits| hits.into_iter().map(Hit::from_index).collect())
+        .map_err(|e| e.to_string())
+}
+
+/// Maps one fused hybrid hit to a palette row. Page hits resolve by title.
+fn hit_from_hybrid(hit: HybridHit) -> Hit {
+    let semantic = hit.semantic_rank.is_some();
+    match hit.target {
+        HybridTarget::Page { .. } => Hit::Page {
+            title: hit.title,
+            snippet: hit.snippet,
+            is_journal: hit.is_journal,
+        },
+        HybridTarget::Block { uuid } => Hit::Block {
+            uuid,
+            page: hit.title,
+            snippet: hit.snippet,
+            semantic,
+            stale: hit.stale,
+        },
+    }
+}
+
+/// The subtle hint shown when the semantic half of an answer is missing
+/// ("semantic unavailable: ..."); `None` when semantic results were used.
+fn semantic_hint(state: &SemanticState) -> Option<String> {
+    let SemanticState::Unavailable(why) = state else {
+        return None;
+    };
+    let why = match why {
+        Unavailable::Disabled => t!("palette.semantic_why_disabled").to_string(),
+        Unavailable::Offline => t!("palette.semantic_why_offline").to_string(),
+        Unavailable::Timeout => t!("palette.semantic_why_timeout").to_string(),
+        Unavailable::Failed(message) => message.clone(),
+    };
+    Some(t!("palette.semantic_unavailable", why = why).to_string())
+}
+
+/// Turns a hybrid answer into palette rows plus the unavailable hint.
+pub fn hits_from_hybrid(results: HybridResults) -> (Vec<Hit>, Option<String>) {
+    let hint = semantic_hint(&results.semantic);
+    (
+        results.hits.into_iter().map(hit_from_hybrid).collect(),
+        hint,
+    )
+}
+
+/// Runs a hybrid search (lexical + Pando's semantic results); blocking for up to the Pando
+/// timeout, call from a background thread.
+pub fn run_hybrid_search(
+    hybrid: &HybridSearch,
+    query: &str,
+    scope: SearchScope,
+    current_page: Option<i64>,
+) -> Result<(Vec<Hit>, Option<String>), String> {
+    let opts = HybridOptions {
+        limit: RESULT_LIMIT,
+        lexical: search_options(scope, current_page),
+        ..HybridOptions::default()
+    };
+    hybrid
+        .search(query, &opts)
+        .map(hits_from_hybrid)
+        .map_err(|e| e.to_string())
+}
+
+fn search_options(scope: SearchScope, current_page: Option<i64>) -> SearchOptions {
     let scope = match scope {
         SearchScope::All => Scope::All,
         SearchScope::ThisPage => current_page.map_or(Scope::All, Scope::Page),
         SearchScope::Journals => Scope::Journals,
         SearchScope::Pages => Scope::Pages,
     };
-    let opts = SearchOptions {
+    SearchOptions {
         limit: RESULT_LIMIT,
         scope,
         today: data::today_key(),
         ..SearchOptions::default()
-    };
-    handle
-        .reader
-        .search(query, &opts)
-        .map(|hits| hits.into_iter().map(Hit::from_index).collect())
-        .map_err(|e| e.to_string())
+    }
 }
 
 /// What a row of the palette does when confirmed.
@@ -325,6 +401,9 @@ pub struct Palette {
     state: Entity<CommandState>,
     mode: Option<PaletteMode>,
     handle: Option<GraphHandle>,
+    hybrid: Option<HybridSearch>,
+    semantic_on: bool,
+    semantic_hint: Option<String>,
     current_page: Option<i64>,
     scope: SearchScope,
     query: String,
@@ -358,6 +437,9 @@ impl Palette {
             state,
             mode: None,
             handle: None,
+            hybrid: None,
+            semantic_on: true,
+            semantic_hint: None,
             current_page: None,
             scope: SearchScope::All,
             query: String::new(),
@@ -391,6 +473,31 @@ impl Palette {
     /// The scope chip selected.
     pub fn scope(&self) -> SearchScope {
         self.scope
+    }
+
+    /// Gives the palette the session's hybrid searcher (`None` keeps it lexical only).
+    pub fn set_hybrid(&mut self, hybrid: Option<HybridSearch>) {
+        self.hybrid = hybrid;
+    }
+
+    /// Whether queries also ask the semantic index (the toggle; on by default).
+    pub fn semantic_enabled(&self) -> bool {
+        self.semantic_on
+    }
+
+    /// The "semantic unavailable: ..." hint of the last answer, when semantic was asked for but
+    /// missing.
+    pub fn semantic_hint(&self) -> Option<&str> {
+        self.semantic_hint.as_deref()
+    }
+
+    /// Turns the semantic half on or off and searches again.
+    pub fn set_semantic(&mut self, on: bool, cx: &mut Context<Self>) {
+        if self.semantic_on != on {
+            self.semantic_on = on;
+            self.start_search(cx);
+            cx.notify();
+        }
     }
 
     /// The results of the last finished query.
@@ -428,6 +535,7 @@ impl Palette {
         self.mode = Some(mode);
         self.query.clear();
         self.results.clear();
+        self.semantic_hint = None;
         self.searching = false;
         self.search_task = None;
         self.scope = SearchScope::All;
@@ -483,6 +591,7 @@ impl Palette {
         self.search_task = None;
         let Some(handle) = self.handle.clone().filter(|_| !query.is_empty()) else {
             self.results.clear();
+            self.semantic_hint = None;
             self.searching = false;
             cx.notify();
             return;
@@ -490,23 +599,52 @@ impl Palette {
         self.searching = true;
         let scope = self.scope;
         let page = self.current_page;
+        let hybrid = self.hybrid.clone().filter(|_| self.semantic_on);
         self.search_task = Some(cx.spawn(async move |this, cx| {
             cx.background_executor().timer(SEARCH_DEBOUNCE).await;
-            let result = cx
+            // The local answer is shown at once; the hybrid one (which may wait for Pando)
+            // replaces it when it arrives, unless the query changed meanwhile.
+            let lexical = {
+                let (handle, query) = (handle.clone(), query.clone());
+                cx.background_executor()
+                    .spawn(async move { run_search(&handle, &query, scope, page) })
+                    .await
+            };
+            let has_hybrid = hybrid.is_some();
+            let alive = this.update(cx, |palette, cx| {
+                if palette.generation != generation {
+                    return false;
+                }
+                palette.searching = has_hybrid;
+                palette.semantic_hint = None;
+                match lexical {
+                    Ok(hits) => palette.results = hits,
+                    Err(message) => {
+                        tracing::warn!("search failed: {message}");
+                        palette.results.clear();
+                    }
+                }
+                cx.notify();
+                true
+            });
+            let Some(hybrid) = hybrid.filter(|_| alive.unwrap_or(false)) else {
+                return;
+            };
+            let fused = cx
                 .background_executor()
-                .spawn(async move { run_search(&handle, &query, scope, page) })
+                .spawn(async move { run_hybrid_search(&hybrid, &query, scope, page) })
                 .await;
             let _ = this.update(cx, |palette, cx| {
                 if palette.generation != generation {
                     return;
                 }
                 palette.searching = false;
-                match result {
-                    Ok(hits) => palette.results = hits,
-                    Err(message) => {
-                        tracing::warn!("search failed: {message}");
-                        palette.results.clear();
+                match fused {
+                    Ok((hits, hint)) => {
+                        palette.results = hits;
+                        palette.semantic_hint = hint;
                     }
+                    Err(message) => tracing::warn!("hybrid search failed: {message}"),
                 }
                 cx.notify();
             });
@@ -595,16 +733,42 @@ impl Palette {
             })
     }
 
-    fn block_item(page: &str, snippet: &Snippet, accent: Hsla, muted: Hsla) -> CommandItem {
+    fn block_item(
+        page: &str,
+        snippet: &Snippet,
+        semantic: bool,
+        stale: bool,
+        accent: Hsla,
+        muted: Hsla,
+    ) -> CommandItem {
         let snippet = snippet.clone();
         let page = page.to_owned();
         CommandItem::new()
             .label(snippet.text.clone())
             .child(move |_, _| {
+                let mut footer = h_flex()
+                    .gap_2()
+                    .items_center()
+                    .child(div().text_xs().text_color(muted).child(page.clone()));
+                if semantic {
+                    footer = footer.child(
+                        Chip::new(t!("palette.semantic_badge").to_string())
+                            .tone(ChipTone::Ai)
+                            .icon(Glyph::Sparkle),
+                    );
+                }
+                if semantic && stale {
+                    footer = footer.child(
+                        div()
+                            .text_xs()
+                            .text_color(muted)
+                            .child(t!("palette.semantic_stale").to_string()),
+                    );
+                }
                 v_flex()
                     .gap(px(1.))
                     .child(Self::snippet_text(&snippet, accent))
-                    .child(div().text_xs().text_color(muted).child(page.clone()))
+                    .child(footer)
             })
     }
 
@@ -655,8 +819,16 @@ impl Palette {
                                 pages.item(Self::page_item(title, snippet, *is_journal, accent));
                             page_picks.push(Pick::Route(hit.route()));
                         }
-                        Hit::Block { page, snippet, .. } => {
-                            blocks = blocks.item(Self::block_item(page, snippet, accent, muted));
+                        Hit::Block {
+                            page,
+                            snippet,
+                            semantic,
+                            stale,
+                            ..
+                        } => {
+                            blocks = blocks.item(Self::block_item(
+                                page, snippet, *semantic, *stale, accent, muted,
+                            ));
                             block_picks.push(Pick::Route(hit.route()));
                         }
                     }
@@ -771,6 +943,33 @@ impl Render for Palette {
                             chip_this.update(cx, |p, cx| p.set_scope(scope, cx));
                         }),
                 );
+            }
+            if self.hybrid.is_some() {
+                let toggle_this = this.clone();
+                chips = chips.child(
+                    Button::new("semantic-toggle")
+                        .small()
+                        .ghost()
+                        .selected(self.semantic_on)
+                        .label(t!("palette.semantic_toggle").to_string())
+                        .on_click(move |_, _, cx| {
+                            toggle_this.update(cx, |p, cx| {
+                                let on = !p.semantic_on;
+                                p.set_semantic(on, cx);
+                            });
+                        }),
+                );
+                if let Some(hint) = self.semantic_hint.clone().filter(|_| self.semantic_on) {
+                    chips = chips.child(
+                        div()
+                            .id("semantic-hint")
+                            .min_w_0()
+                            .truncate()
+                            .text_xs()
+                            .text_color(theme.muted_foreground)
+                            .child(hint),
+                    );
+                }
             }
         }
         let backdrop = this.clone();
@@ -929,6 +1128,99 @@ mod tests {
             events.borrow()
         );
         assert!(!palette.read_with(cx, |p, _| p.is_open()));
+    }
+
+    fn lexical_hybrid(g: &TestGraph) -> HybridSearch {
+        HybridSearch::for_session(None, None, &g.handle.root, g.handle.reader.clone())
+            .expect("hybrid")
+    }
+
+    #[test]
+    fn hybrid_hits_carry_the_semantic_badge_and_the_unavailable_hint() {
+        let hit = |uuid: &str, semantic_rank| HybridHit {
+            target: HybridTarget::Block { uuid: uuid.into() },
+            title: "Notes".into(),
+            is_journal: false,
+            snippet: Snippet {
+                text: "a block".into(),
+                highlights: Vec::new(),
+            },
+            score: 1.0,
+            lexical_rank: Some(1),
+            semantic_rank,
+            stale: true,
+        };
+        let (hits, hint) = hits_from_hybrid(HybridResults {
+            hits: vec![hit("a", Some(1)), hit("b", None)],
+            semantic: SemanticState::Used {
+                candidates: 1,
+                dropped: 0,
+            },
+        });
+        assert_eq!(hint, None);
+        assert!(matches!(
+            &hits[0],
+            Hit::Block {
+                semantic: true,
+                stale: true,
+                ..
+            }
+        ));
+        assert!(matches!(
+            &hits[1],
+            Hit::Block {
+                semantic: false,
+                ..
+            }
+        ));
+        let (_, hint) = hits_from_hybrid(HybridResults {
+            hits: Vec::new(),
+            semantic: SemanticState::Unavailable(Unavailable::Failed("boom".into())),
+        });
+        assert!(hint.expect("hint").contains("boom"));
+    }
+
+    #[gpui_test]
+    fn hybrid_search_shows_results_and_the_unavailable_hint(cx: &mut TestAppContext) {
+        setup(cx);
+        let g = graph();
+        let hybrid = lexical_hybrid(&g);
+        let (palette, cx) = open_palette(cx);
+        palette.update_in(cx, |p, window, cx| {
+            p.set_hybrid(Some(hybrid));
+            p.open_search(Some(g.handle.clone()), None, Vec::new(), window, cx);
+        });
+        cx.run_until_parked();
+        assert!(palette.read_with(cx, |p, _| p.semantic_enabled()));
+        cx.simulate_input("rust");
+        settle(cx, &palette, 2);
+        cx.executor().allow_parking();
+        for _ in 0..400 {
+            cx.run_until_parked();
+            if palette.read_with(cx, |p, _| p.semantic_hint().is_some()) {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        // Pando is off in this graph: lexical results plus the "unavailable" hint.
+        assert!(palette.read_with(cx, |p, _| p.results().len() >= 2));
+        let hint = palette.read_with(cx, |p, _| p.semantic_hint().map(str::to_owned));
+        assert!(
+            hint.is_some_and(|h| h.starts_with("semantic unavailable")),
+            "hint expected"
+        );
+        // Turning semantic off drops the hint and searches lexically.
+        palette.update(cx, |p, cx| p.set_semantic(false, cx));
+        for _ in 0..100 {
+            cx.executor().advance_clock(SEARCH_DEBOUNCE);
+            cx.run_until_parked();
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        assert_eq!(
+            palette.read_with(cx, |p, _| p.semantic_hint().map(str::to_owned)),
+            None
+        );
+        assert!(palette.read_with(cx, |p, _| !p.results().is_empty()));
     }
 
     #[gpui_test]

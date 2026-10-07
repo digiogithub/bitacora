@@ -74,6 +74,8 @@ pub struct SessionLink {
     pub gate: Arc<crate::editing::EditingGate>,
     /// Index-backed lookups for page renames.
     pub lookup: Arc<bitacora_runtime::IndexRefLookup>,
+    /// Hybrid (lexical + semantic) search, to run on a background thread (BIT-SP-0010.R5).
+    pub hybrid: Option<bitacora_runtime::HybridSearch>,
 }
 
 /// A runtime condition worth a notice.
@@ -413,6 +415,7 @@ fn run(
         mcp_endpoint: session.mcp_endpoint(),
         gate: options.gate.clone().unwrap_or_default(),
         lookup: session.ref_lookup(),
+        hybrid: session.hybrid(),
     }));
     send(SessionEvent::Ready(
         session
