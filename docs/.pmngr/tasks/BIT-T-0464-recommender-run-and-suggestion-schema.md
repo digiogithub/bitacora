@@ -2,7 +2,7 @@
 id: BIT-T-0464
 type: task
 title: Recommender run and suggestion schema
-status: backlog
+status: done
 priority: medium
 parent: BIT-US-0152
 milestone: BIT-M-0008
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, ai, bitacora-pando]
 estimate: 3
 created: 2026-10-07T09:19:06Z
-updated: 2026-10-07T09:19:06Z
+updated: 2026-10-07T11:51:01Z
+closed: 2026-10-07T11:51:01Z
 ---
 
 ## Description

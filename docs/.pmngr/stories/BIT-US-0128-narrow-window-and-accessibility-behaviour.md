@@ -2,7 +2,7 @@
 id: BIT-US-0128
 type: story
 title: Narrow-window and accessibility behaviour
-status: backlog
+status: in_review
 priority: low
 parent: BIT-EP-0017
 milestone: BIT-M-0006
@@ -10,7 +10,8 @@ author: mcp
 labels: [v2, ui, a11y, bitacora-app]
 estimate: 3
 created: 2026-10-07T09:13:09Z
-updated: 2026-10-07T09:13:09Z
+updated: 2026-10-07T11:52:48Z
+started: 2026-10-07T11:52:48Z
 ---
 
 ## Description
