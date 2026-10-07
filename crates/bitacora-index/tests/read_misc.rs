@@ -263,3 +263,36 @@ fn templates_are_listed_by_name_with_their_page() {
         ]
     );
 }
+
+#[test]
+fn task_groups_bucket_open_tasks_by_earliest_date() {
+    let fx = tasks_graph();
+    let r = &fx.reader;
+    let today = 20_261_007;
+    let g = r
+        .task_groups(today, &TaskFilter::default())
+        .expect("groups");
+    let t = |v: &[bitacora_index::TaskItem]| -> Vec<String> {
+        v.iter().map(|i| i.block.title.clone()).collect()
+    };
+    assert_eq!(t(&g.overdue), ["weekly", "past", "write report"]);
+    assert_eq!(t(&g.this_week), ["review"]);
+    assert_eq!(t(&g.later), ["far away"]);
+    let mut none = t(&g.no_date);
+    none.sort();
+    assert_eq!(none, ["someday", "water plants"]);
+    assert_eq!(g.total(), 7, "DONE and CANCELED are excluded");
+    assert_eq!(r.overdue_count(today).expect("count"), 3);
+    // `review` (deadline 2026-10-08) is overdue from the 9th on.
+    assert_eq!(r.overdue_count(20_261_009).expect("count"), 4);
+    let only_a = r
+        .task_groups(
+            today,
+            &TaskFilter {
+                priority: Some("A".into()),
+                ..TaskFilter::default()
+            },
+        )
+        .expect("groups");
+    assert_eq!(only_a.total(), 1);
+}

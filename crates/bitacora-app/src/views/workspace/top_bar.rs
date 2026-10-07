@@ -111,6 +111,7 @@ pub fn tab_label(route: &Route) -> (String, Glyph) {
         Route::Page(name) => (name.clone(), Glyph::File),
         Route::Block(_) => (t!("top_bar.block_tab").to_string(), Glyph::File),
         Route::Graph => (t!("sidebar.graph_view").to_string(), Glyph::Network),
+        Route::Tasks => (t!("tasks.title").to_string(), Glyph::SquareCheck),
     }
 }
 

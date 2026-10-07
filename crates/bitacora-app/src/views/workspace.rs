@@ -1319,6 +1319,7 @@ impl Workspace {
             PaletteCommand::GoJournals => self.navigate(Route::Journals, cx),
             PaletteCommand::GoAllPages => self.navigate(Route::AllPages, cx),
             PaletteCommand::GoGraph => self.navigate(Route::Graph, cx),
+            PaletteCommand::GoTasks => self.navigate(Route::Tasks, cx),
             PaletteCommand::GoBack => self.main.update(cx, |m, cx| m.go_back(cx)),
             PaletteCommand::GoForward => self.main.update(cx, |m, cx| m.go_forward(cx)),
             PaletteCommand::ToggleLeftSidebar => {

@@ -21,7 +21,7 @@ pub use diagnostics::{DiagnosticCount, DiagnosticFilter, DiagnosticRow};
 pub use graph::{GraphData, GraphDataEdge, GraphDataNode, GraphFilter};
 pub use misc::{
     AgendaItem, AgendaKind, GraphEdge, GraphEdgeKind, GraphNode, GraphOptions, GraphView,
-    NamespaceNode, TaskFilter, TaskItem,
+    NamespaceNode, TaskFilter, TaskGroup, TaskGroups, TaskItem,
 };
 pub use outline::{PageFilter, PageSort};
 pub use refs::{Crumb, RefFilters, RefGroup, RefHit};

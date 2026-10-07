@@ -31,7 +31,7 @@ impl StoredRoute {
         match route {
             Route::Page(name) => Some(Self::Page(name.clone())),
             Route::Block(uuid) => Some(Self::Block(uuid.clone())),
-            Route::Journals | Route::AllPages | Route::Graph => None,
+            Route::Journals | Route::AllPages | Route::Graph | Route::Tasks => None,
         }
     }
 
