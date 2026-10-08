@@ -800,6 +800,7 @@ dependencies = [
  "chrono",
  "clap",
  "directories",
+ "embed-resource",
  "gpui-kit",
  "jiff",
  "rust-i18n",

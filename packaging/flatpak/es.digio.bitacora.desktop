@@ -9,3 +9,4 @@ Terminal=false
 Categories=Office;
 Keywords=outliner;notes;markdown;logseq;journal;
 StartupNotify=true
+StartupWMClass=es.digio.bitacora

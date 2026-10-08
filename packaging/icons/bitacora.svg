@@ -1,23 +1,19 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
-  <title>Bitacora</title>
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#2b4c7e"/>
-      <stop offset="1" stop-color="#14233d"/>
-    </linearGradient>
-  </defs>
-  <rect x="64" y="64" width="896" height="896" rx="200" fill="url(#bg)"/>
-  <!-- an outline: three bullets, the last two indented under the first -->
-  <g fill="#f4f1ea">
-    <circle cx="300" cy="340" r="52"/>
-    <circle cx="420" cy="512" r="52"/>
-    <circle cx="420" cy="684" r="52"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" fill="none">
+  <title>Bitácora</title>
+  <!-- App icon from the design system (assets/brand/app-icon.svg, 128 grid) scaled by 7 into the
+       1024 canvas with a 64 px margin, the usual inset for macOS/Windows/Linux app icons. -->
+  <g transform="translate(64 64) scale(7)">
+    <rect width="128" height="128" rx="28" fill="#141518"/>
+    <g transform="translate(18 18) scale(1.9167)">
+      <rect x="9" y="5" width="30" height="36" rx="3.5" stroke="#E9E7E2" stroke-width="3"/>
+      <path d="M16 5v36" stroke="#E9E7E2" stroke-width="3"/>
+      <circle cx="22.5" cy="14" r="2" fill="#E9E7E2"/>
+      <path d="M26.5 14h6.5" stroke="#E9E7E2" stroke-width="2.4" stroke-linecap="round"/>
+      <circle cx="26.5" cy="21" r="2" fill="#E9E7E2"/>
+      <path d="M30.5 21h2.5" stroke="#E9E7E2" stroke-width="2.4" stroke-linecap="round"/>
+      <circle cx="22.5" cy="28" r="2" fill="#E9E7E2"/>
+      <path d="M26.5 28h6.5" stroke="#E9E7E2" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M28 37v10l3.5-2.6 3.5 2.6V37z" fill="#72C4CD"/>
+    </g>
   </g>
-  <g stroke="#f4f1ea" stroke-width="44" stroke-linecap="round" fill="none">
-    <path d="M400 340H730"/>
-    <path d="M520 512H730"/>
-    <path d="M520 684H620"/>
-    <path d="M300 400V512H340"/>
-  </g>
-  <circle cx="750" cy="684" r="30" fill="#e8a33d"/>
 </svg>

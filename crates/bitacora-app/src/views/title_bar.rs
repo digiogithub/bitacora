@@ -113,6 +113,9 @@ pub fn left_inset(macos: bool) -> f32 {
     }
 }
 
+/// Desktop application id (reverse DNS, same as the Flatpak id and packager `identifier`).
+pub const APP_ID: &str = "es.digio.bitacora";
+
 /// Window options for the main window: client decorations on Linux, transparent system
 /// titlebar on macOS/Windows, app-owned titlebar drag, title kept for taskbar/alt-tab.
 pub fn main_window_options(
@@ -131,6 +134,9 @@ pub fn main_window_options(
         window_min_size: Some(min_size),
         window_decorations: Some(WindowDecorations::Client),
         app_owns_titlebar_drag: true,
+        // Wayland app_id / X11 WM_CLASS: matches `StartupWMClass` in the .desktop files so the
+        // desktop shows the Bitacora icon for the window.
+        app_id: Some(APP_ID.to_owned()),
         ..Default::default()
     }
 }

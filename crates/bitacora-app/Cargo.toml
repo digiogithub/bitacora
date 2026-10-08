@@ -49,6 +49,10 @@ semver.workspace = true
 tiny-skia.workspace = true
 similar.workspace = true
 
+# Embeds packaging/icons/bitacora.ico as icon resource 1 in bitacora.exe (see build.rs).
+[target.'cfg(windows)'.build-dependencies]
+embed-resource.workspace = true
+
 [dev-dependencies]
 gpui-kit = { workspace = true, features = ["test-support"] }
 tempfile.workspace = true
@@ -91,6 +95,8 @@ minimum-system-version = "12.0"
 
 [package.metadata.packager.deb]
 section = "utils"
+# Default packager template plus StartupWMClass, so the window (app_id es.digio.bitacora) gets the icon.
+desktop-template = "../../packaging/linux/bitacora.desktop"
 # GPUI renders through Vulkan: the loader and an ICD are required at runtime.
 depends = [
     "libvulkan1",

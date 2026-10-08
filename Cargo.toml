@@ -117,6 +117,8 @@ fs-err = "3"
 tempfile = "3"
 # Graph PNG export (BIT-US-0160); already in the lockfile through gpui-pre -> resvg, BSD-3-Clause.
 tiny-skia = "=0.11.4"
+# Windows-only build dependency of bitacora-app: embeds the .exe icon. Same version gpui-pre uses.
+embed-resource = "=3.0.12"
 sys-locale = "0.3"
 ignore = "0.4"
 walkdir = "2.5"

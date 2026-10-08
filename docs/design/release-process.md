@@ -18,7 +18,7 @@ CLI targets: `x86_64`/`aarch64-unknown-linux-gnu`, `aarch64`/`x86_64-apple-darwi
 
 ## 2. Packager configuration
 
-Static config: `[package.metadata.packager]` in `crates/bitacora-app/Cargo.toml` (name `Bitacora`, identifier `es.digio.bitacora`, icons from `packaging/icons/`, deb dependencies incl. the Vulkan loader). The version comes from the workspace. Icons are our own artwork (`packaging/icons/bitacora.svg`); `packaging/make-icons.sh` regenerates PNG/ICO/ICNS.
+Static config: `[package.metadata.packager]` in `crates/bitacora-app/Cargo.toml` (name `Bitacora`, identifier `es.digio.bitacora`, icons from `packaging/icons/`, deb dependencies incl. the Vulkan loader). The version comes from the workspace. Icons are the design-system app icon (`packaging/icons/bitacora.svg`, plus `bitacora-small.svg` for 16/32 px); `packaging/make-icons.sh` regenerates PNG/ICO/ICNS. Where each platform gets it: macOS `.app`/`.dmg` from `bitacora.icns`; Windows `bitacora.exe` embeds `bitacora.ico` as icon resource 1 (`crates/bitacora-app/build.rs`, `embed-resource`; GPUI loads it for the window and taskbar) and the NSIS/MSI installers use the same `.ico`; Linux `.deb`/AppImage install the hicolor PNGs with `packaging/linux/bitacora.desktop` and Flatpak installs the SVG + PNGs. The window `app_id` is `es.digio.bitacora`, matched by `StartupWMClass` in both `.desktop` files.
 
 `cargo xtask bundle [--no-build] [--formats a,b] [--target T]` builds the app, converts the metadata to a packager JSON config, overlays signing settings from the environment (only when set) and runs `cargo packager`. Output: `target/packager/`. Local unsigned bundles need no secrets. Install once: `cargo install cargo-packager --locked`.
 
