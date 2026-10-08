@@ -41,5 +41,6 @@ mod sync_flow_tests;
 pub mod sync_panel;
 pub mod tasks;
 pub mod title_bar;
+pub mod today_panel;
 pub mod widgets;
 pub mod workspace;

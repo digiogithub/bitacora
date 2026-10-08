@@ -1196,6 +1196,28 @@ impl OutlineEditor {
         self.drag_anchor = Some(id);
     }
 
+    /// Puts the caret in the first block of the page (BIT-US-0172). A page with no block at all
+    /// (an empty file, a placeholder) first gets one empty root block through core, so typing,
+    /// Enter and Tab work there like anywhere else; core writes the file once it has content.
+    pub fn focus_first_block(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(key) = self.key.clone() else {
+            return;
+        };
+        if self.ids.is_empty() {
+            let cmd = Cmd::InsertChild {
+                page: key,
+                parent: None,
+                text: String::new(),
+            };
+            if self.run("New block", cmd, window, cx).is_none() {
+                return;
+            }
+        }
+        if let Some(id) = self.ids.first().copied() {
+            self.enter(id, Caret::End, window, cx);
+        }
+    }
+
     /// The pointer moved over row `r` with the left button held: once it leaves the block the
     /// press started in, the drag selects whole blocks from that one to this one.
     pub fn drag_over(&mut self, r: usize, window: &mut Window, cx: &mut Context<Self>) {

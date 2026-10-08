@@ -129,6 +129,9 @@ journals:
   today_badge: Today
   today_empty: Nothing written today yet
   more: More blocks on the page...
+  panel_today: Scheduled today
+  panel_tomorrow: Tomorrow
+  panel_doing: Doing
 refs:
   linked: "Linked references (%{count})"
   linked_loading: Linked references
