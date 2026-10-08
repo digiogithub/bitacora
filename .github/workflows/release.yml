@@ -23,7 +23,7 @@ jobs:
       version: ${{ steps.check.outputs.version }}
       channel: ${{ steps.check.outputs.channel }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.98.1
@@ -64,7 +64,7 @@ jobs:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_TRUSTED_SIGNING_ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: dtolnay/rust-toolchain@master
         with:
@@ -108,7 +108,7 @@ jobs:
 
       - name: Sign (Windows, Azure Trusted Signing, optional)
         if: runner.os == 'Windows' && env.AZURE_CLIENT_ID != '' && env.AZURE_TRUSTED_SIGNING_ENDPOINT != ''
-        uses: azure/trusted-signing-action@v0.5.1
+        uses: azure/trusted-signing-action@v2.0.0
         with:
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -140,7 +140,7 @@ jobs:
           rm -rf "$name"
           ls -l
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: cli-${{ matrix.target }}
           path: dist/*
@@ -159,7 +159,7 @@ jobs:
       CHANNEL: ${{ needs.meta.outputs.channel }}
       GH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # release notes need the previous tag
 
@@ -167,7 +167,7 @@ jobs:
         with:
           toolchain: 1.98.1
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           path: artifacts
 
@@ -183,7 +183,7 @@ jobs:
         run: cargo xtask release-notes "$VERSION" --to "$GITHUB_REF_NAME" > RELEASE_NOTES.md
 
       - name: Build provenance attestations
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: |
             release/*

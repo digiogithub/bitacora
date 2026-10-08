@@ -76,7 +76,7 @@ jobs:
       AZURE_TRUSTED_SIGNING_ACCOUNT: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT }}
       AZURE_TRUSTED_SIGNING_PROFILE: ${{ secrets.AZURE_TRUSTED_SIGNING_PROFILE }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Linux build dependencies
         if: runner.os == 'Linux'
@@ -117,7 +117,7 @@ jobs:
       # Windows: sign the application binary before it is packaged, then the installers below.
       - name: Azure Trusted Signing (binary)
         if: runner.os == 'Windows' && env.AZURE_CLIENT_ID != '' && env.AZURE_TRUSTED_SIGNING_ENDPOINT != ''
-        uses: azure/trusted-signing-action@v0.5.1
+        uses: azure/trusted-signing-action@v2.0.0
         with:
           endpoint: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
           trusted-signing-account-name: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT }}
@@ -138,7 +138,7 @@ jobs:
 
       - name: Azure Trusted Signing (installers)
         if: runner.os == 'Windows' && env.AZURE_CLIENT_ID != '' && env.AZURE_TRUSTED_SIGNING_ENDPOINT != ''
-        uses: azure/trusted-signing-action@v0.5.1
+        uses: azure/trusted-signing-action@v2.0.0
         with:
           endpoint: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
           trusted-signing-account-name: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT }}
@@ -205,7 +205,7 @@ jobs:
           if (-not (Test-Path $graph)) { throw 'user data was touched' }
         continue-on-error: true
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: bundles-${{ runner.os }}
           path: |

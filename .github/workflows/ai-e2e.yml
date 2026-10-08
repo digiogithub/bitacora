@@ -28,7 +28,7 @@ jobs:
       BITACORA_E2E_CHAT_MODEL: ${{ inputs.chat_model }}
       BITACORA_E2E_EMBED_MODEL: ${{ inputs.embed_model }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Tools present
         run: |
           pando --version
