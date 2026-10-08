@@ -2,6 +2,22 @@
 
 All notable changes to Bitacora. Format follows Keep a Changelog; versions follow SemVer.
 
+## [2.0.3] - 2026-10-08
+
+### Added
+- Today's journal lists the tasks scheduled for today, for tomorrow and the ones in DOING/NOW below its blocks.
+- Settings gear in the title bar opens Settings directly (also Ctrl/Cmd+,).
+- The footer shows the running version.
+- Git over SSH: choose a private key per graph in Settings → Sync.
+- Agent panel: tool calls and resolved approvals fold into one collapsible row.
+- Agent model selector: enable Pando models in Settings → Pando (with filter) and pick one from the agent panel header.
+
+### Fixed
+- Git over HTTPS now asks for credentials and stores them in the system keychain; Settings → Sync can forget them.
+- An empty journal day can get its first block, Enter and indent straight from the journals feed.
+- The Tasks view no longer goes blank after rescheduling the last task under an active filter.
+- The mouse wheel scrolls the open settings dialog instead of the view behind it.
+
 ## [2.0.2] - 2026-10-08
 
 ### Added
