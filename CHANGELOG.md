@@ -2,6 +2,20 @@
 
 All notable changes to Bitacora. Format follows Keep a Changelog; versions follow SemVer.
 
+## [2.0.2] - 2026-10-08
+
+### Added
+- New app icon from the design system in the macOS app and DMG, the Windows executable and installers, and the Linux Flatpak, .deb and AppImage packages; on Linux the window is linked to its desktop entry so the dock and task switcher show the icon.
+- Project website published on GitHub Pages.
+
+### Changed
+- macOS builds are signed with a Developer ID and notarized; Windows executables and installers are Authenticode-signed.
+- Repository links (crash reports, updates, About) point at digiogithub/bitacora.
+- Dependency updates (sha2, getrandom, toml, GitHub Actions).
+
+### Fixed
+- Beta release builds no longer fail on Windows: pre-release tags ship the NSIS installer only, because MSI requires numeric versions.
+
 ## [2.0.1] - 2026-10-07
 
 ### Added
