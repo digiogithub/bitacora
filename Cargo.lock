@@ -783,7 +783,7 @@ checksum = "1e4b40c7323adcfc0a41c4b88143ed58346ff65a288fc144329c5c45e05d70c6"
 
 [[package]]
 name = "bitacora-app"
-version = "2.0.1"
+version = "2.0.2-beta.1"
 dependencies = [
  "anyhow",
  "async-channel",
@@ -822,7 +822,7 @@ dependencies = [
 
 [[package]]
 name = "bitacora-cli"
-version = "2.0.1"
+version = "2.0.2-beta.1"
 dependencies = [
  "anyhow",
  "bitacora-config",
@@ -847,7 +847,7 @@ dependencies = [
 
 [[package]]
 name = "bitacora-config"
-version = "2.0.1"
+version = "2.0.2-beta.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -857,7 +857,7 @@ dependencies = [
 
 [[package]]
 name = "bitacora-core"
-version = "2.0.1"
+version = "2.0.2-beta.1"
 dependencies = [
  "bitacora-config",
  "bitacora-markdown",
@@ -874,14 +874,14 @@ dependencies = [
 
 [[package]]
 name = "bitacora-graph"
-version = "2.0.1"
+version = "2.0.2-beta.1"
 dependencies = [
  "proptest",
 ]
 
 [[package]]
 name = "bitacora-index"
-version = "2.0.1"
+version = "2.0.2-beta.1"
 dependencies = [
  "bitacora-config",
  "bitacora-core",
@@ -907,7 +907,7 @@ dependencies = [
 
 [[package]]
 name = "bitacora-markdown"
-version = "2.0.1"
+version = "2.0.2-beta.1"
 dependencies = [
  "bitacora-testkit",
  "criterion",
@@ -920,7 +920,7 @@ dependencies = [
 
 [[package]]
 name = "bitacora-mcp"
-version = "2.0.1"
+version = "2.0.2-beta.1"
 dependencies = [
  "axum",
  "bitacora-config",
@@ -948,7 +948,7 @@ dependencies = [
 
 [[package]]
 name = "bitacora-merge"
-version = "2.0.1"
+version = "2.0.2-beta.1"
 dependencies = [
  "bitacora-markdown",
  "criterion",
@@ -960,7 +960,7 @@ dependencies = [
 
 [[package]]
 name = "bitacora-pando"
-version = "2.0.1"
+version = "2.0.2-beta.1"
 dependencies = [
  "axum",
  "bitacora-config",
@@ -989,7 +989,7 @@ dependencies = [
 
 [[package]]
 name = "bitacora-runtime"
-version = "2.0.1"
+version = "2.0.2-beta.1"
 dependencies = [
  "bitacora-config",
  "bitacora-core",
@@ -1014,7 +1014,7 @@ dependencies = [
 
 [[package]]
 name = "bitacora-sync"
-version = "2.0.1"
+version = "2.0.2-beta.1"
 dependencies = [
  "bitacora-config",
  "bitacora-core",
@@ -1033,7 +1033,7 @@ dependencies = [
 
 [[package]]
 name = "bitacora-testkit"
-version = "2.0.1"
+version = "2.0.2-beta.1"
 dependencies = [
  "tempfile",
  "tracing-subscriber",
@@ -1042,7 +1042,7 @@ dependencies = [
 
 [[package]]
 name = "bitacora-watch"
-version = "2.0.1"
+version = "2.0.2-beta.1"
 dependencies = [
  "bitacora-core",
  "blake3",
@@ -6884,7 +6884,7 @@ dependencies = [
 
 [[package]]
 name = "pando-rs"
-version = "2.0.1"
+version = "2.0.2-beta.1"
 dependencies = [
  "axum",
  "reqwest",
@@ -11333,7 +11333,7 @@ checksum = "ec7a2a501ed189703dba8b08142f057e887dfc4b2cc4db2d343ac6376ba3e0b9"
 
 [[package]]
 name = "xtask"
-version = "2.0.1"
+version = "2.0.2-beta.1"
 dependencies = [
  "anyhow",
  "cargo_metadata",
