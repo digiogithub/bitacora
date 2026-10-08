@@ -2,14 +2,15 @@
 id: BIT-US-0174
 type: story
 title: Footer shows the running app version
-status: backlog
+status: in_review
 priority: medium
 parent: BIT-EP-0026
 milestone: BIT-M-0010
 author: mcp
 labels: [bitacora-app, ui]
 created: 2026-10-08T12:23:05Z
-updated: 2026-10-08T12:23:05Z
+updated: 2026-10-08T12:57:15Z
+started: 2026-10-08T12:57:15Z
 ---
 
 ## Description

@@ -2,14 +2,15 @@
 id: BIT-US-0172
 type: story
 title: "Journals feed: empty today accepts first block, Enter and indent inline"
-status: backlog
+status: in_review
 priority: high
 parent: BIT-EP-0026
 milestone: BIT-M-0010
 author: mcp
 labels: [bug, bitacora-app, journals]
 created: 2026-10-08T12:23:05Z
-updated: 2026-10-08T12:23:05Z
+updated: 2026-10-08T12:57:08Z
+started: 2026-10-08T12:57:08Z
 ---
 
 ## Description

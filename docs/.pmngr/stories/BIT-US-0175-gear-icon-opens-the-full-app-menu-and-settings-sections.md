@@ -2,14 +2,15 @@
 id: BIT-US-0175
 type: story
 title: Gear icon opens the full app menu and settings sections
-status: backlog
+status: in_review
 priority: high
 parent: BIT-EP-0026
 milestone: BIT-M-0010
 author: mcp
 labels: [bitacora-app, ui, settings]
 created: 2026-10-08T12:23:05Z
-updated: 2026-10-08T12:23:05Z
+updated: 2026-10-08T12:57:16Z
+started: 2026-10-08T12:57:16Z
 ---
 
 ## Description

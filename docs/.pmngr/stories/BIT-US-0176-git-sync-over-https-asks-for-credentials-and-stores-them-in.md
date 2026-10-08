@@ -2,14 +2,15 @@
 id: BIT-US-0176
 type: story
 title: Git sync over HTTPS asks for credentials and stores them in the system keychain
-status: backlog
+status: in_review
 priority: high
 parent: BIT-EP-0026
 milestone: BIT-M-0010
 author: mcp
 labels: [bitacora-sync, bitacora-app, git, security]
 created: 2026-10-08T12:23:05Z
-updated: 2026-10-08T12:23:05Z
+updated: 2026-10-08T12:57:16Z
+started: 2026-10-08T12:57:16Z
 ---
 
 ## Description

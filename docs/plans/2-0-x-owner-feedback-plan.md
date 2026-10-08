@@ -27,8 +27,23 @@ Owner feedback after installing 2.0.2 (2026-10-08). Milestone BIT-M-0010, epic B
 Coordinator merges each branch into `main`, runs fmt/clippy/tests, removes worktrees ([[worktree-cleanup]]), pushes.
 
 ## Progress
-- [ ] Phase 1
-- [ ] Phase 2
-- [ ] Phase 3
-- [ ] Phase 4
-- [ ] Phase 5
+All five phases merged into `main` on 2026-10-08 (workspace: fmt, clippy -D warnings, 2062 tests, 0 failed). All nine stories are `in_review` awaiting owner validation in a packaged build.
+
+- [x] Phase 1: US-0172 (zero-block day gets a clickable first block; virtual today already worked) and US-0178 (`views/today_panel.rs`). See [[BIT-US-0172-empty-day-first-block]], [[BIT-US-0178-today-panel]].
+- [x] Phase 2: US-0173 (root cause: stale filter pills, `Selection::reconciled`) and US-0174 (footer version). See [[BIT-US-0173-tasks-stale-filter]], [[BIT-US-0174-footer-version]].
+- [x] Phase 3: US-0176 (multi-call askpass in `bitacora`) and US-0177 (per-graph SSH key). See [[BIT-US-0176-askpass-multicall]], [[BIT-US-0177-ssh-key-per-graph]].
+- [x] Phase 4: US-0175 (gear menu). See [[BIT-US-0175-settings-gear-menu]].
+- [x] Phase 5: US-0179 (folded tool calls) and US-0180 (model selector). See [[BIT-US-0179-agent-tool-groups]], [[BIT-US-0180-agent-model-selector]].
+
+## Owner validation (packaged build)
+- Empty today in the feed: type, Enter, Tab (tell us whether today's file existed but was empty).
+- Tasks view: reschedule the last task under an active pill; list must not go blank.
+- Footer version; gear menu and Ctrl/Cmd+,.
+- HTTPS remote: credential dialog appears, saved to keychain, "Forget saved credentials" works (Windows especially).
+- SSH remote with a chosen key (and passphrase-protected key).
+- Today panel sections; agent tool-call folding; model switches + header dropdown with a real Pando.
+
+## Known gaps
+- `bitacora-cli` has no askpass/credential wiring (HTTPS auth for the headless CLI still fails without a git credential helper).
+- Onboarding sync dialog does not offer the SSH key; set it in Settings → Sync.
+- Two model ids slugifying to the same profile name: only the first gets a profile.

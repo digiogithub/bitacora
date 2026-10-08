@@ -2,14 +2,15 @@
 id: BIT-US-0177
 type: story
 title: "Git sync over SSH: choose the private key when system keys fail"
-status: backlog
+status: in_review
 priority: medium
 parent: BIT-EP-0026
 milestone: BIT-M-0010
 author: mcp
 labels: [bitacora-sync, bitacora-app, git]
 created: 2026-10-08T12:23:05Z
-updated: 2026-10-08T12:23:05Z
+updated: 2026-10-08T12:57:16Z
+started: 2026-10-08T12:57:16Z
 ---
 
 ## Description
