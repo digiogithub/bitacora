@@ -383,3 +383,49 @@ fn remember_my_decision_is_a_toggle_on_a_pending_card(cx: &mut TestAppContext) {
     view.update(cx, |v, cx| v.toggle_remember("call-1", cx));
     view.read_with(cx, |v, _| assert!(!v.is_remembering("call-1")));
 }
+
+#[test]
+fn model_menu_rows_mark_default_and_selection_without_long_labels() {
+    use bitacora_runtime::ai::ModelChoice;
+    let c = |profile: &str, id: &str, label: &str| ModelChoice {
+        profile: profile.into(),
+        model_id: id.into(),
+        label: label.into(),
+    };
+    let choices = ModelChoices {
+        default: Some(c("bitacora-chat", "m-a", "Model A")),
+        extra: vec![
+            c("bitacora-chat--m-a", "m-a", "Model A"),
+            c("bitacora-chat--m-b", "m-b", "Model B"),
+        ],
+    };
+    // Nothing chosen: the default row is selected; the duplicate of the default is not listed.
+    let rows = model_menu_rows(&choices, None);
+    assert_eq!(rows.len(), 2);
+    assert_eq!(
+        (rows[0].label.as_str(), rows[0].selected, rows[0].is_default),
+        ("Model A", true, true)
+    );
+    assert_eq!(
+        (rows[1].label.as_str(), rows[1].selected, rows[1].is_default),
+        ("Model B", false, false)
+    );
+    assert_eq!(rows[1].choice.as_deref(), Some("m-b"));
+    // A chosen extra model is the only selected row.
+    let rows = model_menu_rows(&choices, Some("m-b"));
+    assert!(!rows[0].selected && rows[1].selected);
+    // An unknown remembered id falls back to the default row.
+    assert!(model_menu_rows(&choices, Some("gone"))[0].selected);
+    // No label carries a checkbox glyph or the long default caption.
+    assert!(
+        rows.iter()
+            .all(|r| !r.label.contains('[') && !r.label.contains("efault"))
+    );
+}
+
+#[test]
+fn chip_label_is_the_name_cut_with_an_ellipsis() {
+    assert_eq!(model_chip_label("Model A"), "Model A");
+    let long = model_chip_label("anthropic/claude-opus-4-very-long-name");
+    assert!(long.chars().count() <= 22 && long.ends_with('\u{2026}'));
+}

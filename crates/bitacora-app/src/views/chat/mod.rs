@@ -1083,5 +1083,63 @@ async fn fetch_threads(client: bitacora_runtime::ai::AguiClient) -> Result<Vec<T
     Ok(rows)
 }
 
+/// Longest model name the header chip shows before it is cut with an ellipsis.
+const CHIP_MAX_CHARS: usize = 22;
+
+/// The text of the header chip: just the model name, cut with an ellipsis when long.
+pub(crate) fn model_chip_label(name: &str) -> String {
+    if name.chars().count() <= CHIP_MAX_CHARS {
+        return name.to_owned();
+    }
+    let head: String = name.chars().take(CHIP_MAX_CHARS - 1).collect();
+    format!("{}\u{2026}", head.trim_end())
+}
+
+/// One row of the model dropdown.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ModelMenuRow {
+    /// Model name shown (never a long "default model" caption).
+    pub label: String,
+    /// The model id a click selects; `None` selects the server default.
+    pub choice: Option<String>,
+    /// The row is the current selection (accent background and a leading dot).
+    pub selected: bool,
+    /// The row is the server's default model (a small muted tag).
+    pub is_default: bool,
+}
+
+/// The dropdown rows: the default model first, then the enabled models. A model that is also
+/// the default is listed once. `chosen` is the remembered model id (`None` = default).
+pub(crate) fn model_menu_rows(choices: &ModelChoices, chosen: Option<&str>) -> Vec<ModelMenuRow> {
+    let default_id = choices
+        .default
+        .as_ref()
+        .map(|d| d.model_id.as_str())
+        .filter(|id| !id.is_empty());
+    let known = chosen.is_some_and(|id| choices.extra.iter().any(|c| c.model_id == id));
+    let mut rows = Vec::new();
+    rows.push(ModelMenuRow {
+        label: choices
+            .default
+            .as_ref()
+            .map_or_else(|| t!("chat.model_unknown").to_string(), |d| d.label.clone()),
+        choice: None,
+        selected: !known || chosen == default_id,
+        is_default: true,
+    });
+    for c in &choices.extra {
+        if Some(c.model_id.as_str()) == default_id {
+            continue;
+        }
+        rows.push(ModelMenuRow {
+            label: c.label.clone(),
+            choice: Some(c.model_id.clone()),
+            selected: known && chosen == Some(c.model_id.as_str()),
+            is_default: false,
+        });
+    }
+    rows
+}
+
 #[cfg(test)]
 mod tests;
