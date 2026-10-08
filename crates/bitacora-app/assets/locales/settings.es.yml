@@ -73,6 +73,17 @@ settings:
     kb: Base de conocimiento
     kb_shared: "Compartida con tu propio Pando: la configuración global de Pando guarda la base de conocimiento en %{dir}."
     kb_private: "Privada: la instancia gestionada usa su propia base de datos. Para compartirla con tu propio Pando, define un Data Directory absoluto en tu configuración global de Pando."
+    models: Modelos del agente
+    models_title: Modelos para el asistente
+    models_help: Cada modelo activado añade una entrada al selector de modelo del panel del asistente (un perfil de chat fijado a él en la configuración gestionada de Pando). Se aplica al reabrir el grafo.
+    models_help_external: Con tu propio servidor Pando, el selector solo lista los perfiles bitacora-chat--* que ese servidor expone. Añádelos a su configuración con un ajuste Model; los interruptores de aquí no hacen nada en este modo.
+    models_refresh: Actualizar
+    models_idle: Pulsa Actualizar para listar los modelos que puede usar tu Pando.
+    models_loading: Cargando modelos...
+    models_failed: "No se pudieron listar los modelos: %{error}"
+    models_none: Pando no devolvió modelos. Configura un proveedor en los ajustes de Pando.
+    models_no_session: Abre un grafo y conecta Pando para listar modelos.
+    models_not_connected: Pando no está conectado.
     features: Funciones
     feature_semantic: Búsqueda semántica
     feature_semantic_help: Indexa tus bloques en la base de conocimiento de Pando para encontrar notas relacionadas por significado.

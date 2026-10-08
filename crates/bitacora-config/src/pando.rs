@@ -128,6 +128,11 @@ pub struct PandoSettings {
     pub ai: AiAuto,
     /// Consent and exclusions per graph, keyed by the canonical graph path.
     pub graphs: BTreeMap<String, GraphConsent>,
+    /// Model ids the user enabled for the agent panel (BIT-US-0180). Managed mode generates one
+    /// extra chat profile per entry; an empty list leaves only the default profile.
+    pub enabled_models: Vec<String>,
+    /// Model last chosen in the agent panel; `None` is the profile's default model.
+    pub chat_model: Option<String>,
 }
 
 impl Default for PandoSettings {
@@ -143,6 +148,8 @@ impl Default for PandoSettings {
             features: BTreeMap::new(),
             ai: AiAuto::default(),
             graphs: BTreeMap::new(),
+            enabled_models: Vec::new(),
+            chat_model: None,
         }
     }
 }
@@ -412,6 +419,21 @@ impl PandoSettings {
             .is_some_and(|c| c.tool_decisions.remove(tool).is_some())
     }
 
+    /// Enables or disables `model` for the agent panel (no duplicates, no blanks). Disabling the
+    /// model last chosen resets the choice to the default.
+    pub fn set_model_enabled(&mut self, model: &str, on: bool) {
+        let model = model.trim();
+        if model.is_empty() {
+            return;
+        }
+        self.enabled_models.retain(|m| m != model);
+        if on {
+            self.enabled_models.push(model.to_owned());
+        } else if self.chat_model.as_deref() == Some(model) {
+            self.chat_model = None;
+        }
+    }
+
     /// Reads settings from `path`; a missing file yields the defaults.
     ///
     /// # Errors
@@ -658,5 +680,24 @@ mod tests {
     fn serialized_settings_contain_no_token_field() {
         let json = serde_json::to_string(&PandoSettings::default()).unwrap();
         assert!(!json.to_ascii_lowercase().contains("token"));
+    }
+
+    #[test]
+    fn model_settings_are_backward_compatible_and_roundtrip() {
+        let old: PandoSettings = serde_json::from_str(r#"{"enabled": true}"#).unwrap();
+        assert!(old.enabled_models.is_empty());
+        assert_eq!(old.chat_model, None);
+        let mut s = PandoSettings::default();
+        s.set_model_enabled("claude-sonnet-4", true);
+        s.set_model_enabled("claude-sonnet-4", true);
+        s.set_model_enabled("  ", true);
+        s.chat_model = Some("claude-sonnet-4".into());
+        assert_eq!(s.enabled_models, ["claude-sonnet-4"]);
+        let back: PandoSettings =
+            serde_json::from_str(&serde_json::to_string(&s).unwrap()).unwrap();
+        assert_eq!(back, s);
+        s.set_model_enabled("claude-sonnet-4", false);
+        assert!(s.enabled_models.is_empty());
+        assert_eq!(s.chat_model, None);
     }
 }

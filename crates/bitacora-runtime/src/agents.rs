@@ -79,6 +79,15 @@ pub(crate) fn guard(ctx: Option<&AgentContext>, live: Option<SharedPolicy>) -> C
 }
 
 /// An AG-UI client for the connected service.
+/// REST client of the connected Pando, `None` unless it is connected.
+pub(crate) fn rest_client(service: Option<&PandoService>) -> Option<pando::PandoClient> {
+    let service = service?;
+    if !matches!(service.status(), PandoStatus::Connected { .. }) {
+        return None;
+    }
+    pando::PandoClient::new(service.endpoints()?.rest.clone()).ok()
+}
+
 pub(crate) fn agui_client(service: Option<&PandoService>) -> Option<pando::agui::AguiClient> {
     let service = service?;
     if !matches!(service.status(), PandoStatus::Connected { .. }) {

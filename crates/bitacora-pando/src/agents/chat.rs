@@ -49,6 +49,98 @@ use super::tools::{
 pub const CHAT_PROFILE: &str = "bitacora-chat";
 /// Profile that may call `propose_edit`.
 pub const WRITER_PROFILE: &str = "bitacora-writer";
+/// Prefix of the per-model chat profiles the managed config generates (BIT-US-0180).
+pub const CHAT_MODEL_PROFILE_PREFIX: &str = "bitacora-chat--";
+
+/// Name of the chat profile that pins `model`: [`CHAT_MODEL_PROFILE_PREFIX`] plus the model id
+/// reduced to the characters a TOML bare key allows (`a-z`, `0-9`, `_`, `-`; everything else
+/// becomes `-`, letters are lowercased). The managed config generator and the model selector
+/// both use it, so they agree on the route.
+#[must_use]
+pub fn chat_profile_for_model(model: &str) -> String {
+    let slug: String = model
+        .trim()
+        .chars()
+        .map(|c| {
+            let c = c.to_ascii_lowercase();
+            if c.is_ascii_alphanumeric() || c == '_' || c == '-' {
+                c
+            } else {
+                '-'
+            }
+        })
+        .collect();
+    format!("{CHAT_MODEL_PROFILE_PREFIX}{slug}")
+}
+
+/// One entry of the agent panel's model selector.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModelChoice {
+    /// Profile (route) a run posts to.
+    pub profile: String,
+    /// Model id the profile pins; for the default entry the model the server reports for it.
+    pub model_id: String,
+    /// Text shown for the entry.
+    pub label: String,
+}
+
+/// What the selector offers, derived from the server's discovery document (`GET .../info`).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ModelChoices {
+    /// The default chat profile with the model the server reports for it, when it is listed.
+    pub default: Option<ModelChoice>,
+    /// The per-model chat profiles the server exposes, in server order.
+    pub extra: Vec<ModelChoice>,
+}
+
+impl ModelChoices {
+    /// Reads the choices from `info`: the [`CHAT_PROFILE`] agent and every agent named
+    /// `bitacora-chat--*`. Works the same for a managed and an external server.
+    #[must_use]
+    pub fn from_info(info: &pando::agui::Info) -> Self {
+        let choice = |a: &pando::agui::AgentDescriptor| {
+            let (id, name) = a
+                .model
+                .as_ref()
+                .map(|m| (m.id.clone(), m.name.clone()))
+                .unwrap_or_default();
+            let label = if name.is_empty() { id.clone() } else { name };
+            ModelChoice {
+                profile: a.name.clone(),
+                model_id: id,
+                label,
+            }
+        };
+        Self {
+            default: info
+                .agents
+                .iter()
+                .find(|a| a.name == CHAT_PROFILE)
+                .map(choice),
+            extra: info
+                .agents
+                .iter()
+                .filter(|a| a.name.starts_with(CHAT_MODEL_PROFILE_PREFIX))
+                .map(choice)
+                .collect(),
+        }
+    }
+
+    /// Whether there is anything to choose between.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.extra.is_empty()
+    }
+
+    /// The profile a run posts to for the remembered `chosen` model id: the profile pinning it
+    /// when the server exposes one, else the default chat profile.
+    #[must_use]
+    pub fn profile_for(&self, chosen: Option<&str>) -> String {
+        chosen
+            .and_then(|id| self.extra.iter().find(|c| c.model_id == id))
+            .map_or_else(|| CHAT_PROFILE.to_owned(), |c| c.profile.clone())
+    }
+}
 
 /// Whether `name` is one of the frontend tools this client declares to Pando.
 fn is_client_tool(name: &str) -> bool {
@@ -1521,4 +1613,56 @@ fn activity_line(kind: &str, content: &Value) -> String {
         .find_map(|k| content.get(*k).and_then(Value::as_str))
         .or_else(|| content.as_str())
         .map_or_else(|| kind.to_owned(), |t| t.trim().to_owned())
+}
+
+#[cfg(test)]
+mod model_choice_tests {
+    use super::*;
+    use pando::agui::{AgentDescriptor, Info, ModelDescriptor};
+
+    fn agent(name: &str, model: &str) -> AgentDescriptor {
+        AgentDescriptor {
+            name: name.into(),
+            model: (!model.is_empty()).then(|| ModelDescriptor {
+                id: model.into(),
+                name: format!("{model} name"),
+                ..ModelDescriptor::default()
+            }),
+            ..AgentDescriptor::default()
+        }
+    }
+
+    #[test]
+    fn profile_names_are_toml_bare_keys() {
+        assert_eq!(
+            chat_profile_for_model("Claude-Sonnet_4.5"),
+            "bitacora-chat--claude-sonnet_4-5"
+        );
+        assert_eq!(
+            chat_profile_for_model("openai/gpt 4"),
+            "bitacora-chat--openai-gpt-4"
+        );
+    }
+
+    #[test]
+    fn selector_maps_the_choice_to_a_profile() {
+        let info = Info {
+            agents: vec![
+                agent("coder", "x"),
+                agent("bitacora-chat", "default-m"),
+                agent("bitacora-chat--m1", "m1"),
+                agent("bitacora-writer", "w"),
+            ],
+            ..Info::default()
+        };
+        let c = ModelChoices::from_info(&info);
+        assert_eq!(c.default.as_ref().unwrap().model_id, "default-m");
+        assert_eq!(c.extra.len(), 1);
+        assert!(!c.is_empty());
+        assert_eq!(c.profile_for(None), CHAT_PROFILE);
+        assert_eq!(c.profile_for(Some("m1")), "bitacora-chat--m1");
+        // A remembered model the server no longer exposes falls back to the default.
+        assert_eq!(c.profile_for(Some("gone")), CHAT_PROFILE);
+        assert!(ModelChoices::from_info(&Info::default()).is_empty());
+    }
 }

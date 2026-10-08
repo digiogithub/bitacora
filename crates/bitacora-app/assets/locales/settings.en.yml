@@ -73,6 +73,17 @@ settings:
     kb: Knowledge base
     kb_shared: "Shared with your own Pando: the global Pando configuration stores the knowledge base in %{dir}."
     kb_private: "Private: the managed instance keeps its own database. To share the knowledge base with your own Pando, set an absolute Data Directory in your global Pando configuration."
+    models: Agent models
+    models_title: Models for the assistant
+    models_help: Each enabled model adds an entry to the model selector of the assistant panel (a chat profile pinned to it in the managed Pando configuration). Applies when the graph is reopened.
+    models_help_external: With your own Pando server the selector lists only the bitacora-chat--* profiles that server exposes. Add them to its configuration with a Model setting; switches here do nothing in this mode.
+    models_refresh: Refresh
+    models_idle: Press Refresh to list the models your Pando can use.
+    models_loading: Loading models...
+    models_failed: "Could not list the models: %{error}"
+    models_none: Pando returned no models. Configure a provider in your Pando settings.
+    models_no_session: Open a graph and connect Pando to list models.
+    models_not_connected: Pando is not connected.
     features: Features
     feature_semantic: Semantic search
     feature_semantic_help: Indexes your blocks in Pando's knowledge base to find related notes by meaning.

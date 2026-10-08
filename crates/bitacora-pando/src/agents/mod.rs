@@ -36,9 +36,10 @@ pub use approvals::{
 };
 pub use cache::{ReviewCache, WallClock};
 pub use chat::{
-    AgentState, ApprovalCard, AutoAnswer, CHAT_PROFILE, CardKind, CardState, CardView, ChatConfig,
-    ChatDeps, ChatEvent, ChatHandle, ChatMessage, ChatModel, ChatSession, RunEnd, SubAgent,
-    ToolCallView, WRITER_PROFILE,
+    AgentState, ApprovalCard, AutoAnswer, CHAT_MODEL_PROFILE_PREFIX, CHAT_PROFILE, CardKind,
+    CardState, CardView, ChatConfig, ChatDeps, ChatEvent, ChatHandle, ChatMessage, ChatModel,
+    ChatSession, ModelChoice, ModelChoices, RunEnd, SubAgent, ToolCallView, WRITER_PROFILE,
+    chat_profile_for_model,
 };
 pub use compose::{ComposeDeps, ComposeMode, ComposeRequest, PageLookup, PageMeta, run_compose};
 pub use edits::{

@@ -430,6 +430,7 @@ pub struct ManagedSupervisor {
     opts: Arc<ManagedOptions>,
     instances: Mutex<HashMap<PathBuf, Arc<Instance>>>,
     mcp: Arc<Mutex<HashMap<PathBuf, McpAccess>>>,
+    chat_models: Arc<Mutex<HashMap<PathBuf, Vec<String>>>>,
 }
 
 impl std::fmt::Debug for ManagedSupervisor {
@@ -448,6 +449,7 @@ impl ManagedSupervisor {
             opts: Arc::new(opts),
             instances: Mutex::new(HashMap::new()),
             mcp: Arc::new(Mutex::new(HashMap::new())),
+            chat_models: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -556,6 +558,7 @@ impl ManagedSupervisor {
             opts: Arc::clone(&self.opts),
             graph: graph.to_path_buf(),
             mcp: Arc::clone(&self.mcp),
+            chat_models: Arc::clone(&self.chat_models),
             binary,
             shared: Arc::clone(&shared),
             sink,
@@ -694,6 +697,10 @@ impl Supervisor for ManagedSupervisor {
         };
     }
 
+    fn set_chat_models(&self, graph: &Path, models: Vec<String>) {
+        self.chat_models.lock().insert(graph.to_path_buf(), models);
+    }
+
     fn managed_status(&self, graph: &Path) -> Option<ManagedStatus> {
         if let Some(i) = self.instances.lock().get(graph) {
             return Some(i.shared.snapshot());
@@ -732,6 +739,7 @@ struct Worker {
     opts: Arc<ManagedOptions>,
     graph: PathBuf,
     mcp: Arc<Mutex<HashMap<PathBuf, McpAccess>>>,
+    chat_models: Arc<Mutex<HashMap<PathBuf, Vec<String>>>>,
     binary: PathBuf,
     shared: Arc<Shared>,
     sink: LogSink,
@@ -819,9 +827,16 @@ impl Worker {
 
     fn write_config(&self, agui_port: u16) -> Result<(), String> {
         let mcp = self.mcp.lock().get(&self.graph).cloned();
+        let chat_models = self
+            .chat_models
+            .lock()
+            .get(&self.graph)
+            .cloned()
+            .unwrap_or_default();
         let rendered = config::render(&ConfigInput {
             agui_port,
             mcp: mcp.as_ref(),
+            chat_models: &chat_models,
         });
         for (rel, content) in rendered.files {
             let dest = self.shared.dir.path().join(&rel);

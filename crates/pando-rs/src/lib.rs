@@ -18,6 +18,6 @@ pub mod config;
 pub mod error;
 pub mod kb;
 
-pub use client::{PandoClient, ServerInfo};
+pub use client::{ModelInfo, ModelList, PandoClient, ServerInfo};
 pub use config::{PandoConfig, Token};
 pub use error::{Error, Result};

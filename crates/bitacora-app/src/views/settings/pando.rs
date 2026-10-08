@@ -48,6 +48,55 @@ pub enum ConnTest {
     Failed(String),
 }
 
+/// One model offered in "Agent models".
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModelRow {
+    /// Id written to the `Model` of the generated profile.
+    pub id: String,
+    /// Display name.
+    pub name: String,
+    /// Provider type.
+    pub provider: String,
+}
+
+/// The "Agent models" list as last fetched from Pando.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub enum ModelsState {
+    /// Not fetched yet.
+    #[default]
+    Idle,
+    /// A fetch is running.
+    Loading,
+    /// The models, plus per-account errors the server reported.
+    Loaded(Vec<ModelRow>, Vec<String>),
+    /// Why the fetch failed.
+    Failed(String),
+}
+
+/// Rows for the model list: the synthetic `auto` entry and duplicates dropped, sorted by
+/// provider then name.
+pub(crate) fn model_rows(list: &bitacora_runtime::ai::ModelList) -> Vec<ModelRow> {
+    let mut rows: Vec<ModelRow> = Vec::new();
+    for m in &list.models {
+        if m.id.is_empty() || m.id == "auto" || rows.iter().any(|r| r.id == m.id) {
+            continue;
+        }
+        rows.push(ModelRow {
+            id: m.id.clone(),
+            name: if m.name.is_empty() {
+                m.id.clone()
+            } else {
+                m.name.clone()
+            },
+            provider: m.provider.clone(),
+        });
+    }
+    rows.sort_by(|a, b| {
+        (a.provider.as_str(), a.name.as_str()).cmp(&(b.provider.as_str(), b.name.as_str()))
+    });
+    rows
+}
+
 /// What the running session reports about Pando.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LiveStatus {
@@ -71,6 +120,8 @@ pub(crate) struct PandoPanel {
     pub live: Option<LiveStatus>,
     pub credentials: PandoCredentials,
     pub sharing: KbSharing,
+    /// Models Pando offers for the agent panel (BIT-US-0180).
+    pub models: ModelsState,
     /// Global Pando config used to tell whether the managed KB is shared (tests point it away).
     pub global_pando_config: Option<PathBuf>,
 }
@@ -83,6 +134,7 @@ impl PandoPanel {
             live: None,
             credentials: PandoCredentials::system(),
             sharing: KbSharing::Private,
+            models: ModelsState::Idle,
             global_pando_config: None,
         }
     }
@@ -467,6 +519,63 @@ impl SettingsView {
         .detach();
     }
 
+    /// Fetches the models of the connected Pando (`GET /api/v1/models`).
+    pub fn refresh_pando_models(&mut self, cx: &mut Context<Self>) {
+        let Some(session) = self.ctx.session.clone() else {
+            self.pando.models =
+                ModelsState::Failed(t!("settings.pando.models_no_session").to_string());
+            cx.notify();
+            return;
+        };
+        self.pando.models = ModelsState::Loading;
+        cx.notify();
+        let client = session.run(|s| s.pando_rest_client());
+        cx.spawn(async move |this, cx| {
+            let outcome: Result<(Vec<ModelRow>, Vec<String>), String> =
+                match client.recv().await.ok().flatten() {
+                    None => Err(t!("settings.pando.models_not_connected").to_string()),
+                    Some(client) => {
+                        let task = this.update(cx, |_, cx| {
+                            crate::tokio_bridge::spawn(cx, async move {
+                                client.list_models().await.map_err(|e| e.to_string())
+                            })
+                        });
+                        match task {
+                            Ok(task) => match task.await {
+                                Ok(Ok(list)) => {
+                                    let errors = list
+                                        .errors
+                                        .iter()
+                                        .map(|(account, e)| format!("{account}: {e}"))
+                                        .collect();
+                                    Ok((model_rows(&list), errors))
+                                }
+                                Ok(Err(e)) => Err(e),
+                                Err(e) => Err(e.to_string()),
+                            },
+                            Err(_) => return,
+                        }
+                    }
+                };
+            let _ = this.update(cx, |this, cx| {
+                this.pando.models = match outcome {
+                    Ok((rows, errors)) => ModelsState::Loaded(rows, errors),
+                    Err(e) => ModelsState::Failed(e),
+                };
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    /// Enables or disables `model` for the agent panel. Managed mode regenerates its config, so
+    /// the graph reopens.
+    pub fn set_pando_model_enabled(&mut self, model: &str, on: bool, cx: &mut Context<Self>) {
+        let mut s = self.pando.settings.clone();
+        s.set_model_enabled(model, on);
+        self.save_pando(s, true, cx);
+    }
+
     /// Restarts the managed instance.
     pub fn restart_managed_pando(&mut self, cx: &mut Context<Self>) {
         if let Some(session) = self.ctx.session.clone() {
@@ -716,6 +825,10 @@ impl SettingsView {
 
         col = col.child(self.ai_auto_rows(theme, cx));
 
+        // ---- Agent models ----
+        col = col.child(self.pando_heading("settings.pando.models"));
+        col = col.child(self.model_rows_el(theme, cx));
+
         // ---- Graph ----
         col = col.child(self.pando_heading("settings.pando.graph"));
         col = col.child(self.graph_rows(theme, &consent, key.is_some(), cx));
@@ -724,6 +837,96 @@ impl SettingsView {
         col = col.child(self.pando_heading("settings.pando.activity"));
         col = col.child(self.activity_rows(theme, cx));
         col.into_any_element()
+    }
+
+    /// "Agent models": the models Pando lists, each with a switch that adds a chat profile for
+    /// it (managed mode) to the agent panel's selector.
+    fn model_rows_el(&self, theme: &Theme, cx: &mut Context<Self>) -> AnyElement {
+        let s = &self.pando.settings;
+        let managed = s.mode == PandoMode::Managed;
+        let help = if managed {
+            t!("settings.pando.models_help").to_string()
+        } else {
+            t!("settings.pando.models_help_external").to_string()
+        };
+        let loading = self.pando.models == ModelsState::Loading;
+        let mut col = v_flex().gap_1().child(row(
+            theme,
+            t!("settings.pando.models_title").to_string(),
+            Some(help),
+            Button::new("settings-pando-models-refresh")
+                .small()
+                .label(t!("settings.pando.models_refresh").to_string())
+                .disabled(loading)
+                .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                    this.refresh_pando_models(cx);
+                })),
+        ));
+        let note = |text: String| {
+            div()
+                .py_1()
+                .text_xs()
+                .text_color(theme.muted_foreground)
+                .child(text)
+                .into_any_element()
+        };
+        let mut rows: Vec<ModelRow> = Vec::new();
+        match &self.pando.models {
+            ModelsState::Idle => {
+                col = col.child(note(t!("settings.pando.models_idle").to_string()))
+            }
+            ModelsState::Loading => {
+                col = col.child(note(t!("settings.pando.models_loading").to_string()));
+            }
+            ModelsState::Failed(e) => {
+                col = col.child(note(
+                    t!("settings.pando.models_failed", error = e).to_string(),
+                ));
+            }
+            ModelsState::Loaded(list, errors) => {
+                rows = list.clone();
+                for e in errors {
+                    col = col.child(note(e.clone()));
+                }
+            }
+        }
+        // Enabled models stay listed (and can be switched off) when the fetch lacks them.
+        for id in &s.enabled_models {
+            if !rows.iter().any(|r| &r.id == id) {
+                rows.push(ModelRow {
+                    id: id.clone(),
+                    name: id.clone(),
+                    provider: String::new(),
+                });
+            }
+        }
+        if matches!(self.pando.models, ModelsState::Loaded(..)) && rows.is_empty() {
+            col = col.child(note(t!("settings.pando.models_none").to_string()));
+        }
+        let mut list = v_flex()
+            .id("settings-pando-models-list")
+            .max_h(dims::PX_320)
+            .overflow_y_scroll();
+        for (ix, r) in rows.iter().enumerate() {
+            let id = r.id.clone();
+            let desc = if r.provider.is_empty() {
+                r.id.clone()
+            } else {
+                format!("{} - {}", r.provider, r.id)
+            };
+            list = list.child(row(
+                theme,
+                r.name.clone(),
+                Some(desc),
+                Switch::new(("settings-pando-model", ix))
+                    .checked(s.enabled_models.contains(&r.id))
+                    .disabled(!managed)
+                    .on_click(cx.listener(move |this, on: &bool, _, cx| {
+                        this.set_pando_model_enabled(&id, *on, cx);
+                    })),
+            ));
+        }
+        col.child(list).into_any_element()
     }
 
     /// Daily review and auto recommendations: off by default, shown under the features.
@@ -1184,5 +1387,31 @@ mod unit {
         for m in [PandoMode::Managed, PandoMode::External, PandoMode::Off] {
             assert_eq!(mode_from_key(mode_key(m)), m);
         }
+    }
+
+    #[test]
+    fn model_rows_drop_auto_and_duplicates_and_sort() {
+        use bitacora_runtime::ai::{ModelInfo, ModelList};
+        let m = |id: &str, name: &str, provider: &str| ModelInfo {
+            id: id.into(),
+            name: name.into(),
+            provider: provider.into(),
+            ..ModelInfo::default()
+        };
+        let list = ModelList {
+            models: vec![
+                m("auto", "Auto", ""),
+                m("b", "", "openai"),
+                m("a", "Alpha", "anthropic"),
+                m("a", "Alpha again", "anthropic"),
+            ],
+            ..ModelList::default()
+        };
+        let rows = model_rows(&list);
+        assert_eq!(
+            rows.iter().map(|r| r.id.as_str()).collect::<Vec<_>>(),
+            ["a", "b"]
+        );
+        assert_eq!(rows[1].name, "b");
     }
 }

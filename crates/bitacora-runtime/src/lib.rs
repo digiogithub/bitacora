@@ -55,6 +55,7 @@ pub mod ai {
         QuestionRequest,
     };
     pub use pando::agui::{AguiClient, Message, MessageContent, ThreadSummary, ThreadsPage};
+    pub use pando::{ModelInfo, ModelList, PandoClient};
 }
 
 pub use live::{DEFAULT_SHUTDOWN_BUDGET, Session, ShutdownReport};

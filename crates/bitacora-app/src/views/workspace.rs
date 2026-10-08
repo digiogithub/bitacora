@@ -279,6 +279,7 @@ impl Workspace {
             window,
             |this, _, event: &ChatViewEvent, _, cx| match event {
                 ChatViewEvent::Navigate(target) => this.on_stack_navigate(target, cx),
+                ChatViewEvent::ModelChosen(model) => this.remember_chat_model(model.clone(), cx),
             },
         ));
         let weak = cx.weak_entity();
@@ -1035,8 +1036,10 @@ impl Workspace {
         match event {
             SessionEvent::Live(link) => {
                 self.link = Some(link.clone());
-                self.chat
-                    .update(cx, |chat, _| chat.set_link(Some(link.clone())));
+                self.chat.update(cx, |chat, cx| {
+                    chat.set_link(Some(link.clone()));
+                    chat.refresh_model_choices(cx);
+                });
                 self.push_ai_context(cx);
                 self.settings.update(cx, |s, cx| {
                     s.set_mcp_endpoint(link.mcp_endpoint.clone(), cx)

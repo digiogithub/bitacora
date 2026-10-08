@@ -77,6 +77,9 @@ impl Workspace {
             .graph_root
             .as_deref()
             .is_some_and(|root| settings.has_consent(&root.to_string_lossy()));
+        let chosen = settings.chat_model.clone();
+        self.chat
+            .update(cx, |chat, cx| chat.set_chosen_model(chosen, cx));
         self.pando_ui.settings = settings;
         self.pando_ui.consented = consented;
         if !self.pando_ui.settings.is_active() {
@@ -85,6 +88,24 @@ impl Workspace {
         }
         self.push_pando_state(cx);
         self.start_pando_poll(cx);
+        cx.notify();
+    }
+
+    /// Saves the model picked in the agent panel in `pando.json` (BIT-US-0180).
+    pub(super) fn remember_chat_model(&mut self, model: Option<String>, cx: &mut Context<Self>) {
+        let Some(file) = self.config.pando_settings_path.clone() else {
+            return;
+        };
+        let mut settings = bitacora_runtime::load_pando_settings(&file).unwrap_or_default();
+        if settings.chat_model == model {
+            return;
+        }
+        settings.chat_model = model;
+        if let Err(e) = settings.save(&file) {
+            tracing::warn!("cannot remember the chat model: {e}");
+            return;
+        }
+        self.pando_ui.settings = settings;
         cx.notify();
     }
 
@@ -106,6 +127,9 @@ impl Workspace {
         }
         self.pando_ui.live = Some(status);
         self.pando_ui.sync = sync;
+        // The chat profiles Pando exposes are known once it is connected.
+        self.chat
+            .update(cx, |chat, cx| chat.refresh_model_choices(cx));
         self.push_pando_state(cx);
         cx.notify();
     }

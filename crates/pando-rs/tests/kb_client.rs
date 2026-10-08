@@ -378,3 +378,45 @@ fn bad_base_url_is_a_config_error() {
     let err = PandoClient::new(PandoConfig::new("localhost:80")).expect_err("scheme");
     assert!(matches!(err, Error::Config(_)));
 }
+
+#[tokio::test]
+async fn list_models_parses_models_and_errors() {
+    let app = Router::new().route(
+        "/api/v1/models",
+        get(|h: HeaderMap| async move {
+            assert_eq!(h.get("X-Pando-Token").unwrap(), "secret-token");
+            json_resp(
+                StatusCode::OK,
+                json!({
+                    "models": [
+                        {"id": "auto", "name": "Auto", "provider": "router"},
+                        {"id": "claude-sonnet-4", "name": "Sonnet 4", "provider": "anthropic",
+                         "accountId": "main", "contextWindow": 200000, "canReason": true,
+                         "badges": ["fast"], "futureField": 1}
+                    ],
+                    "errors": {"openai-2": "no key"},
+                    "autoSelected": false
+                }),
+            )
+        }),
+    );
+    let base = serve(app).await;
+    let list = client(&base).list_models().await.unwrap();
+    assert_eq!(list.models.len(), 2);
+    assert_eq!(list.models[1].id, "claude-sonnet-4");
+    assert_eq!(list.models[1].account_id, "main");
+    assert_eq!(list.models[1].context_window, 200_000);
+    assert!(list.models[1].can_reason);
+    assert_eq!(list.errors["openai-2"], "no key");
+    assert!(!list.auto_selected);
+}
+
+#[tokio::test]
+async fn list_models_tolerates_an_empty_body_object() {
+    let app = Router::new().route(
+        "/api/v1/models",
+        get(|| async { json_resp(StatusCode::OK, json!({})) }),
+    );
+    let base = serve(app).await;
+    assert!(client(&base).list_models().await.unwrap().models.is_empty());
+}
