@@ -7,7 +7,7 @@ Design for BIT-US-0090 (bundles), BIT-US-0097 (release pipeline), BIT-US-0110 (`
 | Artifact | Built by | Signing |
 |---|---|---|
 | macOS `.app` + `.dmg` | `cargo xtask bundle` (cargo-packager 0.11.8) | Developer ID + notarization (optional) |
-| Windows NSIS `.exe` + WiX `.msi` | same | Azure Trusted Signing (optional) |
+| Windows NSIS `.exe` + WiX `.msi` (stable only: WiX rejects pre-release versions, beta tags ship NSIS only) | same | Azure Trusted Signing (optional) |
 | Linux `.deb`, `.AppImage` | same | none (checksums + provenance) |
 | `bitacora-cli-<version>-<target>.tar.gz\|zip` | `release.yml` `cli` job | macOS codesign + notarize, Windows Trusted Signing (optional) |
 | `bitacora.flatpak` | `flatpak.yml` | Flathub signs |

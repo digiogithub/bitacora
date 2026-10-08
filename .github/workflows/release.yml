@@ -258,6 +258,7 @@ jobs:
       id-token: write
     env:
       VERSION: ${{ needs.meta.outputs.version }}
+      CHANNEL: ${{ needs.meta.outputs.channel }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -300,8 +301,14 @@ jobs:
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256
 
+      # WiX only accepts numeric versions (major.minor.patch[.build]), so a beta tag such as
+      # v2.0.2-beta.1 cannot produce an .msi: beta releases ship the NSIS installer only.
       - name: Bundle (NSIS, MSI)
-        run: cargo xtask bundle --no-build --formats nsis,wix
+        shell: bash
+        run: |
+          formats=nsis,wix
+          if [ "$CHANNEL" = "beta" ]; then formats=nsis; fi
+          cargo xtask bundle --no-build --formats "$formats"
 
       - name: Sign the installers
         uses: azure/trusted-signing-action@v2.0.0
