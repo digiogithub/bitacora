@@ -2,15 +2,16 @@
 id: BIT-US-0173
 type: story
 title: "Tasks view: tasks vanish after changing scheduled dates until restart"
-status: in_review
+status: done
 priority: high
 parent: BIT-EP-0026
 milestone: BIT-M-0010
 author: mcp
 labels: [bug, bitacora-app, tasks]
 created: 2026-10-08T12:23:05Z
-updated: 2026-10-08T12:57:15Z
+updated: 2026-10-08T14:36:12Z
 started: 2026-10-08T12:57:15Z
+closed: 2026-10-08T14:36:12Z
 ---
 
 ## Description

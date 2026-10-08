@@ -2,13 +2,14 @@
 id: BIT-EP-0026
 type: epic
 title: "2.0.2 owner feedback: journals, tasks, settings access, git auth, agent UX"
-status: backlog
+status: done
 priority: high
 milestone: BIT-M-0010
 author: mcp
 labels: [v2, feedback, bitacora-app]
 created: 2026-10-08T12:22:35Z
-updated: 2026-10-08T12:22:35Z
+updated: 2026-10-08T14:36:15Z
+closed: 2026-10-08T14:36:15Z
 ---
 
 ## Description

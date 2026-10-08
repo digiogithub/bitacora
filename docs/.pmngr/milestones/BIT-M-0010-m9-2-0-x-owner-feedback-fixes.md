@@ -2,10 +2,11 @@
 id: BIT-M-0010
 type: milestone
 title: M9 — 2.0.x owner feedback fixes
-status: backlog
+status: done
 author: mcp
 created: 2026-10-08T12:22:29Z
-updated: 2026-10-08T12:22:29Z
+updated: 2026-10-08T14:36:16Z
+closed: 2026-10-08T14:36:16Z
 due: 2026-10-15
 ---
 
