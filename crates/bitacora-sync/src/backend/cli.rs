@@ -25,6 +25,9 @@ pub struct CliConfig {
     pub askpass: Option<PathBuf>,
     /// Extra environment for the askpass helper (see [`crate::askpass::AskpassServer::env`]).
     pub askpass_env: Vec<(String, String)>,
+    /// Private key for SSH remotes (BIT-US-0177): git runs `ssh -i <key> -o IdentitiesOnly=yes`
+    /// through `GIT_SSH_COMMAND`. `None` keeps the user's own ssh configuration / `GIT_SSH_COMMAND`.
+    pub ssh_key: Option<PathBuf>,
     /// Timeout for fetch/push/clone/ls-remote (default 120 s).
     pub network_timeout: Duration,
     /// Timeout for local operations (default 60 s).
@@ -36,6 +39,7 @@ impl Default for CliConfig {
         Self {
             askpass: None,
             askpass_env: Vec::new(),
+            ssh_key: None,
             network_timeout: Duration::from_secs(120),
             local_timeout: Duration::from_secs(60),
         }
@@ -135,6 +139,18 @@ impl CliBackend {
     }
 }
 
+/// `GIT_SSH_COMMAND` value for an explicit key. git hands it to a POSIX shell (also on Windows,
+/// where Git for Windows bundles one), so the path is single-quoted; Windows backslashes become
+/// forward slashes, which ssh accepts and which survive shell quoting.
+pub(crate) fn ssh_command(key: &Path) -> String {
+    let mut path = key.to_string_lossy().into_owned();
+    if cfg!(windows) {
+        path = path.replace('\\', "/");
+    }
+    let quoted = path.replace('\'', "'\\''");
+    format!("ssh -i '{quoted}' -o IdentitiesOnly=yes")
+}
+
 fn run(
     git: &Path,
     cwd: Option<&Path>,
@@ -185,6 +201,9 @@ fn run_with_env(
     }
     for (k, v) in &config.askpass_env {
         cmd.env(k, v);
+    }
+    if let Some(key) = config.ssh_key.as_deref() {
+        cmd.env("GIT_SSH_COMMAND", ssh_command(key));
     }
     if let Some(cwd) = cwd {
         cmd.current_dir(cwd);
@@ -535,5 +554,54 @@ impl GitBackend for CliBackend {
 
     fn kind(&self) -> ActiveBackend {
         ActiveBackend::Hybrid
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod ssh_command_tests {
+    use super::*;
+
+    #[test]
+    fn plain_path_is_single_quoted() {
+        assert_eq!(
+            ssh_command(Path::new("/home/u/.ssh/id_ed25519")),
+            "ssh -i '/home/u/.ssh/id_ed25519' -o IdentitiesOnly=yes"
+        );
+    }
+
+    #[test]
+    fn spaces_and_quotes_survive_the_shell() {
+        assert_eq!(
+            ssh_command(Path::new("/home/my user/it's a key")),
+            "ssh -i '/home/my user/it'\\''s a key' -o IdentitiesOnly=yes"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn key_sets_git_ssh_command_in_the_child_environment() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let dir = tempfile::tempdir().unwrap();
+        let fake = dir.path().join("git");
+        std::fs::write(&fake, "#!/bin/sh\nprintf '%s' \"$GIT_SSH_COMMAND\"\n").unwrap();
+        std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let with_key = CliConfig {
+            ssh_key: Some(PathBuf::from("/k/my id")),
+            ..CliConfig::default()
+        };
+        let out = run_with_env(
+            &fake,
+            None,
+            &with_key,
+            &[],
+            None,
+            Duration::from_secs(10),
+            &[],
+        );
+        assert_eq!(
+            out.unwrap().text(),
+            "ssh -i '/k/my id' -o IdentitiesOnly=yes"
+        );
     }
 }

@@ -52,6 +52,9 @@ pub struct SyncPrefs {
     pub fetch_interval_secs: u64,
     /// Amend recent auto-commits instead of piling them up (`sync.squash_auto_commits`).
     pub squash_auto_commits: bool,
+    /// Private key used for SSH remotes (BIT-US-0177); `None` uses the agent and default keys.
+    /// Only the path is stored here, passphrases live in the OS keychain.
+    pub ssh_key: Option<PathBuf>,
 }
 
 impl Default for SyncPrefs {
@@ -67,6 +70,7 @@ impl Default for SyncPrefs {
             commit_max_secs: 300,
             fetch_interval_secs: 120,
             squash_auto_commits: true,
+            ssh_key: None,
         }
     }
 }
@@ -110,6 +114,13 @@ impl SyncPrefs {
     pub fn save(&self, path: &Path) -> std::io::Result<()> {
         let json = serde_json::to_vec_pretty(self).map_err(std::io::Error::other)?;
         write_atomic(path, &json)
+    }
+
+    /// The SSH key to use, ignoring an empty path.
+    pub fn ssh_key_path(&self) -> Option<&Path> {
+        self.ssh_key
+            .as_deref()
+            .filter(|p| !p.as_os_str().is_empty())
     }
 
     /// The identity to configure in the repository, when the user gave one.
@@ -396,6 +407,7 @@ impl SyncForm {
             fetch_interval_secs: parse_secs(&self.fetch, FETCH_RANGE, defaults.fetch_interval_secs)
                 .unwrap_or(defaults.fetch_interval_secs),
             squash_auto_commits: self.squash,
+            ssh_key: None,
         }
         .clamped()
     }
@@ -472,6 +484,28 @@ pub fn actionable(error: &OnboardingError, detection: &GitDetection) -> Actionab
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn prefs_without_ssh_key_still_load_and_the_key_roundtrips() {
+        // A sync.json written before BIT-US-0177 has no `ssh_key` field.
+        let old = r#"{"enabled":true,"remote_url":"git@h:o/r.git","branch":"main"}"#;
+        let prefs: SyncPrefs = serde_json::from_str(old).unwrap_or_default();
+        assert!(prefs.enabled);
+        assert_eq!(prefs.ssh_key, None);
+        assert_eq!(prefs.ssh_key_path(), None);
+        let with_key = SyncPrefs {
+            ssh_key: Some(PathBuf::from("/k/my id")),
+            ..prefs
+        };
+        let json = serde_json::to_string(&with_key).unwrap_or_default();
+        let back: SyncPrefs = serde_json::from_str(&json).unwrap_or_default();
+        assert_eq!(back.ssh_key_path(), Some(Path::new("/k/my id")));
+        let empty = SyncPrefs {
+            ssh_key: Some(PathBuf::new()),
+            ..back
+        };
+        assert_eq!(empty.ssh_key_path(), None);
+    }
+
     use super::*;
 
     #[test]

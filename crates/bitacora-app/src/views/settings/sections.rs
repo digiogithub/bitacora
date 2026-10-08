@@ -442,6 +442,46 @@ impl SettingsView {
                     ))
                 },
             )
+            .when(
+                matches!(
+                    crate::sync_prefs::validate_remote_url(&prefs.remote_url),
+                    Ok(crate::sync_prefs::RemoteKind::Ssh)
+                ),
+                |c| {
+                    let key = prefs.ssh_key_path().map(|p| p.display().to_string());
+                    c.child(row(
+                        theme,
+                        t!("settings.sync.ssh_key").to_string(),
+                        Some(t!("settings.sync.ssh_key_help").to_string()),
+                        h_flex()
+                            .gap_2()
+                            .items_center()
+                            .child(div().id("settings-sync-ssh-key").text_sm().child(
+                                key.clone().unwrap_or_else(|| {
+                                    t!("settings.sync.ssh_key_none").to_string()
+                                }),
+                            ))
+                            .child(
+                                Button::new("settings-sync-ssh-browse")
+                                    .small()
+                                    .label(t!("settings.sync.ssh_key_browse").to_string())
+                                    .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                                        this.browse_ssh_key(cx);
+                                    })),
+                            )
+                            .when(key.is_some(), |r| {
+                                r.child(
+                                    Button::new("settings-sync-ssh-clear")
+                                        .small()
+                                        .label(t!("settings.sync.ssh_key_clear").to_string())
+                                        .on_click(cx.listener(|_, _: &ClickEvent, _, cx| {
+                                            cx.emit(SettingsEvent::SetSshKey(None));
+                                        })),
+                                )
+                            }),
+                    ))
+                },
+            )
             .child(row(
                 theme,
                 t!("settings.sync.timing").to_string(),

@@ -156,6 +156,8 @@ pub enum SettingsEvent {
     DisableSync,
     /// Forget the saved credentials of the graph's remote.
     ForgetCredentials,
+    /// Use this SSH private key for the graph's remote (`None` clears it).
+    SetSshKey(Option<std::path::PathBuf>),
     /// Open the sync panel (backend details, conflicts, history).
     OpenSyncPanel,
     /// New sync timing; the workspace saves it and restarts the session.
@@ -925,6 +927,26 @@ impl SettingsView {
                 cx,
             ),
         }
+    }
+
+    /// Shows the native file dialog for the SSH private key; the choice is emitted as
+    /// [`SettingsEvent::SetSshKey`].
+    pub(crate) fn browse_ssh_key(&mut self, cx: &mut Context<Self>) {
+        let rx = cx.prompt_for_paths(crate::ui::PathPromptOptions {
+            files: true,
+            directories: false,
+            multiple: false,
+            prompt: Some(t!("settings.sync.ssh_key_prompt").to_string().into()),
+        });
+        cx.spawn(async move |this, cx| {
+            // A cancelled dialog, a closed channel or a portal error all mean "nothing chosen".
+            if let Ok(Ok(Some(paths))) = rx.await
+                && let Some(path) = paths.into_iter().next()
+            {
+                let _ = this.update(cx, |_, cx| cx.emit(SettingsEvent::SetSshKey(Some(path))));
+            }
+        })
+        .detach();
     }
 
     pub(crate) fn toggle_squash(&mut self, on: bool, cx: &mut Context<Self>) {

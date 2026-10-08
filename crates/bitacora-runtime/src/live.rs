@@ -127,7 +127,8 @@ fn backend_with_credentials(
     let sync_err = |e: bitacora_sync::GitError| RuntimeError::Sync(e.to_string());
     let gix = GixBackend::open(root)
         .map_err(sync_err)?
-        .with_credentials(Arc::clone(provider));
+        .with_credentials(Arc::clone(provider))
+        .with_ssh_key(cli.ssh_key.clone());
     Ok(match detection {
         GitDetection::Found { path, .. } => Box::new(HybridBackend::new(
             CliBackend::new(root, path.clone(), cli),

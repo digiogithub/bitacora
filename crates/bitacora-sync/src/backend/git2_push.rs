@@ -34,14 +34,18 @@ fn map_err(e: &git2::Error) -> GitError {
             if !msg.to_ascii_lowercase().contains("connect") =>
         {
             GitError::Auth {
-                hint: Some(AUTH_HINT.into()),
+                hint: Some(if e.class() == ErrorClass::Ssh {
+                    super::SSH_AUTH_HINT.into()
+                } else {
+                    AUTH_HINT.into()
+                }),
             }
         }
         (ErrorCode::NotFastForward, _) => GitError::NonFastForward,
         (ErrorCode::Certificate, _) => GitError::Network(msg),
         _ => match super::classify_failure(&msg) {
-            GitError::Auth { .. } => GitError::Auth {
-                hint: Some(AUTH_HINT.into()),
+            GitError::Auth { hint } => GitError::Auth {
+                hint: hint.or_else(|| Some(AUTH_HINT.into())),
             },
             GitError::Other { .. } if matches!(e.class(), ErrorClass::Net | ErrorClass::Http) => {
                 GitError::Network(msg)
@@ -69,6 +73,7 @@ pub(crate) fn push(
     remote_name: &str,
     branch: &str,
     creds: Option<&Arc<dyn CredentialProvider>>,
+    ssh_key: Option<&Path>,
 ) -> Result<PushOutcome> {
     let repo = Repository::open(repo_path).map_err(|_| GitError::NotARepo)?;
     let head = repo
@@ -86,13 +91,19 @@ pub(crate) fn push(
     let https_attempts = Cell::new(0u32);
     let agent_tried = Cell::new(false);
     let key_attempts = Cell::new(0u32);
-    let keys = default_ssh_keys();
+    // An explicit key replaces the agent and the default keys, like `-o IdentitiesOnly=yes`.
+    let keys = match ssh_key {
+        Some(key) => vec![key.to_path_buf()],
+        None => default_ssh_keys(),
+    };
+    let explicit_key = ssh_key.is_some();
 
     let mut callbacks = RemoteCallbacks::new();
     callbacks.credentials(|cb_url, user_from_url, allowed| {
         if allowed.contains(CredentialType::SSH_KEY) {
             let user = user_from_url.unwrap_or("git");
-            if !agent_tried.replace(true)
+            if !explicit_key
+                && !agent_tried.replace(true)
                 && let Ok(c) = Cred::ssh_key_from_agent(user)
             {
                 return Ok(c);

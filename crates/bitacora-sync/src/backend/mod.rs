@@ -132,6 +132,10 @@ impl GitError {
 /// Hint shown with HTTPS authentication failures (cancelled prompt, rejected password).
 pub const HTTPS_AUTH_HINT: &str = "enter your username and password or token when asked; stale ones can be forgotten in Settings > Sync";
 
+/// Hint shown with SSH authentication failures (no usable key, host key refused).
+pub const SSH_AUTH_HINT: &str =
+    "set the SSH private key for this graph in Settings > Sync, or load it into your ssh agent";
+
 /// Classifies a failed git invocation from its stderr (exit code is non-zero by construction).
 pub fn classify_failure(stderr: &str) -> GitError {
     let s = stderr.to_ascii_lowercase();
@@ -145,6 +149,15 @@ pub fn classify_failure(stderr: &str) -> GitError {
         "updates were rejected",
     ]) {
         GitError::NonFastForward
+    } else if has(&[
+        "permission denied (publickey",
+        "host key verification failed",
+        "no usable ssh credentials",
+    ]) && !has(&["connection refused", "timed out", "could not resolve"])
+    {
+        GitError::Auth {
+            hint: Some(SSH_AUTH_HINT.to_string()),
+        }
     } else if has(&[
         "authentication failed",
         "permission denied",
@@ -519,6 +532,30 @@ mod tests {
             GitError::ExternalOperationInProgress
         ));
         assert!(matches!(classify_failure("boom"), GitError::Other { .. }));
+    }
+
+    #[test]
+    fn ssh_failures_hint_at_the_ssh_key_setting() {
+        for stderr in [
+            "git@github.com: Permission denied (publickey).\nfatal: Could not read from remote repository.",
+            "Host key verification failed.\nfatal: Could not read from remote repository.",
+            "no usable ssh credentials",
+        ] {
+            match classify_failure(stderr) {
+                GitError::Auth { hint: Some(h) } => assert!(h.contains("SSH private key"), "{h}"),
+                other => panic!("{stderr}: {other:?}"),
+            }
+        }
+        // A refused connection is a network problem even though it mentions ssh.
+        assert!(matches!(
+            classify_failure("ssh: connect to host h port 22: Connection refused"),
+            GitError::Network(_)
+        ));
+        // HTTPS keeps the credentials hint.
+        assert!(matches!(
+            classify_failure("fatal: Authentication failed for 'https://h/'"),
+            GitError::Auth { hint: Some(h) } if h == HTTPS_AUTH_HINT
+        ));
     }
 
     #[test]

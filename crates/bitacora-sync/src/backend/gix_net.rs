@@ -27,6 +27,8 @@ use super::{
 pub struct GixBackend {
     path: PathBuf,
     credentials: Option<Arc<dyn CredentialProvider>>,
+    /// Explicit SSH private key for the libgit2 push (BIT-US-0177).
+    ssh_key: Option<PathBuf>,
 }
 
 impl std::fmt::Debug for GixBackend {
@@ -48,8 +50,8 @@ fn net_err(e: &(dyn std::error::Error + 'static)) -> GitError {
         src = s.source();
     }
     match classify_failure(&msg) {
-        GitError::Auth { .. } => GitError::Auth {
-            hint: Some("install git for full credential support".into()),
+        GitError::Auth { hint } => GitError::Auth {
+            hint: hint.or_else(|| Some("install git for full credential support".into())),
         },
         other => other,
     }
@@ -74,13 +76,26 @@ impl GixBackend {
         self
     }
 
+    /// Uses `key` as the SSH identity for pushes through libgit2 (`None` keeps agent/default keys).
+    #[must_use]
+    pub fn with_ssh_key(mut self, key: Option<PathBuf>) -> Self {
+        self.ssh_key = key;
+        self
+    }
+
     /// Pushes through libgit2 (ADR-023). Used for every non-local remote; public so the libgit2
     /// path can also be exercised against local remotes.
     #[cfg(feature = "git2-push")]
     pub fn push_via_libgit2(&self, remote: &str, branch: &str) -> Result<PushOutcome> {
         check_ref_arg(remote)?;
         check_ref_arg(branch)?;
-        super::git2_push::push(&self.path, remote, branch, self.credentials.as_ref())
+        super::git2_push::push(
+            &self.path,
+            remote,
+            branch,
+            self.credentials.as_ref(),
+            self.ssh_key.as_deref(),
+        )
     }
 
     #[cfg(feature = "git2-push")]
@@ -100,6 +115,7 @@ impl GixBackend {
         let backend = Self {
             path: path.to_path_buf(),
             credentials: None,
+            ssh_key: None,
         };
         backend.repo()?;
         Ok(backend)
