@@ -37,7 +37,7 @@ jobs:
     outputs:
       rust: ${{ steps.filter.outputs.rust }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - id: filter
@@ -61,8 +61,8 @@ jobs:
     if: needs.changes.outputs.rust == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions/checkout@v7
+      - uses: actions-rust-lang/setup-rust-toolchain@v2
         with:
           cache-shared-key: checks
           cache-save-if: ${{ github.ref == 'refs/heads/main' }}
@@ -86,10 +86,10 @@ jobs:
     if: needs.changes.outputs.rust == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: script/install-linux-deps.sh --minimal
       - uses: rui314/setup-mold@v1
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions-rust-lang/setup-rust-toolchain@v2
         with:
           cache-shared-key: test-core
           cache-save-if: ${{ github.ref == 'refs/heads/main' }}
@@ -127,8 +127,8 @@ jobs:
       - name: Windows - check out with CRLF conversion on (proves .gitattributes keeps fixtures exact)
         if: runner.os == 'Windows'
         run: git config --global core.autocrlf true
-      - uses: actions/checkout@v4
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions/checkout@v7
+      - uses: actions-rust-lang/setup-rust-toolchain@v2
         with:
           cache-shared-key: test-core-${{ matrix.os }}
           cache-save-if: ${{ github.ref == 'refs/heads/main' }}
@@ -141,8 +141,8 @@ jobs:
     # macOS, as GPUI Kit's own CI does (fastest GPUI build).
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions/checkout@v7
+      - uses: actions-rust-lang/setup-rust-toolchain@v2
         with:
           cache-shared-key: lint
           cache-save-if: ${{ github.ref == 'refs/heads/main' }}
@@ -161,13 +161,13 @@ jobs:
       - name: Windows - check out with CRLF conversion on (proves .gitattributes keeps fixtures exact)
         if: runner.os == 'Windows'
         run: git config --global core.autocrlf true
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install Linux system dependencies
         if: runner.os == 'Linux'
         run: script/install-linux-deps.sh
       - uses: rui314/setup-mold@v1
         if: runner.os == 'Linux'
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions-rust-lang/setup-rust-toolchain@v2
         with:
           cache-shared-key: test-app-${{ matrix.os }}
           cache-save-if: ${{ github.ref == 'refs/heads/main' }}
