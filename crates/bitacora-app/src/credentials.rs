@@ -83,7 +83,9 @@ fn default_store() -> Arc<dyn SecretStore> {
     Arc::new(bitacora_sync::credentials::KeyringStore)
 }
 
-/// The askpass helper next to the running executable, when it exists.
+/// The askpass helper: a standalone `bitacora-askpass` next to the running executable when it
+/// exists, otherwise the running executable itself, which acts as the helper when git starts it
+/// with `BITACORA_ASKPASS_MODE=1` (multi-call, BIT-US-0176; releases ship only `bitacora`).
 pub fn askpass_helper_path() -> Option<PathBuf> {
     let exe = std::env::current_exe().ok()?;
     let name = if cfg!(windows) {
@@ -91,8 +93,12 @@ pub fn askpass_helper_path() -> Option<PathBuf> {
     } else {
         "bitacora-askpass"
     };
-    let candidate = exe.parent()?.join(name);
-    candidate.is_file().then_some(candidate)
+    if let Some(candidate) = exe.parent().map(|d| d.join(name))
+        && candidate.is_file()
+    {
+        return Some(candidate);
+    }
+    Some(exe)
 }
 
 impl CredentialHub {
@@ -153,6 +159,11 @@ impl CredentialHub {
                 .lock()
                 .unwrap_or_else(PoisonError::into_inner)
                 .is_some()
+    }
+
+    /// Forgets the credentials saved for `remote_url` (and the passphrase of `ssh_key`).
+    pub fn forget_remote(&self, remote_url: &str, ssh_key: Option<&str>) {
+        self.provider.forget_remote(remote_url, ssh_key);
     }
 
     /// Forgets remembered cancellations: call when the user explicitly retries.

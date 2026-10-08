@@ -208,6 +208,16 @@ settings:
     timing_invalid: Introduce números enteros de segundos. Los valores fuera del rango permitido (inactividad 5-600, máximo 30-3600, obtención 30-3600) se ajustan.
     squash: Combinar confirmaciones automáticas
     squash_help: Une una serie de confirmaciones automáticas en una sola.
+    forget: "Credenciales guardadas"
+    forget_help: "Elimina del llavero del sistema el usuario, la contraseña o el token y la contraseña de la clave SSH de este remoto. Se te pedirán de nuevo en la próxima sincronización."
+    forget_button: "Olvidar credenciales guardadas"
+    forget_done: "Credenciales guardadas olvidadas."
+    ssh_key: "Clave SSH"
+    ssh_key_help: "Archivo de clave privada para el remoto SSH de este grafo. Déjalo vacío para usar tu agente ssh y las claves por defecto."
+    ssh_key_none: "Por defecto (agente ssh y claves de ~/.ssh)"
+    ssh_key_browse: "Elegir..."
+    ssh_key_clear: "Quitar"
+    ssh_key_prompt: "Elige una clave privada SSH"
   agents:
     enabled: Ejecutar el servidor MCP
     enabled_help: Sirve MCP mientras hay un grafo abierto. Desactivado, los agentes no pueden conectarse.

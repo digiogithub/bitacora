@@ -208,6 +208,16 @@ settings:
     timing_invalid: Enter whole numbers of seconds. Values outside the allowed range (idle 5-600, max 30-3600, fetch 30-3600) are adjusted.
     squash: Squash automatic commits
     squash_help: Merge a run of automatic commits into one.
+    forget: "Saved credentials"
+    forget_help: "Remove the username, password or token and the SSH key passphrase stored in the system keychain for this remote. You will be asked again on the next sync."
+    forget_button: "Forget saved credentials"
+    forget_done: "Saved credentials forgotten."
+    ssh_key: "SSH key"
+    ssh_key_help: "Private key file used for this graph's SSH remote. Leave empty to use your ssh agent and default keys."
+    ssh_key_none: "Default (ssh agent and ~/.ssh keys)"
+    ssh_key_browse: "Choose..."
+    ssh_key_clear: "Clear"
+    ssh_key_prompt: "Choose an SSH private key"
   agents:
     enabled: Run the MCP server
     enabled_help: Serve MCP while a graph is open. Off stops agents from connecting.

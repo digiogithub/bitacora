@@ -489,7 +489,14 @@ impl Workspace {
             Some(SyncSetup {
                 branch: self.sync_prefs.branch.clone(),
                 device: self.sync_prefs.device.clone(),
-                cli: Some(hub.cli_config()),
+                cli: Some({
+                    let mut cli = hub.cli_config();
+                    cli.ssh_key = self
+                        .sync_prefs
+                        .ssh_key_path()
+                        .map(std::path::Path::to_path_buf);
+                    cli
+                }),
                 credentials: Some(hub.provider()),
                 timing: self.sync_prefs.clone(),
             })
@@ -2024,6 +2031,31 @@ impl Workspace {
                 close(self, cx);
                 self.restart_session(window, cx);
             }
+            SettingsEvent::ForgetCredentials => {
+                let hub = self.credentials(window, cx);
+                let key = self
+                    .sync_prefs
+                    .ssh_key_path()
+                    .map(|p| p.to_string_lossy().into_owned());
+                hub.forget_remote(&self.sync_prefs.remote_url, key.as_deref());
+                notify(
+                    window,
+                    cx,
+                    Level::Success,
+                    t!("settings.sync.forget_done").to_string(),
+                );
+            }
+            SettingsEvent::SetSshKey(key) => {
+                self.sync_prefs.ssh_key = key.clone();
+                self.save_sync_prefs();
+                let prefs = self.sync_prefs.clone();
+                self.settings
+                    .update(cx, |s, cx| s.set_sync(prefs, None, cx));
+                if self.sync_prefs.enabled {
+                    close(self, cx);
+                    self.restart_session(window, cx);
+                }
+            }
             SettingsEvent::OpenSyncPanel => {
                 close(self, cx);
                 self.open_sync_panel(cx);
@@ -2111,7 +2143,10 @@ impl Workspace {
             SyncDialogEvent::Enabled {
                 prefs, needs_merge, ..
             } => {
+                // The form does not edit the SSH key: keep the one set in Settings.
+                let ssh_key = self.sync_prefs.ssh_key.take();
                 self.sync_prefs = prefs.clone();
+                self.sync_prefs.ssh_key = ssh_key;
                 self.save_sync_prefs();
                 let text = if *needs_merge {
                     t!("sync.dialog.needs_merge").to_string()
