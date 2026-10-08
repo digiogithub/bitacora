@@ -153,6 +153,30 @@ impl Selection {
                 .is_none_or(|p| row.priority.as_ref() == Some(p))
             && self.page.as_ref().is_none_or(|p| &row.page == p)
     }
+
+    /// This selection with every dimension that no longer matches anything in `model` dropped.
+    ///
+    /// Rescheduling or completing the last task a pill selects (the last overdue one, the last
+    /// task of a page) would otherwise leave a filter that keeps zero rows while the model still
+    /// holds tasks: the list looks emptied until the app is restarted (BIT-US-0173).
+    #[must_use]
+    pub fn reconciled(&self, model: &TaskModel) -> Selection {
+        let mut next = self.clone();
+        if let Some(p) = &next.page
+            && !model.rows.iter().any(|r| &r.page == p)
+        {
+            next.page = None;
+        }
+        if let Some(p) = &next.priority
+            && !model.rows.iter().any(|r| r.priority.as_ref() == Some(p))
+        {
+            next.priority = None;
+        }
+        if next.marker != MarkerClass::All && model.count_marker(next.marker, &next) == 0 {
+            next.marker = MarkerClass::All;
+        }
+        next
+    }
 }
 
 /// All open tasks of a graph, in display order (groups, then date or outline order).
@@ -167,12 +191,18 @@ impl TaskModel {
     pub fn from_groups(groups: &TaskGroups) -> Self {
         let mut rows = Vec::new();
         for group in TaskGroup::ALL {
-            rows.extend(
-                groups
-                    .get(group)
-                    .iter()
-                    .filter_map(|i| TaskRow::from_item(i, group)),
-            );
+            for item in groups.get(group) {
+                match TaskRow::from_item(item, group) {
+                    Some(row) => rows.push(row),
+                    // One odd block never empties the list.
+                    None => tracing::warn!(
+                        "task {} on {} skipped: unknown marker {:?}",
+                        item.block.uuid,
+                        item.page_name,
+                        item.block.marker
+                    ),
+                }
+            }
         }
         Self { rows }
     }
@@ -449,9 +479,11 @@ impl TasksView {
             let _ = this.update(cx, |view, cx| match result {
                 Ok(model) => {
                     view.loaded = true;
+                    view.selection = view.selection.reconciled(&model);
                     view.model = model;
                     cx.notify();
                 }
+                // Keep the rows already on screen: a failed read never blanks the list.
                 Err(message) => tracing::warn!("cannot list the tasks: {message}"),
             });
         }));
@@ -1037,6 +1069,38 @@ mod tests {
         // Facet counts respect the other dimensions: Home's task is outside page Work.
         assert_eq!(m.count_priority("B", &sel), 0);
         assert_eq!(m.count_marker(MarkerClass::All, &sel), 5);
+    }
+
+    #[test]
+    fn rescheduling_the_last_overdue_task_resets_the_stale_overdue_filter() {
+        // Regression for BIT-US-0173: with the Overdue pill selected, moving the last overdue
+        // task out of it left a filter keeping zero rows (the list looked emptied).
+        let before = model();
+        let sel = Selection {
+            marker: MarkerClass::Overdue,
+            page: Some("Work".into()),
+            ..Selection::default()
+        };
+        assert_eq!(sel.reconciled(&before), sel, "still matches rows");
+        let after = TaskModel {
+            rows: before
+                .rows
+                .iter()
+                .filter(|r| r.group != TaskGroup::Overdue)
+                .cloned()
+                .collect(),
+        };
+        assert!(after.grouped(&sel).is_empty(), "the stale filter hides all");
+        let fixed = sel.reconciled(&after);
+        assert_eq!(fixed.marker, MarkerClass::All);
+        assert_eq!(fixed.page.as_deref(), Some("Work"));
+        assert!(!after.grouped(&fixed).is_empty());
+        let gone = Selection {
+            page: Some("Nowhere".into()),
+            priority: Some("C".into()),
+            ..Selection::default()
+        };
+        assert_eq!(gone.reconciled(&after), Selection::default());
     }
 
     #[test]
