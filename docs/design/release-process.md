@@ -26,22 +26,31 @@ Linux bundles require a Vulkan driver (`libvulkan1` plus a Mesa/vendor ICD); the
 
 ## 3. Pipeline (`release.yml`)
 
-On a `v*` tag: `meta` (tag must equal the workspace version, computes channel: `-beta.N`/`-rc.N` = pre-release/beta) → `bundles` (`bundle.yml`, 3 OS, with install/launch/uninstall smoke tests), `flatpak` (`flatpak.yml`), `cli` (5 targets) → `release`: collects artifacts, writes `SHA256SUMS`, generates notes from conventional commits since the previous tag (`cargo xtask release-notes`), attests provenance (`actions/attest-build-provenance`) and creates a **draft** release (`--prerelease` for beta tags). A maintainer publishes it manually.
+On a `v*` tag (or `workflow_dispatch` with an existing `tag`): `meta` (tag must equal the workspace version, computes channel: `-beta.N`/`-rc.N` = pre-release/beta) → per-platform jobs, each uploading its final files as a `dist-*` artifact:
+
+- `linux`: `bitacora-cli` for x86_64 and aarch64 (no GUI libraries linked) and the `.deb`/`.AppImage` (x86_64). Unsigned: Linux has no OS gatekeeper.
+- `macos`: `bitacora-cli` for aarch64 and x86_64 and the `.app`/`.dmg`. cargo-packager signs the app (hardened runtime, secure timestamp) and the `.dmg` with the Developer ID identity; the `.dmg` is notarized and stapled, the CLI binaries are codesigned and notarized submit-only (a bare Mach-O cannot carry a ticket).
+- `windows`: `bitacora.exe` and `bitacora-cli.exe` are signed before packaging, then the NSIS/MSI installers; every file must report `Get-AuthenticodeSignature` = `Valid` or the job fails.
+- `flatpak` (`flatpak.yml`, artifact `dist-flatpak`).
+
+→ `release`: downloads only `dist-*` artifacts (so nothing unsigned can be published), writes `SHA256SUMS`, generates notes from conventional commits since the previous tag (`cargo xtask release-notes`), attests provenance (`actions/attest-build-provenance`) and creates a **draft** release (`--prerelease` for beta tags). A maintainer publishes it manually.
+
+`bundle.yml` is an unsigned dry run (pull requests touching packaging, manual runs) with install/launch/uninstall smoke tests; it never sees signing material.
 
 Cutting a release: `cargo xtask bump X.Y.Z`, commit, `git tag vX.Y.Z`, push the tag, review the draft, publish.
 
-## 4. Secrets (all optional; signing steps are skipped when absent)
+## 4. Signing material
 
-| Secret | Used for |
-|---|---|
-| `APPLE_CERTIFICATE` | base64 `.p12` Developer ID Application certificate |
-| `APPLE_CERTIFICATE_PASSWORD` | password of the `.p12` |
-| `APPLE_SIGNING_IDENTITY` | e.g. `Developer ID Application: Digio (TEAMID)` |
-| `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID` | notarization (app-specific password) |
-| `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET` | service principal for Azure Trusted Signing |
-| `AZURE_TRUSTED_SIGNING_ENDPOINT`, `_ACCOUNT`, `_PROFILE` | Trusted Signing account and certificate profile |
+Same scheme as `digiogithub/git-in-track` and `digiogithub/pando` (composite actions from `digiogithub/ci-actions@v1`).
 
-`xtask bundle` also understands `WINDOWS_CERTIFICATE_THUMBPRINT` / `WINDOWS_SIGN_COMMAND` for local or self-hosted Windows signing. Windows signing in CI signs `bitacora.exe` before packaging and the installers afterwards.
+| Where | Name | Used for |
+|---|---|---|
+| repository secret | `MACOS_SIGNING_BUNDLE` | base64 `.tar.gz` of `DIGIO_Software_Signing_Keys`: Developer ID Application/Installer `.p12` files plus the `kvagerc` env file (certificate passwords, notary Apple ID / team / app password). `macos-signing-keychain` unpacks it into an ephemeral keychain and exports `SIGNING_IDENTITY` and `NOTARY_PROFILE`. |
+| repository variables | `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` | Entra app used by `azure/login` over OIDC (no client secret) |
+| repository variables | `AZURE_SIGNING_ENDPOINT`, `AZURE_SIGNING_ACCOUNT`, `AZURE_SIGNING_CERT_PROFILE` | Azure Artifact Signing account (`digio-art-sign-acc`) and certificate profile (`digio`) |
+| environment | `release` | the only job with `id-token: write` that runs in it is `windows`; the Entra app's federated credential is scoped to `repo:digiogithub/bitacora:environment:release` |
+
+`xtask bundle` still understands `APPLE_SIGNING_IDENTITY`, `APPLE_CERTIFICATE`/`_PASSWORD`, `APPLE_ID`/`APPLE_PASSWORD`/`APPLE_TEAM_ID` and `WINDOWS_CERTIFICATE_THUMBPRINT` / `WINDOWS_SIGN_COMMAND` for local or self-hosted signing.
 
 ## 5. `bitacora-cli self-update`
 
@@ -53,7 +62,8 @@ Cutting a release: `cargo xtask bump X.Y.Z`, commit, `git tag vX.Y.Z`, push the 
 
 ## Requirements
 
-- MUST: signing secrets are only used on tagged CI builds; unsigned local bundles work.
+- MUST: signing material is only used by `release.yml` (tag builds); unsigned local and PR bundles work.
+- MUST: the release job publishes only `dist-*` artifacts; macOS and Windows jobs fail rather than upload unsigned files.
 - MUST: the tag equals the workspace version; releases are drafts.
 - MUST: `self-update` verifies a SHA-256 from the release before replacing the binary and refuses managed installs.
 

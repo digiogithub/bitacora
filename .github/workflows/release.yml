@@ -1,19 +1,45 @@
 name: release
 
-# Tag-driven release (BIT-US-0097). Pushing `vX.Y.Z` (or `vX.Y.Z-beta.N` / `-rc.N`) builds the
-# desktop bundles, the `bitacora-cli` archives and the Flatpak, writes SHA256SUMS and release notes
-# and creates a DRAFT GitHub Release. A maintainer reviews and publishes it by hand.
-# Pre-release tags are marked as pre-releases (the beta update channel).
+# Signed, tag-driven release (BIT-US-0097). Pushing `vX.Y.Z` (or `vX.Y.Z-beta.N` / `-rc.N`) runs:
+#
+#   meta     : the tag must equal the workspace version; computes the channel (beta for pre-releases).
+#   linux    : desktop .deb/.AppImage (x86_64) and the bitacora-cli archives (x86_64, aarch64).
+#              Unsigned: Linux has no OS gatekeeper; integrity comes from SHA256SUMS + attestations.
+#   macos    : desktop .app/.dmg and the bitacora-cli archives (aarch64, x86_64), signed with the
+#              Developer ID identity and the hardened runtime, then notarized (the .dmg is stapled).
+#   windows  : bitacora.exe, bitacora-cli.exe and the NSIS/MSI installers, Authenticode-signed
+#              with Azure Artifact (Trusted) Signing over OIDC, and verified before upload.
+#   flatpak  : the Flatpak bundle (flatpak.yml).
+#   release  : downloads only the `dist-*` artifacts (so an unsigned build can never be published),
+#              writes SHA256SUMS and release notes, attests provenance and creates a DRAFT release
+#              (pre-release for beta tags). A maintainer reviews and publishes it by hand.
+#
+# Signing material (same scheme as digiogithub/git-in-track and digiogithub/pando):
+#   * macOS: one repository secret, MACOS_SIGNING_BUNDLE: a base64 .tar.gz of
+#     DIGIO_Software_Signing_Keys (the Developer ID .p12 files plus the `kvagerc` env file with the
+#     passwords and notary credentials), unpacked by digiogithub/ci-actions/macos-signing-keychain.
+#   * Windows: no secret. The `release` environment federates into the Entra app named by
+#     vars.AZURE_CLIENT_ID; the federated credential is scoped to
+#     repo:digiogithub/bitacora:environment:release, so only the `windows` job can sign.
+# See docs/design/release-process.md.
 on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re)build into a draft release."
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 env:
   CARGO_TERM_COLOR: always
+  RUST_TOOLCHAIN: 1.98.1
+  TAG: ${{ inputs.tag || github.ref_name }}
 
 jobs:
   meta:
@@ -24,131 +50,309 @@ jobs:
       channel: ${{ steps.check.outputs.channel }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.98.1
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
       - id: check
         name: Tag must equal the workspace version
-        run: cargo xtask release-check "$GITHUB_REF_NAME" | tee -a "$GITHUB_OUTPUT"
-
-  bundles:
-    needs: meta
-    uses: ./.github/workflows/bundle.yml
-    secrets: inherit
+        run: cargo xtask release-check "$TAG" | tee -a "$GITHUB_OUTPUT"
 
   flatpak:
     needs: meta
     uses: ./.github/workflows/flatpak.yml
+    with:
+      ref: ${{ inputs.tag || github.ref_name }}
+      artifact-name: dist-flatpak
 
-  cli:
-    name: cli (${{ matrix.target }})
+  linux:
+    name: linux (${{ matrix.target }})
     needs: meta
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-24.04, target: x86_64-unknown-linux-gnu, ext: tar.gz }
-          - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu, ext: tar.gz }
-          - { os: macos-latest, target: aarch64-apple-darwin, ext: tar.gz }
-          - { os: macos-latest, target: x86_64-apple-darwin, ext: tar.gz }
-          - { os: windows-latest, target: x86_64-pc-windows-msvc, ext: zip }
+          - { os: ubuntu-24.04, target: x86_64-unknown-linux-gnu, bundles: true }
+          - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu, bundles: false }
     env:
       VERSION: ${{ needs.meta.outputs.version }}
-      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-      APPLE_ID: ${{ secrets.APPLE_ID }}
-      APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-      AZURE_TRUSTED_SIGNING_ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Install Linux build dependencies
+        if: matrix.bundles
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            gcc g++ clang cmake pkg-config libfontconfig-dev libwayland-dev \
+            libxkbcommon-x11-dev libx11-xcb-dev libssl-dev libzstd-dev libasound2-dev \
+            libfuse2t64 file
 
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.98.1
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
           targets: ${{ matrix.target }}
 
       - uses: Swatinem/rust-cache@v2
         with:
-          key: cli-${{ matrix.target }}
+          key: release-${{ matrix.target }}
+
+      - uses: taiki-e/install-action@v2
+        if: matrix.bundles
+        with:
+          tool: cargo-packager@0.11.8
 
       - name: Build bitacora-cli
         run: cargo build --release --locked -p bitacora-cli --target ${{ matrix.target }}
 
       # The headless binary must not link GPU/windowing libraries (BIT-US-0110).
-      - name: Check shared-library dependencies (Linux)
-        if: runner.os == 'Linux'
+      - name: Check shared-library dependencies
         run: |
           ldd "target/${{ matrix.target }}/release/bitacora-cli" | tee ldd.txt
           if grep -Ei 'libX11|libxcb|libxkbcommon|libwayland|libvulkan|libfontconfig|libGL|libasound' ldd.txt; then
             echo "::error::bitacora-cli links GUI/GPU libraries"; exit 1
           fi
 
-      - name: Sign and notarize (macOS, optional)
-        if: runner.os == 'macOS' && env.APPLE_CERTIFICATE != '' && env.APPLE_SIGNING_IDENTITY != ''
+      - name: Build and bundle the desktop app (.deb, .AppImage)
+        if: matrix.bundles
         run: |
-          echo "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/cert.p12"
-          security create-keychain -p ci "$RUNNER_TEMP/ci.keychain"
-          security default-keychain -s "$RUNNER_TEMP/ci.keychain"
-          security unlock-keychain -p ci "$RUNNER_TEMP/ci.keychain"
-          security import "$RUNNER_TEMP/cert.p12" -k "$RUNNER_TEMP/ci.keychain" \
-            -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple: -s -k ci "$RUNNER_TEMP/ci.keychain"
-          bin="target/${{ matrix.target }}/release/bitacora-cli"
-          codesign --force --options runtime --timestamp --sign "$APPLE_SIGNING_IDENTITY" "$bin"
-          codesign --verify --strict --verbose=2 "$bin"
-          if [ -n "$APPLE_ID" ] && [ -n "$APPLE_PASSWORD" ] && [ -n "$APPLE_TEAM_ID" ]; then
-            ditto -c -k "$bin" "$RUNNER_TEMP/notarize.zip"
-            xcrun notarytool submit "$RUNNER_TEMP/notarize.zip" \
-              --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait
-          fi
+          cargo build --release --locked -p bitacora-app
+          cargo xtask bundle --no-build --formats deb,appimage
 
-      - name: Sign (Windows, Azure Trusted Signing, optional)
-        if: runner.os == 'Windows' && env.AZURE_CLIENT_ID != '' && env.AZURE_TRUSTED_SIGNING_ENDPOINT != ''
+      - name: Package
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          name="bitacora-cli-${VERSION}-${{ matrix.target }}"
+          mkdir "dist/$name"
+          cp "target/${{ matrix.target }}/release/bitacora-cli" LICENSE "dist/$name/"
+          tar -C dist -czf "dist/$name.tar.gz" "$name"
+          rm -rf "dist/$name"
+          if [ "${{ matrix.bundles }}" = "true" ]; then
+            cp target/packager/*.deb target/packager/*.AppImage dist/
+          fi
+          ls -la dist
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: dist-linux-${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error
+
+  macos:
+    name: macos (signed + notarized)
+    needs: meta
+    runs-on: macos-latest
+    # Notarization submits the .dmg and both CLI binaries to Apple with --wait.
+    timeout-minutes: 120
+    env:
+      VERSION: ${{ needs.meta.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-macos
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-packager@0.11.8
+
+      # Exports SIGNING_IDENTITY, NOTARY_PROFILE and MACOS_SIGN_KEYCHAIN_PATH/PASSWORD for the
+      # steps below. The keychain is added to the user search list, so codesign (and
+      # cargo-packager, which signs with the identity it is given) find the identity there.
+      - name: Set up the signing keychain
+        uses: digiogithub/ci-actions/macos-signing-keychain@v1
+        with:
+          signing-bundle: ${{ secrets.MACOS_SIGNING_BUNDLE }}
+          env-file: kvagerc
+          keychain-name: bitacora-build
+          notary-profile: bitacora-notary
+
+      - name: Build
+        run: |
+          cargo build --release --locked -p bitacora-cli --target aarch64-apple-darwin
+          cargo build --release --locked -p bitacora-cli --target x86_64-apple-darwin
+          cargo build --release --locked -p bitacora-app
+
+      # cargo-packager signs the .app (hardened runtime + secure timestamp on native binaries) and
+      # the .dmg with APPLE_SIGNING_IDENTITY. APPLE_ID is not set, so it skips its own notarization:
+      # the .dmg is notarized and stapled below.
+      - name: Bundle and sign the desktop app (.app, .dmg)
+        run: APPLE_SIGNING_IDENTITY="$SIGNING_IDENTITY" cargo xtask bundle --no-build --formats app,dmg
+
+      - name: Verify the app signature
+        run: |
+          set -euo pipefail
+          codesign --verify --deep --strict --verbose=2 target/packager/Bitacora.app
+          codesign -dv --verbose=2 target/packager/Bitacora.app 2>&1 | tee sig.txt
+          grep -q 'flags=.*runtime' sig.txt || { echo "::error::hardened runtime missing"; exit 1; }
+          codesign --verify --verbose=2 target/packager/*.dmg
+
+      - name: Codesign bitacora-cli
+        uses: digiogithub/ci-actions/macos-codesign@v1
+        with:
+          paths: |
+            target/aarch64-apple-darwin/release/bitacora-cli
+            target/x86_64-apple-darwin/release/bitacora-cli
+
+      # The .dmg ticket is stapled. A bare Mach-O cannot carry a ticket, so the CLI binaries are
+      # notarized submit-only and pass Gatekeeper's online check.
+      - name: Notarize
+        uses: digiogithub/ci-actions/macos-notarize@v1
+        with:
+          paths: |
+            target/packager/*.dmg
+            target/aarch64-apple-darwin/release/bitacora-cli
+            target/x86_64-apple-darwin/release/bitacora-cli
+          staple: auto
+
+      - name: Verify the staple
+        run: xcrun stapler validate target/packager/*.dmg
+
+      - name: Clean up the signing keychain
+        if: always()
+        uses: digiogithub/ci-actions/macos-keychain-cleanup@v1
+
+      - name: Package
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          for target in aarch64-apple-darwin x86_64-apple-darwin; do
+            name="bitacora-cli-${VERSION}-${target}"
+            mkdir "dist/$name"
+            cp "target/$target/release/bitacora-cli" LICENSE "dist/$name/"
+            tar -C dist -czf "dist/$name.tar.gz" "$name"
+            rm -rf "dist/$name"
+          done
+          cp target/packager/*.dmg dist/
+          ls -la dist
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: dist-macos
+          path: dist/*
+          if-no-files-found: error
+
+  windows:
+    name: windows (Authenticode)
+    needs: meta
+    runs-on: windows-latest
+    # The federated credential on the Entra app is scoped to
+    # repo:digiogithub/bitacora:environment:release, so the OIDC token minted for this job only
+    # validates from within that environment.
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      VERSION: ${{ needs.meta.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-windows
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-packager@0.11.8
+
+      # Host target, so both binaries land in target/release where the packager expects the app.
+      - name: Build
+        run: cargo build --release --locked -p bitacora-app -p bitacora-cli
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      # No credential inputs: the action falls back to the Azure CLI session established above,
+      # which is the federated GitHub identity. The binaries are signed before they are packaged.
+      - name: Sign bitacora.exe and bitacora-cli.exe
         uses: azure/trusted-signing-action@v2.0.0
         with:
-          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
-          endpoint: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
-          trusted-signing-account-name: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT }}
-          certificate-profile-name: ${{ secrets.AZURE_TRUSTED_SIGNING_PROFILE }}
-          files-folder: target/${{ matrix.target }}/release
-          files-folder-filter: bitacora-cli.exe
+          endpoint: ${{ vars.AZURE_SIGNING_ENDPOINT }}
+          trusted-signing-account-name: ${{ vars.AZURE_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.AZURE_SIGNING_CERT_PROFILE }}
+          files-folder: ${{ github.workspace }}\target\release
+          files-folder-filter: exe
           file-digest: SHA256
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256
 
-      - name: Archive
-        shell: bash
+      - name: Bundle (NSIS, MSI)
+        run: cargo xtask bundle --no-build --formats nsis,wix
+
+      - name: Sign the installers
+        uses: azure/trusted-signing-action@v2.0.0
+        with:
+          endpoint: ${{ vars.AZURE_SIGNING_ENDPOINT }}
+          trusted-signing-account-name: ${{ vars.AZURE_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.AZURE_SIGNING_CERT_PROFILE }}
+          files-folder: ${{ github.workspace }}\target\packager
+          files-folder-filter: exe,msi
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
+      - name: Package
+        shell: pwsh
         run: |
-          name="bitacora-cli-${VERSION}-${{ matrix.target }}"
-          mkdir -p "dist/$name"
-          exe=bitacora-cli
-          if [ "${{ runner.os }}" = "Windows" ]; then exe=bitacora-cli.exe; fi
-          cp "target/${{ matrix.target }}/release/$exe" "dist/$name/"
-          cp LICENSE "dist/$name/"
-          cd dist
-          if [ "${{ matrix.ext }}" = "zip" ]; then
-            7z a -tzip "$name.zip" "$name" >/dev/null
-          else
-            tar -czf "$name.tar.gz" "$name"
-          fi
-          rm -rf "$name"
-          ls -l
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          $name = "bitacora-cli-$env:VERSION-x86_64-pc-windows-msvc"
+          New-Item -ItemType Directory -Force -Path "dist/$name" | Out-Null
+          Copy-Item target/release/bitacora-cli.exe, LICENSE "dist/$name/"
+          Compress-Archive -Path "dist/$name" -DestinationPath "dist/$name.zip" -Force
+          Remove-Item -Recurse -Force "dist/$name"
+          Copy-Item target/packager/*.exe, target/packager/*.msi dist/
+          Get-ChildItem dist
+
+      - name: Verify the signatures
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $files = @(Get-Item target/release/bitacora.exe, target/release/bitacora-cli.exe) + @(Get-ChildItem dist/*.exe, dist/*.msi)
+          $bad = 0
+          foreach ($f in $files) {
+            $sig = Get-AuthenticodeSignature $f.FullName
+            "-- $($f.Name): $($sig.Status) / $($sig.SignerCertificate.Subject)"
+            if ($sig.Status -ne 'Valid') {
+              Write-Output "::error::Unsigned or invalid: $($f.Name) ($($sig.Status))"
+              $bad = 1
+            }
+          }
+          exit $bad
 
       - uses: actions/upload-artifact@v6
         with:
-          name: cli-${{ matrix.target }}
+          name: dist-windows
           path: dist/*
           if-no-files-found: error
 
   release:
     name: draft release
-    needs: [meta, bundles, flatpak, cli]
+    needs: [meta, linux, macos, windows, flatpak]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -161,26 +365,29 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ env.TAG }}
           fetch-depth: 0 # release notes need the previous tag
 
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.98.1
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
 
+      # dist-* only: every platform job uploads its signed (or, on Linux, final) files under that
+      # prefix, so nothing unsigned can reach the release.
       - uses: actions/download-artifact@v7
         with:
-          path: artifacts
+          pattern: dist-*
+          path: release
+          merge-multiple: true
 
       - name: Collect release assets
         run: |
-          mkdir -p release
-          find artifacts -type f -exec cp {} release/ \;
           cp packaging/install/install.sh packaging/install/install.ps1 release/
           cargo xtask sha256sums release
           cat release/SHA256SUMS
 
       - name: Release notes from conventional commits
-        run: cargo xtask release-notes "$VERSION" --to "$GITHUB_REF_NAME" > RELEASE_NOTES.md
+        run: cargo xtask release-notes "$VERSION" --to "$TAG" > RELEASE_NOTES.md
 
       - name: Build provenance attestations
         uses: actions/attest-build-provenance@v4
@@ -193,4 +400,4 @@ jobs:
         run: |
           flags=(--draft --title "Bitacora $VERSION" --notes-file RELEASE_NOTES.md --verify-tag)
           if [ "$CHANNEL" = "beta" ]; then flags+=(--prerelease); fi
-          gh release create "$GITHUB_REF_NAME" release/* "${flags[@]}"
+          gh release create "$TAG" release/* "${flags[@]}"

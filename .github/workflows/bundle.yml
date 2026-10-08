@@ -1,38 +1,12 @@
 name: bundle
 
 # Installable bundles for the desktop app (BIT-US-0090): macOS .app/.dmg, Windows NSIS/MSI,
-# Linux .deb/AppImage, built with cargo-packager through `cargo xtask bundle`.
+# Linux .deb/AppImage, built with cargo-packager through `cargo xtask bundle`, plus install / launch /
+# uninstall smoke tests.
 #
-# Reusable (called by release.yml) and manually runnable. Signing is OPTIONAL: every signing step is
-# skipped when its secrets are absent, so forks and unsigned dry runs still produce bundles.
-# Required secrets for signed releases are listed in docs/design/release-process.md.
+# UNSIGNED dry run for pull requests and manual runs. Signed bundles are built only by release.yml
+# (tag pushes), whose signing jobs alone can reach the signing material.
 on:
-  workflow_call:
-    secrets:
-      APPLE_CERTIFICATE:
-        required: false
-      APPLE_CERTIFICATE_PASSWORD:
-        required: false
-      APPLE_SIGNING_IDENTITY:
-        required: false
-      APPLE_ID:
-        required: false
-      APPLE_PASSWORD:
-        required: false
-      APPLE_TEAM_ID:
-        required: false
-      AZURE_TENANT_ID:
-        required: false
-      AZURE_CLIENT_ID:
-        required: false
-      AZURE_CLIENT_SECRET:
-        required: false
-      AZURE_TRUSTED_SIGNING_ENDPOINT:
-        required: false
-      AZURE_TRUSTED_SIGNING_ACCOUNT:
-        required: false
-      AZURE_TRUSTED_SIGNING_PROFILE:
-        required: false
   workflow_dispatch:
   pull_request:
     paths:
@@ -61,20 +35,6 @@ jobs:
             formats: app,dmg
           - os: windows-latest
             formats: nsis,wix
-    # Secrets are exposed as env so that steps can test for presence (secrets are not allowed in `if:`).
-    env:
-      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-      APPLE_ID: ${{ secrets.APPLE_ID }}
-      APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-      AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-      AZURE_TRUSTED_SIGNING_ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
-      AZURE_TRUSTED_SIGNING_ACCOUNT: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT }}
-      AZURE_TRUSTED_SIGNING_PROFILE: ${{ secrets.AZURE_TRUSTED_SIGNING_PROFILE }}
     steps:
       - uses: actions/checkout@v7
 
@@ -97,57 +57,12 @@ jobs:
         with:
           tool: cargo-packager@0.11.8
 
-      # macOS: sign with the Developer ID certificate and notarize when the secrets are present.
-      # cargo-packager imports APPLE_CERTIFICATE into a temporary keychain and notarizes the .app
-      # when APPLE_ID/APPLE_PASSWORD/APPLE_TEAM_ID are set; `cargo xtask bundle` adds the
-      # signing identity to the packager config from APPLE_SIGNING_IDENTITY.
-      - name: Report signing mode (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          if [ -n "$APPLE_CERTIFICATE" ] && [ -n "$APPLE_SIGNING_IDENTITY" ]; then
-            echo "macOS signing: enabled"
-          else
-            echo "::notice::macOS signing secrets absent: producing UNSIGNED bundles"
-            unset APPLE_CERTIFICATE APPLE_SIGNING_IDENTITY
-          fi
-
       - name: Build the app (release)
         run: cargo build --release --locked -p bitacora-app
 
-      # Windows: sign the application binary before it is packaged, then the installers below.
-      - name: Azure Trusted Signing (binary)
-        if: runner.os == 'Windows' && env.AZURE_CLIENT_ID != '' && env.AZURE_TRUSTED_SIGNING_ENDPOINT != ''
-        uses: azure/trusted-signing-action@v2.0.0
-        with:
-          endpoint: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
-          trusted-signing-account-name: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT }}
-          certificate-profile-name: ${{ secrets.AZURE_TRUSTED_SIGNING_PROFILE }}
-          files-folder: target/release
-          files-folder-filter: exe
-          file-digest: SHA256
-          timestamp-rfc3161: http://timestamp.acs.microsoft.com
-          timestamp-digest: SHA256
-
       - name: Bundle
         shell: bash
-        run: |
-          if [ -z "$APPLE_CERTIFICATE" ] || [ -z "$APPLE_SIGNING_IDENTITY" ]; then
-            unset APPLE_CERTIFICATE APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID
-          fi
-          cargo xtask bundle --no-build --formats "${{ matrix.formats }}"
-
-      - name: Azure Trusted Signing (installers)
-        if: runner.os == 'Windows' && env.AZURE_CLIENT_ID != '' && env.AZURE_TRUSTED_SIGNING_ENDPOINT != ''
-        uses: azure/trusted-signing-action@v2.0.0
-        with:
-          endpoint: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
-          trusted-signing-account-name: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT }}
-          certificate-profile-name: ${{ secrets.AZURE_TRUSTED_SIGNING_PROFILE }}
-          files-folder: target/packager
-          files-folder-filter: exe,msi
-          file-digest: SHA256
-          timestamp-rfc3161: http://timestamp.acs.microsoft.com
-          timestamp-digest: SHA256
+        run: cargo xtask bundle --no-build --formats "${{ matrix.formats }}"
 
       - name: List bundles
         shell: bash
@@ -185,9 +100,6 @@ jobs:
           mkdir -p "$RUNNER_TEMP/graph"
           "$RUNNER_TEMP/mnt/Bitacora.app/Contents/MacOS/bitacora" --graph "$RUNNER_TEMP/graph" --smoke-test 2>&1 | tee smoke.log || true
           hdiutil detach "$RUNNER_TEMP/mnt"
-          if [ -n "$APPLE_SIGNING_IDENTITY" ]; then
-            codesign --verify --deep --strict --verbose=2 target/packager/Bitacora.app
-          fi
 
       - name: Smoke test (Windows NSIS silent install / launch / uninstall)
         if: runner.os == 'Windows'
