@@ -81,6 +81,9 @@ settings:
     models_idle: Press Refresh to list the models your Pando can use.
     models_loading: Loading models...
     models_failed: "Could not list the models: %{error}"
+    models_filter_placeholder: "Filter models..."
+    models_enabled_count: "{count} enabled"
+    models_no_match: "No model matches the filter."
     models_none: Pando returned no models. Configure a provider in your Pando settings.
     models_no_session: Open a graph and connect Pando to list models.
     models_not_connected: Pando is not connected.

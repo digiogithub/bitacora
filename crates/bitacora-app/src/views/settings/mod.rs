@@ -392,6 +392,11 @@ impl SettingsView {
                 window,
                 t!("settings.pando.exclusion_placeholder").to_string(),
             ),
+            models_filter: field(
+                cx,
+                window,
+                t!("settings.pando.models_filter_placeholder").to_string(),
+            ),
         };
         let mut subscriptions = Vec::new();
         for (input, which) in [
@@ -437,6 +442,7 @@ impl SettingsView {
             ));
         }
         subscriptions.push(cx.observe(&inputs.keymap_filter, |_, _, cx| cx.notify()));
+        subscriptions.push(cx.observe(&pando_inputs.models_filter, |_, _, cx| cx.notify()));
         let keymap = KeymapModel::new(crate::keymap::DEFAULT_KEYMAP, None, &[]);
         Self {
             open: false,
@@ -1132,6 +1138,8 @@ impl Render for SettingsView {
         let mut nav = v_flex()
             .id("settings-nav")
             .h_full()
+            .min_h_0()
+            .overflow_y_scroll()
             .w(design.metrics.sidebar_left)
             .flex_shrink_0()
             .gap(design.metrics.space[1])
