@@ -10,6 +10,7 @@
 
 use std::fmt::Write as _;
 
+use crate::agents::chat_profile_for_model;
 use crate::supervisor::McpAccess;
 
 /// Name of the `[MCPServers]` entry; Pando exposes its tools as `bitacora_<tool>`.
@@ -106,6 +107,8 @@ pub struct ConfigInput<'a> {
     /// Bitacora's MCP endpoint and the `pando` token; `None` omits `[MCPServers.bitacora]` and
     /// every `bitacora_*` tool.
     pub mcp: Option<&'a McpAccess>,
+    /// Model ids to pin extra chat profiles to (`bitacora-chat--<model>`, BIT-US-0180).
+    pub chat_models: &'a [String],
 }
 
 /// The files of an instance, by path relative to the instance directory.
@@ -193,6 +196,25 @@ pub fn render(input: &ConfigInput<'_>) -> RenderedFiles {
         let _ = writeln!(t, "Tools = {}", array(&tools_for(p, mcp)));
         t.push_str("Mesnada = false\n");
     }
+    // One extra chat profile per enabled model: same persona, prompt and tools as `bitacora-chat`
+    // plus a `Model` override (BIT-US-0180).
+    let chat = &PROFILES[0];
+    let mut seen: Vec<String> = Vec::new();
+    for model in input.chat_models {
+        let model = model.trim();
+        let name = chat_profile_for_model(model);
+        if model.is_empty() || seen.contains(&name) {
+            continue;
+        }
+        let _ = writeln!(t, "\n[AGUI.Profiles.{name}]");
+        t.push_str("Base = 'coder'\n");
+        let _ = writeln!(t, "Model = {}", quote(model));
+        let _ = writeln!(t, "Persona = {}", quote(chat.name));
+        let _ = writeln!(t, "Prompt = {}", quote(chat.prompt));
+        let _ = writeln!(t, "Tools = {}", array(&tools_for(chat, mcp)));
+        t.push_str("Mesnada = false\n");
+        seen.push(name);
+    }
     t.push_str(
         "\n# Keep Pando's MCP gateway off so MCP tools keep their `<server>_<tool>` names and the\n\
          # allow-lists above can see them.\n\
@@ -273,6 +295,7 @@ mod tests {
         let t = parsed(&ConfigInput {
             agui_port: 4321,
             mcp: Some(&a),
+            chat_models: &[],
         });
         let agui = t["AGUI"].as_table().unwrap();
         assert_eq!(agui["Enabled"].as_bool(), Some(true));
@@ -309,6 +332,7 @@ mod tests {
         let files = render(&ConfigInput {
             agui_port: 1,
             mcp: Some(&a),
+            chat_models: &[],
         });
         let t = files.files[0].1.parse::<toml::Table>().unwrap();
         // Shared KB: no storage selection of any kind (D3).
@@ -341,6 +365,7 @@ mod tests {
         let t = parsed(&ConfigInput {
             agui_port: 1,
             mcp: Some(&a),
+            chat_models: &[],
         });
         let has = |name: &str| {
             t["AGUI"]["Profiles"][name]["Tools"]
@@ -355,6 +380,7 @@ mod tests {
         let t = parsed(&ConfigInput {
             agui_port: 1,
             mcp: None,
+            chat_models: &[],
         });
         assert!(t.get("MCPServers").is_none());
         let tools = t["AGUI"]["Tools"].as_array().unwrap();
@@ -363,6 +389,40 @@ mod tests {
                 .iter()
                 .all(|v| !v.as_str().unwrap().starts_with("bitacora_"))
         );
+    }
+
+    #[test]
+    fn enabled_models_get_their_own_chat_profile() {
+        let a = access();
+        let models = vec![
+            "claude-sonnet-4.5".to_owned(),
+            "gpt \"x\"".to_owned(),
+            "claude-sonnet-4-5".to_owned(), // same profile name as the first: skipped
+            " ".to_owned(),
+        ];
+        let files = render(&ConfigInput {
+            agui_port: 1,
+            mcp: Some(&a),
+            chat_models: &models,
+        });
+        let t = files.files[0].1.parse::<toml::Table>().unwrap();
+        let profiles = t["AGUI"]["Profiles"].as_table().unwrap();
+        let p = profiles["bitacora-chat--claude-sonnet-4-5"]
+            .as_table()
+            .unwrap();
+        assert_eq!(p["Model"].as_str(), Some("claude-sonnet-4.5"));
+        assert_eq!(p["Base"].as_str(), Some("coder"));
+        assert_eq!(p["Persona"].as_str(), Some("bitacora-chat"));
+        let chat = profiles["bitacora-chat"].as_table().unwrap();
+        assert_eq!(p["Prompt"], chat["Prompt"]);
+        assert_eq!(p["Tools"], chat["Tools"]);
+        assert!(!chat.contains_key("Model"));
+        let q = profiles["bitacora-chat--gpt--x-"].as_table().unwrap();
+        assert_eq!(q["Model"].as_str(), Some("gpt \"x\""));
+        // 4 shipped + 2 model profiles; the duplicate and the blank are skipped.
+        assert_eq!(profiles.len(), PROFILES.len() + 2);
+        // No persona file for the generated profiles: they reuse bitacora-chat.
+        assert_eq!(files.files.len(), 1 + PROFILES.len());
     }
 
     #[test]
@@ -383,6 +443,7 @@ mod tests {
         let files = render(&ConfigInput {
             agui_port: 1,
             mcp: None,
+            chat_models: &[],
         });
         assert_eq!(files.files.len(), 1 + PROFILES.len());
         let (path, body) = &files.files[1];

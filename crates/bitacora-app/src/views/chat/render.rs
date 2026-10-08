@@ -14,8 +14,8 @@ use rust_i18n::t;
 use super::diff::{LineKind, op_diffs, totals};
 use super::markdown::{MdBlock, parse_blocks};
 use super::tools::{
-    CallStatus, call_status, detail_text, duration_text, summarize_args, tokens_text,
-    usage_fraction,
+    CallStatus, ToolSegment, call_status, detail_text, duration_text, group_counts,
+    group_tool_calls, summarize_args, tokens_text, usage_fraction,
 };
 use super::{ChatView, ChatViewEvent, ContextKind, EditNote, Phase};
 use crate::data::IndexResolver;
@@ -25,12 +25,13 @@ use crate::ui::input::Textarea;
 use crate::ui::text_edit::relative;
 use crate::ui::theme::{ActiveBitacoraTheme as _, BitacoraTheme, TypeStyleExt as _};
 use crate::ui::{
-    ActiveTheme as _, AnyElement, App, Context, FluentBuilder as _, InteractiveElement as _,
-    IntoElement, ParentElement as _, Render, SharedString, StatefulInteractiveElement as _,
-    Styled as _, Window, div, h_flex, px, v_flex,
+    ActiveTheme as _, Anchor, AnyElement, App, Context, FluentBuilder as _,
+    InteractiveElement as _, IntoElement, ParentElement as _, Render, SharedString,
+    StatefulInteractiveElement as _, Styled as _, Window, anchored, deferred, div, h_flex, px,
+    v_flex,
 };
 use crate::views::block_view::{Nav, text_element_owned};
-use crate::views::kit::{Button, Chip, ChipTone, Glyph, IconButton, Overline, glyph};
+use crate::views::kit::{Button, Chip, ChipTone, Glyph, IconButton, Overline, PopoverShell, glyph};
 
 /// The tail corner of a user bubble (design doc: radii 14 / 14 / 4 / 14).
 const BUBBLE_TAIL: f32 = 4.0;
@@ -151,15 +152,7 @@ impl ChatView {
             .border_b_1()
             .border_color(c.line)
             .child(glyph(Glyph::Sparkle, m.icon_sm, c.ai, cx))
-            .child(
-                Chip::new(
-                    state
-                        .model
-                        .clone()
-                        .unwrap_or_else(|| t!("chat.model_unknown").to_string()),
-                )
-                .mono(true),
-            );
+            .child(self.model_selector(&state, bt, cx));
         if let Some(usage) = usage_el(&state, bt) {
             row = row.child(usage);
         }
@@ -206,6 +199,94 @@ impl ChatView {
                         .child(div().truncate().child(text)),
                 )
             })
+            .into_any_element()
+    }
+
+    /// The model chip; a dropdown of the profile default plus the enabled models when the server
+    /// exposes any (BIT-US-0180).
+    fn model_selector(
+        &self,
+        state: &AgentState,
+        bt: &BitacoraTheme,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let m = &bt.metrics;
+        let shown = state
+            .model
+            .clone()
+            .or_else(|| {
+                self.choices
+                    .extra
+                    .iter()
+                    .find(|c| Some(c.model_id.as_str()) == self.chosen_model.as_deref())
+                    .or(self.choices.default.as_ref())
+                    .map(|c| c.label.clone())
+            })
+            .unwrap_or_else(|| t!("chat.model_unknown").to_string());
+        if self.choices.is_empty() || self.can_edit {
+            return Chip::new(shown).mono(true).into_any_element();
+        }
+        let button = Button::new("chat-model")
+            .ghost()
+            .compact()
+            .label(shown)
+            .icon(Glyph::ChevronDown)
+            .on_click(cx.listener(|this, _, _, cx| this.toggle_model_menu(cx)));
+        let popover = self.model_menu.then(|| {
+            let mut body = v_flex().gap(m.space[1]);
+            let default_label = self.choices.default.as_ref().map_or_else(
+                || t!("chat.model_default").to_string(),
+                |d| format!("{} ({})", t!("chat.model_default"), d.label),
+            );
+            let mark = |on: bool, label: String| {
+                if on {
+                    format!("[x] {label}")
+                } else {
+                    format!("[ ] {label}")
+                }
+            };
+            body = body.child(
+                Button::new("chat-model-default")
+                    .ghost()
+                    .label(mark(self.chosen_model.is_none(), default_label))
+                    .on_click(cx.listener(|this, _, _, cx| this.choose_model(None, cx))),
+            );
+            for (ix, choice) in self.choices.extra.iter().enumerate() {
+                let id = choice.model_id.clone();
+                body = body.child(
+                    Button::new(("chat-model-choice", ix))
+                        .ghost()
+                        .label(mark(
+                            self.chosen_model.as_deref() == Some(choice.model_id.as_str()),
+                            choice.label.clone(),
+                        ))
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            this.choose_model(Some(id.clone()), cx);
+                        })),
+                );
+            }
+            let weak = cx.entity().downgrade();
+            deferred(
+                anchored().anchor(Anchor::TopLeft).snap_to_window().child(
+                    div().mt(m.space[2]).child(
+                        PopoverShell::new("chat-model-menu")
+                            .width(dims::PX_240)
+                            .on_dismiss(move |_, cx| {
+                                let _ = weak.update(cx, |this, cx| {
+                                    this.model_menu = false;
+                                    cx.notify();
+                                });
+                            })
+                            .child(body),
+                    ),
+                ),
+            )
+            .priority(10)
+        });
+        div()
+            .relative()
+            .child(button)
+            .when_some(popover, |d, p| d.child(p))
             .into_any_element()
     }
 
@@ -372,12 +453,18 @@ impl ChatView {
                     .child(md_el(ix, &blocks, bt, theme, nav)),
             );
         }
-        for call in &msg.tool_calls {
-            if let Some(view) = self.model.cards.iter().find(|v| v.card.id == call.id) {
-                shown_cards.push(call.id.clone());
-                col = col.child(self.approval_card(view, bt, cx));
-            } else {
-                col = col.child(self.tool_card(call, bt, cx));
+        for segment in group_tool_calls(msg, &self.model.cards) {
+            match segment {
+                ToolSegment::Pending(i) => {
+                    let call = &msg.tool_calls[i];
+                    if let Some(view) = self.model.cards.iter().find(|v| v.card.id == call.id) {
+                        shown_cards.push(call.id.clone());
+                        col = col.child(self.approval_card(view, bt, cx));
+                    }
+                }
+                ToolSegment::Group(ix) => {
+                    col = col.child(self.tool_group(msg, &ix, shown_cards, bt, cx));
+                }
             }
         }
         if msg.cancelled {
@@ -437,6 +524,96 @@ impl ChatView {
                 )
             })
             .into_any_element()
+    }
+
+    // ---- grouped tool activity (BIT-US-0179) ------------------------------------------------------
+
+    /// One collapsed row for a run of tool calls and their resolved approvals; clicking it shows
+    /// the individual cards, which keep their own expand state.
+    fn tool_group(
+        &self,
+        msg: &ChatMessage,
+        ix: &[usize],
+        shown_cards: &mut Vec<String>,
+        bt: &BitacoraTheme,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let m = &bt.metrics;
+        let c = &bt.colors;
+        let Some(first) = ix.first().and_then(|i| msg.tool_calls.get(*i)) else {
+            return div().into_any_element();
+        };
+        let key = format!("group:{}", first.id);
+        let open = self.expanded.contains(&key);
+        let toggle = key.clone();
+        let (running, failed) = group_counts(&msg.tool_calls, ix);
+        let tint = if failed > 0 {
+            c.warn
+        } else if running > 0 {
+            c.ai
+        } else {
+            c.muted
+        };
+        let mut label = t!("chat.tool_group", count = ix.len()).to_string();
+        if failed > 0 {
+            label = format!("{label} - {}", t!("chat.tool_group_failed", count = failed));
+        }
+        let mut col = v_flex()
+            .id(SharedString::from(format!("tool-group-{}", first.id)))
+            .gap(m.space[2])
+            .child(
+                h_flex()
+                    .id(SharedString::from(format!("tool-group-head-{}", first.id)))
+                    .gap(m.space[2])
+                    .items_center()
+                    .cursor_pointer()
+                    .text_color(tint)
+                    .type_style(&bt.type_scale.caption)
+                    .on_click(cx.listener(move |this, _, _, cx| this.toggle_expanded(&toggle, cx)))
+                    .child(glyph(
+                        if open {
+                            Glyph::ChevronDown
+                        } else {
+                            Glyph::ChevronRight
+                        },
+                        m.icon_sm,
+                        tint,
+                        cx,
+                    ))
+                    .when(running > 0, |d| {
+                        d.child(
+                            div()
+                                .size(dims::PX_8)
+                                .flex_none()
+                                .rounded(m.radius_pill)
+                                .bg(c.ai),
+                        )
+                    })
+                    .child(label),
+            );
+        if open {
+            let mut inner = v_flex().gap(m.space[3]).pl(m.space[4]);
+            for i in ix {
+                let Some(call) = msg.tool_calls.get(*i) else {
+                    continue;
+                };
+                if let Some(view) = self.model.cards.iter().find(|v| v.card.id == call.id) {
+                    shown_cards.push(call.id.clone());
+                    inner = inner.child(self.approval_card(view, bt, cx));
+                } else {
+                    inner = inner.child(self.tool_card(call, bt, cx));
+                }
+            }
+            col = col.child(inner);
+        } else {
+            // Folded resolved cards must not be re-listed at the bottom of the transcript.
+            for i in ix {
+                if let Some(call) = msg.tool_calls.get(*i) {
+                    shown_cards.push(call.id.clone());
+                }
+            }
+        }
+        col.into_any_element()
     }
 
     // ---- tool-call cards (BIT-T-0455) -------------------------------------------------------------

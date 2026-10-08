@@ -191,6 +191,7 @@ fn resolve_managed(
     supervisor: &Arc<dyn Supervisor>,
 ) -> Result<Endpoints, String> {
     supervisor.set_mcp_access(&opts.graph, opts.mcp.clone());
+    supervisor.set_chat_models(&opts.graph, opts.settings.enabled_models.clone());
     let m = supervisor.ensure_running(&opts.graph)?;
     let rest = validate_pando_url(UrlRole::Rest, &m.rest_url, false).map_err(|e| e.to_string())?;
     let agui = validate_pando_url(UrlRole::Agui, &m.agui_url, false).map_err(|e| e.to_string())?;

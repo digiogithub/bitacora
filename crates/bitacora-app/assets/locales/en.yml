@@ -502,6 +502,9 @@ chat:
   stopped: Stopped
   reasoning: Reasoning
   tool_input: Input
+  tool_group: "%{count} tool calls"
+  tool_group_failed: "%{count} failed"
+  model_default: Default model
   tool_output: Output
   no_graph: Open a graph and connect Pando in Settings to chat.
   no_events: The chat could not start its event reader.

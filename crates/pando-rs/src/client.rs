@@ -21,6 +21,36 @@ pub struct ServerInfo {
     pub startup_mode: String,
 }
 
+/// One model of `GET /api/v1/models` (unknown fields are ignored).
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct ModelInfo {
+    /// Model id, as accepted by a profile's `Model` setting.
+    pub id: String,
+    /// Display name.
+    pub name: String,
+    /// Provider type.
+    pub provider: String,
+    /// Provider account the model came from, when the server has several.
+    pub account_id: String,
+    /// Context window in tokens, `0` when unknown.
+    pub context_window: i64,
+    /// The model can reason.
+    pub can_reason: bool,
+}
+
+/// `GET /api/v1/models`: every model of every configured provider account.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct ModelList {
+    /// The models (the synthetic `auto` entry, when present, comes first).
+    pub models: Vec<ModelInfo>,
+    /// Per-account listing errors (account id to message).
+    pub errors: std::collections::BTreeMap<String, String>,
+    /// The server's automatic model routing is on.
+    pub auto_selected: bool,
+}
+
 #[derive(Debug)]
 struct Inner {
     http: reqwest::Client,
@@ -99,6 +129,12 @@ impl PandoClient {
     /// Server version info from `GET /health` (unauthenticated on the server side).
     pub async fn info(&self) -> Result<ServerInfo> {
         self.send_json(self.request(Method::GET, "/health")).await
+    }
+
+    /// Models available on the server, from `GET /api/v1/models`.
+    pub async fn list_models(&self) -> Result<ModelList> {
+        self.send_json(self.request(Method::GET, "/api/v1/models"))
+            .await
     }
 
     /// The API token of a local `pando serve` from `GET /api/v1/token`. Pando answers it without

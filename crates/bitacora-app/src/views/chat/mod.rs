@@ -26,8 +26,8 @@ use std::sync::{Arc, Mutex};
 
 use bitacora_runtime::RuntimeError;
 use bitacora_runtime::ai::{
-    ChatConfig, ChatEvent, ChatHandle, ChatModel, ContentGuard, Decision, DenyReason, PageResolver,
-    QuestionAnswer, QuestionAnswerEntry, ThreadSummary,
+    ChatConfig, ChatEvent, ChatHandle, ChatModel, ContentGuard, Decision, DenyReason, ModelChoices,
+    PageResolver, QuestionAnswer, QuestionAnswerEntry, ThreadSummary,
 };
 use rust_i18n::t;
 
@@ -55,6 +55,9 @@ const THREAD_TITLES: usize = 12;
 pub enum ChatViewEvent {
     /// Open a page or block (a link in an answer, or the agent's `open_page`).
     Navigate(NavTarget),
+    /// The user picked a model in the selector (`None` is the default); the workspace persists
+    /// it in the Pando settings.
+    ModelChosen(Option<String>),
 }
 
 /// Where the session stands.
@@ -134,6 +137,12 @@ pub struct ChatView {
     /// Cards whose "Remember my decision" box is ticked.
     remembering: HashSet<String>,
     threads: Threads,
+    /// Models the server offers as chat profiles (BIT-US-0180).
+    choices: ModelChoices,
+    /// Model id last chosen (`None`: the profile's default model).
+    chosen_model: Option<String>,
+    model_menu: bool,
+    choices_task: Option<Task<()>>,
     scroll: ScrollHandle,
     follow: bool,
     layouts: render::LayoutCache,
@@ -198,6 +207,10 @@ impl ChatView {
             expanded: HashSet::new(),
             remembering: HashSet::new(),
             threads: Threads::default(),
+            choices: ModelChoices::default(),
+            chosen_model: None,
+            model_menu: false,
+            choices_task: None,
             scroll: ScrollHandle::new(),
             follow: true,
             layouts: render::LayoutCache::default(),
@@ -438,6 +451,9 @@ impl ChatView {
         } else {
             ChatConfig::default()
         };
+        if !self.can_edit {
+            config.profile = self.choices.profile_for(self.chosen_model.as_deref());
+        }
         config.resume_thread = self.thread_id.clone();
         let resolver: Option<Arc<dyn PageResolver>> =
             if self.can_edit { Some(resolver) } else { None };
@@ -801,6 +817,7 @@ impl ChatView {
 
     /// Starts an empty conversation (the old thread stays on the server).
     pub fn new_thread(&mut self, cx: &mut Context<Self>) {
+        self.refresh_model_choices(cx);
         self.close_session(DenyReason::ThreadSwitch, cx);
         self.model = ChatModel::default();
         self.thread_id = None;
@@ -904,6 +921,90 @@ impl ChatView {
             });
         })
         .detach();
+    }
+
+    // ---- model selector (BIT-US-0180) --------------------------------------------------------------
+
+    /// The remembered model (from the Pando settings); `None` is the profile's default.
+    pub fn set_chosen_model(&mut self, model: Option<String>, cx: &mut Context<Self>) {
+        if self.chosen_model != model {
+            self.chosen_model = model;
+            cx.notify();
+        }
+    }
+
+    /// The model the next run uses, as remembered.
+    #[must_use]
+    pub fn chosen_model(&self) -> Option<&str> {
+        self.chosen_model.as_deref()
+    }
+
+    /// The profile the next run posts to.
+    #[must_use]
+    pub fn active_profile(&self) -> String {
+        if self.can_edit {
+            bitacora_runtime::ai::WRITER_PROFILE.to_owned()
+        } else {
+            self.choices.profile_for(self.chosen_model.as_deref())
+        }
+    }
+
+    /// Reads the model choices from the server's `/info` (the default chat profile and every
+    /// `bitacora-chat--*` profile), in managed and external mode alike.
+    pub fn refresh_model_choices(&mut self, cx: &mut Context<Self>) {
+        let Some(session) = self.session.clone() else {
+            return;
+        };
+        let client = session.run(|s| s.agui_client());
+        self.choices_task = Some(cx.spawn(async move |this, cx| {
+            let Some(client) = client.recv().await.ok().flatten() else {
+                return;
+            };
+            let task = this.update(cx, |_, cx| {
+                crate::tokio_bridge::spawn(cx, async move {
+                    client
+                        .info()
+                        .await
+                        .ok()
+                        .map(|i| ModelChoices::from_info(&i))
+                })
+            });
+            let Ok(task) = task else { return };
+            if let Ok(Some(choices)) = task.await {
+                let _ = this.update(cx, |this, cx| {
+                    this.choices = choices;
+                    cx.notify();
+                });
+            }
+        }));
+    }
+
+    /// Picks the model of the next runs (`None`: default). A live session restarts on the same
+    /// thread so the next message goes to the other profile.
+    pub fn choose_model(&mut self, model: Option<String>, cx: &mut Context<Self>) {
+        self.model_menu = false;
+        if self.model.running || self.chosen_model == model {
+            cx.notify();
+            return;
+        }
+        self.chosen_model = model.clone();
+        cx.emit(ChatViewEvent::ModelChosen(model));
+        if self.chat.is_some() {
+            self.close_session(DenyReason::ThreadSwitch, cx);
+            if self.thread_id.is_some() && !self.model.messages.is_empty() {
+                self.start(cx);
+            }
+        }
+        cx.notify();
+    }
+
+    /// Opens or closes the selector menu.
+    pub fn toggle_model_menu(&mut self, cx: &mut Context<Self>) {
+        self.model_menu = !self.model_menu;
+        if self.model_menu {
+            self.refresh_model_choices(cx);
+        }
+        cx.notify();
     }
 
     // ---- profile --------------------------------------------------------------------------------

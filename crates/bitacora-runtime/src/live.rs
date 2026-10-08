@@ -452,6 +452,12 @@ impl Session {
         })
     }
 
+    /// REST client of the connected Pando (model listing), `None` unless it is connected.
+    #[must_use]
+    pub fn pando_rest_client(&self) -> Option<pando::PandoClient> {
+        crate::agents::rest_client(self.pando.as_ref())
+    }
+
     /// AG-UI client of the connected Pando, `None` unless it is connected.
     #[must_use]
     pub fn agui_client(&self) -> Option<pando::agui::AguiClient> {

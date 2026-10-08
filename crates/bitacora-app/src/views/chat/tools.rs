@@ -3,7 +3,7 @@
 
 use std::time::Duration;
 
-use bitacora_runtime::ai::ToolCallView;
+use bitacora_runtime::ai::{CardState, CardView, ChatMessage, ToolCallView};
 use serde_json::Value;
 
 /// Longest one-line argument summary, in characters.
@@ -38,6 +38,51 @@ pub fn call_status(call: &ToolCallView) -> CallStatus {
     } else {
         CallStatus::Done
     }
+}
+
+/// One piece of an assistant turn's tool activity (BIT-US-0179).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ToolSegment {
+    /// A run of consecutive calls (with their resolved approval cards), folded into one row.
+    /// Holds indices into `ChatMessage::tool_calls`.
+    Group(Vec<usize>),
+    /// A call whose approval card still needs the user; stays visible outside any group.
+    Pending(usize),
+}
+
+/// Splits the tool calls of `msg` into collapsible groups and pending approvals, in order.
+/// A call is pending while its approval card (same id) is `CardState::Pending`.
+#[must_use]
+pub fn group_tool_calls(msg: &ChatMessage, cards: &[CardView]) -> Vec<ToolSegment> {
+    let mut out: Vec<ToolSegment> = Vec::new();
+    for (i, call) in msg.tool_calls.iter().enumerate() {
+        let pending = cards
+            .iter()
+            .any(|v| v.card.id == call.id && v.state == CardState::Pending);
+        if pending {
+            out.push(ToolSegment::Pending(i));
+        } else if let Some(ToolSegment::Group(ix)) = out.last_mut() {
+            ix.push(i);
+        } else {
+            out.push(ToolSegment::Group(vec![i]));
+        }
+    }
+    out
+}
+
+/// Aggregate status of a group: `(running, failed)` call counts.
+#[must_use]
+pub fn group_counts(calls: &[ToolCallView], ix: &[usize]) -> (usize, usize) {
+    let mut running = 0;
+    let mut failed = 0;
+    for c in ix.iter().filter_map(|i| calls.get(*i)) {
+        match call_status(c) {
+            CallStatus::Running => running += 1,
+            CallStatus::Failed => failed += 1,
+            CallStatus::Done => {}
+        }
+    }
+    (running, failed)
 }
 
 fn truncate(s: &str, max: usize) -> String {
@@ -182,5 +227,52 @@ mod tests {
         assert_eq!(usage_fraction(50, 200), Some(0.25));
         assert_eq!(usage_fraction(50, 0), None);
         assert_eq!(usage_fraction(500, 200), Some(1.0));
+    }
+
+    #[test]
+    fn tool_calls_group_around_pending_approvals() {
+        use bitacora_runtime::ai::{ApprovalCard, CardKind};
+        let mk = |id: &str, result: Option<&str>| ToolCallView {
+            id: id.into(),
+            name: "t".into(),
+            result: result.map(str::to_owned),
+            ..ToolCallView::default()
+        };
+        let msg = ChatMessage {
+            tool_calls: vec![
+                mk("a", Some("ok")),
+                mk("b", None),
+                mk("c", None),
+                mk("d", Some("Error: x")),
+            ],
+            ..ChatMessage::default()
+        };
+        assert_eq!(
+            group_tool_calls(&msg, &[]),
+            vec![ToolSegment::Group(vec![0, 1, 2, 3])]
+        );
+        let card = |id: &str, state| CardView {
+            card: ApprovalCard {
+                id: id.into(),
+                kind: CardKind::Question(Default::default()),
+                timeout_secs: 0,
+                remember_tool: None,
+            },
+            state,
+        };
+        let cards = [
+            card("c", CardState::Pending),
+            card("a", CardState::Approved),
+        ];
+        assert_eq!(
+            group_tool_calls(&msg, &cards),
+            vec![
+                ToolSegment::Group(vec![0, 1]),
+                ToolSegment::Pending(2),
+                ToolSegment::Group(vec![3]),
+            ]
+        );
+        assert_eq!(group_counts(&msg.tool_calls, &[0, 1, 2, 3]), (2, 1));
+        assert!(group_tool_calls(&ChatMessage::default(), &[]).is_empty());
     }
 }

@@ -88,6 +88,11 @@ pub trait Supervisor: Send + Sync + fmt::Debug {
     /// [`ensure_running`](Self::ensure_running). `None` omits the registration.
     fn set_mcp_access(&self, _graph: &Path, _access: Option<McpAccess>) {}
 
+    /// Models to pin extra chat profiles to in the generated config (BIT-US-0180); called before
+    /// [`ensure_running`](Self::ensure_running). The config is written at instance start, so a
+    /// change takes effect on the next start or [`restart`](Self::restart).
+    fn set_chat_models(&self, _graph: &Path, _models: Vec<String>) {}
+
     /// Status of the instance of `graph`, when this supervisor tracks one.
     fn managed_status(&self, _graph: &Path) -> Option<ManagedStatus> {
         None
