@@ -14,8 +14,8 @@ use rust_i18n::t;
 use super::diff::{LineKind, op_diffs, totals};
 use super::markdown::{MdBlock, parse_blocks};
 use super::tools::{
-    CallStatus, call_status, detail_text, duration_text, summarize_args, tokens_text,
-    usage_fraction,
+    CallStatus, ToolSegment, call_status, detail_text, duration_text, group_counts,
+    group_tool_calls, summarize_args, tokens_text, usage_fraction,
 };
 use super::{ChatView, ChatViewEvent, ContextKind, EditNote, Phase};
 use crate::data::IndexResolver;
@@ -372,12 +372,18 @@ impl ChatView {
                     .child(md_el(ix, &blocks, bt, theme, nav)),
             );
         }
-        for call in &msg.tool_calls {
-            if let Some(view) = self.model.cards.iter().find(|v| v.card.id == call.id) {
-                shown_cards.push(call.id.clone());
-                col = col.child(self.approval_card(view, bt, cx));
-            } else {
-                col = col.child(self.tool_card(call, bt, cx));
+        for segment in group_tool_calls(msg, &self.model.cards) {
+            match segment {
+                ToolSegment::Pending(i) => {
+                    let call = &msg.tool_calls[i];
+                    if let Some(view) = self.model.cards.iter().find(|v| v.card.id == call.id) {
+                        shown_cards.push(call.id.clone());
+                        col = col.child(self.approval_card(view, bt, cx));
+                    }
+                }
+                ToolSegment::Group(ix) => {
+                    col = col.child(self.tool_group(msg, &ix, shown_cards, bt, cx));
+                }
             }
         }
         if msg.cancelled {
@@ -437,6 +443,96 @@ impl ChatView {
                 )
             })
             .into_any_element()
+    }
+
+    // ---- grouped tool activity (BIT-US-0179) ------------------------------------------------------
+
+    /// One collapsed row for a run of tool calls and their resolved approvals; clicking it shows
+    /// the individual cards, which keep their own expand state.
+    fn tool_group(
+        &self,
+        msg: &ChatMessage,
+        ix: &[usize],
+        shown_cards: &mut Vec<String>,
+        bt: &BitacoraTheme,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let m = &bt.metrics;
+        let c = &bt.colors;
+        let Some(first) = ix.first().and_then(|i| msg.tool_calls.get(*i)) else {
+            return div().into_any_element();
+        };
+        let key = format!("group:{}", first.id);
+        let open = self.expanded.contains(&key);
+        let toggle = key.clone();
+        let (running, failed) = group_counts(&msg.tool_calls, ix);
+        let tint = if failed > 0 {
+            c.warn
+        } else if running > 0 {
+            c.ai
+        } else {
+            c.muted
+        };
+        let mut label = t!("chat.tool_group", count = ix.len()).to_string();
+        if failed > 0 {
+            label = format!("{label} - {}", t!("chat.tool_group_failed", count = failed));
+        }
+        let mut col = v_flex()
+            .id(SharedString::from(format!("tool-group-{}", first.id)))
+            .gap(m.space[2])
+            .child(
+                h_flex()
+                    .id(SharedString::from(format!("tool-group-head-{}", first.id)))
+                    .gap(m.space[2])
+                    .items_center()
+                    .cursor_pointer()
+                    .text_color(tint)
+                    .type_style(&bt.type_scale.caption)
+                    .on_click(cx.listener(move |this, _, _, cx| this.toggle_expanded(&toggle, cx)))
+                    .child(glyph(
+                        if open {
+                            Glyph::ChevronDown
+                        } else {
+                            Glyph::ChevronRight
+                        },
+                        m.icon_sm,
+                        tint,
+                        cx,
+                    ))
+                    .when(running > 0, |d| {
+                        d.child(
+                            div()
+                                .size(dims::PX_8)
+                                .flex_none()
+                                .rounded(m.radius_pill)
+                                .bg(c.ai),
+                        )
+                    })
+                    .child(label),
+            );
+        if open {
+            let mut inner = v_flex().gap(m.space[3]).pl(m.space[4]);
+            for i in ix {
+                let Some(call) = msg.tool_calls.get(*i) else {
+                    continue;
+                };
+                if let Some(view) = self.model.cards.iter().find(|v| v.card.id == call.id) {
+                    shown_cards.push(call.id.clone());
+                    inner = inner.child(self.approval_card(view, bt, cx));
+                } else {
+                    inner = inner.child(self.tool_card(call, bt, cx));
+                }
+            }
+            col = col.child(inner);
+        } else {
+            // Folded resolved cards must not be re-listed at the bottom of the transcript.
+            for i in ix {
+                if let Some(call) = msg.tool_calls.get(*i) {
+                    shown_cards.push(call.id.clone());
+                }
+            }
+        }
+        col.into_any_element()
     }
 
     // ---- tool-call cards (BIT-T-0455) -------------------------------------------------------------
