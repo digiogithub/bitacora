@@ -422,6 +422,26 @@ impl SettingsView {
                         )
                     }),
             ))
+            .when(
+                !prefs.remote_url.is_empty()
+                    && !matches!(
+                        crate::sync_prefs::validate_remote_url(&prefs.remote_url),
+                        Ok(crate::sync_prefs::RemoteKind::Local)
+                    ),
+                |c| {
+                    c.child(row(
+                        theme,
+                        t!("settings.sync.forget").to_string(),
+                        Some(t!("settings.sync.forget_help").to_string()),
+                        Button::new("settings-sync-forget")
+                            .small()
+                            .label(t!("settings.sync.forget_button").to_string())
+                            .on_click(cx.listener(|_, _: &ClickEvent, _, cx| {
+                                cx.emit(SettingsEvent::ForgetCredentials);
+                            })),
+                    ))
+                },
+            )
             .child(row(
                 theme,
                 t!("settings.sync.timing").to_string(),

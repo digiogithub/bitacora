@@ -154,6 +154,8 @@ pub enum SettingsEvent {
     EnableSync,
     /// Turn background sync off.
     DisableSync,
+    /// Forget the saved credentials of the graph's remote.
+    ForgetCredentials,
     /// Open the sync panel (backend details, conflicts, history).
     OpenSyncPanel,
     /// New sync timing; the workspace saves it and restarts the session.

@@ -103,6 +103,22 @@ fn store_key(request: &CredentialRequest) -> String {
     format!("{kind}:{}", request.url)
 }
 
+/// Store keys a remote URL may have been saved under: the URL without userinfo and the bare
+/// `scheme://host[:port]` origin (what git's askpass prompt names).
+fn remote_keys(remote_url: &str) -> Vec<String> {
+    let url = remote_url.trim();
+    let Some((scheme, rest)) = url.split_once("://") else {
+        return vec![url.to_string()];
+    };
+    let host_end = rest.find('/').unwrap_or(rest.len());
+    let host = rest[..host_end].rsplit('@').next().unwrap_or("");
+    let path = &rest[host_end..];
+    let origin = format!("{scheme}://{host}");
+    let mut keys = vec![url.to_string(), format!("{origin}{path}"), origin];
+    keys.dedup();
+    keys
+}
+
 /// In-memory [`SecretStore`] (tests, and a fallback when no OS keyring is available).
 #[derive(Default, Debug)]
 pub struct MemoryStore {
@@ -202,6 +218,27 @@ impl ChainProvider {
         }
     }
 
+    /// Forgets every saved credential tied to `remote_url` (the HTTPS password under both the
+    /// full URL libgit2 reports and the scheme+host form git's askpass prompt uses) and the
+    /// passphrase of `ssh_key` when given, and clears remembered cancellations.
+    pub fn forget_remote(&self, remote_url: &str, ssh_key: Option<&str>) {
+        for url in remote_keys(remote_url) {
+            self.store.forget(&CredentialRequest {
+                url,
+                username: None,
+                kind: CredentialKind::UserPassword,
+            });
+        }
+        if let Some(key) = ssh_key.filter(|k| !k.is_empty()) {
+            self.store.forget(&CredentialRequest {
+                url: key.to_string(),
+                username: None,
+                kind: CredentialKind::SshPassphrase,
+            });
+        }
+        self.reset_cancel();
+    }
+
     /// Clears remembered cancellations (call when the user explicitly retries a sync).
     pub fn reset_cancel(&self) {
         self.cancelled
@@ -254,6 +291,31 @@ impl CredentialProvider for ChainProvider {
 mod tests {
     use super::*;
     use std::sync::atomic::{AtomicUsize, Ordering};
+
+    #[test]
+    fn forget_remote_clears_url_origin_and_passphrase() {
+        let store = Arc::new(MemoryStore::new());
+        let chain = ChainProvider::new(store.clone(), None);
+        let mk = |url: &str, kind| CredentialRequest {
+            url: url.into(),
+            username: None,
+            kind,
+        };
+        let c = Credential {
+            username: "u".into(),
+            secret: Secret::new("s"),
+        };
+        let full = mk("https://me@h.example/o/r.git", CredentialKind::UserPassword);
+        let origin = mk("https://h.example", CredentialKind::UserPassword);
+        let key = mk("/k/id", CredentialKind::SshPassphrase);
+        for r in [&full, &origin, &key] {
+            store.save(r, &c);
+        }
+        chain.forget_remote("https://me@h.example/o/r.git", Some("/k/id"));
+        assert!(store.get(&full).is_none());
+        assert!(store.get(&origin).is_none());
+        assert!(store.get(&key).is_none());
+    }
 
     struct Scripted {
         calls: AtomicUsize,

@@ -197,6 +197,10 @@ settings:
     timing_invalid: Enter whole numbers of seconds. Values outside the allowed range (idle 5-600, max 30-3600, fetch 30-3600) are adjusted.
     squash: Squash automatic commits
     squash_help: Merge a run of automatic commits into one.
+    forget: "Saved credentials"
+    forget_help: "Remove the username, password or token and the SSH key passphrase stored in the system keychain for this remote. You will be asked again on the next sync."
+    forget_button: "Forget saved credentials"
+    forget_done: "Saved credentials forgotten."
   agents:
     enabled: Run the MCP server
     enabled_help: Serve MCP while a graph is open. Off stops agents from connecting.

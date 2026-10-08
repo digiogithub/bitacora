@@ -2018,6 +2018,16 @@ impl Workspace {
                 close(self, cx);
                 self.restart_session(window, cx);
             }
+            SettingsEvent::ForgetCredentials => {
+                let hub = self.credentials(window, cx);
+                hub.forget_remote(&self.sync_prefs.remote_url, None);
+                notify(
+                    window,
+                    cx,
+                    Level::Success,
+                    t!("settings.sync.forget_done").to_string(),
+                );
+            }
             SettingsEvent::OpenSyncPanel => {
                 close(self, cx);
                 self.open_sync_panel(cx);

@@ -28,9 +28,10 @@ impl SyncError {
             Self::PushRejectedLoop => {
                 "Could not push: the remote keeps changing. Retry in a moment.".to_owned()
             }
-            Self::Auth(_) => {
+            Self::Auth(hint) if hint.is_empty() || hint == "check credentials" => {
                 "Sync failed: authentication problem. Check your credentials.".to_owned()
             }
+            Self::Auth(hint) => format!("Sync failed: authentication problem ({hint})."),
             Self::ExternalOperationInProgress => {
                 "A merge or rebase is in progress in this graph. Finish or abort it.".to_owned()
             }

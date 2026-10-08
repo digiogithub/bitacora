@@ -129,6 +129,9 @@ impl GitError {
     }
 }
 
+/// Hint shown with HTTPS authentication failures (cancelled prompt, rejected password).
+pub const HTTPS_AUTH_HINT: &str = "enter your username and password or token when asked; stale ones can be forgotten in Settings > Sync";
+
 /// Classifies a failed git invocation from its stderr (exit code is non-zero by construction).
 pub fn classify_failure(stderr: &str) -> GitError {
     let s = stderr.to_ascii_lowercase();
@@ -153,7 +156,9 @@ pub fn classify_failure(stderr: &str) -> GitError {
         "the requested url returned error: 403",
         "host key verification failed",
     ]) {
-        GitError::Auth { hint: None }
+        GitError::Auth {
+            hint: Some(HTTPS_AUTH_HINT.to_string()),
+        }
     } else if has(&[
         "couldn't find remote ref",
         "could not find remote branch",
@@ -493,7 +498,7 @@ mod tests {
             classify_failure(
                 "fatal: could not read Username for 'https://x': terminal prompts disabled"
             ),
-            GitError::Auth { .. }
+            GitError::Auth { hint: Some(_) }
         ));
         assert!(matches!(
             classify_failure(

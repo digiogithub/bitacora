@@ -27,6 +27,24 @@ pub const ENV_ADDR: &str = "BITACORA_ASKPASS_ADDR";
 /// Environment variable with the session token.
 pub const ENV_TOKEN: &str = "BITACORA_ASKPASS_TOKEN";
 
+/// Environment variable marking a process as an askpass helper invocation (multi-call dispatch):
+/// when set to `1`, an executable that supports it must act as the helper and exit before doing
+/// anything else (BIT-US-0176).
+pub const ENV_MODE: &str = "BITACORA_ASKPASS_MODE";
+
+/// True when `value` (the content of [`ENV_MODE`]) requests askpass helper mode.
+pub fn mode_requested(value: Option<&str>) -> bool {
+    value.is_some_and(|v| v.trim() == "1")
+}
+
+/// Multi-call entry: when this process was started by git as an askpass helper
+/// ([`ENV_MODE`] set), runs the helper and returns its exit code. The caller must `return` or
+/// exit with it before any UI, logging or single-instance initialisation.
+pub fn run_if_askpass_mode() -> Option<ExitCode> {
+    let value = std::env::var(ENV_MODE).ok();
+    mode_requested(value.as_deref()).then(helper_main)
+}
+
 /// Answers askpass prompts. Returns `None` to cancel.
 pub trait AskpassHandler: Send + Sync {
     /// Answers git's/ssh's prompt text (for example `Password for 'https://u@host': `).
@@ -100,6 +118,7 @@ impl AskpassServer {
         vec![
             (ENV_ADDR.to_string(), self.addr.to_string()),
             (ENV_TOKEN.to_string(), self.token.clone()),
+            (ENV_MODE.to_string(), "1".to_string()),
         ]
     }
 }
@@ -372,6 +391,29 @@ mod tests {
             request_answer(&addr, "wrong", "Username for 'https://h.example': ").unwrap(),
             None
         );
+    }
+
+    #[test]
+    fn mode_marker_parsing() {
+        assert!(mode_requested(Some("1")));
+        assert!(mode_requested(Some(" 1\n")));
+        assert!(!mode_requested(Some("0")));
+        assert!(!mode_requested(Some("")));
+        assert!(!mode_requested(None));
+    }
+
+    #[test]
+    fn server_env_carries_multicall_marker() {
+        struct No;
+        impl AskpassHandler for No {
+            fn answer(&self, _: &str) -> Option<String> {
+                None
+            }
+        }
+        let server = AskpassServer::start(Arc::new(No)).unwrap();
+        let env = server.env();
+        assert!(env.iter().any(|(k, v)| k == ENV_MODE && v == "1"));
+        assert!(env.iter().any(|(k, _)| k == ENV_ADDR));
     }
 
     #[test]
