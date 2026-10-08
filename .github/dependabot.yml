@@ -25,3 +25,6 @@ updates:
         update-types:
           - version-update:semver-major
           - version-update:semver-minor
+      # tiny-skia is pinned to the version GPUI already pulls in through resvg (BIT-US-0160), so
+      # the graph PNG export adds no second copy; it moves with the GPUI Kit upgrade.
+      - dependency-name: tiny-skia
