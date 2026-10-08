@@ -296,7 +296,7 @@ impl IndexReader {
     }
 
     /// `day + days` for a `yyyyMMdd` day (`day` itself when it is not a valid date).
-    fn add_days(&self, day: i64, days: u32) -> Result<i64, Error> {
+    pub fn add_days(&self, day: i64, days: u32) -> Result<i64, Error> {
         let conn = self.conn()?;
         let t = day.to_string();
         let date = format!(

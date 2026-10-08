@@ -129,6 +129,9 @@ journals:
   today_badge: Hoy
   today_empty: Todavía no has escrito nada hoy
   more: Más bloques en la página...
+  panel_today: Programadas para hoy
+  panel_tomorrow: Mañana
+  panel_doing: En curso
 refs:
   linked: "Referencias enlazadas (%{count})"
   linked_loading: Referencias enlazadas

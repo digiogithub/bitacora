@@ -35,13 +35,14 @@ use crate::ui::text_edit::{FontWeight, ListAlignment, ListOffset, ListState, lis
 use crate::ui::theme::ActiveBitacoraTheme as _;
 use crate::ui::theme::TypeStyleExt as _;
 use crate::ui::{
-    ActiveTheme as _, Anchor, AnyElement, App, AppContext as _, Context, EventEmitter,
+    ActiveTheme as _, Anchor, AnyElement, App, AppContext as _, Context, Entity, EventEmitter,
     FluentBuilder as _, Focusable as _, IconName, InteractiveElement as _, IntoElement,
-    ParentElement as _, Render, Sizable as _, StatefulInteractiveElement as _, Styled as _, Task,
-    Window, div, h_flex, icon, px, v_flex,
+    ParentElement as _, Render, Sizable as _, StatefulInteractiveElement as _, Styled as _,
+    Subscription, Task, Window, div, h_flex, icon, px, v_flex,
 };
 use crate::views::block_view::{Nav, RowActions, properties_table, render_block_row};
 use crate::views::remote_edit::RemoteEditors;
+use crate::views::today_panel::TodayPanel;
 
 /// Pause after the last index event before the page is reloaded.
 const REFRESH_DEBOUNCE: Duration = Duration::from_millis(250);
@@ -146,6 +147,8 @@ pub enum Item {
     Block(usize),
     /// "No content yet".
     Empty,
+    /// The tasks panel under today's journal (BIT-US-0178).
+    Today,
     /// "Linked references (N)" or "Unlinked references".
     RefsHeading(RefKind),
     /// Page title of a reference group.
@@ -166,6 +169,9 @@ struct RefsSection {
 
 /// The page view.
 pub struct PageView {
+    /// Tasks for today, tomorrow and in progress; drawn only on today's journal page.
+    today_panel: Entity<TodayPanel>,
+    _panel_sub: Subscription,
     handle: Option<GraphHandle>,
     route: Option<Route>,
     header: PageHeader,
@@ -228,8 +234,14 @@ pub use crate::views::block_view::resolve_asset;
 
 impl PageView {
     /// An empty view.
-    pub fn new(_cx: &mut Context<Self>) -> Self {
+    pub fn new(cx: &mut Context<Self>) -> Self {
+        let today_panel = cx.new(|_| TodayPanel::new());
+        let _panel_sub = cx.subscribe(&today_panel, |_, _, event: &PageEvent, cx| {
+            cx.emit(event.clone());
+        });
         Self {
+            today_panel,
+            _panel_sub,
             handle: None,
             route: None,
             header: PageHeader::default(),
@@ -763,6 +775,11 @@ impl PageView {
                     self.filters = RefFilters::default();
                     self.filter_candidates.clear();
                 }
+                if self.is_today_page()
+                    && let Some(handle) = self.handle.clone()
+                {
+                    self.today_panel.update(cx, |p, cx| p.show(handle, cx));
+                }
                 {
                     let _span = crate::perf::span("page_view.build_items");
                     self.items = self.build_items();
@@ -781,6 +798,17 @@ impl PageView {
                 }
             }
         }
+    }
+
+    /// Whether the page shown is today's journal.
+    fn is_today_page(&self) -> bool {
+        let (Some(handle), Some(today)) = (&self.handle, data::today_local()) else {
+            return false;
+        };
+        matches!(self.route, Some(Route::Page(_)))
+            && self.header.is_journal
+            && self.state == LoadState::Loaded
+            && self.header.title == data::journal_title(handle, today)
     }
 
     fn is_page_route(&self) -> bool {
@@ -841,6 +869,9 @@ impl PageView {
     pub fn on_index_event(&mut self, event: &IndexEvent, cx: &mut Context<Self>) {
         if self.handle.is_none() || self.state != LoadState::Loaded {
             return;
+        }
+        if self.is_today_page() {
+            self.today_panel.update(cx, |p, cx| p.on_index_changed(cx));
         }
         let touched = data::event_touches(event, self.page_id, None);
         let refs_only = !touched && self.is_page_route();
@@ -998,6 +1029,9 @@ impl PageView {
             items.push(Item::Empty);
         }
         items.extend(visible.into_iter().map(Item::Block));
+        if self.is_today_page() {
+            items.push(Item::Today);
+        }
         if self.is_page_route() {
             for kind in [RefKind::Linked, RefKind::Unlinked] {
                 self.push_refs(kind, &mut items);
@@ -1246,6 +1280,11 @@ impl PageView {
                     None => placeholder.into_any_element(),
                 }
             }
+            Item::Today => div()
+                .w_full()
+                .px(dims::PX_24)
+                .child(self.today_panel.clone())
+                .into_any_element(),
             Item::Block(r) => match self.rows.get(r) {
                 Some(row) => {
                     let this = cx.entity();

@@ -32,6 +32,7 @@ use crate::views::ai_assist::review_card::ReviewCard;
 use crate::views::block_view::{Nav, RowActions, render_block_row};
 use crate::views::kit::{Chip, ChipTone};
 use crate::views::page_view::PageEvent;
+use crate::views::today_panel::TodayPanel;
 
 /// Days added per scroll step.
 pub const DAYS_PER_STEP: usize = 7;
@@ -95,6 +96,9 @@ pub struct JournalsView {
     /// The AI review card shown above the feed (BIT-US-0151); it renders nothing while the
     /// feature is off.
     review: Option<crate::ui::Entity<ReviewCard>>,
+    /// Tasks for today, tomorrow and in progress, under today's blocks (BIT-US-0178).
+    today_panel: Option<crate::ui::Entity<TodayPanel>>,
+    _panel_sub: Option<crate::ui::Subscription>,
 }
 
 impl std::fmt::Debug for JournalsView {
@@ -134,6 +138,8 @@ impl JournalsView {
             link: None,
             editors: std::collections::HashMap::new(),
             editor_subs: Vec::new(),
+            today_panel: None,
+            _panel_sub: None,
             review: None,
         }
     }
@@ -339,6 +345,17 @@ impl JournalsView {
 
     /// Shows the feed for a graph, from the top (or `restore`).
     pub fn show(&mut self, handle: GraphHandle, restore: Option<Scroll>, cx: &mut Context<Self>) {
+        if self.today_panel.is_none() {
+            let panel = cx.new(|_| TodayPanel::new());
+            self._panel_sub = Some(cx.subscribe(&panel, |_, _, event: &PageEvent, cx| {
+                cx.emit(event.clone());
+            }));
+            self.today_panel = Some(panel);
+        }
+        if let Some(panel) = &self.today_panel {
+            let handle = handle.clone();
+            panel.update(cx, |p, cx| p.show(handle, cx));
+        }
         self.handle = Some(handle);
         self.rebuild(DAYS_PER_STEP, restore, cx);
     }
@@ -362,6 +379,9 @@ impl JournalsView {
     pub fn on_index_event(&mut self, _event: &IndexEvent, cx: &mut Context<Self>) {
         if self.handle.is_none() {
             return;
+        }
+        if let Some(panel) = &self.today_panel {
+            panel.update(cx, |p, cx| p.on_index_changed(cx));
         }
         self.refresh_task = Some(cx.spawn(async move |this, cx| {
             cx.background_executor().timer(REFRESH_DEBOUNCE).await;
@@ -711,6 +731,11 @@ impl JournalsView {
                 &bt,
                 &actions,
             ));
+        }
+        if entry.is_today
+            && let Some(panel) = &self.today_panel
+        {
+            col = col.child(panel.clone());
         }
         if entry.truncated && day_editor.is_none() {
             let title_this = this.clone();
