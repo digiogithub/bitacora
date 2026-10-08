@@ -451,7 +451,11 @@ impl Workspace {
 
         div()
             .relative()
-            .child(button)
+            .child(
+                div()
+                    .debug_selector(|| "top-settings".to_string())
+                    .child(button),
+            )
             .when_some(popover, |d, p| d.child(p))
             .into_any_element()
     }

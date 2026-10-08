@@ -195,7 +195,9 @@ mod tests {
         let sections = crate::keymap::parse(crate::keymap::DEFAULT_KEYMAP).expect("parses");
         assert!(sections.iter().any(|s| {
             s.bindings.iter().any(|(k, a)| {
-                a == "bitacora::OpenSettings" && crate::keymap::normalize_keys(k) == "secondary-,"
+                a == "bitacora::OpenSettings"
+                    && crate::keymap::normalize_keys(k)
+                        == crate::keymap::normalize_keys("secondary-,")
             })
         }));
     }
