@@ -10,13 +10,14 @@ use rust_i18n::t;
 use super::Workspace;
 use crate::actions::OpenSearch;
 use crate::nav::Route;
+use crate::ui::button::{Button as KitButton, ButtonVariants as _};
 use crate::ui::dock::DockPlacement;
 use crate::ui::frameless::MouseButton;
 use crate::ui::theme::ActiveBitacoraTheme as _;
 use crate::ui::{
     Anchor, AnyElement, Context, FluentBuilder as _, InteractiveElement as _, IntoElement,
-    ParentElement as _, StatefulInteractiveElement as _, Styled as _, anchored, deferred, div,
-    h_flex, v_flex,
+    ParentElement as _, Sizable as _, StatefulInteractiveElement as _, Styled as _, anchored,
+    deferred, div, h_flex, v_flex,
 };
 use crate::views::kit::{Button, Glyph, IconButton, Kbd, PopoverShell, Tab, glyph};
 use crate::views::responsive::Breakpoint;
@@ -353,8 +354,113 @@ impl Workspace {
                                 area.toggle_dock(DockPlacement::Right, window, cx)
                             });
                         })),
-                ),
+                )
+                // Settings gear with the full app menu (BIT-US-0175), last before the window
+                // controls.
+                .child(self.gear_menu(macos, cx)),
         ))
+    }
+
+    /// The gear button and its popover: "Settings...", every settings section and the
+    /// application menu entries (BIT-US-0175).
+    fn gear_menu(&mut self, macos: bool, cx: &mut Context<Self>) -> AnyElement {
+        use crate::menus::{GearCommand, GearRow};
+        let open = self.gear_menu_open;
+        let theme = cx.bitacora().clone();
+        let colors = theme.colors;
+        let metrics = theme.metrics.clone();
+        let tip = if macos {
+            t!("top_bar.settings_tip_mac")
+        } else {
+            t!("top_bar.settings_tip")
+        }
+        .to_string();
+        let button = KitButton::new("top-settings")
+            .ghost()
+            .small()
+            .icon(crate::ui::IconName::Settings)
+            .tooltip(tip)
+            .on_click(cx.listener(|this, _, _, cx| {
+                let open = !this.gear_menu_open;
+                this.set_gear_menu(open, cx);
+            }));
+
+        let popover = open.then(|| {
+            let mut body = v_flex().gap(metrics.space[1]);
+            for (ix, row) in crate::menus::gear_rows(self.recents.graphs())
+                .into_iter()
+                .enumerate()
+            {
+                match row {
+                    GearRow::Separator => {
+                        body = body.child(div().h(dims::PX_1).my(metrics.space[2]).bg(colors.line));
+                    }
+                    GearRow::Heading(text) => {
+                        body = body.child(
+                            div()
+                                .px(metrics.space[4])
+                                .py(metrics.space[2])
+                                .text_color(colors.muted)
+                                .child(text),
+                        );
+                    }
+                    GearRow::Item {
+                        label,
+                        command,
+                        nested,
+                    } => {
+                        body = body.child(
+                            div().when(nested, |d| d.pl(metrics.space[4])).child(
+                                Button::new(("gear-item", ix))
+                                    .ghost()
+                                    .label(label)
+                                    .on_click(cx.listener(move |this, _, window, cx| {
+                                        this.set_gear_menu(false, cx);
+                                        match command {
+                                            GearCommand::OpenSettings(section) => {
+                                                this.open_settings(section, window, cx)
+                                            }
+                                            GearCommand::OpenGraph => this.open_graph_dialog(cx),
+                                            GearCommand::OpenRecent(n) => {
+                                                this.open_recent(n, window, cx)
+                                            }
+                                            GearCommand::CloseGraph => this.close_graph(window, cx),
+                                            GearCommand::Quit => cx.quit(),
+                                        }
+                                    })),
+                            ),
+                        );
+                    }
+                }
+            }
+            let weak = cx.entity().downgrade();
+            deferred(
+                anchored().anchor(Anchor::TopRight).snap_to_window().child(
+                    div().mt(metrics.space[2]).child(
+                        PopoverShell::new("gear-menu")
+                            .width(dims::PX_240)
+                            .on_dismiss(move |_, cx| {
+                                let _ = weak.update(cx, |this, cx| this.set_gear_menu(false, cx));
+                            })
+                            .child(body),
+                    ),
+                ),
+            )
+            .priority(10)
+        });
+
+        div()
+            .relative()
+            .child(button)
+            .when_some(popover, |d, p| d.child(p))
+            .into_any_element()
+    }
+
+    fn set_gear_menu(&mut self, open: bool, cx: &mut Context<Self>) {
+        if self.gear_menu_open != open {
+            self.gear_menu_open = open;
+            cx.notify();
+        }
     }
 
     /// The "Graph" button and its popover (Open graph, Open recent, Close graph).

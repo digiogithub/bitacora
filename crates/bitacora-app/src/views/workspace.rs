@@ -181,6 +181,8 @@ pub struct Workspace {
     narrow_sidebar_open: bool,
     tabs: top_bar::TabStrip,
     app_menu_open: bool,
+    /// Whether the gear (settings) menu popover is open (BIT-US-0175).
+    gear_menu_open: bool,
     save_task: Option<Task<()>>,
     heartbeat_task: Option<Task<Result<(), JoinError>>>,
     probe_task: Option<Task<()>>,
@@ -365,6 +367,7 @@ impl Workspace {
             narrow_sidebar_open: false,
             tabs: top_bar::TabStrip::new(),
             app_menu_open: false,
+            gear_menu_open: false,
             save_task: None,
             heartbeat_task: None,
             probe_task: None,
@@ -3628,6 +3631,20 @@ mod tests {
             ]
         );
         assert_eq!(ws.read_with(cx, |w, _| w.tab_strip().active()), 3);
+    }
+
+    #[gpui_test]
+    fn gear_menu_opens_and_lists_settings_sections(cx: &mut TestAppContext) {
+        setup(cx);
+        let (ws, cx) = open(cx, None);
+        cx.run_until_parked();
+        assert!(cx.debug_bounds("gear-menu").is_none());
+        click_bar(cx, "top-settings");
+        assert!(ws.read_with(cx, |w, _| w.gear_menu_open));
+        assert!(cx.debug_bounds("gear-menu").is_some());
+        assert!(cx.debug_bounds("gear-item-1").is_some());
+        click_bar(cx, "gear-item-1");
+        assert!(!ws.read_with(cx, |w, _| w.gear_menu_open));
     }
 
     #[gpui_test]

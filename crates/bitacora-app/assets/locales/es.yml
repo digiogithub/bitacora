@@ -139,6 +139,8 @@ refs:
   filters_active: Filtrado
   filters_clear: Quitar filtros
 top_bar:
+  settings_tip: "Ajustes (Ctrl+,)"
+  settings_tip_mac: "Ajustes (Cmd+,)"
   search: Buscar o ejecutar un comando
   block_tab: Bloque
 menu:

@@ -139,6 +139,8 @@ refs:
   filters_active: Filtered
   filters_clear: Clear filters
 top_bar:
+  settings_tip: "Settings (Ctrl+,)"
+  settings_tip_mac: "Settings (Cmd+,)"
   search: Search or run a command
   block_tab: Block
 menu:
