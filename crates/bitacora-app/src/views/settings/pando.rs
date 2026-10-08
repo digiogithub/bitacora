@@ -97,6 +97,33 @@ pub(crate) fn model_rows(list: &bitacora_runtime::ai::ModelList) -> Vec<ModelRow
     rows
 }
 
+/// The rows matching `query` (case-insensitive substring over id, name and provider; a blank
+/// query matches everything), enabled models first, then by provider and name.
+pub(crate) fn filter_models<'a>(
+    rows: &'a [ModelRow],
+    query: &str,
+    enabled: &[String],
+) -> Vec<&'a ModelRow> {
+    let q = query.trim().to_lowercase();
+    let mut out: Vec<&ModelRow> = rows
+        .iter()
+        .filter(|r| {
+            q.is_empty()
+                || r.id.to_lowercase().contains(&q)
+                || r.name.to_lowercase().contains(&q)
+                || r.provider.to_lowercase().contains(&q)
+        })
+        .collect();
+    out.sort_by_key(|r| {
+        (
+            !enabled.contains(&r.id),
+            r.provider.to_lowercase(),
+            r.name.to_lowercase(),
+        )
+    });
+    out
+}
+
 /// What the running session reports about Pando.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LiveStatus {
@@ -148,6 +175,8 @@ pub(crate) struct PandoInputs {
     pub agui_token: Entity<InputState>,
     pub binary: Entity<InputState>,
     pub exclusion: Entity<InputState>,
+    /// Filter box of the "Agent models" list.
+    pub models_filter: Entity<InputState>,
 }
 
 // ---- pure helpers (unit tested) --------------------------------------------------------------
@@ -903,11 +932,45 @@ impl SettingsView {
         if matches!(self.pando.models, ModelsState::Loaded(..)) && rows.is_empty() {
             col = col.child(note(t!("settings.pando.models_none").to_string()));
         }
+        let enabled_count = rows
+            .iter()
+            .filter(|r| s.enabled_models.contains(&r.id))
+            .count();
+        let query = self.text(&self.pando_inputs.models_filter, cx);
+        let shown = filter_models(&rows, &query, &s.enabled_models);
+        if !rows.is_empty() {
+            col = col.child(
+                h_flex()
+                    .gap_3()
+                    .py_1()
+                    .items_center()
+                    .child(
+                        div()
+                            .flex_1()
+                            .min_w_0()
+                            .child(Input::new(&self.pando_inputs.models_filter)),
+                    )
+                    .child(
+                        div()
+                            .flex_shrink_0()
+                            .text_xs()
+                            .text_color(theme.muted_foreground)
+                            .child(
+                                t!("settings.pando.models_enabled_count", count = enabled_count)
+                                    .to_string(),
+                            ),
+                    ),
+            );
+            if shown.is_empty() {
+                col = col.child(note(t!("settings.pando.models_no_match").to_string()));
+            }
+        }
         let mut list = v_flex()
             .id("settings-pando-models-list")
+            .flex_none()
             .max_h(dims::PX_320)
             .overflow_y_scroll();
-        for (ix, r) in rows.iter().enumerate() {
+        for (ix, r) in shown.into_iter().enumerate() {
             let id = r.id.clone();
             let desc = if r.provider.is_empty() {
                 r.id.clone()
@@ -1387,6 +1450,37 @@ mod unit {
         for m in [PandoMode::Managed, PandoMode::External, PandoMode::Off] {
             assert_eq!(mode_from_key(mode_key(m)), m);
         }
+    }
+
+    #[test]
+    fn model_filter_matches_id_name_provider_and_puts_enabled_first() {
+        let m = |id: &str, name: &str, provider: &str| ModelRow {
+            id: id.into(),
+            name: name.into(),
+            provider: provider.into(),
+        };
+        let rows = vec![
+            m("claude-opus", "Claude Opus", "anthropic"),
+            m("gpt-5", "GPT 5", "openai"),
+            m("gemini-pro", "Gemini Pro", "gemini"),
+        ];
+        let ids = |q: &str, en: &[&str]| -> Vec<String> {
+            let en: Vec<String> = en.iter().map(|s| (*s).to_owned()).collect();
+            filter_models(&rows, q, &en)
+                .into_iter()
+                .map(|r| r.id.clone())
+                .collect()
+        };
+        assert_eq!(ids("", &[]), ["claude-opus", "gemini-pro", "gpt-5"]);
+        assert_eq!(
+            ids("  ", &["gpt-5"]),
+            ["gpt-5", "claude-opus", "gemini-pro"]
+        );
+        assert_eq!(ids("OPUS", &[]), ["claude-opus"]);
+        assert_eq!(ids("openai", &[]), ["gpt-5"]);
+        assert_eq!(ids("gemini", &[]), ["gemini-pro"]);
+        assert_eq!(ids("-pro", &[]), ["gemini-pro"]);
+        assert!(ids("zzz", &[]).is_empty());
     }
 
     #[test]

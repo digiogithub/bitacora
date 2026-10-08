@@ -42,6 +42,8 @@ pub fn modal(
             .id(id)
             .absolute()
             .inset_0()
+            // Occlude the views below: the wheel scrolls the modal, never the page behind it.
+            .occlude()
             .flex()
             .justify_center()
             .items_center()

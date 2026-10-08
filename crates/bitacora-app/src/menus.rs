@@ -9,7 +9,6 @@ use crate::actions::{
 };
 use crate::recent::RecentGraph;
 use crate::ui::{Action, App, MenuEntry, MenuSpec};
-use crate::views::settings::Section;
 
 /// The action of the `ix`-th (0-based) recent-graph entry, if the menu has a slot for it.
 pub fn recent_action(ix: usize) -> Option<Box<dyn Action>> {
@@ -63,81 +62,6 @@ pub fn build(recents: &[RecentGraph]) -> Vec<MenuSpec> {
     ]
 }
 
-/// What a gear-menu row does when clicked.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum GearCommand {
-    /// Opens the settings (on `Some(section)`, or on the last one).
-    OpenSettings(Option<Section>),
-    /// Shows the native "open graph" dialog.
-    OpenGraph,
-    /// Opens the `n`-th (0-based) recent graph.
-    OpenRecent(usize),
-    /// Closes the open graph.
-    CloseGraph,
-    /// Quits the app.
-    Quit,
-}
-
-/// A row of the gear (settings) menu in the title bar.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum GearRow {
-    /// A clickable row.
-    Item {
-        /// Localised label.
-        label: String,
-        /// What it does.
-        command: GearCommand,
-        /// Whether it is indented under the previous heading.
-        nested: bool,
-    },
-    /// A non-clickable heading.
-    Heading(String),
-    /// A divider.
-    Separator,
-}
-
-/// The rows of the gear menu: "Settings..." and one row per settings section, then the entries
-/// of the graph menu (open, recent, close) and Quit, so the menu is the complete entry point to
-/// the application menu on platforms without a native menu bar (BIT-US-0175).
-pub fn gear_rows(recents: &[RecentGraph]) -> Vec<GearRow> {
-    let item = |label: String, command, nested| GearRow::Item {
-        label,
-        command,
-        nested,
-    };
-    let mut rows = vec![item(
-        t!("settings.cmd_open").to_string(),
-        GearCommand::OpenSettings(None),
-        false,
-    )];
-    rows.extend(
-        Section::ALL
-            .iter()
-            .map(|s| item(s.title(), GearCommand::OpenSettings(Some(*s)), true)),
-    );
-    rows.push(GearRow::Separator);
-    rows.push(item(
-        t!("menu.open_graph").to_string(),
-        GearCommand::OpenGraph,
-        false,
-    ));
-    rows.push(GearRow::Heading(t!("menu.open_recent").to_string()));
-    if recents.is_empty() {
-        rows.push(GearRow::Heading(t!("picker.no_recent").to_string()));
-    }
-    for (ix, graph) in recents.iter().enumerate().take(crate::recent::MAX_RECENT) {
-        rows.push(item(graph.name(), GearCommand::OpenRecent(ix), true));
-    }
-    rows.push(item(
-        t!("menu.close_graph").to_string(),
-        GearCommand::CloseGraph,
-        false,
-    ));
-    rows.push(GearRow::Separator);
-    rows.push(item(t!("app.quit").to_string(), GearCommand::Quit, false));
-    rows
-}
-
 /// Installs the menus for `recents`.
 pub fn install(cx: &mut App, recents: &[RecentGraph]) {
     crate::ui::set_menus(cx, build(recents));
@@ -162,32 +86,6 @@ mod tests {
         let graph = &menus[1];
         assert_eq!(graph.items.len(), 4);
         assert!(matches!(&graph.items[1], MenuEntry::Submenu(_, items) if items.len() == 3));
-    }
-
-    #[test]
-    fn gear_menu_has_settings_sections_and_the_app_menu() {
-        let rows = gear_rows(&recent(2));
-        let cmds: Vec<GearCommand> = rows
-            .iter()
-            .filter_map(|r| match r {
-                GearRow::Item { command, .. } => Some(*command),
-                _ => None,
-            })
-            .collect();
-        assert_eq!(cmds[0], GearCommand::OpenSettings(None));
-        for s in Section::ALL {
-            assert!(cmds.contains(&GearCommand::OpenSettings(Some(s))));
-        }
-        for c in [
-            GearCommand::OpenGraph,
-            GearCommand::OpenRecent(0),
-            GearCommand::OpenRecent(1),
-            GearCommand::CloseGraph,
-            GearCommand::Quit,
-        ] {
-            assert!(cmds.contains(&c), "{c:?} missing");
-        }
-        assert!(!cmds.contains(&GearCommand::OpenRecent(2)));
     }
 
     #[test]

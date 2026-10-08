@@ -15,3 +15,8 @@ Continues [[2-0-x-owner-feedback-plan]]. No Pando change: everything is client s
 
 ## Verification
 `cargo test -p bitacora-app -p bitacora-pando -p pando-rs -p bitacora-config -p bitacora-runtime --locked` all pass; clippy `-D warnings` clean on those crates. New tests: `list_models_*`, `model_settings_are_backward_compatible_and_roundtrip`, `enabled_models_get_their_own_chat_profile`, `selector_maps_the_choice_to_a_profile`, `profile_names_are_toml_bare_keys`, `model_rows_drop_auto_and_duplicates_and_sort`. Not verified: a real Pando run with a `Model` profile, and the visuals of the dropdown.
+
+## Follow-up 2026-10-08 (owner validation)
+- Settings > Pando > Agent models: filter input on top (`PandoInputs.models_filter`, case-insensitive substring over id, name, provider), "N enabled" counter, list capped at 320px and scrollable (`flex_none` + `max_h`). Pure `filter_models` orders enabled models first, then provider and name; unit test `model_filter_matches_id_name_provider_and_puts_enabled_first`. Strings `settings.pando.models_filter_placeholder`, `models_enabled_count`, `models_no_match` (en, es).
+- Agent panel selector: the chip shows only the model name (`model_chip_label`, ellipsis after 22 chars). Dropdown rows come from pure `model_menu_rows`: model name, truncated; selected row has `accent_bg` and a leading dot; the default model gets a muted "default" tag (`chat.model_default_tag`, replaces `chat.model_default`); a model equal to the default is listed once; no checkbox glyphs. Tests in `views/chat/tests.rs`.
+- Verification: `cargo test -p bitacora-app --locked` (640 passed), clippy `-D warnings` clean. Not verified visually.

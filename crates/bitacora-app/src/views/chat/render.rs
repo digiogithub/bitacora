@@ -223,9 +223,11 @@ impl ChatView {
                     .map(|c| c.label.clone())
             })
             .unwrap_or_else(|| t!("chat.model_unknown").to_string());
+        let shown = super::model_chip_label(&shown);
         if self.choices.is_empty() || self.can_edit {
             return Chip::new(shown).mono(true).into_any_element();
         }
+        // Only the model name; long names are cut with an ellipsis, never overflow the header.
         let button = Button::new("chat-model")
             .ghost()
             .compact()
@@ -233,35 +235,46 @@ impl ChatView {
             .icon(Glyph::ChevronDown)
             .on_click(cx.listener(|this, _, _, cx| this.toggle_model_menu(cx)));
         let popover = self.model_menu.then(|| {
-            let mut body = v_flex().gap(m.space[1]);
-            let default_label = self.choices.default.as_ref().map_or_else(
-                || t!("chat.model_default").to_string(),
-                |d| format!("{} ({})", t!("chat.model_default"), d.label),
-            );
-            let mark = |on: bool, label: String| {
-                if on {
-                    format!("[x] {label}")
-                } else {
-                    format!("[ ] {label}")
-                }
-            };
-            body = body.child(
-                Button::new("chat-model-default")
-                    .ghost()
-                    .label(mark(self.chosen_model.is_none(), default_label))
-                    .on_click(cx.listener(|this, _, _, cx| this.choose_model(None, cx))),
-            );
-            for (ix, choice) in self.choices.extra.iter().enumerate() {
-                let id = choice.model_id.clone();
+            let c = &bt.colors;
+            let mut body = v_flex().gap(m.space[1]).w_full();
+            for (ix, row) in super::model_menu_rows(&self.choices, self.chosen_model.as_deref())
+                .into_iter()
+                .enumerate()
+            {
+                let choice = row.choice.clone();
+                let hover = c.hover;
                 body = body.child(
-                    Button::new(("chat-model-choice", ix))
-                        .ghost()
-                        .label(mark(
-                            self.chosen_model.as_deref() == Some(choice.model_id.as_str()),
-                            choice.label.clone(),
-                        ))
+                    h_flex()
+                        .id(("chat-model-choice", ix))
+                        .w_full()
+                        .min_w_0()
+                        .gap(m.space[2])
+                        .px(m.space[3])
+                        .py(m.space[2])
+                        .items_center()
+                        .rounded(m.radius_control)
+                        .cursor_pointer()
+                        .type_style(&bt.type_scale.ui_small)
+                        .text_color(if row.selected { c.accent } else { c.text })
+                        .when(row.selected, |d| d.bg(c.accent_bg))
+                        .when(!row.selected, |d| d.hover(move |d| d.bg(hover)))
+                        .child(div().w(dims::PX_8).flex_shrink_0().child(if row.selected {
+                            "\u{2022}"
+                        } else {
+                            ""
+                        }))
+                        .child(div().flex_1().min_w_0().truncate().child(row.label))
+                        .when(row.is_default, |d| {
+                            d.child(
+                                div()
+                                    .flex_shrink_0()
+                                    .type_style(&bt.type_scale.caption)
+                                    .text_color(c.muted)
+                                    .child(t!("chat.model_default_tag").to_string()),
+                            )
+                        })
                         .on_click(cx.listener(move |this, _, _, cx| {
-                            this.choose_model(Some(id.clone()), cx);
+                            this.choose_model(choice.clone(), cx);
                         })),
                 );
             }

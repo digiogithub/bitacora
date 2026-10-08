@@ -504,7 +504,7 @@ chat:
   tool_input: Entrada
   tool_group: "%{count} llamadas a herramientas"
   tool_group_failed: "%{count} con error"
-  model_default: Modelo predeterminado
+  model_default_tag: predet.
   tool_output: Salida
   no_graph: Abre un grafo y conecta Pando en Ajustes para conversar.
   no_events: El chat no pudo iniciar su lector de eventos.

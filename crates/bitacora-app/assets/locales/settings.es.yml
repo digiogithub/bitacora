@@ -81,6 +81,9 @@ settings:
     models_idle: Pulsa Actualizar para listar los modelos que puede usar tu Pando.
     models_loading: Cargando modelos...
     models_failed: "No se pudieron listar los modelos: %{error}"
+    models_filter_placeholder: "Filtrar modelos..."
+    models_enabled_count: "{count} activados"
+    models_no_match: "Ningún modelo coincide con el filtro."
     models_none: Pando no devolvió modelos. Configura un proveedor en los ajustes de Pando.
     models_no_session: Abre un grafo y conecta Pando para listar modelos.
     models_not_connected: Pando no está conectado.
