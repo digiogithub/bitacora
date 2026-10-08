@@ -650,15 +650,25 @@ impl JournalsView {
         let entry_title = entry.day.title.clone();
         let visible = visible_rows(rows);
         if entry.state == DayState::Loaded && visible.is_empty() {
-            col = col.child(
-                div()
-                    .text_color(theme.muted_foreground)
-                    .child(if entry.is_today {
-                        t!("journals.today_empty").to_string()
-                    } else {
-                        t!("page.empty").to_string()
-                    }),
-            );
+            // A day core holds but that has no block yet: a click starts its first block.
+            let placeholder = div()
+                .id(("journal-empty", ix))
+                .w_full()
+                .text_color(theme.muted_foreground)
+                .child(if entry.is_today {
+                    t!("journals.today_empty").to_string()
+                } else {
+                    t!("page.empty").to_string()
+                });
+            col = col.child(match day_editor.clone() {
+                Some(ed) => placeholder
+                    .cursor_text()
+                    .on_click(move |_, window, cx| {
+                        ed.update(cx, |e, cx| e.focus_first_block(window, cx));
+                    })
+                    .into_any_element(),
+                None => placeholder.into_any_element(),
+            });
         }
         for r in visible {
             let toggle_this = this.clone();
@@ -1004,5 +1014,91 @@ mod tests {
         let generation_before = view.read_with(cx, |v, _| v.generation);
         view.update(cx, |v, cx| v.tick(cx));
         assert_eq!(view.read_with(cx, |v, _| v.generation), generation_before);
+    }
+
+    #[gpui_test]
+    fn empty_today_in_the_feed_gets_an_editor_with_core_first_block(cx: &mut TestAppContext) {
+        setup(cx);
+        cx.update(|cx| crate::keymap::load_with_user(cx, None).expect("keymap"));
+        let env =
+            crate::views::widgets::tests::Env::new(&[("journals/2024_03_09.md", "- yesterday\n")]);
+        let today = Rc::new(Cell::new(d(2024, 3, 10)));
+        let (view, cx) = open(cx, today);
+        view.update(cx, |v, cx| {
+            v.set_session_link(Some(env.link.clone()), cx);
+            v.show(env.handle.clone(), None, cx);
+        });
+        settle(cx, &view, |v| !v.entries().is_empty());
+        cx.run_until_parked();
+        cx.update(|window, _| window.refresh());
+        cx.run_until_parked();
+        let ed = view.read_with(cx, |v, _| v.editor_for(20_240_310).cloned());
+        let ed = ed.expect("today has an editor");
+        let rows = ed.read_with(cx, |e, _| e.rows().len());
+        assert_eq!(rows, 1, "core's virtual first block");
+        assert!(!env.graph.path().join("journals/2024_03_10.md").exists());
+        // Type, Enter (new block) and Tab (indent) work in the feed like on the page.
+        let id = ed
+            .read_with(cx, |e, _| e.block_ids().first().copied())
+            .expect("id");
+        ed.update_in(cx, |e, window, cx| {
+            e.enter(id, crate::editor::Caret::End, window, cx);
+        });
+        cx.run_until_parked();
+        cx.simulate_input("first");
+        cx.simulate_keystrokes("enter");
+        cx.simulate_input("second");
+        cx.simulate_keystrokes("tab");
+        ed.update(cx, |e, cx| {
+            e.flush(cx);
+        });
+        let key = bitacora_core::graph::PageKey::from_title("Mar 10th, 2024");
+        let texts: Vec<(usize, String)> = env
+            .link
+            .queue
+            .snapshot(&key)
+            .map(|s| s.blocks.iter().map(|b| (b.depth, b.text.clone())).collect())
+            .unwrap_or_default();
+        assert_eq!(texts, [(1, "first".to_owned()), (2, "second".to_owned())]);
+        assert_eq!(env.disk("journals/2024_03_10.md"), "- first\n\t- second\n");
+    }
+
+    #[gpui_test]
+    fn an_empty_day_file_starts_its_first_block_from_the_feed(cx: &mut TestAppContext) {
+        setup(cx);
+        cx.update(|cx| crate::keymap::load_with_user(cx, None).expect("keymap"));
+        let env = crate::views::widgets::tests::Env::new(&[
+            ("journals/2024_03_09.md", "- yesterday\n"),
+            ("journals/2024_03_10.md", ""),
+        ]);
+        let today = Rc::new(Cell::new(d(2024, 3, 10)));
+        let (view, cx) = open(cx, today);
+        view.update(cx, |v, cx| {
+            v.set_session_link(Some(env.link.clone()), cx);
+            v.show(env.handle.clone(), None, cx);
+        });
+        settle(cx, &view, |v| !v.entries().is_empty());
+        cx.run_until_parked();
+        cx.update(|window, _| window.refresh());
+        cx.run_until_parked();
+        let ed = view
+            .read_with(cx, |v, _| v.editor_for(20_240_310).cloned())
+            .expect("today has an editor");
+        assert_eq!(ed.read_with(cx, |e, _| e.rows().len()), 0, "no block yet");
+        ed.update_in(cx, |e, window, cx| e.focus_first_block(window, cx));
+        cx.run_until_parked();
+        assert_eq!(ed.read_with(cx, |e, _| e.rows().len()), 1);
+        assert!(ed.read_with(cx, |e, _| e.editing().is_some()));
+        cx.simulate_input("first");
+        cx.simulate_keystrokes("enter");
+        cx.simulate_input("second");
+        cx.simulate_keystrokes("tab");
+        ed.update(cx, |e, cx| {
+            e.flush(cx);
+        });
+        assert_eq!(
+            env.disk("journals/2024_03_10.md").trim_end(),
+            "- first\n\t- second"
+        );
     }
 }

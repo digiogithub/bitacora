@@ -1228,12 +1228,24 @@ impl PageView {
         let root = self.handle.as_ref().map(|h| h.root.clone());
         let element = match item {
             Item::Header => self.render_header(&nav, cx),
-            Item::Empty => div()
-                .px(dims::PX_24)
-                .py(dims::PX_8)
-                .text_color(theme.muted_foreground)
-                .child(t!("page.empty").to_string())
-                .into_any_element(),
+            Item::Empty => {
+                let placeholder = div()
+                    .id("page-empty")
+                    .px(dims::PX_24)
+                    .py(dims::PX_8)
+                    .text_color(theme.muted_foreground)
+                    .child(t!("page.empty").to_string());
+                // A live page with no block yet: a click starts its first block.
+                match self.editor.clone().filter(|_| self.live) {
+                    Some(ed) => placeholder
+                        .cursor_text()
+                        .on_click(move |_, window, cx| {
+                            ed.update(cx, |e, cx| e.focus_first_block(window, cx));
+                        })
+                        .into_any_element(),
+                    None => placeholder.into_any_element(),
+                }
+            }
             Item::Block(r) => match self.rows.get(r) {
                 Some(row) => {
                     let this = cx.entity();
