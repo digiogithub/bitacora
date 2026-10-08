@@ -1,11 +1,11 @@
 #!/bin/sh
 # Install bitacora-cli from GitHub Releases (Linux and macOS).
-#   curl -fsSL https://github.com/digio-es/bitacora/releases/latest/download/install.sh | sh
+#   curl -fsSL https://github.com/digiogithub/bitacora/releases/latest/download/install.sh | sh
 # Environment: BITACORA_VERSION (default: latest), BITACORA_INSTALL_DIR (default: ~/.local/bin).
 # The archive is verified against the release SHA256SUMS before anything is installed.
 set -eu
 
-REPO="digio-es/bitacora"
+REPO="digiogithub/bitacora"
 DIR="${BITACORA_INSTALL_DIR:-$HOME/.local/bin}"
 
 case "$(uname -s)" in

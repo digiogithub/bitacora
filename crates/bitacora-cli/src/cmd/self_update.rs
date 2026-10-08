@@ -17,7 +17,7 @@ use serde::Deserialize;
 use sha2::{Digest as _, Sha256};
 
 /// Default GitHub API root of the releases repository.
-pub const DEFAULT_API: &str = "https://api.github.com/repos/digio-es/bitacora";
+pub const DEFAULT_API: &str = "https://api.github.com/repos/digiogithub/bitacora";
 /// Largest download accepted (the CLI archive is a few MiB).
 const MAX_DOWNLOAD: u64 = 256 * 1024 * 1024;
 

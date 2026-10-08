@@ -140,8 +140,8 @@ mod tests {
     #[test]
     fn slug_and_schedule() {
         assert_eq!(
-            repo_slug("https://github.com/digio-es/bitacora/").as_deref(),
-            Some("digio-es/bitacora")
+            repo_slug("https://github.com/digiogithub/bitacora/").as_deref(),
+            Some("digiogithub/bitacora")
         );
         assert_eq!(repo_slug("https://example.com/a/b"), None);
         let day = CHECK_INTERVAL;

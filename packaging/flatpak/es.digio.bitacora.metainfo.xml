@@ -22,8 +22,8 @@
     </ul>
   </description>
   <launchable type="desktop-id">es.digio.bitacora.desktop</launchable>
-  <url type="homepage">https://github.com/digio-es/bitacora</url>
-  <url type="bugtracker">https://github.com/digio-es/bitacora/issues</url>
+  <url type="homepage">https://github.com/digiogithub/bitacora</url>
+  <url type="bugtracker">https://github.com/digiogithub/bitacora/issues</url>
   <categories>
     <category>Office</category>
     <category>Utility</category>

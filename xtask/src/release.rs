@@ -107,7 +107,7 @@ pub fn render_notes(version: &str, commits: &[Commit]) -> String {
     }
     out.push_str(
         "### Verify your download\n\nCheck the installer against `SHA256SUMS`; release artifacts \
-         also carry build provenance (`gh attestation verify <file> --repo digio-es/bitacora`).\n",
+         also carry build provenance (`gh attestation verify <file> --repo digiogithub/bitacora`).\n",
     );
     out
 }

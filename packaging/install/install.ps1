@@ -1,10 +1,10 @@
 # Install bitacora-cli from GitHub Releases (Windows PowerShell).
-#   irm https://github.com/digio-es/bitacora/releases/latest/download/install.ps1 | iex
+#   irm https://github.com/digiogithub/bitacora/releases/latest/download/install.ps1 | iex
 # Environment: BITACORA_VERSION (default: latest), BITACORA_INSTALL_DIR (default: %LOCALAPPDATA%\Programs\bitacora-cli).
 # The archive is verified against the release SHA256SUMS before anything is installed.
 $ErrorActionPreference = 'Stop'
 
-$repo = 'digio-es/bitacora'
+$repo = 'digiogithub/bitacora'
 $dir = if ($env:BITACORA_INSTALL_DIR) { $env:BITACORA_INSTALL_DIR } else { Join-Path $env:LOCALAPPDATA 'Programs\bitacora-cli' }
 $target = 'x86_64-pc-windows-msvc'
 
