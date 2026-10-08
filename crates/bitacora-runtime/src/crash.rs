@@ -503,7 +503,9 @@ mod tests {
         report.message = Some("index out of bounds & more".into());
         report.backtrace = Some("frame\n".repeat(5000));
         let url = report.issue_url("https://github.com/digiogithub/bitacora/");
-        assert!(url.starts_with("https://github.com/digiogithub/bitacora/issues/new?title=Crash%3A"));
+        assert!(
+            url.starts_with("https://github.com/digiogithub/bitacora/issues/new?title=Crash%3A")
+        );
         assert!(!url.contains(' ') && !url.contains('\n'));
         assert!(url.len() < 20_000, "url too long: {}", url.len());
     }
