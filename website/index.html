@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bitácora — the outliner for your Logseq graph</title>
+<meta name="description" content="Bitácora is a fast desktop outliner for Logseq Markdown graphs, written in Rust and drawn on the GPU, with optional AI through Pando.">
+<meta name="theme-color" content="#FBFAF7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141518" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="assets/brand/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/brand/app-icon.svg">
+<link rel="preload" href="fonts/AtkinsonHyperlegibleNext-Regular.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="preload" href="fonts/Literata-SemiBold.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/styles.css">
+<script src="js/theme.js"></script>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="mark" viewBox="0 0 48 48" fill="none">
+    <rect x="9" y="5" width="30" height="36" rx="3.5" stroke="currentColor" stroke-width="3"/>
+    <path d="M16 5v36" stroke="currentColor" stroke-width="3"/>
+    <circle cx="22.5" cy="14" r="2" fill="currentColor"/>
+    <path d="M26.5 14h6.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+    <circle cx="26.5" cy="21" r="2" fill="currentColor"/>
+    <path d="M30.5 21h2.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+    <circle cx="22.5" cy="28" r="2" fill="currentColor"/>
+    <path d="M26.5 28h6.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+    <path class="brand__ribbon" d="M28 37v10l3.5-2.6 3.5 2.6V37z"/>
+  </symbol>
+  <symbol id="sparkle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round">
+    <path d="M12 3c.6 4.6 3.4 7.4 8 8-4.6.6-7.4 3.4-8 8-.6-4.6-3.4-7.4-8-8 4.6-.6 7.4-3.4 8-8z"/>
+  </symbol>
+</svg>
+
+<header class="site-header">
+  <div class="container">
+    <a class="brand" href="#top" aria-label="Bitácora home">
+      <svg width="30" height="30" aria-hidden="true"><use href="#mark"/></svg>
+      <span class="brand__word">bitácora</span>
+    </a>
+    <nav class="site-nav" aria-label="Sections">
+      <a href="#features">Features</a>
+      <a href="#compat">Logseq</a>
+      <a href="#ai">AI with Pando</a>
+      <a href="#agents">MCP &amp; CLI</a>
+      <a href="#download">Downloads</a>
+    </nav>
+    <div class="site-header__spacer"></div>
+    <button id="theme-toggle" class="icon-btn" type="button" aria-label="Switch theme">
+      <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>
+    </button>
+    <a class="btn btn--primary btn--sm" href="#download">Download</a>
+  </div>
+</header>
+
+<main id="top">
+
+<section class="container hero">
+  <span class="hero__meta">v2.0.1 · macOS · Windows · Linux · MIT licensed</span>
+  <h1 class="display hero__title">Keep the log.<br>Plain files, steady hand.</h1>
+  <p class="hero__lead">Bitácora is a fast desktop outliner for your Logseq Markdown graphs. Written in Rust, drawn on the GPU, and fully compatible with the notes you already have — open your graph and keep writing.</p>
+  <div class="hero__actions">
+    <a class="btn btn--primary" href="#download"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Download Bitácora 2.0</a>
+    <a class="btn btn--ghost" href="https://github.com/digiogithub/bitacora/releases">All releases on GitHub</a>
+  </div>
+</section>
+
+<!-- Static illustration of the app. Content is fictional. -->
+<section class="container preview" aria-label="Bitácora interface preview">
+  <div class="app" role="img" aria-label="Bitácora showing today's journal with tasks, AI ghost text and the Agent panel proposing an edit">
+    <div class="app__bar">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+      <div class="app__tabs"><span class="app__tab app__tab--active">Journals</span><span class="app__tab">Sea trials</span></div>
+      <div class="app__search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><span>Search or run…</span><kbd>⌘K</kbd></div>
+      <svg width="18" height="18" style="color: var(--ai)"><use href="#sparkle"/></svg>
+    </div>
+    <div class="app__body">
+      <div class="app__side">
+        <div class="app__nav">
+          <span class="app__nav-item app__nav-item--active">Journals</span>
+          <span class="app__nav-item">All pages</span>
+          <span class="app__nav-item">Tasks <span class="badge">2 overdue</span></span>
+          <span class="app__nav-item">Graph</span>
+        </div>
+        <div class="app__nav">
+          <span class="overline" style="padding: 0 10px 4px">Favorites</span>
+          <span class="app__fav">Voyage plan</span>
+          <span class="app__fav">Reading list</span>
+          <span class="app__fav">Rust notes</span>
+        </div>
+        <div class="app__status"><span class="dot"></span>MCP server running</div>
+      </div>
+      <div class="app__main">
+        <div>
+          <div class="journal__day">Thursday <span class="pill-today">Today</span></div>
+          <div class="journal__title">Oct 8th, 2026</div>
+        </div>
+        <div class="blocks">
+          <div class="block"><span class="block__bullet"></span><span class="block__content"><span class="marker marker--todo">TODO</span>Send the revised charter to <span class="accent">[[Harbour Office]]</span><span class="date-chip">SCHEDULED · Fri Oct 9</span></span></div>
+          <div class="block"><span class="block__bullet"></span><span class="block__content"><span class="marker marker--doing">DOING</span>Rework the conflict view for <span class="accent">#sync</span></span></div>
+          <div class="block"><span class="block__bullet"></span><span>Notes from the <span class="accent">[[Weekly review]]</span></span></div>
+          <div class="children">
+            <div class="block"><span class="block__bullet"></span><span>Graph view export works for both SVG and PNG</span></div>
+            <div class="block block--editing"><span class="block__bullet"></span><span>Next: test the Flatpak build on<span class="ghost"> a clean Fedora install before tagging 2.0.2</span> <kbd class="ghost-kbd">Tab</kbd></span></div>
+          </div>
+          <div class="block"><span class="block__bullet"></span><span class="block__content"><span class="marker marker--done">DONE</span><span class="muted">Back up the graph before the 2.0 upgrade</span></span></div>
+        </div>
+      </div>
+      <div class="app__panel">
+        <div class="panel-tabs"><span>Context</span><span class="is-active">Agent</span></div>
+        <div class="bubble-user">What is still open from this week?</div>
+        <div class="tool-call"><span class="dot"></span>semantic_search · 6 blocks</div>
+        <div>Two tasks are open: the charter for <span class="accent">[[Harbour Office]]</span> (due Friday) and the conflict view. I can add a reminder under today.</div>
+        <div class="proposal">
+          <span class="proposal__head">propose_edit · Oct 8th, 2026</span>
+          <span class="proposal__diff">+ TODO Call the harbour office if no reply by noon</span>
+          <div class="proposal__actions"><span class="proposal__apply">Apply</span><span class="proposal__deny">Deny</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section section--side">
+  <div class="container origin">
+    <h2 class="display">Why “bitácora”?</h2>
+    <div class="origin__body">
+      <p>In Spanish, <em>bitácora</em> is the binnacle — the stand beside the helm that holds the ship’s compass. It is also where the captain kept the logbook: course, weather, people aboard, what happened and when. One entry per watch, written plainly so anyone could read it years later.</p>
+      <p>That is the idea behind the app. A daily journal at the top, an outline under it, and plain Markdown files underneath everything — a record that belongs to you and outlasts any tool.</p>
+    </div>
+  </div>
+</section>
+
+<section id="features" class="section">
+  <div class="container">
+    <div class="stack" style="max-width: 720px; gap: 12px">
+      <span class="overline">Features</span>
+      <h2 class="display h2">Everything the log needs, nothing that gets in the way.</h2>
+    </div>
+    <div class="features">
+      <article class="feature">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/></svg>
+        <h3>Journals and outlines</h3>
+        <p>A page for every day, blocks you can fold, zoom into and reference. Code fences, quotes and NOTE/TIP/WARNING callouts render like Logseq does.</p>
+      </article>
+      <article class="feature">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <h3>Instant search</h3>
+        <p>Its own SQLite + FTS5 index answers searches, backlinks and queries as you type, even on graphs with thousands of pages.</p>
+      </article>
+      <article class="feature">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg>
+        <h3>Tasks view</h3>
+        <p>Every open task grouped Overdue, This week, Later and No date. Filter by marker, priority or page; pick a new date from a calendar.</p>
+      </article>
+      <article class="feature">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="6" cy="7" r="2.2"/><circle cx="18" cy="6" r="2.2"/><circle cx="13" cy="18" r="2.2"/><path d="M8 7.5l7.9-1M7.4 8.8l4.4 7.4M17 8l-3.2 8"/></svg>
+        <h3>Graph view</h3>
+        <p>A force layout of your pages with focus on N hops. Settings live in <code>config.edn</code>; export to SVG or PNG.</p>
+      </article>
+      <article class="feature">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg>
+        <h3>Context at hand</h3>
+        <p>The right panel shows the local graph, page properties, backlinks with snippets and the blocks you opened with Shift+click.</p>
+      </article>
+      <article class="feature">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="2.2"/><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="12" r="2.2"/><path d="M6 8.2v7.6M8 6.5c5 0 8 1.5 8 3.5"/></svg>
+        <h3>Git sync, built in</h3>
+        <p>Automatic commit, pull and push. Metadata conflicts resolve themselves; content conflicts are shown block by block — never as markers in your notes.</p>
+      </article>
+      <article class="feature">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h1M11 10h1M15 10h2M7 14h10"/></svg>
+        <h3>Keyboard first</h3>
+        <p>Command palette on <kbd>Ctrl/⌘K</kbd>, TODO/DOING/DONE on <kbd>1·2·3</kbd>, keymaps grouped by context and tabs for everything.</p>
+      </article>
+      <article class="feature">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>
+        <h3>Light and dark, same voice</h3>
+        <p>Bitácora Light and Dark come from one set of design tokens. Fonts are embedded, so text looks the same on every system.</p>
+      </article>
+      <article class="feature">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3L5 14h6l-1 7 8-11h-6z"/></svg>
+        <h3>Native and fast</h3>
+        <p>Rust and GPUI render the whole window on the GPU. A frameless window, its own top bar, and it reopens your last graph at startup.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section id="compat" class="section section--panel">
+  <div class="container split">
+    <div class="stack">
+      <span class="overline">Logseq compatible</span>
+      <h2 class="display h2">Open your graph. Change nothing.</h2>
+      <p class="lead">Bitácora reads and writes the same Logseq 0.10 Markdown graph, with the same paths, file names and format. You can keep Logseq on the same folder and switch whenever you like.</p>
+    </div>
+    <ul class="compat-list">
+      <li><span class="mono accent">[[page]] #tag ((ref))</span><span>Links, tags and block references</span></li>
+      <li><span class="mono">TODO DOING NOW LATER DONE</span><span>Task markers, priorities, SCHEDULED and DEADLINE</span></li>
+      <li><span class="mono">{{query …}}</span><span>Simple and advanced queries, live in the page</span></li>
+      <li><span class="mono">key:: value</span><span>Page and block properties, journals folder, assets</span></li>
+      <li><span class="mono">config.edn</span><span>Graph settings, plus your <code>logseq/custom.css</code></span></li>
+    </ul>
+  </div>
+</section>
+
+<section id="ai" class="section">
+  <div class="container">
+    <div class="ai-head">
+      <div class="stack">
+        <span class="overline overline--ai"><svg width="15" height="15" aria-hidden="true"><use href="#sparkle"/></svg>AI with Pando · optional</span>
+        <h2 class="display h2">An assistant that asks before it writes.</h2>
+        <p class="lead">Connect <a class="accent" href="https://pando.digio.es">Pando</a> — managed by Bitácora or your own server — and your graph gains meaning-based search and an agent. In the app, amber always marks text the machine wrote and you have not accepted yet.</p>
+      </div>
+      <a class="btn btn--ghost" href="https://pando.digio.es">About Pando</a>
+    </div>
+    <div class="cards">
+      <article class="card"><h3>Semantic and hybrid search</h3><p>Keyword hits first, then blocks that match by meaning. Snippets always come from your local files.</p></article>
+      <article class="card"><h3>Chat with approved edits</h3><p>Streaming answers and tool cards. Each proposed change is a diff with Apply and Deny, undoable and logged.</p></article>
+      <article class="card"><h3>Ghost text</h3><p>Pause at the end of a block and a faint continuation appears. Tab to accept, any other key to dismiss.</p></article>
+      <article class="card"><h3>Compose with AI</h3><p><kbd>Ctrl/⌘J</kbd> under any block. Review the draft, then insert, replace, retry or discard.</p></article>
+      <article class="card"><h3>Journal review</h3><p>Summarise today or this week: themes, mood, tasks still open and next actions. On demand.</p></article>
+      <article class="card"><h3>Recommendations</h3><p>Related pages, links and tags for the page you are on — checked against your real blocks.</p></article>
+    </div>
+    <div class="privacy">
+      <h3 class="display">Your notes stay yours.</h3>
+      <ul>
+        <li>Every AI feature is off until you opt in</li>
+        <li>Consent per graph, with page exclusions</li>
+        <li><span><code>private::</code> content is never sent</span></li>
+        <li>Activity log and tokens in the system keychain</li>
+        <li>One action to revoke and remove your data</li>
+        <li>Editing never needs the network</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="agents" class="section section--panel">
+  <div class="container split" style="align-items: center">
+    <div class="stack">
+      <span class="overline">For agents and scripts</span>
+      <h2 class="display h2">An MCP server is always on deck.</h2>
+      <p class="lead">Bitácora runs a Model Context Protocol endpoint on localhost, protected by a token, so the AI agents you already use can search and edit your notes. <code>semantic_search</code> and <code>related_blocks</code> are there too. The same powers come in a command-line tool.</p>
+    </div>
+<pre class="code"><span class="c"># check the index and Pando connection</span>
+bitacora-cli doctor --graph ~/logbook
+bitacora-cli semantic status --graph ~/logbook
+
+<span class="c"># search by meaning</span>
+bitacora-cli semantic search "harbour charter" --limit 10</pre>
+  </div>
+</section>
+
+<section id="download" class="section">
+  <div class="container">
+    <div class="stack" style="max-width: 720px; gap: 12px">
+      <h2 class="display h2">Set sail with Bitácora 2.0</h2>
+      <p class="lead">Free and open source under the MIT license. Coming from 1.x? Settings migrate on first launch.</p>
+    </div>
+    <div class="downloads">
+      <a class="download" href="https://github.com/digiogithub/bitacora/releases/latest"><strong>macOS</strong><span class="mono">.dmg · Apple silicon &amp; Intel</span><span class="go">Download →</span></a>
+      <a class="download" href="https://github.com/digiogithub/bitacora/releases/latest"><strong>Windows</strong><span class="mono">.exe / .msi installer · x64</span><span class="go">Download →</span></a>
+      <a class="download" href="https://github.com/digiogithub/bitacora/releases/latest"><strong>Linux</strong><span class="mono">Flatpak · .deb · AppImage · x86_64</span><span class="go">Download →</span></a>
+    </div>
+    <p class="text-links">Looking for an older build or the command-line tool? Browse <a href="https://github.com/digiogithub/bitacora/releases">all releases on GitHub</a> or read <a href="https://github.com/digiogithub/bitacora/blob/main/CHANGELOG.md">what is new in the changelog</a>.</p>
+  </div>
+</section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-top">
+      <div class="footer-about">
+        <span class="brand"><svg width="28" height="28" aria-hidden="true"><use href="#mark"/></svg><span class="brand__word" style="font-size: 20px">bitácora</span></span>
+        <p>The outliner for your Logseq graph. Plain Markdown, kept like a ship’s log.</p>
+      </div>
+      <nav class="footer-nav" aria-label="Footer">
+        <div><span class="overline">Product</span><a href="#features">Features</a><a href="#ai">AI with Pando</a><a href="#download">Download</a></div>
+        <div><span class="overline">Resources</span><a href="https://github.com/digiogithub/bitacora/releases">Releases</a><a href="https://github.com/digiogithub/bitacora/blob/main/CHANGELOG.md">Changelog</a><a href="https://github.com/digiogithub/bitacora">Source code</a><a href="https://pando.digio.es">Pando</a></div>
+      </nav>
+    </div>
+    <div class="footer-bottom">
+      <span>A project by <a href="https://digio.es">Digio</a>, part of <strong>Proyecto AlchemAI</strong>.</span>
+      <span class="mono">© 2026 Digio · MIT License</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
