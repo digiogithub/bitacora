@@ -1,4 +1,4 @@
-//! Bottom status bar with sync, MCP and index slots plus a heartbeat demo slot.
+//! Bottom status bar with sync, MCP and index slots plus the app version on the right.
 
 use crate::views::dims;
 use async_channel::Receiver;
@@ -12,10 +12,11 @@ use crate::ui::button::{Button, ButtonVariants as _};
 use crate::ui::menu::DropdownMenu as _;
 use crate::ui::progress::Progress;
 use crate::ui::status_bar::StatusBar;
+use crate::ui::theme::ActiveBitacoraTheme as _;
 use crate::ui::{
     Context, EventEmitter, FluentBuilder as _, IconName, InteractiveElement as _, IntoElement,
     ParentElement as _, Render, Sizable as _, StatefulInteractiveElement as _, Styled as _, Task,
-    Window, h_flex, icon,
+    Window, div, h_flex, icon,
 };
 
 /// Which subsystem a slot describes.
@@ -290,8 +291,15 @@ impl AppStatusBar {
     }
 }
 
+/// The running app version as shown in the footer, e.g. `v2.0.2` (BIT-US-0174).
+#[must_use]
+pub fn version_label() -> String {
+    format!("v{}", env!("CARGO_PKG_VERSION"))
+}
+
 impl Render for AppStatusBar {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let muted = cx.bitacora().colors.muted;
         let theme_button = Button::new("theme-menu")
             .ghost()
             .xsmall()
@@ -302,7 +310,19 @@ impl Render for AppStatusBar {
             .left(self.sync_element(cx))
             .left(self.slot_element(Slot::Mcp))
             .left(self.slot_element(Slot::Index))
-            .right(t!("status.heartbeat", count = self.heartbeat).to_string())
+            .right(div().text_color(muted).child(version_label()))
             .right(theme_button)
+    }
+}
+
+#[cfg(test)]
+mod version_tests {
+    use super::version_label;
+
+    #[test]
+    fn the_footer_shows_the_cargo_package_version() {
+        let label = version_label();
+        assert_eq!(label, concat!("v", env!("CARGO_PKG_VERSION")));
+        assert!(label.starts_with('v') && label.len() > 1);
     }
 }
