@@ -2,7 +2,7 @@
 id: BIT-US-0182
 type: story
 title: Title-bar tabs collapse into a dropdown button when they do not fit
-status: backlog
+status: in_review
 priority: high
 parent: BIT-EP-0027
 milestone: BIT-M-0011
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-app, ui, title-bar, dock]
 estimate: 3
 created: 2026-10-09T07:10:42Z
-updated: 2026-10-09T07:10:42Z
+updated: 2026-10-09T07:20:46Z
+started: 2026-10-09T07:12:04Z
 ---
 
 ## Description

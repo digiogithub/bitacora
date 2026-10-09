@@ -2,7 +2,7 @@
 id: BIT-US-0181
 type: story
 title: Print button builds a print view of the current page and opens the system print dialog
-status: backlog
+status: in_progress
 priority: high
 parent: BIT-EP-0027
 milestone: BIT-M-0011
@@ -10,7 +10,8 @@ author: mcp
 labels: [bitacora-app, ui, print]
 estimate: 5
 created: 2026-10-09T07:10:42Z
-updated: 2026-10-09T07:10:42Z
+updated: 2026-10-09T07:12:04Z
+started: 2026-10-09T07:12:04Z
 ---
 
 ## Description
