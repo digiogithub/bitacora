@@ -449,6 +449,15 @@ impl BlockModel {
                     });
                     continue;
                 }
+                // `- ```lang` on the first line opens the fence right away: the block has no title.
+                if let Some(rest) = content[from..end].trim_start().strip_prefix("```") {
+                    region = Some(Region::Fence {
+                        language: rest.trim().to_owned(),
+                        text: String::new(),
+                        starts: Vec::new(),
+                    });
+                    continue;
+                }
                 if let Some(w) = widget::detect_line(&content[from..end]) {
                     model.body.push(BodyItem::Widget(w));
                 } else {
@@ -778,6 +787,25 @@ mod tests {
         assert_eq!(log.entries, 1);
         assert_eq!(log.total.as_deref(), Some("01:30:00"));
         assert!(b.body.is_empty());
+    }
+
+    #[test]
+    fn fence_on_the_first_line_is_a_code_block_without_title() {
+        // BIT-US-0185: block content of a nested `- ```` bullet with no language.
+        let b = block("```\nfastcgi_param HTTPS on;\n```");
+        assert!(b.title.text.is_empty());
+        assert_eq!(b.body.len(), 1, "{:?}", b.body);
+        let BodyItem::Code(c) = &b.body[0] else {
+            panic!("code")
+        };
+        assert_eq!(c.language, None);
+        assert_eq!(c.text, "fastcgi_param HTTPS on;");
+        assert_eq!(c.source_offset(0), Some(4));
+        let b = block("```nginx\nfastcgi_param HTTPS on;\nx 1;\n```");
+        assert_eq!(b.body.len(), 1);
+        assert!(
+            matches!(&b.body[0], BodyItem::Code(c) if c.language.as_deref() == Some("nginx") && c.text.lines().count() == 2)
+        );
     }
 
     #[test]
