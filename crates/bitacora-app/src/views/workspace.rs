@@ -181,6 +181,10 @@ pub struct Workspace {
     narrow_sidebar_open: bool,
     tabs: top_bar::TabStrip,
     app_menu_open: bool,
+    /// The overflow dropdown of the collapsed tab strip is open (BIT-US-0182).
+    tab_menu_open: bool,
+    /// The last title-bar render collapsed the tabs into the overflow button.
+    tabs_collapsed: bool,
     save_task: Option<Task<()>>,
     heartbeat_task: Option<Task<Result<(), JoinError>>>,
     probe_task: Option<Task<()>>,
@@ -366,6 +370,8 @@ impl Workspace {
             narrow_sidebar_open: false,
             tabs: top_bar::TabStrip::new(),
             app_menu_open: false,
+            tab_menu_open: false,
+            tabs_collapsed: false,
             save_task: None,
             heartbeat_task: None,
             probe_task: None,
@@ -2622,8 +2628,9 @@ impl Focusable for Workspace {
 
 impl Render for Workspace {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let breakpoint = Breakpoint::for_width(f32::from(window.viewport_size().width));
-        let title_bar = self.title_bar(breakpoint, cx);
+        let width = f32::from(window.viewport_size().width);
+        let breakpoint = Breakpoint::for_width(width);
+        let title_bar = self.title_bar(breakpoint, width, cx);
         let previous = self.breakpoint.replace(breakpoint);
         if previous != Some(breakpoint) {
             // A window that is (or becomes) too narrow for the right panel closes it; the user
@@ -3525,9 +3532,19 @@ mod tests {
             w.picker_visible = false;
             cx.notify();
         });
+        // Many tabs with long titles: they collapse into the overflow button (BIT-US-0182).
+        ws.update(cx, |w, cx| {
+            for n in 0..8 {
+                w.open_in_new_tab(Route::Page(format!("A rather long page title {n}")), cx);
+            }
+        });
         for width in [1400., 1000., 760., 640., 480.] {
             cx.simulate_resize(gpui::size(px(width), px(800.)));
             cx.run_until_parked();
+            assert!(
+                ws.read_with(cx, |w, _| w.tabs_collapsed()),
+                "tabs should be collapsed at {width}px"
+            );
             let mut slot = |id: &'static str| {
                 cx.debug_bounds(id)
                     .unwrap_or_else(|| panic!("`{id}` missing at {width}px"))
@@ -3538,7 +3555,13 @@ mod tests {
                 slot("title-right"),
             );
             let search = slot("top-search");
+            let overflow = slot("top-tab-overflow");
             let eps = px(0.5);
+            // 480px is below the window minimum: the fixed controls alone fill the left slot.
+            assert!(
+                width < 640. || overflow.left() < left.right(),
+                "overflow button starts outside the left slot at {width}px"
+            );
             assert!(
                 left.right() <= centre.left() + eps,
                 "left/centre overlap at {width}px"
@@ -3593,6 +3616,75 @@ mod tests {
         let palette = ws.read_with(cx, |w, _| w.palette().clone());
         click_bar(cx, "top-search");
         assert!(palette.read_with(cx, |p, _| p.is_open()));
+    }
+
+    fn page_tabs(ws: &Entity<Workspace>, cx: &mut VisualTestContext, n: usize) {
+        ws.update(cx, |w, cx| {
+            w.picker_visible = false;
+            for i in 0..n {
+                w.open_in_new_tab(Route::Page(format!("A rather long page title {i}")), cx);
+            }
+        });
+        cx.run_until_parked();
+    }
+
+    #[gpui_test]
+    fn crowded_tabs_collapse_into_one_overflow_button(cx: &mut TestAppContext) {
+        setup(cx);
+        let (ws, cx) = open(cx, None);
+        cx.simulate_resize(gpui::size(px(1400.), px(800.)));
+        page_tabs(&ws, cx, 1);
+        // Two tabs fit: the strip is drawn and there is no overflow button.
+        assert!(!ws.read_with(cx, |w, _| w.tabs_collapsed()));
+        assert!(cx.debug_bounds("top-tab-0").is_some());
+        assert!(cx.debug_bounds("top-tab-overflow").is_none());
+        // Many tabs: one button instead of the strip, `+` still visible after it.
+        page_tabs(&ws, cx, 8);
+        assert!(ws.read_with(cx, |w, _| w.tabs_collapsed()));
+        assert!(cx.debug_bounds("top-tab-0").is_none());
+        let button = cx.debug_bounds("top-tab-overflow").expect("overflow");
+        let plus = cx.debug_bounds("top-new-tab").expect("plus");
+        assert!(plus.left() >= button.right());
+        // Growing the window and closing tabs brings the strip back (re-evaluated per render).
+        cx.simulate_resize(gpui::size(px(2400.), px(800.)));
+        cx.run_until_parked();
+        ws.update(cx, |w, cx| {
+            while w.tab_strip().routes().len() > 2 {
+                w.tab_close(0, cx);
+            }
+        });
+        cx.run_until_parked();
+        assert!(!ws.read_with(cx, |w, _| w.tabs_collapsed()));
+        assert!(cx.debug_bounds("top-tab-overflow").is_none());
+    }
+
+    #[gpui_test]
+    fn overflow_dropdown_lists_activates_and_closes_tabs(cx: &mut TestAppContext) {
+        setup(cx);
+        let (ws, cx) = open(cx, None);
+        cx.simulate_resize(gpui::size(px(900.), px(800.)));
+        page_tabs(&ws, cx, 8);
+        assert_eq!(ws.read_with(cx, |w, _| w.tab_strip().active()), 8);
+        assert!(cx.debug_bounds("tab-menu").is_none());
+        click_bar(cx, "top-tab-overflow");
+        assert!(cx.debug_bounds("tab-menu").is_some());
+        for id in [
+            "tab-menu-row-0",
+            "tab-menu-row-4",
+            "tab-menu-row-8",
+            "tab-menu-close-8",
+        ] {
+            assert!(cx.debug_bounds(id).is_some(), "`{id}` missing");
+        }
+        // Activate the first tab: the menu closes and the strip follows.
+        click_bar(cx, "tab-menu-row-0");
+        assert_eq!(ws.read_with(cx, |w, _| w.tab_strip().active()), 0);
+        assert!(cx.debug_bounds("tab-menu").is_none());
+        // Close a tab from its row; the menu stays open.
+        click_bar(cx, "top-tab-overflow");
+        click_bar(cx, "tab-menu-close-3");
+        assert_eq!(ws.read_with(cx, |w, _| w.tab_strip().routes().len()), 8);
+        assert!(cx.debug_bounds("tab-menu").is_some());
     }
 
     #[gpui_test]

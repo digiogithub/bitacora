@@ -43,6 +43,8 @@ pub struct Tab {
     active: bool,
     on_click: Option<ClickHandler>,
     on_close: Option<ClickHandler>,
+    suffix: Option<SharedString>,
+    trailing: Option<Glyph>,
 }
 
 impl Tab {
@@ -54,7 +56,21 @@ impl Tab {
             active: false,
             on_click: None,
             on_close: None,
+            suffix: None,
+            trailing: None,
         }
+    }
+
+    /// Short text after the title that never truncates (e.g. a tab count).
+    pub fn suffix(mut self, suffix: impl Into<SharedString>) -> Self {
+        self.suffix = Some(suffix.into());
+        self
+    }
+
+    /// Glyph at the end of the tab (e.g. a chevron on a tab that opens a menu).
+    pub fn trailing(mut self, glyph: Glyph) -> Self {
+        self.trailing = Some(glyph);
+        self
     }
 
     pub fn icon(mut self, icon: Glyph) -> Self {
@@ -117,6 +133,17 @@ impl RenderOnce for Tab {
             })
             .child(glyph(self.icon, m.icon_sm - dims::PX_1, fg, cx))
             .child(div().min_w_0().flex_1().truncate().child(self.title))
+            .when_some(self.suffix, |d, text| {
+                d.child(
+                    div()
+                        .flex_shrink_0()
+                        .text_color(theme.colors.muted)
+                        .child(text),
+                )
+            })
+            .when_some(self.trailing, |d, g| {
+                d.child(glyph(g, m.icon_sm - dims::PX_2, fg, cx))
+            })
             .when_some(self.on_close, |d, h| {
                 d.child(
                     div()

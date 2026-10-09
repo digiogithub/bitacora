@@ -118,6 +118,69 @@ pub fn tab_label(route: &Route) -> (String, Glyph) {
     }
 }
 
+// Width model of the left slot (BIT-US-0182). The bar is laid out by flex, so the fit decision
+// works on conservative estimates of the other slots instead of measuring them: a wrong guess
+// costs an early collapse, never an overlap (each slot clips its own content).
+
+/// Padding, icon and gap of a tab, without its title (logical pixels).
+const TAB_CHROME_W: f32 = 44.0;
+/// Average width of one title character in the tab font.
+const TAB_CHAR_W: f32 = 7.0;
+/// The close button of a tab (shown when more than one tab is open).
+const TAB_CLOSE_W: f32 = 20.0;
+/// Width of the three window controls Linux and Windows draw in the bar.
+const CONTROLS_W: f32 = 138.0;
+/// Right slot: theme, PDF, Pando, assistant, panel and settings buttons.
+const RIGHT_WIDE_W: f32 = 260.0;
+/// Right slot without the theme and PDF buttons (Narrow).
+const RIGHT_NARROW_W: f32 = 170.0;
+/// Smallest centre slot at Medium and Wide widths (`center_min_width`).
+const CENTER_WIDE_MIN_W: f32 = 150.0;
+/// Width of the in-window "Graph" menu button.
+const GRAPH_MENU_W: f32 = 96.0;
+/// Gap between the children of the left slot and between the slots.
+const SLOT_GAP: f32 = 12.0;
+/// Longest tab title shown in a dropdown row before it is cut with an ellipsis.
+const MENU_TITLE_CHARS: usize = 22;
+
+/// Estimated width of a tab showing `title` (capped at `tab_max`).
+pub fn tab_width_estimate(title: &str, closable: bool, tab_max: f32) -> f32 {
+    let close = if closable { TAB_CLOSE_W } else { 0. };
+    (TAB_CHROME_W + title.chars().count() as f32 * TAB_CHAR_W + close).min(tab_max)
+}
+
+/// Width the page tabs may use in the left slot of a window `window_w` wide: what is left after
+/// the window controls, the right slot, the centre minimum and the other left controls.
+pub fn tab_budget(window_w: f32, narrow: bool, macos: bool, button_w: f32) -> f32 {
+    let pad = crate::views::title_bar::left_inset(macos);
+    let controls = if macos { 0. } else { CONTROLS_W };
+    let right = if narrow { RIGHT_NARROW_W } else { RIGHT_WIDE_W };
+    let center = if narrow { button_w } else { CENTER_WIDE_MIN_W };
+    let menu = if has_in_window_menu(macos) {
+        GRAPH_MENU_W + SLOT_GAP
+    } else {
+        0.
+    };
+    let left_buttons = 3. * button_w + 3. * SLOT_GAP;
+    (window_w - pad - controls - right - center - menu - left_buttons - 2. * SLOT_GAP).max(0.)
+}
+
+/// Whether the tab strip and the `+` button fit in `available` pixels. Pure and stateless, so
+/// the decision follows window resizes and tab changes on every render with no flicker.
+pub fn tabs_fit(available: f32, tab_widths: &[f32], gap: f32, plus_w: f32) -> bool {
+    let tabs: f32 = tab_widths.iter().sum();
+    tabs + gap * tab_widths.len() as f32 + plus_w <= available
+}
+
+/// `title` cut to `max` characters with a trailing ellipsis.
+fn short_title(title: &str, max: usize) -> String {
+    if title.chars().count() <= max {
+        return title.to_string();
+    }
+    let cut: String = title.chars().take(max.saturating_sub(1)).collect();
+    format!("{cut}\u{2026}")
+}
+
 /// Swallows the press so a click on a bar control never starts a window drag.
 fn no_drag(el: impl IntoElement) -> AnyElement {
     no_drag_inner(el)
@@ -147,7 +210,7 @@ impl Workspace {
         cx.notify();
     }
 
-    fn tab_close(&mut self, ix: usize, cx: &mut Context<Self>) {
+    pub(super) fn tab_close(&mut self, ix: usize, cx: &mut Context<Self>) {
         if let Some(route) = self.tabs.close(ix) {
             self.navigate(route, cx);
         }
@@ -167,6 +230,18 @@ impl Workspace {
         &self.tabs
     }
 
+    fn set_tab_menu(&mut self, open: bool, cx: &mut Context<Self>) {
+        if self.tab_menu_open != open {
+            self.tab_menu_open = open;
+            cx.notify();
+        }
+    }
+
+    /// Whether the open tabs are collapsed into the overflow button.
+    pub fn tabs_collapsed(&self) -> bool {
+        self.tabs_collapsed
+    }
+
     fn tab_new(&mut self, cx: &mut Context<Self>) {
         self.tabs.open(Route::Journals);
         self.navigate(Route::Journals, cx);
@@ -184,6 +259,7 @@ impl Workspace {
     pub(super) fn title_bar(
         &mut self,
         breakpoint: Breakpoint,
+        window_w: f32,
         cx: &mut Context<Self>,
     ) -> AppTitleBar {
         let narrow = breakpoint == Breakpoint::Narrow;
@@ -233,24 +309,43 @@ impl Workspace {
             ));
 
         // Tabs sit on the bottom edge of the bar so the active one melts into the content.
+        // When they do not fit they collapse into one button with a dropdown (BIT-US-0182).
         let active = self.tabs.active();
         let many = self.tabs.routes().len() > 1;
-        let tabs = self
+        let tab_max = f32::from(metrics.tab_max);
+        let widths = self
             .tabs
             .routes()
             .iter()
-            .enumerate()
-            .map(|(ix, route)| {
-                let (title, icon) = tab_label(route);
-                Tab::new(("top-tab", ix), title)
-                    .icon(icon)
-                    .active(ix == active)
-                    .on_click(cx.listener(move |this, _, _, cx| this.tab_activate(ix, cx)))
-                    .when(many, |t| {
-                        t.on_close(cx.listener(move |this, _, _, cx| this.tab_close(ix, cx)))
-                    })
-            })
+            .map(|r| tab_width_estimate(&tab_label(r).0, many, tab_max))
             .collect::<Vec<_>>();
+        let button_w = f32::from(metrics.icon_button_sm);
+        let available = tab_budget(window_w, narrow, macos, button_w);
+        let collapsed = !tabs_fit(available, &widths, f32::from(metrics.space[2]), button_w);
+        self.tabs_collapsed = collapsed;
+        if !collapsed {
+            self.tab_menu_open = false;
+        }
+        let tab_items = if collapsed {
+            vec![self.tab_overflow(cx)]
+        } else {
+            self.tabs
+                .routes()
+                .iter()
+                .enumerate()
+                .map(|(ix, route)| {
+                    let (title, icon) = tab_label(route);
+                    Tab::new(("top-tab", ix), title)
+                        .icon(icon)
+                        .active(ix == active)
+                        .on_click(cx.listener(move |this, _, _, cx| this.tab_activate(ix, cx)))
+                        .when(many, |t| {
+                            t.on_close(cx.listener(move |this, _, _, cx| this.tab_close(ix, cx)))
+                        })
+                        .into_any_element()
+                })
+                .collect::<Vec<_>>()
+        };
         bar = bar.left(
             h_flex()
                 .debug_selector(|| "title-tabs".to_string())
@@ -263,7 +358,7 @@ impl Workspace {
                     window.prevent_default();
                     cx.stop_propagation();
                 })
-                .children(tabs)
+                .children(tab_items)
                 .when(in_graph, |d| {
                     d.child(
                         div().h(metrics.tab_height).flex().items_center().child(
@@ -359,6 +454,79 @@ impl Workspace {
                 // controls.
                 .child(self.gear_menu(macos, cx)),
         ))
+    }
+
+    /// The collapsed tab strip: one button with the active tab's glyph, title, the tab count and
+    /// a chevron, and the dropdown listing every tab (BIT-US-0182).
+    fn tab_overflow(&mut self, cx: &mut Context<Self>) -> AnyElement {
+        let theme = cx.bitacora().clone();
+        let metrics = theme.metrics.clone();
+        let routes = self.tabs.routes().to_vec();
+        let active = self.tabs.active();
+        let many = routes.len() > 1;
+        let (title, icon) = tab_label(&routes[active]);
+        let trigger = Tab::new("top-tab-overflow", title)
+            .icon(icon)
+            .active(true)
+            .suffix(format!("({})", routes.len()))
+            .trailing(Glyph::ChevronDown)
+            .on_click(cx.listener(|this, _, _, cx| {
+                let open = !this.tab_menu_open;
+                this.set_tab_menu(open, cx);
+            }));
+
+        let popover = self.tab_menu_open.then(|| {
+            let mut body = v_flex().gap(metrics.space[1]);
+            for (ix, route) in routes.iter().enumerate() {
+                let (title, icon) = tab_label(route);
+                let row = Button::new(("tab-menu-row", ix))
+                    .icon(icon)
+                    .label(short_title(&title, MENU_TITLE_CHARS))
+                    .when(ix == active, |b| b.secondary())
+                    .when(ix != active, |b| b.ghost())
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        this.set_tab_menu(false, cx);
+                        this.tab_activate(ix, cx);
+                    }));
+                body = body.child(
+                    h_flex()
+                        .gap(metrics.space[2])
+                        .items_center()
+                        .justify_between()
+                        .child(div().flex_1().min_w_0().overflow_hidden().child(row))
+                        .when(many, |r| {
+                            r.child(
+                                IconButton::new(("tab-menu-close", ix), Glyph::Close)
+                                    .small()
+                                    .on_click(
+                                        cx.listener(move |this, _, _, cx| this.tab_close(ix, cx)),
+                                    ),
+                            )
+                        }),
+                );
+            }
+            let weak = cx.entity().downgrade();
+            deferred(
+                anchored().anchor(Anchor::TopLeft).snap_to_window().child(
+                    div().mt(metrics.space[2]).child(
+                        PopoverShell::new("tab-menu")
+                            .width(dims::PX_280)
+                            .on_dismiss(move |_, cx| {
+                                let _ = weak.update(cx, |this, cx| this.set_tab_menu(false, cx));
+                            })
+                            .child(body),
+                    ),
+                ),
+            )
+            .priority(10)
+        });
+
+        div()
+            .relative()
+            .flex_shrink_0()
+            .child(trigger)
+            .when_some(popover, |d, p| d.child(p))
+            .into_any_element()
     }
 
     /// The gear button: opens the settings screen directly (BIT-US-0175).
@@ -479,6 +647,54 @@ mod tests {
 
     fn page(n: &str) -> Route {
         Route::Page(n.into())
+    }
+
+    #[test]
+    fn few_tabs_fit_and_many_collapse() {
+        let gap = 4.;
+        let plus = 34.;
+        let tab = tab_width_estimate("Journals", false, 190.);
+        assert!(tabs_fit(600., &[tab], gap, plus));
+        assert!(tabs_fit(600., &[tab, tab, tab], gap, plus));
+        assert!(!tabs_fit(600., &[190.; 8], gap, plus));
+        assert!(!tabs_fit(0., &[tab], gap, plus));
+    }
+
+    #[test]
+    fn fit_flips_exactly_at_the_boundary() {
+        let widths = [100., 100.];
+        // 200 of tabs + 2 gaps of 4 + the 34px plus button.
+        let need = 200. + 8. + 34.;
+        assert!(tabs_fit(need, &widths, 4., 34.));
+        assert!(!tabs_fit(need - 0.5, &widths, 4., 34.));
+    }
+
+    #[test]
+    fn tab_estimates_grow_with_the_title_and_are_capped() {
+        assert!(
+            tab_width_estimate("Home", false, 190.)
+                < tab_width_estimate("A longer title", false, 190.)
+        );
+        assert_eq!(tab_width_estimate(&"x".repeat(200), true, 190.), 190.);
+        assert!(tab_width_estimate("Home", true, 190.) > tab_width_estimate("Home", false, 190.));
+    }
+
+    #[test]
+    fn budget_shrinks_with_the_window_and_never_goes_negative() {
+        let wide = tab_budget(1400., false, false, 34.);
+        let medium = tab_budget(900., false, false, 34.);
+        assert!(wide > medium && medium > 0.);
+        assert_eq!(tab_budget(300., true, false, 34.), 0.);
+        // macOS has no in-window menu and no drawn controls: more room.
+        assert!(tab_budget(900., false, true, 34.) > medium);
+    }
+
+    #[test]
+    fn long_titles_are_cut_for_the_menu() {
+        assert_eq!(short_title("Home", 22), "Home");
+        let cut = short_title(&"y".repeat(40), 22);
+        assert_eq!(cut.chars().count(), 22);
+        assert!(cut.ends_with('\u{2026}'));
     }
 
     #[test]
