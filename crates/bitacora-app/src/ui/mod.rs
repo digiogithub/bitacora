@@ -47,6 +47,9 @@ pub mod frameless {
     };
 }
 
+/// Tooltip view for `.tooltip(|window, cx| Tooltip::new(text).build(window, cx))`.
+pub use gpui_kit::component::tooltip::Tooltip;
+
 /// Buttons.
 pub mod button {
     pub use gpui_kit::component::button::{Button, ButtonVariants};

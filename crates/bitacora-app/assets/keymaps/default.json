@@ -11,6 +11,7 @@
       "secondary-shift-p": "bitacora::OpenCommandPalette",
       "secondary-shift-r": "bitacora::FocusRightSidebar",
       "secondary-,": "bitacora::OpenSettings",
+      "secondary-p": "bitacora::Print",
       "secondary-o": "bitacora::OpenGraph",
       "secondary-shift-w": "bitacora::CloseGraph"
     }

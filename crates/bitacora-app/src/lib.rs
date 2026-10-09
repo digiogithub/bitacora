@@ -38,6 +38,7 @@ pub mod migrate;
 pub mod nav;
 pub mod paths;
 pub mod perf;
+pub mod print;
 pub mod recent;
 pub mod render;
 pub mod session;

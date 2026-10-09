@@ -5,7 +5,7 @@ use rust_i18n::t;
 use crate::actions::{
     CloseGraph, OpenGraph, OpenRecentGraph1, OpenRecentGraph2, OpenRecentGraph3, OpenRecentGraph4,
     OpenRecentGraph5, OpenRecentGraph6, OpenRecentGraph7, OpenRecentGraph8, OpenRecentGraph9,
-    OpenRecentGraph10, OpenSettings, Quit,
+    OpenRecentGraph10, OpenSettings, Print, Quit,
 };
 use crate::recent::RecentGraph;
 use crate::ui::{Action, App, MenuEntry, MenuSpec};
@@ -46,6 +46,7 @@ pub fn build(recents: &[RecentGraph]) -> Vec<MenuSpec> {
             name: t!("app.name").to_string(),
             items: vec![
                 MenuEntry::Action(t!("settings.cmd_open").to_string(), Box::new(OpenSettings)),
+                MenuEntry::Action(t!("print.cmd").to_string(), Box::new(Print)),
                 MenuEntry::Separator,
                 MenuEntry::Action(t!("app.quit").to_string(), Box::new(Quit)),
             ],
@@ -98,6 +99,25 @@ mod tests {
                         == crate::keymap::normalize_keys("secondary-,")
             })
         }));
+    }
+
+    #[test]
+    fn print_is_bound_to_secondary_p_and_listed_in_the_app_menu() {
+        let sections = crate::keymap::parse(crate::keymap::DEFAULT_KEYMAP).expect("parses");
+        assert!(sections.iter().any(|s| {
+            s.bindings.iter().any(|(k, a)| {
+                a == "bitacora::Print"
+                    && crate::keymap::normalize_keys(k)
+                        == crate::keymap::normalize_keys("secondary-p")
+            })
+        }));
+        let menus = build(&[]);
+        assert!(
+            menus[0]
+                .items
+                .iter()
+                .any(|i| matches!(i, MenuEntry::Action(_, a) if a.name() == "bitacora::Print"))
+        );
     }
 
     #[test]
