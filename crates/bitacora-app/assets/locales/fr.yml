@@ -146,6 +146,14 @@ top_bar:
   settings_tip_mac: "Paramètres (Cmd+,)"
   search: Rechercher ou exécuter une commande
   block_tab: Bloc
+print:
+  cmd: Imprimer la page...
+  tip: Imprimer cette page (ouvre la boîte de dialogue d'impression du navigateur)
+  nothing: Il n'y a rien à imprimer ici. Ouvrez d'abord une page.
+  not_ready: La page est encore en cours de chargement. Réessayez dans un instant.
+  opened: Vue d'impression ouverte dans votre navigateur.
+  failed: "Impossible d'ouvrir la vue d'impression : %{error}"
+  untitled: Sans titre
 menu:
   graph: Graphe
   open_graph: Ouvrir un graphe...
