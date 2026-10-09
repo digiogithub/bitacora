@@ -2,6 +2,16 @@
 
 All notable changes to Bitacora. Format follows Keep a Changelog; versions follow SemVer.
 
+## [2.1.1] - 2026-10-09
+
+### Added
+- Clicking the MCP server row in the sidebar opens its connection details: copy the URL, the `mcpServers` JSON config or the `claude mcp add` command, or manage tokens.
+- Tasks view: "No date" opens the date picker to schedule the task.
+
+### Fixed
+- Tasks view checkboxes complete tasks again (rows on different pages no longer share click state).
+- Tasks view open button shows the task inside its page, scrolled into view, highlighted and ready to edit.
+
 ## [2.1.0] - 2026-10-09
 
 ### Added

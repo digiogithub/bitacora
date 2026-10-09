@@ -2,13 +2,14 @@
 id: BIT-US-0187
 type: story
 title: "Tasks view: working checkboxes, open goes to the page, click \"No date\" to schedule"
-status: in_review
+status: done
 priority: high
 author: mcp
 labels: [bug, bitacora-app, tasks, feedback]
 created: 2026-10-09T12:52:29Z
-updated: 2026-10-09T13:05:07Z
+updated: 2026-10-09T13:22:03Z
 started: 2026-10-09T13:05:07Z
+closed: 2026-10-09T13:22:03Z
 ---
 
 ## Description

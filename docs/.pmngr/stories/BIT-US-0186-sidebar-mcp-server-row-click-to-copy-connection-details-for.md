@@ -2,13 +2,14 @@
 id: BIT-US-0186
 type: story
 title: "Sidebar MCP server row: click to copy connection details for any MCP client"
-status: in_review
+status: done
 priority: medium
 author: mcp
 labels: [bitacora-app, mcp, ui, feedback]
 created: 2026-10-09T12:31:45Z
-updated: 2026-10-09T12:42:11Z
+updated: 2026-10-09T13:22:03Z
 started: 2026-10-09T12:42:11Z
+closed: 2026-10-09T13:22:03Z
 ---
 
 ## Description
