@@ -110,3 +110,7 @@ Windows: hover the maximize button for snap layouts.
 
 - Interactive move/resize/snap results on GNOME Wayland, KDE, macOS and Windows (maintainer, in_review).
 - Should the user be able to force system decorations from settings?
+
+## Printing
+
+The title-bar Printer button and `Ctrl/Cmd+P` build an HTML print view of the page on screen (`bitacora-app/src/print.rs`), write it to `<cache>/print/` and open it in the default browser, which shows the system print dialog (or "Save as PDF"). Native print dialogs (NSPrintOperation, GTK PrintOperation, Win32 PrintDlg) are out of scope. See [[BIT-US-0181-print-view]].

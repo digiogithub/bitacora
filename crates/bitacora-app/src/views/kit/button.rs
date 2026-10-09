@@ -283,6 +283,7 @@ pub struct IconButton {
     small: bool,
     active: bool,
     disabled: bool,
+    tooltip: Option<SharedString>,
     on_click: Option<ClickHandler>,
 }
 
@@ -295,8 +296,15 @@ impl IconButton {
             small: false,
             active: false,
             disabled: false,
+            tooltip: None,
             on_click: None,
         }
+    }
+
+    /// Hover text.
+    pub fn tooltip(mut self, text: impl Into<SharedString>) -> Self {
+        self.tooltip = Some(text.into());
+        self
     }
 
     /// 34px target with a 15px icon.
@@ -332,6 +340,7 @@ impl RenderOnce for IconButton {
         let disabled = self.disabled;
 
         let selector = self.id.to_string();
+        let tooltip = self.tooltip;
         div()
             .id(self.id)
             .debug_selector(|| selector)
@@ -351,6 +360,9 @@ impl RenderOnce for IconButton {
             .focus_visible(move |s| s.border_color(ring))
             .when_some(handler, |d, h| {
                 d.on_click(move |ev, window, cx| h(ev, window, cx))
+            })
+            .when_some(tooltip, |d, text| {
+                d.tooltip(move |window, cx| crate::ui::Tooltip::new(text.clone()).build(window, cx))
             })
             .child(glyph(self.glyph, spec.icon, spec.fg, cx))
     }

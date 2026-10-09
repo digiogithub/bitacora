@@ -136,6 +136,8 @@ pub enum PaletteCommand {
     CheckForUpdates,
     /// Open the settings (BIT-US-0107).
     OpenSettings,
+    /// Print the page on screen through the system browser (BIT-US-0181).
+    Print,
     /// Choose a graph folder to open (BIT-US-0165).
     OpenGraph,
     /// Close the open graph and show the picker (BIT-US-0165).
@@ -144,7 +146,7 @@ pub enum PaletteCommand {
 
 impl PaletteCommand {
     /// Every command, in palette order.
-    pub const ALL: [Self; 26] = [
+    pub const ALL: [Self; 27] = [
         Self::GoJournals,
         Self::GoAllPages,
         Self::GoGraph,
@@ -169,6 +171,7 @@ impl PaletteCommand {
         Self::SwitchGraph,
         Self::CheckForUpdates,
         Self::OpenSettings,
+        Self::Print,
         Self::OpenGraph,
         Self::CloseGraph,
     ];
@@ -192,6 +195,7 @@ impl PaletteCommand {
             Self::SyncNow => t!("palette.cmd_sync_now"),
             Self::SyncSettings => t!("palette.cmd_sync_settings"),
             Self::OpenSettings => t!("settings.cmd_open"),
+            Self::Print => t!("print.cmd"),
             Self::PageHistory => t!("palette.cmd_page_history"),
             Self::AgentActivity => t!("palette.cmd_agent_activity"),
             Self::AskAboutSelection => t!("palette.cmd_ask_selection"),
@@ -222,6 +226,7 @@ impl PaletteCommand {
             Self::RenamePage => IconName::Replace,
             Self::SyncNow => IconName::RefreshCw,
             Self::SyncSettings | Self::OpenSettings => IconName::Settings,
+            Self::Print => IconName::File,
             Self::PageHistory => IconName::Undo2,
             Self::AgentActivity => IconName::Bot,
             Self::AskAboutSelection | Self::ReviewToday | Self::ReviewWeek => IconName::Bot,

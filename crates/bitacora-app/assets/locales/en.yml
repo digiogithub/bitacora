@@ -146,6 +146,14 @@ top_bar:
   settings_tip_mac: "Settings (Cmd+,)"
   search: Search or run a command
   block_tab: Block
+print:
+  cmd: Print page...
+  tip: Print this page (opens your browser's print dialog)
+  nothing: There is nothing to print here. Open a page first.
+  not_ready: The page is still loading. Try again in a moment.
+  opened: Print view opened in your browser.
+  failed: "Could not open the print view: %{error}"
+  untitled: Untitled
 menu:
   graph: Graph
   open_graph: Open graph...

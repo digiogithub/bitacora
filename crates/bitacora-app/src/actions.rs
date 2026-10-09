@@ -32,6 +32,8 @@ actions!(
         SidebarOpenItem,
         // Settings (BIT-US-0107).
         OpenSettings,
+        // Print view of the page on screen (BIT-US-0181).
+        Print,
         // Graph menu (BIT-US-0165).
         OpenGraph,
         CloseGraph,

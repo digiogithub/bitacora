@@ -275,6 +275,8 @@ impl Workspace {
         };
         let in_graph = !self.picker_visible;
         let dark = theme.mode == crate::ui::theme::Mode::Dark;
+        let can_print = self.can_print(cx);
+        let print_tip = self.print_tooltip(cx);
 
         let mut bar = AppTitleBar::new();
 
@@ -430,8 +432,15 @@ impl Workspace {
                                 crate::theme::toggle(cx, Some(window));
                             })),
                     )
-                    // PDF export has no backend yet: shown disabled until it lands.
-                    .child(IconButton::new("top-pdf", Glyph::Printer).disabled(true))
+                    // Print view in the system browser (BIT-US-0181).
+                    .child(
+                        IconButton::new("top-pdf", Glyph::Printer)
+                            .disabled(!can_print)
+                            .tooltip(print_tip)
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.print_current(window, cx);
+                            })),
+                    )
                 })
                 // Connection status and quick settings of Pando (BIT-T-0429).
                 .child(no_drag_inner(self.pando_control(cx)))

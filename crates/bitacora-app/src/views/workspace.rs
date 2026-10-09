@@ -126,6 +126,7 @@ pub struct WorkspaceConfig {
 
 mod ai_ui;
 mod pando_ui;
+mod print_ui;
 mod top_bar;
 
 /// The root view of the main window.
@@ -1638,6 +1639,7 @@ impl Workspace {
             PaletteCommand::SyncNow => self.sync_now(window, cx),
             PaletteCommand::SyncSettings => self.open_sync_panel(cx),
             PaletteCommand::OpenSettings => self.open_settings(None, window, cx),
+            PaletteCommand::Print => self.print_current(window, cx),
             PaletteCommand::PageHistory => self.open_history(window, cx),
             PaletteCommand::AgentActivity => self.open_agent_activity(window, cx),
             PaletteCommand::AskAboutSelection => self.ask_about_selection(window, cx),
@@ -2756,6 +2758,7 @@ impl Render for Workspace {
             .on_action(cx.listener(Self::go_back))
             .on_action(cx.listener(Self::go_forward))
             .on_action(cx.listener(Self::open_settings_action))
+            .on_action(cx.listener(Self::print_action))
             .on_key_down(cx.listener(|this, event: &KeyDownEvent, window, cx| {
                 if event.keystroke.key == "escape" {
                     this.close_topmost_overlay(window, cx);
