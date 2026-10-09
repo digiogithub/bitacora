@@ -48,6 +48,17 @@ fn language_follows_the_setting_and_switches_live(cx: &mut gpui_kit::TestAppCont
         assert_eq!(i18n::refusal(&Refusal::ReadOnly), "This page is read-only.");
         assert_eq!(by_label("Today").title(), "Today");
 
+        // French follows the same path.
+        theme::set_language(cx, None, Some("fr"));
+        assert_eq!(&*rust_i18n::locale(), "fr");
+        assert_eq!(
+            i18n::refusal(&Refusal::ReadOnly),
+            "Cette page est en lecture seule."
+        );
+        assert_eq!(by_label("Today").title(), "Aujourd'hui");
+        assert_eq!(by_label("Quote").title(), "Citation");
+        theme::set_language(cx, None, Some("en"));
+
         // An unknown tag falls back to a supported language instead of breaking the UI.
         theme::set_language(cx, None, Some("xx"));
         assert!(

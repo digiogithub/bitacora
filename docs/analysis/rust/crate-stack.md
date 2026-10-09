@@ -61,7 +61,7 @@
 | Auto-update | `velopack` | 1.2.161 | 2026-09-29 | ✅ (evaluate) | Installer plus delta updates on all three OSes, with a GitHub Releases source. Handles `.app` bundles and Windows installs correctly. |
 | | `self_update` | 1.3.0 | 2026-09-02 | ❌ for GUI | Replaces a single binary from GitHub Releases. Fine for `bitacora-cli`, but wrong for signed `.app`/MSI installs. |
 | | `cargo-packager-updater` | 0.2.3 | 2025-07-21 | alternative | Pairs with cargo-packager. Slow-moving. |
-| i18n | `rust-i18n` | 4.2.4 | 2026-09-29 | ✅ | `t!("key")` macro with YAML, JSON or TOML locale files compiled in. Maintained by Longbridge and used by GPUI Kit itself, so app and components share one locale switch. |
+| i18n | `rust-i18n` | 4.2.4 | 2026-09-29 | ✅ | `t!("key")` macro with YAML, JSON or TOML locale files compiled in. Maintained by Longbridge and used by GPUI Kit itself, so app and components share one locale switch. Bitacora ships English, Spanish and French (`crates/bitacora-app/assets/locales/<ns>.<lang>.yml`); the Settings language list is `i18n::LANGUAGES` and the default "Follow the system" uses `sys-locale` (Linux order: LANGUAGE, LC_ALL, LC_MESSAGES, LANG; any `fr*` tag maps to `fr`). |
 | | `fluent-bundle` | 0.16.0 | 2025-05-22 | alternative | Better plurals and grammar (Project Fluent), more boilerplate. |
 | Errors | `thiserror` / `anyhow` | 2.0.21 / 1.0.104 | 2026 | ✅ | `thiserror` in libraries, `anyhow` in app and CLI binaries. |
 | FS helpers | `fs-err`, `tempfile`, `ignore`, `walkdir`, `globset` | 3.3.2, 3.27.0, 0.4.33, 2.5.0, 0.4.20 | 2026 | ✅ | Clear I/O errors. Atomic writes (temp file plus rename). Graph scanning that honours `.gitignore` and Logseq's `:hidden` list. |

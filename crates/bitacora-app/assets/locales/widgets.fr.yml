@@ -1,0 +1,19 @@
+widgets:
+  edit_source: Modifier
+  query:
+    title: Résultats de la requête
+    count: "%{count} résultats"
+    running: Exécution...
+    view_list: Liste
+    view_table: Tableau
+    columns: Colonnes
+    refresh: Actualiser
+    empty: Aucun résultat
+    error: "Erreur de requête : %{message}"
+    unsupported: "Requête non prise en charge : %{message}"
+    truncated: "Seuls les %{count} premiers résultats sont affichés."
+  embed:
+    loading: Chargement de l'intégration...
+    missing: La page ou le bloc intégré est introuvable.
+    circular: Intégration circulaire
+    too_deep: "Les intégrations sont imbriquées trop profondément (limite : %{max})."

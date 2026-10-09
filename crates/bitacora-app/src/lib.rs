@@ -324,6 +324,18 @@ mod i18n_tests {
     }
 
     #[test]
+    fn french_translations_resolve_through_rust_i18n() {
+        assert_eq!(
+            rust_i18n::t!("settings.section.appearance", locale = "fr"),
+            "Apparence"
+        );
+        assert_eq!(
+            rust_i18n::t!("editor.refusal.read_only", locale = "fr"),
+            "Cette page est en lecture seule."
+        );
+    }
+
+    #[test]
     fn spanish_translations_resolve_through_rust_i18n() {
         assert_eq!(
             rust_i18n::t!("settings.section.appearance", locale = "es"),

@@ -1,0 +1,59 @@
+pando_status:
+  name: Pando
+  state:
+    disabled: Désactivé
+    not_configured: Non configuré
+    connecting: Connexion
+    ok: Connecté
+    unauthorized: Non autorisé
+    unreachable: Injoignable
+    too_old: Mise à jour requise
+  detail:
+    disabled: Pando est désactivé. Tout le reste continue de fonctionner.
+    not_configured: Configurez Pando pour obtenir la recherche sémantique et l'assistant.
+    connecting: Contact de Pando en cours...
+    ok: "Pando %{version}"
+    unauthorized: Pando a rejeté le jeton. Vérifiez-le dans les paramètres.
+    unreachable: Pando ne répond pas. Bitacora réessaie avec un délai croissant.
+    too_old: "Pando %{version} est plus ancien que le minimum requis %{min}. Mettez Pando à jour."
+  degraded:
+    disabled: La recherche utilise uniquement les mots-clés.
+    not_configured: La recherche utilise uniquement les mots-clés.
+    connecting: La recherche sémantique et l'assistant démarrent dès que Pando répond.
+    unauthorized: La recherche sémantique et l'assistant sont suspendus. La recherche utilise uniquement les mots-clés ; l'édition, la synchronisation et MCP ne sont pas affectés.
+    unreachable: La recherche sémantique et l'assistant sont indisponibles. La recherche utilise uniquement les mots-clés ; l'édition, la synchronisation et MCP ne sont pas affectés.
+    too_old: La recherche sémantique et l'assistant sont suspendus jusqu'à la mise à jour de Pando. La recherche utilise uniquement les mots-clés ; l'édition, la synchronisation et MCP ne sont pas affectés.
+  popover:
+    graph_features: Pour ce graphe
+    open_settings: Ouvrir les paramètres de Pando
+    set_up: Configurer Pando
+    activity: Journal d'activité
+    agent_writes: Écritures de l'agent
+    sync_counts: "%{synced} synchronisés, %{pending} en attente"
+    sync_none: La synchronisation sémantique n'est pas en cours.
+  footer: "Pando · %{state}"
+  log:
+    title: Activité de Pando
+    local_note: Stocké uniquement sur cette machine. Il liste des compteurs et des identifiants, jamais le texte des pages.
+    empty: Rien pour le moment.
+    clear: Effacer
+    close: Fermer
+    cleared: Journal d'activité effacé.
+    agent_writes: Écritures de l'agent...
+    filter_all: Tout
+    filter_sync: Synchro
+    filter_agent: Agent
+    filter_mcp: MCP
+    filter_status: État
+    sync_upserted: "%{count} blocs envoyés"
+    sync_deleted: "%{count} blocs supprimés"
+    status: "État : %{status}"
+    run_started: Exécution de l'agent démarrée
+    run_finished: Exécution de l'agent terminée
+    run_failed: Échec de l'exécution de l'agent
+    run_cancelled: Exécution de l'agent annulée
+    approval_approved: Modification approuvée
+    approval_denied: Modification refusée
+    edit_applied: "Modification appliquée à %{count} blocs"
+    mcp_call: "Appel MCP %{tool} : %{result}"
+    ids: "Blocs : %{ids}"

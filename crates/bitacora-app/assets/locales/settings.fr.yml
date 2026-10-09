@@ -1,0 +1,306 @@
+settings:
+  title: Paramètres
+  cmd_open: Paramètres...
+  apply: Appliquer
+  saved: Enregistré
+  no_graph: Ouvrez un graphe pour modifier ses paramètres.
+  nothing_changed: Rien n'a changé.
+  section:
+    general: Général
+    editor: Éditeur
+    search: Recherche et index
+    sync: Synchronisation
+    agents: Agents
+    pando: Pando
+    appearance: Apparence
+    keymap: Raccourcis clavier
+  group:
+    graph: Graphe
+    app: Application
+  pando:
+    status: État
+    status_off: Désactivé
+    status_consent: Consentement requis
+    status_connected: Connecté
+    status_unavailable: Indisponible
+    status_unauthorized: Non autorisé
+    status_too_old: Mise à jour requise
+    status_starting: Démarrage
+    status_pending: Pas encore connecté
+    connection: Connexion
+    enabled: Utiliser Pando
+    enabled_help: Connecte Bitacora à Pando pour la recherche sémantique et les agents. Désactivé par défaut ; rien n'est envoyé tant que vous n'avez pas donné votre consentement pour un graphe.
+    mode: Mode
+    mode_help: Géré démarre un serveur Pando pour chaque graphe. Externe se connecte à un serveur que vous exécutez. Désactivé coupe l'intégration.
+    mode_managed: Géré
+    mode_external: Externe
+    mode_off: Désactivé
+    rest_url: URL REST
+    agui_url: URL de l'agent (AG-UI)
+    endpoints_apply: Appliquer les points d'accès
+    endpoints_help: Enregistre les deux URL. Les serveurs distants nécessitent « Autoriser les serveurs distants » et https.
+    allow_remote: Autoriser les serveurs distants
+    allow_remote_help: Permet aux URL de pointer vers une autre machine. Elles doivent utiliser https.
+    rest_token: Jeton REST
+    agui_token: Jeton de l'agent
+    token_placeholder: Collez un jeton
+    token_save: Enregistrer
+    token_clear: Retirer
+    token_saved: Jeton enregistré dans le trousseau du système.
+    token_cleared: Jeton retiré.
+    token_keychain: Stocké dans le trousseau du système.
+    token_env: "Repris de la variable d'environnement %{var}."
+    token_none: Aucun jeton défini.
+    test: Tester la connexion
+    test_button: Tester
+    test_help: Vérifie que le serveur répond et indique sa version.
+    testing: Contact du serveur...
+    test_ok: "Connecté. Pando %{version}."
+    test_old: "Connecté, mais Pando %{version} est plus ancien que le minimum requis %{min}. Mettez Pando à jour."
+    test_failed: "Connexion impossible : %{error}"
+    managed: Instance gérée
+    managed_idle: Non démarrée dans cette session.
+    managed_stopped: Arrêtée.
+    managed_starting: Démarrage.
+    managed_ready: En cours d'exécution.
+    managed_restarting: Redémarrage.
+    managed_failed: Échec
+    restart: Redémarrer
+    restarting: Redémarrage de l'instance gérée...
+    open_log: Ouvrir le journal
+    binary: Programme Pando
+    binary_help: Chemin de l'exécutable pando ; s'il est vide, il est recherché dans le PATH.
+    kb: Base de connaissances
+    kb_shared: "Partagée avec votre propre Pando : la configuration globale de Pando stocke la base de connaissances dans %{dir}."
+    kb_private: "Privée : l'instance gérée conserve sa propre base de données. Pour partager la base de connaissances avec votre propre Pando, définissez un répertoire de données absolu dans votre configuration globale de Pando."
+    models: Modèles de l'agent
+    models_title: Modèles pour l'assistant
+    models_help: Chaque modèle activé ajoute une entrée au sélecteur de modèle du panneau de l'assistant (un profil de chat associé à ce modèle dans la configuration de Pando gérée). S'applique à la réouverture du graphe.
+    models_help_external: Avec votre propre serveur Pando, le sélecteur liste uniquement les profils bitacora-chat--* exposés par ce serveur. Ajoutez-les à sa configuration avec un paramètre Model ; les interrupteurs ici n'ont aucun effet dans ce mode.
+    models_refresh: Actualiser
+    models_idle: Cliquez sur Actualiser pour lister les modèles que votre Pando peut utiliser.
+    models_loading: Chargement des modèles...
+    models_failed: "Impossible de lister les modèles : %{error}"
+    models_filter_placeholder: "Filtrer les modèles..."
+    models_enabled_count: "{count} activés"
+    models_no_match: "Aucun modèle ne correspond au filtre."
+    models_none: Pando n'a renvoyé aucun modèle. Configurez un fournisseur dans les paramètres de Pando.
+    models_no_session: Ouvrez un graphe et connectez Pando pour lister les modèles.
+    models_not_connected: Pando n'est pas connecté.
+    features: Fonctionnalités
+    feature_semantic: Recherche sémantique
+    feature_semantic_help: Indexe vos blocs dans la base de connaissances de Pando pour trouver des notes proches par le sens.
+    feature_chat: Chat avec l'assistant
+    feature_chat_help: Discutez avec les agents Pando depuis le panneau de droite.
+    feature_bridge: Laisser les agents lire ce graphe
+    feature_bridge_help: Donne aux agents Pando un jeton en lecture seule pour le serveur MCP de Bitacora.
+    feature_review: Bilan du journal
+    feature_review_help: Des cartes de bilan qui résument un jour ou une semaine de vos journaux.
+    feature_recommend: Recommandations
+    feature_recommend_help: Suggère des pages liées, des liens, des étiquettes et les prochaines actions pour la page affichée.
+    review_daily: Faire le bilan du jour automatiquement
+    review_daily_help: Une fois par jour, après l'heure ci-dessous, tant que Pando est connecté.
+    review_at: Heure du bilan
+    review_at_help: Heure locale (HH:MM) à partir de laquelle le bilan quotidien peut s'exécuter.
+    recommend_auto: Recommander automatiquement
+    recommend_auto_help: Fait des suggestions pour la page affichée après un moment sans modification.
+    graph: Ce graphe
+    consent: Consentement
+    consent_given: "Vous avez accepté le %{date}."
+    consent_given_undated: Vous avez accepté.
+    consent_missing: Rien de ce graphe n'est envoyé à Pando tant que vous n'avez pas accepté.
+    grant: Lire et accepter...
+    revoke_purge: Révoquer et supprimer mes données
+    agent_writes: Laisser les agents modifier ce graphe
+    agent_writes_help: Désactivé par défaut. Lorsque c'est activé, les agents Pando peuvent écrire via MCP ; chaque écriture est auditée et annulable. S'applique à la réouverture du graphe.
+    exclusions: Ne jamais envoyer
+    exclusions_help: Pages, espaces de noms, dossiers (avec /) ou #étiquettes. Les pages avec private:: true ne sont jamais envoyées. Cliquez sur une entrée pour la retirer.
+    exclusion_placeholder: "Page, espace de noms, dossier/ ou #étiquette"
+    exclusion_empty: Saisissez un nom de page, un dossier ou une #étiquette.
+    remembered: "Décisions d'outils mémorisées"
+    remembered_help: "Réponses que vous avez choisi de mémoriser dans le chat. Oubliez-en une pour qu'on vous la redemande."
+    remembered_none: "Aucune. Les cartes d'approbation du chat proposent « Mémoriser ma décision »."
+    remembered_allow: "toujours autoriser"
+    remembered_deny: "toujours refuser"
+    forget: "Oublier"
+    exclusion_remove: retirer
+    activity: Activité
+    sync: Synchronisation sémantique
+    sync_counts: "%{synced} documents dans Pando, %{pending} en attente."
+    sync_none: Non démarrée.
+    resync: Resynchroniser
+    sync_error: "dernière erreur : %{error}"
+    refresh: Actualiser
+    target_managed: un serveur Pando que Bitacora démarre sur cet ordinateur
+    consent_title: Envoyer les notes de ce graphe à Pando ?
+    consent_body: "Les blocs indexés de ce graphe sont envoyés à %{target} et stockés dans la base de connaissances partagée de Pando, la mémoire des agents. Tout agent ou client Pando qui interroge cette base de connaissances peut les lire, pas seulement Bitacora. Les pages marquées private:: true et vos exclusions ne sont jamais envoyées. Les agents ne peuvent pas modifier vos notes sauf si vous l'activez séparément. Vous pouvez révoquer ce consentement à tout moment et supprimer ce qui a été envoyé."
+    purge_title: Révoquer le consentement et supprimer vos données ?
+    purge_body: Révoque votre consentement, supprime tous les documents de ce graphe de la base de connaissances de Pando, arrête la synchronisation, le chat et l'accès des agents à ce graphe, et efface les décisions d'outils mémorisées par Bitacora. Les fichiers de votre graphe et l'index local ne sont jamais touchés. Acceptez à nouveau pour le réactiver.
+  mode:
+    reindex: Reconstruit l'index
+    restart: Redémarrage requis
+  confirm:
+    ok: Appliquer
+    cancel: Annuler
+    reindex_title: Reconstruire l'index ?
+    reindex_body: Ce paramètre change la façon dont les fichiers sont lus ou nommés ; l'index est donc reconstruit à partir des fichiers du graphe. Vos fichiers ne sont pas modifiés, hormis logseq/config.edn.
+    substring_on_title: Activer la recherche par sous-chaîne ?
+    substring_on_body: L'index trigramme est construit à partir de chaque bloc. Cela peut prendre du temps sur un grand graphe et agrandit l'index.
+    substring_off_title: Désactiver la recherche par sous-chaîne ?
+    substring_off_body: L'index trigramme est supprimé, ce qui divise environ par deux la taille de l'index. Les recherches de fragments à l'intérieur des mots deviennent plus lentes et moins complètes.
+    revoke_title: "Révoquer le jeton %{name} ?"
+    revoke_body: Les clients qui l'utilisent seront refusés à leur prochaine requête. Cette action est irréversible.
+    rotate_title: "Remplacer le secret de %{name} ?"
+    rotate_body: L'ancien secret cesse immédiatement de fonctionner. Vous verrez le nouveau une seule fois.
+    reset_keys_title: Restaurer les raccourcis par défaut ?
+    reset_keys_body: Chaque raccourci que vous avez modifié revient à sa valeur par défaut.
+    conflict_title: "%{keys} est déjà utilisé"
+    conflict_body: "Dans le même contexte, il déclenche : %{actions}. L'associer ici le retire de là-bas."
+  general:
+    graph_path: Dossier du graphe
+    name_format: Noms des fichiers de pages
+    name_legacy: hérité
+    name_triple: triple tiret bas
+    name_format_help: "Façon dont les titres de pages deviennent des noms de fichiers (:file/name-format). Utilisez le triple tiret bas pour les nouveaux graphes."
+    title_format: Titre de la page de journal
+    title_format_help: "Format du titre de la page de journal (:journal/page-title-format)."
+    file_format: Nom du fichier de journal
+    file_format_help: "Format du nom du fichier de journal (:journal/file-name-format)."
+    preview: "Aujourd'hui : %{value}"
+    preview_invalid: Format invalide
+    hidden: Chemins masqués
+    hidden_help: Dossiers ou fichiers exclus du graphe (:hidden), séparés par des virgules.
+    hidden_placeholder: /archives, /brouillons
+    favorites: Favoris
+    favorites_help: Pages épinglées dans la barre latérale (:favorites). Cliquez sur l'une d'elles ci-dessous pour la retirer.
+    favorite_placeholder: Nom de la page
+    background: Continuer en arrière-plan
+    background_help: Fermer la dernière fenêtre laisse l'application et le serveur MCP en cours d'exécution.
+    reopen: Rouvrir le dernier graphe au démarrage
+    reopen_help: Ouvre le graphe le plus récent au démarrage de Bitacora au lieu de demander un dossier.
+    updates: Rechercher les mises à jour
+    updates_help: Recherche une nouvelle version une fois par jour.
+  editor:
+    workflow: Flux des tâches
+    workflow_help: Mots-clés que le raccourci de tâche parcourt en boucle (:preferred-workflow).
+    workflow_now: NOW / LATER
+    workflow_todo: TODO / DOING
+    template: Modèle de journal par défaut
+    template_help: Nom du modèle appliqué aux nouveaux journaux (:default-templates).
+    template_placeholder: Nom du modèle
+    ai_compose: "Zone de rédaction par l'IA"
+    ai_compose_help: "Demandez à un agent d'écrire du texte avec Ctrl/Cmd+J. Nécessite Pando connecté et le consentement pour ce graphe ; les pages exclues et privées ne sont jamais envoyées."
+    ai_ghost: "Texte fantôme de l'IA"
+    ai_ghost_help: "Propose une suite en ambre après une pause de frappe. Tab l'accepte, Échap ou la saisie l'ignore. Jamais pendant une composition IME."
+  search:
+    substring: Recherche par sous-chaîne
+    substring_help: Conserve un index trigramme pour retrouver les fragments à l'intérieur des mots et dans le texte CJK. Le désactiver divise environ par deux la taille de l'index.
+    reindex: Reconstruire l'index
+    reindex_help: Supprime l'index et le reconstruit à partir des fichiers. Ce n'est qu'un cache.
+    reindex_button: Réindexer
+    applying: Application...
+    applied: Index de recherche mis à jour
+  sync:
+    status: État
+    details: Détails...
+    remote: Dépôt distant
+    enabled: Synchroniser ce graphe
+    enabled_help: Valide, récupère, fusionne et envoie en arrière-plan.
+    timing: "Délais (secondes) : inactivité, max, récupération"
+    timing_help: Secondes sans modification avant une validation automatique, l'attente maximale et l'intervalle de récupération.
+    timing_invalid: Saisissez des nombres entiers de secondes. Les valeurs hors de la plage autorisée (inactivité 5-600, max 30-3600, récupération 30-3600) sont ajustées.
+    squash: Regrouper les validations automatiques
+    squash_help: Fusionne une série de validations automatiques en une seule.
+    forget: "Identifiants enregistrés"
+    forget_help: "Supprime le nom d'utilisateur, le mot de passe ou le jeton, et la phrase secrète de la clé SSH stockés dans le trousseau du système pour ce dépôt distant. Ils vous seront redemandés à la prochaine synchronisation."
+    forget_button: "Oublier les identifiants enregistrés"
+    forget_done: "Identifiants enregistrés oubliés."
+    ssh_key: "Clé SSH"
+    ssh_key_help: "Fichier de clé privée utilisé pour le dépôt distant SSH de ce graphe. Laissez vide pour utiliser votre agent ssh et les clés par défaut."
+    ssh_key_none: "Par défaut (agent ssh et clés de ~/.ssh)"
+    ssh_key_browse: "Choisir..."
+    ssh_key_clear: "Effacer"
+    ssh_key_prompt: "Choisissez une clé privée SSH"
+  agents:
+    enabled: Exécuter le serveur MCP
+    enabled_help: Sert MCP tant qu'un graphe est ouvert. Désactivé, les agents ne peuvent plus se connecter.
+    port: Port
+    port_help: "Port de bouclage (12316 par défaut). Utilisez 1024 ou plus. Un port occupé est signalé ici, aucun autre port n'est essayé."
+    port_invalid: Saisissez un port entre 1024 et 65535.
+    status: Serveur MCP
+    status_help: Toujours actif pendant l'exécution de Bitacora, bouclage uniquement, jeton d'accès obligatoire.
+    running: "En cours d'exécution sur %{endpoint}"
+    unavailable: "Non démarré : %{reason}"
+    not_running: Non démarré pour ce graphe.
+    allow_writes: Autoriser les agents à écrire
+    allow_writes_help: "Désactivé par défaut. Les écritures sont auditées et peuvent être annulées depuis la liste d'activité des agents."
+    allow_deletes: Autoriser les agents à supprimer
+    allow_deletes_help: "Désactivé par défaut. Permet aux agents de retirer des blocs et de supprimer ou renommer des pages (déplacées dans le dossier de corbeille)."
+    api: API HTTP compatible Logseq
+    api_help: Sert POST /api pour les outils écrits pour Logseq. Désactivé par défaut.
+    protected: Espaces de noms protégés
+    protected_help: Les pages de ces espaces de noms refusent les écritures des agents, séparés par des virgules.
+    protected_placeholder: prive, journal-secret
+    origins: Origines de navigateur autorisées
+    origins_help: Origines supplémentaires autorisées à appeler le serveur depuis une page web. Vide par défaut.
+    rate: Écritures par minute
+    rate_help: Limite d'appels d'écriture par jeton et par minute.
+    restart_button: Redémarrer le serveur maintenant
+    restart_note: Enregistré. Appliqué au redémarrage du serveur.
+    tokens: Jetons
+    tokens_empty: Aucun jeton. Créez-en un pour connecter un client.
+    token_name_placeholder: Nom du client (par exemple Claude Desktop)
+    new_token: Nouveau jeton
+    token_created: Jeton créé. Copiez-le maintenant, il n'est affiché qu'une seule fois.
+    token_revoked: "Jeton %{name} révoqué"
+    token_rotated: "Jeton %{name} remplacé. Copiez le nouveau secret maintenant."
+    token_missing: Ce jeton n'existe plus.
+    secret_once: "Secret de %{name}. Il n'est affiché qu'une seule fois."
+    secret_lost: Le secret est absent du trousseau. Remplacez-le.
+    copy_token: Copier le jeton
+    copy_json: Copier la configuration
+    copy_command: Copier la commande
+    copied: Copié dans le presse-papiers
+    done: Terminé
+    rotate: Remplacer
+    revoke: Révoquer
+    in_keychain: Trousseau
+    in_file: Fichier privé
+    scope_write: écriture
+    scope_delete: suppression
+  appearance:
+    mode: Mode du thème
+    theme: Thème
+    theme_help: Choisissez le thème fourni pour le clair et le sombre.
+    font_size: Taille de police
+    font_size_help: "S'applique immédiatement. Actuelle :"
+    font_size_invalid: "Saisissez une taille entre %{min} et %{max}."
+    font_default: valeur par défaut du thème
+    font_reset: Taille de police par défaut
+    font_reset_button: Réinitialiser
+    language: Langue
+    reduce_motion: Réduire les animations
+    reduce_motion_help: Garde le curseur fixe et affiche les indicateurs de chargement et les transitions sans mouvement.
+    language_help: S'applique immédiatement.
+    language_system: Suivre le système
+    css: custom.css du graphe
+    css_help: Les couleurs et les polices de logseq/custom.css sont appliquées ; le fichier n'est jamais modifié.
+    css_none: Ce graphe n'a pas de logseq/custom.css.
+    css_status: "%{applied} valeurs appliquées, %{ignored} ignorées."
+    css_line: "Ligne %{line}"
+    css_ignored: ignoré
+    css_reason_at_rule: les règles @ ne sont pas prises en charge
+    css_reason_selector: le sélecteur n'est pas pris en charge
+    css_reason_property: la propriété n'est pas prise en charge
+    css_reason_value: valeur non comprise
+  keymap:
+    filter_placeholder: Filtrer par action ou raccourci...
+    help: "%{count} actions. Cliquez sur Enregistrer, puis appuyez sur le nouveau raccourci. Échap annule."
+    press_keys: Appuyez sur le raccourci...
+    unbound: Non associé
+    record: Enregistrer
+    clear: Effacer
+    reset: Réinitialiser
+    reset_all: "Tout réinitialiser (%{count})"
+    applied: Raccourcis mis à jour
+    save_failed: "Impossible d'enregistrer les raccourcis : %{error}"
