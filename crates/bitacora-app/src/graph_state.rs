@@ -29,7 +29,7 @@ impl StoredRoute {
     /// The stored form of `route`; the journals feed and the page list are not stackable.
     pub fn from_route(route: &Route) -> Option<Self> {
         match route {
-            Route::Page(name) => Some(Self::Page(name.clone())),
+            Route::Page(name) | Route::PageAt { page: name, .. } => Some(Self::Page(name.clone())),
             Route::Block(uuid) => Some(Self::Block(uuid.clone())),
             Route::Journals | Route::AllPages | Route::Graph | Route::Tasks => None,
         }

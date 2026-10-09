@@ -189,7 +189,9 @@ impl LeftSidebar {
             Some(Route::AllPages) => Some(Target::AllPages),
             Some(Route::Graph) => Some(Target::Graph),
             Some(Route::Tasks) => Some(Target::Tasks),
-            Some(Route::Page(name)) => Some(Target::Page(name.clone())),
+            Some(Route::Page(name) | Route::PageAt { page: name, .. }) => {
+                Some(Target::Page(name.clone()))
+            }
             Some(Route::Block(_)) | None => None,
         };
         if self.active != active {

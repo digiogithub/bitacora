@@ -18,6 +18,13 @@ pub enum NavTarget {
     Page(String),
     /// Open the block with this UUID.
     Block(String),
+    /// Open the page with the block scrolled into view and focused (BIT-US-0187).
+    PageAt {
+        /// Page title.
+        page: String,
+        /// UUID of the block to reveal.
+        block: String,
+    },
     /// Open an external URL.
     Url(String),
 }

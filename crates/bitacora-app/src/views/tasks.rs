@@ -330,6 +330,15 @@ pub fn apply_action(
         .map_err(|e| e.to_string())
 }
 
+/// Where the open button of `task` leads: its page, with the block scrolled into view,
+/// highlighted and in edit mode, not the block zoomed in alone.
+fn open_target(task: &TaskRow) -> NavTarget {
+    NavTarget::PageAt {
+        page: task.page.clone(),
+        block: task.uuid.clone(),
+    }
+}
+
 /// The month a date picker opens on: the month of `due` (`yyyyMMdd`), or the current month for a
 /// task that has no date yet (BIT-US-0187).
 fn picker_month(due: Option<i64>, this_year: i32, this_month: u8) -> Month {
@@ -644,8 +653,12 @@ impl TasksView {
         }
     }
 
+    /// Opens the page of task `uuid` with the block revealed (BIT-US-0187).
     fn open(&mut self, uuid: &str, open: OpenIn, cx: &mut Context<Self>) {
-        cx.emit(PageEvent::open(NavTarget::Block(uuid.to_owned()), open));
+        let Some(task) = self.model.rows.iter().find(|r| r.uuid == uuid) else {
+            return;
+        };
+        cx.emit(PageEvent::open(open_target(task), open));
     }
 
     fn pills(&self, cx: &mut Context<Self>) -> impl IntoElement {
@@ -1140,6 +1153,23 @@ mod tests {
             ..Selection::default()
         };
         assert_eq!(gone.reconciled(&after), Selection::default());
+    }
+
+    #[test]
+    fn the_open_button_targets_the_page_with_the_block() {
+        let m = model();
+        let row = m
+            .rows
+            .iter()
+            .find(|r| r.title == "water plants")
+            .expect("row");
+        assert_eq!(
+            open_target(row),
+            NavTarget::PageAt {
+                page: "Home".into(),
+                block: row.uuid.clone()
+            }
+        );
     }
 
     #[test]

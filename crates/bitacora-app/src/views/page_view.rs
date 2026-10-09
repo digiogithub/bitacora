@@ -197,6 +197,9 @@ pub struct PageView {
     refresh_task: Option<Task<()>>,
     rendered_rows: usize,
     focused_row: Option<usize>,
+    /// UUID of a block to scroll to, highlight and edit once the page is loaded
+    /// (`Route::PageAt`, BIT-US-0187).
+    reveal: Option<String>,
     conflict_blocks: BTreeSet<String>,
     /// Handles to the live session: with it the page is edited through core.
     link: Option<SessionLink>,
@@ -270,6 +273,7 @@ impl PageView {
             refresh_task: None,
             rendered_rows: 0,
             focused_row: None,
+            reveal: None,
             conflict_blocks: BTreeSet::new(),
             link: None,
             editor: None,
@@ -525,6 +529,51 @@ impl PageView {
         &self.conflict_blocks
     }
 
+    /// Scrolls to the block asked for by a `Route::PageAt`, highlights it and, on a live page,
+    /// puts it in edit mode so it can be worked on in context (BIT-US-0187).
+    fn reveal_block(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.state != LoadState::Loaded {
+            return;
+        }
+        let Some(uuid) = self.reveal.take() else {
+            return;
+        };
+        // The index counts the page-properties pre-block as ord 0; core's blocks do not.
+        let offset = self
+            .link
+            .as_ref()
+            .zip(
+                self.editor
+                    .as_ref()
+                    .and_then(|ed| ed.read(cx).page_key().cloned()),
+            )
+            .and_then(|(l, key)| l.queue.snapshot(&key))
+            .map_or(0, |snap| i64::from(snap.preamble.is_some()));
+        let ord = self
+            .handle
+            .as_ref()
+            .and_then(|h| h.reader.block(&uuid).ok().flatten())
+            .map(|b| b.ord);
+        let Some(r) = reveal_row(&self.rows, &uuid, ord.map(|o| o - offset)) else {
+            return;
+        };
+        // A collapsed ancestor hides the block: open the path to it (view only).
+        for a in collapsed_ancestors(&self.rows, r) {
+            toggle_row(&mut self.rows, a);
+        }
+        self.resync_items();
+        self.focus_row(r, cx);
+        if let Some(pos) = self.item_position(Item::Block(r)) {
+            self.list_state.scroll_to_reveal_item(pos);
+        }
+        if self.live
+            && let Some(ed) = self.editor.clone()
+        {
+            ed.update(cx, |e, cx| e.click_row(r, usize::MAX, false, window, cx));
+        }
+        cx.notify();
+    }
+
     /// The row holding the focus, if any.
     pub fn focused_row(&self) -> Option<usize> {
         self.focused_row
@@ -687,6 +736,12 @@ impl PageView {
             self.loading_more = false;
             self.clear_focus(cx);
         }
+        if !reload {
+            self.reveal = match &route {
+                Route::PageAt { block, .. } => Some(block.clone()),
+                _ => None,
+            };
+        }
         self.route = Some(route.clone());
         self.handle = Some(handle.clone());
         self.remote.configure(
@@ -703,23 +758,25 @@ impl PageView {
                 .spawn(async move {
                     let _span = crate::perf::span("page_view.load_background");
                     match &route {
-                        Route::Page(name) => data::open_page(&handle, name, limit).map(|load| {
-                            let live = link.as_ref().and_then(|l| {
-                                let key = editor::ensure_loaded(
-                                    &l.queue,
-                                    &handle,
-                                    &l.config,
-                                    &load.header.title,
-                                )?;
-                                // Build the rows here so the UI thread only adopts them.
-                                let pre = l
-                                    .queue
-                                    .snapshot(&key)
-                                    .map(|snap| Prebuilt::build(snap, &handle));
-                                Some((key, pre))
-                            });
-                            (load, live)
-                        }),
+                        Route::Page(name) | Route::PageAt { page: name, .. } => {
+                            data::open_page(&handle, name, limit).map(|load| {
+                                let live = link.as_ref().and_then(|l| {
+                                    let key = editor::ensure_loaded(
+                                        &l.queue,
+                                        &handle,
+                                        &l.config,
+                                        &load.header.title,
+                                    )?;
+                                    // Build the rows here so the UI thread only adopts them.
+                                    let pre = l
+                                        .queue
+                                        .snapshot(&key)
+                                        .map(|snap| Prebuilt::build(snap, &handle));
+                                    Some((key, pre))
+                                });
+                                (load, live)
+                            })
+                        }
                         Route::Block(uuid) => {
                             data::zoom_block(&handle, uuid).map(|load| (load, None))
                         }
@@ -788,6 +845,7 @@ impl PageView {
                 if let Some(a) = anchor {
                     self.restore_scroll(a);
                 }
+                // `render` has the window the reveal needs.
                 cx.notify();
                 crate::perf::stamp("page_loaded");
                 if self.is_page_route() {
@@ -1736,6 +1794,7 @@ impl PageView {
             let target = match &link.target {
                 Route::Page(name) => NavTarget::Page(name.clone()),
                 Route::Block(uuid) => NavTarget::Block(uuid.clone()),
+                Route::PageAt { page, .. } => NavTarget::Page(page.clone()),
                 Route::Journals | Route::AllPages | Route::Graph | Route::Tasks => {
                     NavTarget::Page(link.label.clone())
                 }
@@ -1893,6 +1952,7 @@ impl PageView {
             let target = match &link.target {
                 Route::Page(name) => NavTarget::Page(name.clone()),
                 Route::Block(uuid) => NavTarget::Block(uuid.clone()),
+                Route::PageAt { page, .. } => NavTarget::Page(page.clone()),
                 Route::Journals | Route::AllPages | Route::Graph | Route::Tasks => {
                     NavTarget::Page(link.label.clone())
                 }
@@ -1917,8 +1977,11 @@ impl PageView {
 }
 
 impl Render for PageView {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let _span = crate::perf::span("page_view.render");
+        if self.reveal.is_some() && self.state == LoadState::Loaded {
+            cx.defer_in(window, |this, window, cx| this.reveal_block(window, cx));
+        }
         let theme = cx.theme().clone();
         let body: AnyElement = match &self.state {
             LoadState::Empty => centered(t!("panel.page_host.empty").to_string()),
@@ -1955,6 +2018,35 @@ fn centered(text: String) -> AnyElement {
         .justify_center()
         .child(text)
         .into_any_element()
+}
+
+/// The row of the block `uuid` (rows read from the index carry it) or, on a live page whose rows
+/// do not, the row whose block index is `block_index`.
+fn reveal_row(rows: &[Row], uuid: &str, block_index: Option<i64>) -> Option<usize> {
+    rows.iter()
+        .position(|r| r.uuid.as_deref() == Some(uuid))
+        .or_else(|| {
+            let want = usize::try_from(block_index?).ok()?;
+            rows.iter().position(|r| r.block_index == Some(want))
+        })
+}
+
+/// The collapsed rows that hide row `r`, nearest first.
+fn collapsed_ancestors(rows: &[Row], r: usize) -> Vec<usize> {
+    let Some(target) = rows.get(r) else {
+        return Vec::new();
+    };
+    let mut depth = target.depth;
+    let mut out = Vec::new();
+    for i in (0..r).rev() {
+        if rows[i].depth < depth {
+            depth = rows[i].depth;
+            if rows[i].is_collapsed() {
+                out.push(i);
+            }
+        }
+    }
+    out
 }
 
 #[cfg(test)]
@@ -2468,5 +2560,90 @@ mod tests {
         settle(cx, &view, |v| v.rows().len() == 4);
         // `two` is still collapsed after the refresh.
         assert_eq!(view.read_with(cx, |v, _| v.visible_count()), 3);
+    }
+
+    #[test]
+    fn reveal_finds_rows_by_uuid_or_block_index_and_the_collapsed_path() {
+        use crate::render::model::Row;
+        let row = |depth: usize, ix: Option<usize>, collapsed: bool, uuid: Option<&str>| Row {
+            depth,
+            block_index: ix,
+            has_children: collapsed,
+            view_collapsed: Some(collapsed),
+            uuid: uuid.map(str::to_owned),
+            ..Row::default()
+        };
+        let rows = vec![
+            row(0, None, false, None),
+            row(0, Some(0), true, None),
+            row(1, Some(1), true, None),
+            row(2, Some(2), false, Some("u3")),
+            row(0, Some(3), false, None),
+        ];
+        assert_eq!(reveal_row(&rows, "u3", None), Some(3));
+        assert_eq!(reveal_row(&rows, "nope", Some(3)), Some(4));
+        assert_eq!(reveal_row(&rows, "nope", Some(9)), None);
+        assert_eq!(reveal_row(&rows, "nope", None), None);
+        assert_eq!(collapsed_ancestors(&rows, 3), vec![2, 1]);
+        assert!(collapsed_ancestors(&rows, 4).is_empty());
+    }
+
+    #[gpui_test]
+    fn page_at_scrolls_to_the_block_highlights_and_edits_it(cx: &mut TestAppContext) {
+        use crate::views::widgets::tests::Env;
+        setup(cx);
+        // The block has no `id::`: the index mints its uuid, live rows carry none.
+        let src = "title:: Work\n\n- parent\n  collapsed:: true\n  - TODO deep task\n- other\n";
+        let env = Env::new(&[("pages/Work.md", src)]);
+        let id = crate::views::tasks::load_tasks(&env.handle, 20_261_007)
+            .expect("tasks")
+            .rows
+            .iter()
+            .find(|r| r.title == "deep task")
+            .map(|r| r.uuid.clone())
+            .expect("the task is indexed");
+        let (view, cx) = open(cx);
+        let link = env.link.clone();
+        view.update_in(cx, |v, window, cx| {
+            v.set_session_link(Some(link), window, cx);
+        });
+        view.update(cx, |v, cx| {
+            v.show(
+                env.handle.clone(),
+                Route::PageAt {
+                    page: "Work".into(),
+                    block: id,
+                },
+                None,
+                cx,
+            );
+        });
+        settle(cx, &view, |v| v.is_live());
+        for _ in 0..50 {
+            cx.update(|window, _| window.refresh());
+            cx.run_until_parked();
+            if view.read_with(cx, |v, _| v.focused_row().is_some()) {
+                break;
+            }
+        }
+        let (title, parent_collapsed) = view.read_with(cx, |v, _| {
+            let r = v.focused_row().expect("a row is focused");
+            (
+                v.rows()[r].block.title.text.clone(),
+                v.rows()
+                    .iter()
+                    .any(|row| row.has_children && row.is_collapsed()),
+            )
+        });
+        assert!(
+            title.contains("deep task"),
+            "the task row is focused: {title}"
+        );
+        assert!(!parent_collapsed, "its collapsed parent was opened");
+        let ed = view.read_with(cx, |v, _| v.editor.clone().expect("editor"));
+        assert!(
+            ed.read_with(cx, |e, _| e.editing().is_some()),
+            "in edit mode"
+        );
     }
 }

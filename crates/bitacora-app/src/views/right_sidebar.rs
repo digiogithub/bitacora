@@ -231,6 +231,13 @@ impl RightSidebar {
         match target {
             NavTarget::Page(name) => self.open(Route::Page(name.clone()), cx),
             NavTarget::Block(uuid) => self.open(Route::Block(uuid.clone()), cx),
+            NavTarget::PageAt { page, block } => self.open(
+                Route::PageAt {
+                    page: page.clone(),
+                    block: block.clone(),
+                },
+                cx,
+            ),
             NavTarget::Url(url) => cx.open_url(url),
         }
     }
@@ -348,7 +355,7 @@ impl RightSidebar {
 
     fn title(&self, item: &Item, cx: &App) -> String {
         match &item.route {
-            Route::Page(name) => name.clone(),
+            Route::Page(name) | Route::PageAt { page: name, .. } => name.clone(),
             Route::Block(_) => item
                 .view
                 .read(cx)
