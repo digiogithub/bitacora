@@ -2,7 +2,7 @@
 id: BIT-US-0183
 type: story
 title: French and Simplified Chinese UI locales with system language detection
-status: in_progress
+status: in_review
 priority: high
 parent: BIT-EP-0027
 milestone: BIT-M-0011
@@ -10,7 +10,7 @@ author: mcp
 labels: [bitacora-app, i18n]
 estimate: 5
 created: 2026-10-09T07:10:42Z
-updated: 2026-10-09T07:22:43Z
+updated: 2026-10-09T07:37:23Z
 started: 2026-10-09T07:22:43Z
 ---
 

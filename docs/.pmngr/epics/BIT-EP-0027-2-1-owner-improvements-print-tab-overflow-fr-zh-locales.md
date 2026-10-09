@@ -2,13 +2,14 @@
 id: BIT-EP-0027
 type: epic
 title: "2.1 owner improvements: print, tab overflow, FR/ZH locales"
-status: backlog
+status: in_progress
 priority: high
 milestone: BIT-M-0011
 author: mcp
 labels: [v2, feedback, bitacora-app]
 created: 2026-10-09T07:10:10Z
-updated: 2026-10-09T07:10:10Z
+updated: 2026-10-09T07:37:23Z
+started: 2026-10-09T07:37:23Z
 ---
 
 ## Description
