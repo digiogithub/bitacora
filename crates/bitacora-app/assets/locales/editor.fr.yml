@@ -1,0 +1,113 @@
+app:
+  quit: Quitter Bitacora
+editor:
+  too_long: Ce bloc est trop long pour être modifié ; il est sélectionné à la place.
+  cannot_do: "Action impossible : %{error}"
+  nothing_undo: Rien à annuler
+  nothing_redo: Rien à rétablir
+  history_truncated: L'historique a été effacé parce que des fichiers ont changé en dehors de Bitacora.
+  not_linkable: Ce bloc n'est pas disponible pour créer un lien.
+  select_to_attach: Sélectionnez un bloc auquel joindre les fichiers.
+  attach_failed: "Impossible de joindre : %{files}"
+  no_attachment: Ce bloc n'a pas de pièce jointe.
+  conflict_text: Ce bloc a changé sur le disque pendant que vous le modifiiez.
+  keep_mine: Garder le mien
+  take_disk: Prendre celui du disque
+  new_page: "Nouvelle page : %{title}"
+  date_unavailable: La date n'est pas disponible.
+  no_templates: "Aucun modèle pour le moment : ajoutez template:: nom à un bloc."
+  drag_block: Bloc
+  cmd:
+    heading: "Titre %{level}"
+    page_ref: Référence de page
+    block_ref: Référence de bloc
+    page_embed: Intégration de page
+    block_embed: Intégration de bloc
+    query: Requête
+    today: Aujourd'hui
+    tomorrow: Demain
+    yesterday: Hier
+    time: Heure actuelle
+    date_picker: Sélecteur de date
+    scheduled: Prévu
+    deadline: Échéance
+    code_block: Bloc de code
+    link: Lien
+    image: Lien d'image
+    upload: Téléverser une ressource
+    template: Modèle
+    block_quote: Citation
+    block_src: Code source
+    block_query: Requête
+    block_note: Note
+    block_tip: Astuce
+    block_important: Important
+    block_caution: Attention
+    block_pinned: Épinglé
+    block_warning: Avertissement
+    block_example: Exemple
+    block_export: Export
+    block_verse: Vers
+    block_ascii: Art ASCII
+    block_center: Centré
+    block_comment: Commentaire
+  refusal:
+    unknown_block: Ce bloc n'existe plus.
+    no_change: Rien à faire.
+    empty_selection: Aucun bloc n'est sélectionné.
+    not_siblings: La sélection doit être des blocs contigus au même niveau.
+    no_previous_sibling: Il n'y a pas de bloc précédent sous lequel indenter.
+    already_top_level: Le bloc est déjà au niveau supérieur.
+    target_inside_selection: Un bloc ne peut pas être déplacé dans lui-même.
+    read_only: Cette page est en lecture seule.
+    not_an_asset: Ce chemin est un fichier de page, pas une ressource.
+    unrepresentable: Le texte contient une ligne qui commence comme un élément de liste et ne peut pas être stocké dans un seul bloc.
+    bad_cursor: Le curseur n'est pas dans le texte du bloc.
+    not_empty_last_child: Le bloc n'est pas un dernier enfant vide.
+    first_block: Le premier bloc de la page ne peut être fusionné avec rien.
+    last_block_of_page: Une page conserve au moins un bloc.
+    both_have_children: Les deux blocs ont des enfants, ils ne peuvent donc pas être fusionnés.
+    no_next_block: Il n'y a pas de bloc suivant.
+    both_referenced: "Les deux blocs ont une propriété id::, ils ne peuvent donc pas être fusionnés."
+    at_edge: Le bloc ne peut pas aller plus loin.
+    move_caret: "Placez le curseur à la position %{offset}."
+    nothing_applicable: Aucun bloc sélectionné n'a ce dont la commande a besoin.
+  ai:
+    unavailable: "La rédaction par l'IA est désactivée ou Pando n'est pas connecté. Activez-la dans Paramètres, Éditeur."
+    private: "Ce bloc est privé et n'est jamais envoyé à un agent."
+    placeholder: "Demandez à l'assistant d'écrire..."
+    suggestion: Suggestion
+    accept: accepter
+    dismiss: ignorer
+    context: "Contexte :"
+    this_block: Ce bloc
+    generate: Écrire
+    insert_below: Insérer en dessous
+    replace: Remplacer le bloc
+    retry: Réessayer
+    discard: Abandonner
+sync:
+  onboarding:
+    git_hint: Installer git donne accès à votre agent SSH et à vos assistants d'identifiants.
+    auth: Le dépôt distant a refusé les identifiants.
+    auth_advice: "Vérifiez le nom d'utilisateur et le mot de passe ou le jeton d'accès, ou la clé SSH chargée.%{hint}"
+    network: "Le dépôt distant est injoignable : %{message}"
+    network_advice: Vérifiez l'URL et votre connexion réseau, puis réessayez.
+    not_repo: Le dossier n'est pas un dépôt git.
+    not_repo_advice: Choisissez le dossier du graphe lui-même.
+    separate_gitdir: "Ce graphe conserve ses données git en dehors du dossier (%{path})."
+    separate_gitdir_advice: Bitacora peut les copier dans le dossier du graphe. Votre original n'est pas touché.
+    remote_mismatch: "Le graphe se synchronise déjà avec %{existing}, et non %{requested}."
+    remote_mismatch_advice: Utilisez le dépôt distant existant, ou modifiez-le avec git en dehors de Bitacora.
+    dest_not_empty: "%{path} n'est pas vide."
+    dest_not_empty_advice: Choisissez un dossier vide ou nouveau.
+    invalid_argument: "La valeur n'est pas acceptable : %{what}"
+    invalid_argument_advice: Vérifiez les champs du formulaire.
+    other_advice: Vérifiez les détails et réessayez.
+  recovery:
+    failed: "Échec de la récupération de la synchronisation : %{error}"
+    stale_lock: verrou git périmé supprimé
+    restored: "%{count} conflit(s) non résolu(s) restauré(s)"
+    marker: "%{count} conflit(s) trouvé(s) dans des fichiers modifiés par un autre outil"
+    external: une fusion ou un rebase d'un autre outil est en cours
+    summary: "Récupération de la synchronisation : %{parts}."

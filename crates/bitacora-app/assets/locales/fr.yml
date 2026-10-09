@@ -1,0 +1,556 @@
+app:
+  name: Bitacora
+sidebar:
+  journals: Journaux
+  all_pages: Toutes les pages
+  favorites: Favoris
+  recent: Récents
+  graph_switcher: Changer de graphe
+  group_navigate: Navigation
+  group_favorites: Favoris
+  group_recent: Récents
+  group_graph: Graphe
+  empty: Rien ici pour le moment
+  no_graph: Aucun graphe ouvert
+  graph_view: Vue du graphe
+  tasks: Tâches
+  graph: Graphe
+  overdue: "%{count} tâches en retard"
+  pages_count: "%{count} pages"
+  mcp_active: Serveur MCP actif
+  go_to_date: Aller à la date...
+calendar:
+  prev_month: Mois précédent
+  next_month: Mois suivant
+  weekdays: "L M M J V S D"
+  months: "janvier,février,mars,avril,mai,juin,juillet,août,septembre,octobre,novembre,décembre"
+all_pages:
+  title: Toutes les pages
+  name: Nom
+  backlinks: Liens entrants
+  created: Création
+  updated: Modification
+  journal: Journal
+  filter: Filtrer les pages...
+  show_journals: Journaux
+  count: "%{count} pages"
+palette:
+  scope_all: Tout
+  scope_page: Cette page
+  scope_journals: Journaux
+  scope_pages: Pages
+  search_placeholder: Rechercher des pages et des blocs...
+  commands_placeholder: Saisir une commande...
+  commands: Commandes
+  recent: Récents
+  pages: Pages
+  blocks: Blocs
+  create: Créer
+  create_page: "Créer la page \"%{name}\""
+  searching: Recherche en cours...
+  no_results: Aucun résultat
+  type_to_search: Saisissez pour rechercher des pages et des blocs
+  semantic_toggle: Sémantique
+  semantic_badge: sémantique
+  semantic_stale: peut être obsolète
+  semantic_unavailable: "recherche sémantique indisponible : %{why}"
+  semantic_why_disabled: Pando est désactivé pour ce graphe
+  semantic_why_offline: Pando est hors ligne
+  semantic_why_timeout: Pando n'a pas répondu à temps
+  reindexing: Reconstruction de l'index...
+  cmd_journals: "Aller à : Journaux"
+  cmd_all_pages: "Aller à : Toutes les pages"
+  cmd_graph_view: "Aller à : Vue du graphe"
+  cmd_tasks: "Aller à : Tâches"
+  cmd_back: "Retour"
+  cmd_forward: "Avancer"
+  cmd_left_sidebar: Afficher ou masquer la barre latérale gauche
+  cmd_right_sidebar: Afficher ou masquer la barre latérale droite
+  cmd_theme: Basculer entre thème clair et sombre
+  cmd_reindex: Réindexer le graphe
+  cmd_switch_graph: Changer de graphe
+  cmd_delete_page: Supprimer la page actuelle...
+  cmd_rename_page: Renommer la page actuelle...
+  cmd_sync_now: Synchroniser maintenant
+  cmd_sync_settings: Paramètres de synchronisation...
+  cmd_page_history: Historique de la page...
+  cmd_agent_activity: Activité de l'agent...
+  cmd_ask_selection: Interroger Pando sur la sélection
+  cmd_review_today: Bilan du jour (IA)
+  cmd_review_week: Bilan de la semaine (IA)
+  cmd_conflicts: Résoudre les conflits de synchronisation...
+  cmd_clone: Ouvrir un graphe depuis un dépôt distant...
+  cmd_open_graph: Ouvrir un graphe...
+  cmd_close_graph: Fermer le graphe
+panel:
+  page_host:
+    title: Page
+    empty: Aucune page ouverte
+  right:
+    title: Barre latérale droite
+    empty: Barre latérale droite
+status:
+  sync:
+    off: "Synchro : désactivée"
+    idle: "Synchro : à jour"
+    busy: "Synchro : en cours"
+    error: "Synchro : erreur"
+    now: Synchroniser maintenant
+    retry: Réessayer
+  mcp:
+    off: "MCP : désactivé"
+    idle: "MCP : à l'écoute"
+    busy: "MCP : occupé"
+    error: "MCP : erreur"
+  index:
+    off: "Index : désactivé"
+    idle: "Index : prêt"
+    busy: "Index : indexation"
+    progress: "Index : %{done}/%{total}"
+    error: "Index : erreur"
+  heartbeat: "Pulsation %{count}"
+  theme_button: Thème
+page:
+  loading: Chargement de la page...
+  load_failed: "Impossible d'ouvrir la page : %{error}"
+  empty: Aucun contenu pour le moment
+  redirected_from: "Redirigé depuis %{name}"
+  namespace_children: Pages de cet espace de noms
+  logbook: "LOGBOOK (%{count} entrées)"
+  logbook_total: "LOGBOOK (%{count} entrées, %{total})"
+  copy_code: Copier le code
+  callout_note: Note
+  callout_tip: Astuce
+  callout_important: Important
+  callout_caution: Attention
+  callout_warning: Avertissement
+  callout_pinned: Épinglé
+journals:
+  today_badge: Aujourd'hui
+  today_empty: Rien d'écrit aujourd'hui pour le moment
+  more: Plus de blocs sur la page...
+  panel_today: Prévu aujourd'hui
+  panel_tomorrow: Demain
+  panel_doing: En cours
+refs:
+  linked: "Références liées (%{count})"
+  linked_loading: Références liées
+  unlinked: Références non liées
+  unlinked_count: "Références non liées (%{count})"
+  filters_hint: "Cliquez sur une page pour l'inclure, une seconde fois pour l'exclure"
+  filters_none: Aucune page à filtrer
+  filters_active: Filtré
+  filters_clear: Effacer les filtres
+top_bar:
+  settings_tip: "Paramètres (Ctrl+,)"
+  settings_tip_mac: "Paramètres (Cmd+,)"
+  search: Rechercher ou exécuter une commande
+  block_tab: Bloc
+menu:
+  graph: Graphe
+  open_graph: Ouvrir un graphe...
+  open_recent: Ouvrir un récent
+  close_graph: Fermer le graphe
+  last_graph_missing: "Impossible d'ouvrir le dernier graphe : %{path} n'existe plus"
+picker:
+  title: Ouvrir un graphe
+  subtitle: Choisissez un dossier de graphe Logseq pour le parcourir.
+  open_folder: Ouvrir un dossier de graphe...
+  recent: Graphes récents
+  no_recent: Aucun graphe récent pour le moment
+  missing: Dossier introuvable
+  remove: Retirer de la liste
+  dialog_prompt: Ouvrir le graphe
+  not_logseq: "%{name} ne contient pas de logseq/config.edn ; ouverture quand même."
+  open_failed: "Impossible d'ouvrir le graphe : %{error}"
+  index_rebuilt: Index reconstruit
+  indexing_failed: "Échec de l'indexation : %{error}"
+  index_summary: "%{count} fichiers indexés"
+  clone_from_remote: Ouvrir un graphe depuis un dépôt distant...
+theme:
+  system: Suivre le système
+  light: Clair
+  dark: Sombre
+notice:
+  write_failed: "%{count} page(s) n'ont pas pu être enregistrées ; Bitacora réessaie"
+  conflict: "%{count} page(s) ont été modifiées sur le disque et n'ont pas été écrasées"
+  watcher_degraded: La surveillance des fichiers est dégradée ; les modifications externes peuvent apparaître avec retard
+  config_changed: logseq/config.edn a changé ; rouvrez le graphe pour l'appliquer
+  index_error: "Impossible d'indexer %{path} : %{error}"
+  mcp_unavailable: "Point d'accès MCP non démarré : %{error}"
+  unwritten_on_quit: "%{count} fichier(s) n'ont pas pu être enregistrés avant la fermeture"
+  sync_unavailable: "La synchronisation n'a pas pu démarrer : %{error}"
+  sync_recovery: "%{text}"
+  editing_block_changed: Le bloc que vous modifiez a changé sur le disque
+  shutdown_slow: "L'arrêt n'a pas abouti à temps : %{steps}"
+right:
+  block: Bloc
+  empty_hint: Maj+clic sur une page, une référence ou une puce pour l'ouvrir ici.
+  tab_context: Contexte
+  tab_agent: Agent
+  properties: Propriétés
+  backlinks: Liens entrants
+  no_backlinks: Aucun lien vers ici pour le moment.
+  related: Blocs associés
+  related_loading: Recherche de blocs associés...
+  no_related: Aucun bloc associé trouvé.
+  agent_empty_title: Interrogez votre graphe
+  agent_empty_hint: L'assistant discutera ici de la page affichée.
+  agent_unconfigured_title: Pando n'est pas configuré
+  agent_unconfigured_hint: Connectez un serveur Pando dans les paramètres pour discuter avec l'assistant.
+delete:
+  page_title: "Supprimer la page \"%{name}\" ?"
+  page_description: Le fichier est déplacé dans logseq/.recycle/ et la page quitte les favoris. Les liens vers elle pointeront vers une page vide.
+  asset_title: "Supprimer la ressource \"%{name}\" ?"
+  asset_description: Le fichier est déplacé dans logseq/.recycle/. Le texte qui y fait référence n'est pas modifié.
+  ok: Supprimer
+  cancel: Annuler
+  page_done: "Page \"%{name}\" déplacée dans le dossier de corbeille"
+  asset_done: "Ressource \"%{name}\" déplacée dans le dossier de corbeille"
+  asset_kept: "\"%{name}\" est encore utilisé par %{count} bloc(s) ; le fichier a été conservé"
+  failed: "Impossible de supprimer : %{error}"
+  not_a_page: Ouvrez d'abord une page
+activity:
+  title: Activité de l'agent
+  loading: Chargement...
+  empty: Aucun appel d'agent ne correspond.
+  pick: Choisissez une entrée pour voir ce que l'agent a fait.
+  no_session: Ouvrez d'abord un graphe
+  writes_only: Écritures
+  errors_only: Erreurs
+  undo: Annuler cet appel
+  undone: La modification de l'agent a été annulée
+  undone_badge: annulé
+  already_undone: Déjà annulé
+  not_a_write: Cet appel n'a pas modifié le graphe
+  no_undo_data: Les données d'annulation ont disparu (l'application a redémarré depuis l'appel) ou l'appel a échoué
+  tool: Outil
+  result: Résultat
+  client: Client et jeton
+  args: Arguments
+  pages: Pages
+  affected: Blocs (cliquer pour afficher)
+rename:
+  failed: "Impossible de renommer : %{error}"
+  merge_title: "La page \"%{to}\" existe déjà. Y fusionner \"%{from}\" ?"
+  merge_ok: Fusionner
+  merge_blocks: "%{source} bloc(s) de \"%{from}\" sont déplacés à la fin de \"%{to}\", qui en contient déjà %{target}. Les références à \"%{from}\" sont réécrites et son fichier est déplacé dans logseq/.recycle/."
+  merge_aliases: "Alias de \"%{from}\" abandonnés : %{aliases}."
+  done: "Page \"%{from}\" renommée en \"%{to}\""
+  merged: "Page \"%{from}\" fusionnée dans \"%{to}\""
+sync:
+  error:
+    required: Ce champ est obligatoire
+    whitespace: Supprimez les espaces et les caractères de contrôle
+    leading_dash: Ne doit pas commencer par un tiret
+    unsupported_url: Utilisez une adresse https://, ssh:// ou utilisateur@hôte:chemin, ou un chemin local
+    bad_branch: Nom de branche invalide
+    bad_email: Saisissez une adresse e-mail valide
+    identity_incomplete: Renseignez le nom et l'e-mail, ou laissez les deux vides
+    destination_not_empty: Le dossier n'est pas vide
+    not_number: Saisissez un nombre entier de secondes
+  dialog:
+    no_graph: Aucun graphe n'est ouvert
+    url_placeholder: https://github.com/vous/notes.git
+    name_placeholder: Votre nom
+    email_placeholder: vous@exemple.org
+    device_placeholder: portable
+    dest_placeholder: Dossier du nouveau graphe
+    dest_prompt: Choisissez le dossier du graphe
+    enable_title: Activer la synchronisation
+    clone_title: Ouvrir un graphe depuis un dépôt distant
+    enable_intro: Connectez ce graphe à un dépôt distant. Bitacora crée le dépôt si nécessaire, valide vos pages et les envoie.
+    clone_intro: Télécharge un graphe depuis un dépôt distant dans un nouveau dossier et l'ouvre.
+    url: URL du dépôt distant
+    dest: Dossier de destination
+    browse: Parcourir...
+    branch: Branche
+    name: Nom de l'auteur
+    email: E-mail de l'auteur
+    device: Nom de l'appareil
+    commit_idle: Valider après inactivité (s, 5-600)
+    commit_max: Valider au plus toutes les (s)
+    fetch: Récupérer toutes les (s)
+    squash: Regrouper les validations automatiques récentes
+    identity_note: L'auteur est enregistré dans ce dépôt uniquement ; vos paramètres globaux ne sont pas modifiés. Laissez les deux vides pour utiliser « Bitacora ».
+    running_enable: Connexion au dépôt distant et envoi...
+    running_clone: Téléchargement du graphe...
+    migrate: Copier les données du dépôt dans le dossier du graphe
+    cancel: Annuler
+    enable: Activer la synchronisation
+    clone: Cloner et ouvrir
+    needs_merge: Le dépôt distant a déjà un historique ; la première synchronisation le fusionne avec ce graphe.
+    enabled: La synchronisation est activée
+    cloned: "%{name} cloné"
+  panel:
+    title: Synchronisation
+    ago_now: à l'instant
+    ago_minutes: "il y a %{count} min"
+    ago_hours: "il y a %{count} h"
+    ago_days: "il y a %{count} j"
+    last_sync: "Dernière synchro : %{when}"
+    never_synced: Pas encore synchronisé
+    ahead_behind: "%{ahead} à envoyer, %{behind} à fusionner"
+    resolve_conflicts: "Résoudre les conflits (%{count})"
+    retry: Réessayer
+    sync_now: Synchroniser maintenant
+    starting: La synchronisation démarre...
+    off: La synchronisation est désactivée pour ce graphe.
+    backend: Moteur Git
+    none: non défini
+    identity_default: Bitacora (par défaut)
+    remote: Dépôt distant
+    branch: Branche
+    device: Appareil
+    identity: Auteur des validations
+    timing: Délais
+    timing_value: "validation après %{idle} s d'inactivité, au plus toutes les %{max} s ; récupération toutes les %{fetch} s ; regroupement %{squash}"
+    on: activé
+    off_word: désactivé
+    change: Modifier...
+    enable: Activer la synchronisation...
+    disable: Désactiver la synchronisation
+    askpass_on: Les demandes de mot de passe et de phrase secrète s'affichent dans Bitacora.
+    askpass_off: L'utilitaire askpass est introuvable ; le client système ne peut pas demander d'identifiants (utilisez un agent SSH ou un assistant d'identifiants).
+    cli_intro: "La même chose depuis un terminal :"
+    history: Historique de la page actuelle...
+credentials:
+  kind_password: Identifiants du dépôt distant
+  kind_passphrase: Phrase secrète de la clé SSH
+  username: Nom d'utilisateur
+  secret: Mot de passe ou jeton
+  password: Mot de passe ou jeton
+  passphrase: Phrase secrète
+  remember: Mémoriser dans le trousseau du système
+  more: "%{count} autre(s) demande(s) en attente"
+  cancel: Annuler
+  ok: OK
+  intro: "Le dépôt distant %{target} demande des identifiants."
+history:
+  title: "Historique de %{page}"
+  session_gone: La session du graphe est fermée
+  loading: Chargement de l'historique...
+  loading_diff: Comparaison...
+  empty: Aucun commit n'a encore touché cette page.
+  pick_version: Choisissez une version pour la comparer à la page actuelle.
+  same: Cette version est identique à la page actuelle.
+  only_meta: Seules les métadonnées diffèrent (identifiants, état replié). Activez les changements de métadonnées pour les voir.
+  restored: "%{count} bloc(s) restauré(s)"
+  restored_skipped: "%{count} bloc(s) restauré(s) ; %{skipped} n'ont pas pu être appliqués"
+  undone: Restauration annulée
+  by_agent: "agent %{agent}"
+  change_added: créée
+  change_modified: modifiée
+  change_renamed: "renommée depuis %{from}"
+  change_deleted: supprimée
+  kind_added: Ajouté depuis
+  kind_removed: Supprimé depuis
+  kind_changed: Modifié
+  kind_meta: Métadonnées uniquement
+  that_version: Cette version
+  now: Maintenant
+  restore_selected: "Restaurer la sélection (%{count})"
+  restore_page: Restaurer toute la page
+  undo: Annuler la restauration
+  show_meta: Changements de métadonnées
+conflicts:
+  title: Résoudre les conflits
+  none: Il n'y a aucun conflit à résoudre.
+  progress: "%{done} sur %{total} résolus"
+  finished: Tous les conflits sont résolus. La fusion est validée et envoyée.
+  remaining: "%{count} conflit(s) restant(s)"
+  shortcuts: "Touches : j/k déplacer, m le mien, t le leur, b les deux, e modifier, Échap fermer"
+  mine: Le mien (cet appareil)
+  theirs: Le leur
+  theirs_by: "Le leur (%{author}, %{when})"
+  deleted: (supprimé)
+  keep_mine: Garder le mien
+  keep_theirs: Garder le leur
+  keep_both: Garder les deux
+  keep_both_alias: Garder les deux (alias)
+  keep_modified: Garder (modifié)
+  delete: Supprimer
+  edit: Modifier
+  all_mine: Tout le mien
+  all_theirs: Tout le leur
+  chose_mine: Le mien conservé
+  chose_theirs: Le leur conservé
+  chose_both: Les deux conservés
+  chose_edit: Modifié
+  suggestion: "Suggestion : %{text}"
+  edit_hint: Écrivez le texte final. Les deux versions sont affichées ci-dessus ; les marqueurs de conflit ne sont jamais écrits.
+  save_edit: Enregistrer
+  cancel_edit: Annuler
+disk:
+  title: Cette page a changé sur le disque
+  body: Un autre programme a modifié le fichier alors que vous aviez des modifications non enregistrées. Votre version est conservée et ne sera pas enregistrée tant que vous n'aurez pas choisi.
+  body_no_base: Le fichier a changé sur le disque alors que vous aviez des modifications non enregistrées. Votre version est conservée et ne sera pas enregistrée tant que vous n'aurez pas choisi.
+  keep_mine: Garder la mienne (écraser)
+  take_disk: Prendre la version du disque
+  show_diff: Afficher les différences
+  diff_title: "Modifications sur le disque : %{page}"
+  no_diff: Aucun bloc ne diffère.
+  kind_changed: Modifié
+  kind_only_mine: Uniquement dans la mienne
+  kind_only_disk: Uniquement sur le disque
+  mine: La mienne (non enregistrée)
+  disk: Sur le disque
+  absent: (absent)
+  sync_conflicts: "Cette page a %{count} conflit(s) de synchronisation à résoudre"
+  resolve: Résoudre
+  kept_mine: Votre version a été conservée ; la version du disque a été sauvegardée
+  took_disk: La version du disque a été chargée ; votre version a été sauvegardée
+  resolve_failed: "Impossible de résoudre : %{error}"
+crash:
+  notice: Bitacora s'est fermé de façon inattendue la dernière fois
+  review: Consulter le rapport
+  title: Rapport de plantage
+  explain: "Rien n'a été envoyé. Relisez le rapport ci-dessous ; l'ouverture d'un ticket affiche dans votre navigateur un formulaire prérempli que vous pouvez modifier avant de l'envoyer. Échap pour fermer."
+  open_issue: Ouvrir un ticket GitHub
+  copy: Copier le rapport
+update:
+  check_updates: Rechercher des mises à jour...
+  up_to_date: Bitacora est à jour
+  check_failed: "Impossible de rechercher les mises à jour : %{error}"
+  available: "Bitacora %{version} est disponible"
+  download: Télécharger
+  downloading: "Téléchargement de Bitacora %{version} en arrière-plan"
+  ready: "Bitacora %{version} est prêt à être installé"
+  restart: Redémarrer maintenant
+  apply_failed: "Impossible d'appliquer la mise à jour : %{error}"
+a11y:
+  expand_block: Développer le bloc
+  collapse_block: Réduire le bloc
+  zoom_block: Zoomer sur le bloc
+  open_block: Ouvrir le bloc
+  empty_block: Bloc vide
+graph_view:
+  title: Vue du graphe
+  local_title: Graphe local
+  pages: "%{count} pages"
+  fit: Ajuster
+  hops: "Sauts : %{n}"
+  less: Moins de sauts
+  more: Plus de sauts
+  reset_focus: Réinitialiser le focus
+  empty: Aucune page à afficher
+  loading: Chargement du graphe...
+  settings: "Paramètres du graphe"
+  nodes: "Nœuds"
+  search: "Recherche"
+  forces: "Forces"
+  export: "Exporter"
+  links: "%{count} liens"
+  journals: "Journaux"
+  orphans: "Pages orphelines"
+  builtins: "Pages intégrées"
+  excluded: "Pages exclues"
+  pause: "Mettre la simulation en pause"
+  resume: "Reprendre la simulation"
+  search_placeholder: "Surligner les pages par nom..."
+  link_dist: "Longueur des liens"
+  charge: "Intensité de la charge"
+  charge_range: "Portée de la charge"
+  reset_forces: "Réinitialiser les forces"
+  export_svg: "Enregistrer en SVG"
+  export_png: "Enregistrer en PNG"
+  on: "Activé"
+  off: "Désactivé"
+  minus: "-"
+  plus: "+"
+  decrease: "Diminuer"
+  increase: "Augmenter"
+  exported: "Graphe enregistré dans %{path}"
+  export_failed: "Impossible d'exporter le graphe : %{error}"
+  save_failed: "Impossible d'enregistrer les paramètres du graphe : %{error}"
+  export_note: "Le PNG n'a pas d'étiquettes."
+tasks:
+  title: Tâches
+  summary: "%{count} ouvertes dans le graphe"
+  overdue_count: "%{count} en retard"
+  filter_all: Toutes
+  filter_overdue: En retard
+  filter_doing: En cours
+  filter_todo: À faire
+  filter_later: Plus tard
+  priority: "Priorité %{letter}"
+  group_overdue: En retard
+  group_week: Cette semaine
+  group_later: Plus tard
+  group_none: Sans date
+  scheduled: "prévue le %{date}"
+  deadline: "échéance le %{date}"
+  overdue_tag: en retard
+  no_date: sans date
+  in_page: "dans %{page}"
+  open_block: ouvrir
+  empty: Aucune tâche ouverte ne correspond.
+  err_page: "Impossible d'ouvrir la page %{page}."
+  err_moved: La tâche a changé sur le disque ; rechargez et réessayez.
+chat:
+  placeholder: Posez une question sur vos notes...
+  empty_hint: Joignez une page ou une sélection pour cibler la réponse. Seul ce que vous joignez est envoyé avec votre question.
+  model_unknown: Pando
+  sub_agents: "%{count} sous-agents"
+  threads: Conversations
+  threads_loading: Chargement des conversations...
+  threads_empty: Aucune conversation pour le moment.
+  threads_unavailable: Pando n'est pas connecté.
+  thread_untitled: Conversation
+  thread_delete_failed: La conversation n'a pas pu être supprimée.
+  working: Travail en cours...
+  stopped: Arrêté
+  reasoning: Raisonnement
+  tool_input: Entrée
+  tool_group: "%{count} appels d'outils"
+  tool_group_failed: "%{count} en échec"
+  model_default_tag: par défaut
+  tool_output: Sortie
+  no_graph: Ouvrez un graphe et connectez Pando dans les paramètres pour discuter.
+  no_events: Le chat n'a pas pu démarrer son lecteur d'événements.
+  unavailable: "Chat indisponible : %{reason}"
+  context: "Contexte :"
+  add_page: "+ Page"
+  add_selection: "+ Sélection"
+  ctx_no_page: Ouvrez d'abord une page.
+  ctx_no_selection: Sélectionnez d'abord des blocs.
+  mode_read: Lecture seule
+  mode_edit: Peut proposer des modifications
+  apply: Appliquer
+  allow: Autoriser
+  deny: Refuser
+  skip: Ignorer
+  auto_deny: "Refusé automatiquement après %{seconds} s sans réponse"
+  perm_title: Demande d'autorisation
+  remember: "Mémoriser ma décision"
+  perm_explicit: Nécessite votre approbation explicite.
+  question_title: L'assistant demande
+  diff_more: "... %{count} lignes de plus"
+  op_insert: Insérer
+  op_update: Mettre à jour
+  op_move: Déplacer
+  op_delete: Supprimer
+  op_property: Propriété
+  edit_applying: Approuvé, application en cours...
+  edit_applied: "%{count} bloc(s) appliqué(s) sur [[%{page}]]. Ctrl+Z pour annuler."
+  edit_failed: "Non appliqué : %{error}"
+  answered: Répondu
+  denied_user: Refusé
+  denied_timeout: Refusé, pas de réponse à temps
+  denied_panel: Refusé, le panneau a été fermé
+  denied_thread: Refusé, la conversation a changé
+  denied_graph: Refusé, le graphe a changé
+  denied_quit: Refusé, l'application a quitté
+  denied_cancelled: Refusé, l'exécution a été arrêtée
+  denied_expired: Refusé, la demande a expiré
+migrate:
+  theme_replaced: "Votre choix de thème a été remplacé par le thème Bitacora (les autres thèmes ont été retirés dans la version 2.0)."
+  custom_themes: "%{count} fichier(s) de thème personnalisé dans votre dossier de thèmes ne sont plus chargés et n'ont pas été touchés ; les fichiers de jeux de couleurs reviendront après la version 2.0."
+  layout_reset: "La disposition de la fenêtre a été réinitialisée pour le nouveau design."
+  settings_unreadable: "settings.json n'a pas pu être lu ; les valeurs par défaut sont utilisées et le fichier a été conservé sous le nom settings.json.1x.bak."
+
+planning:
+  change_date: "Changer la date"
+  remove: "Retirer la date"
+  scheduled: Prévu
+  deadline: Échéance

@@ -8,7 +8,11 @@
 use rust_i18n::t;
 
 /// Languages the UI ships, as `(tag, native name)`.
-pub const LANGUAGES: &[(&str, &str)] = &[("en", "English"), ("es", "Espa\u{f1}ol")];
+pub const LANGUAGES: &[(&str, &str)] = &[
+    ("en", "English"),
+    ("es", "Espa\u{f1}ol"),
+    ("fr", "Fran\u{e7}ais"),
+];
 
 /// The fallback language.
 pub const DEFAULT: &str = "en";
@@ -80,10 +84,18 @@ mod tests {
     use super::*;
 
     #[test]
+    fn french_tags_are_matched() {
+        for raw in ["fr", "fr_FR.UTF-8", "fr-CA", "fr_BE", "FR", "fr_CH@euro"] {
+            assert_eq!(match_tag(raw), Some("fr"), "{raw}");
+        }
+        assert_eq!(resolve(Some("fr_FR.UTF-8")), "fr");
+    }
+
+    #[test]
     fn tags_are_matched_loosely() {
         assert_eq!(match_tag("es_ES.UTF-8"), Some("es"));
         assert_eq!(match_tag("en-US"), Some("en"));
-        assert_eq!(match_tag("fr"), None);
+        assert_eq!(match_tag("xx"), None);
         assert_eq!(resolve(Some("es")), "es");
         assert_eq!(resolve(Some("xx")).len(), 2);
     }

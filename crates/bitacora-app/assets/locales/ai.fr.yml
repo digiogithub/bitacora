@@ -1,0 +1,30 @@
+ai:
+  close: Fermer
+  cancel: Annuler
+  retry: Réessayer
+  not_connected: Pando n'est pas connecté.
+  no_graph: Ouvrez d'abord un graphe.
+  review:
+    title: Bilan par l'IA
+    hint: Résumez votre journal avec l'assistant. Rien n'est écrit dans votre graphe.
+    today: Bilan du jour
+    week: Bilan de la semaine
+    refresh: Refaire le bilan
+    running: "Bilan en cours : %{range}..."
+    cached: Depuis le bilan enregistré
+    tasks: Encore ouvertes
+    actions: Prochaines actions
+    off: Le bilan du journal est désactivé pour ce graphe.
+    cmd_unavailable: "Le bilan du journal n'est pas disponible : %{reason}"
+  suggest:
+    title: Suggestions de l'IA
+    run: Suggérer
+    refresh: Suggérer à nouveau
+    hint: Demandez des pages liées, des liens, des étiquettes et les prochaines actions pour cette page.
+    running: Recherche de suggestions...
+    none: Aucune suggestion pour cette page.
+    off: Les recommandations sont désactivées pour ce graphe.
+    stale: Le bloc a changé depuis la suggestion ; redemandez.
+    page_unavailable: La page n'a pas pu être ouverte en modification.
+    tags_front_matter: Cette page garde ses propriétés dans un en-tête YAML ; ajoutez l'étiquette à la main.
+    link_title: "Lien vers [[%{target}]]"
