@@ -26,7 +26,7 @@ use crate::session::SessionLink;
 use crate::ui::theme::{ActiveBitacoraTheme as _, TypeStyleExt as _};
 use crate::ui::{
     ActiveTheme as _, AnyElement, Context, EventEmitter, FluentBuilder as _,
-    InteractiveElement as _, IntoElement, ParentElement as _, Render,
+    InteractiveElement as _, IntoElement, ParentElement as _, Render, SharedString,
     StatefulInteractiveElement as _, Styled as _, Task, Window, div, h_flex, v_flex,
 };
 use crate::views::calendar::Month;
@@ -330,6 +330,23 @@ pub fn apply_action(
         .map_err(|e| e.to_string())
 }
 
+/// The month a date picker opens on: the month of `due` (`yyyyMMdd`), or the current month for a
+/// task that has no date yet (BIT-US-0187).
+fn picker_month(due: Option<i64>, this_year: i32, this_month: u8) -> Month {
+    match due {
+        Some(d) => Month {
+            year: i32::try_from(d / 10_000).unwrap_or(this_year),
+            month: u8::try_from(d / 100 % 100)
+                .unwrap_or(this_month)
+                .clamp(1, 12),
+        },
+        None => Month {
+            year: this_year,
+            month: this_month.clamp(1, 12),
+        },
+    }
+}
+
 /// `yyyyMMdd` as `yyyy-MM-dd`.
 fn format_day(day: i64) -> String {
     format!(
@@ -534,12 +551,13 @@ impl TasksView {
             .rows
             .iter()
             .find(|r| r.uuid == uuid)
-            .and_then(|r| r.due)
-            .unwrap_or(0);
-        let month = Month {
-            year: i32::try_from(due / 10_000).unwrap_or(1970),
-            month: u8::try_from(due / 100 % 100).unwrap_or(1).clamp(1, 12),
-        };
+            .and_then(|r| r.due);
+        let now = jiff::Zoned::now();
+        let month = picker_month(
+            due,
+            i32::from(now.year()),
+            u8::try_from(now.month()).unwrap_or(1),
+        );
         self.planning = Some((uuid.to_owned(), OpenPicker { keyword, month }));
         cx.notify();
     }
@@ -744,7 +762,7 @@ impl TasksView {
             .gap_x(theme.metrics.space[3]);
         title = title.child(
             div()
-                .id(("tasks-marker", task.ord as usize))
+                .id(SharedString::from(format!("tasks-marker-{}", task.uuid)))
                 .cursor_pointer()
                 .when(editable, |d| {
                     d.on_click(move |_, _, cx| {
@@ -775,7 +793,11 @@ impl TasksView {
                 .items_start()
                 .child(
                     div()
-                        .id(("tasks-check", task.ord as usize))
+                        .id(SharedString::from(format!("tasks-check-{}", task.uuid)))
+                        .debug_selector({
+                            let uuid = task.uuid.clone();
+                            move || format!("tasks-check-{uuid}")
+                        })
                         .flex_shrink_0()
                         .mt(theme.metrics.space[1])
                         .size(theme.metrics.icon_sm)
@@ -799,14 +821,14 @@ impl TasksView {
                         .gap(theme.metrics.space[3])
                         .child(match edit_build {
                             Some(build) => div()
-                                .id(("tasks-open", task.ord as usize))
+                                .id(SharedString::from(format!("tasks-open-{}", task.uuid)))
                                 .type_style(&theme.type_scale.panel_body)
                                 .text_color(c.text)
                                 .child(build(&ui_theme))
                                 .into_any_element(),
                             None => {
                                 let area = div()
-                                    .id(("tasks-open", task.ord as usize))
+                                    .id(SharedString::from(format!("tasks-open-{}", task.uuid)))
                                     .cursor_pointer()
                                     .type_style(&theme.type_scale.panel_body)
                                     .text_color(c.text);
@@ -852,7 +874,10 @@ impl TasksView {
                                 .text_color(c.muted)
                                 .child(
                                     div()
-                                        .id(("tasks-page-link", task.ord as usize))
+                                        .id(SharedString::from(format!(
+                                            "tasks-page-link-{}",
+                                            task.uuid
+                                        )))
                                         .cursor_pointer()
                                         .hover(|s| s.text_color(c.accent))
                                         .on_click(move |_, _, cx| {
@@ -870,7 +895,7 @@ impl TasksView {
                                 .child(match task.due {
                                     Some(d) => div().when(overdue, |d| d.text_color(c.warn)).child(
                                         PlanningChipView::new(
-                                            format!("task-{}", task.ord),
+                                            format!("task-{}", task.uuid),
                                             if task.deadline {
                                                 "DEADLINE"
                                             } else {
@@ -881,11 +906,25 @@ impl TasksView {
                                         )
                                         .label(sched),
                                     ),
+                                    // No date yet: the label opens the same picker and a pick
+                                    // adds `SCHEDULED:` (BIT-US-0187).
+                                    None if editable => div().child(
+                                        PlanningChipView::new(
+                                            format!("task-{}", task.uuid),
+                                            "SCHEDULED",
+                                            "",
+                                            Some(self.planning_actions(&uuid, cx)),
+                                        )
+                                        .label(sched),
+                                    ),
                                     None => div().child(sched),
                                 })
                                 .child(
                                     div()
-                                        .id(("tasks-open-block", task.ord as usize))
+                                        .id(SharedString::from(format!(
+                                            "tasks-open-block-{}",
+                                            task.uuid
+                                        )))
                                         .cursor_pointer()
                                         .hover(|s| s.text_color(c.accent))
                                         .on_click(move |ev, _, cx| {
@@ -1104,6 +1143,23 @@ mod tests {
     }
 
     #[test]
+    fn the_picker_opens_on_the_due_month_or_the_current_one() {
+        let m = picker_month(Some(20_261_207), 2026, 10);
+        assert_eq!((m.year, m.month), (2026, 12));
+        let m = picker_month(None, 2026, 10);
+        assert_eq!((m.year, m.month), (2026, 10));
+    }
+
+    #[test]
+    fn picking_a_day_for_an_undated_task_adds_a_scheduled_line() {
+        let (y, m, d) = planning::split_key(20_261_020);
+        assert_eq!(
+            move_planning_date("TODO write", planning::SCHEDULED, y, m, d),
+            "TODO write\nSCHEDULED: <2026-10-20 Tue>"
+        );
+    }
+
+    #[test]
     fn dates_are_formatted_as_iso_days() {
         assert_eq!(format_day(20_261_007), "2026-10-07");
     }
@@ -1288,6 +1344,93 @@ mod tests {
             disk.contains("- TODO second") && disk.contains("- TODO first"),
             "{disk}"
         );
+        let _ = session.shutdown(Duration::from_secs(10));
+    }
+
+    /// A live session over `files` and the view-side handles to it.
+    fn live(
+        files: &[(&str, &str)],
+    ) -> (
+        tempfile::TempDir,
+        tempfile::TempDir,
+        Session,
+        GraphHandle,
+        SessionLink,
+    ) {
+        let (graph, data, session) = session(files);
+        let handle = GraphHandle {
+            reader: session.read_api(),
+            root: session.root().to_path_buf(),
+            settings: Arc::new(crate::data::ViewSettings::from_config(session.config())),
+        };
+        let link = SessionLink {
+            queue: session.queue().clone(),
+            config: Arc::new(session.config().clone()),
+            mcp_endpoint: None,
+            gate: Arc::default(),
+            lookup: session.ref_lookup(),
+            hybrid: None,
+        };
+        (graph, data, session, handle, link)
+    }
+
+    #[gpui_test]
+    fn clicking_the_checkbox_completes_the_task(cx: &mut TestAppContext) {
+        cx.update(|cx| {
+            crate::ui::init(cx);
+            theme::install(cx, AppSettings::default(), None);
+        });
+        // Both pages have blocks at the same `ord`: the rows must still be told apart.
+        let (graph, _data, session, handle, link) = live(&[
+            ("pages/Work.md", "- TODO first\n- TODO second\n"),
+            ("pages/Home.md", "- TODO third\n- TODO fourth\n"),
+        ]);
+        let (view, cx) = cx.add_window_view(|_, cx| TasksView::new(cx));
+        view.update(cx, |v, cx| {
+            v.set_session_link(Some(link.clone()), cx);
+            v.show(handle, cx);
+        });
+        cx.executor().allow_parking();
+        for _ in 0..400 {
+            cx.run_until_parked();
+            if view.read_with(cx, |v, _| v.is_loaded()) {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        cx.update(|window, _| window.refresh());
+        cx.run_until_parked();
+        for (page, title, done) in [
+            ("Work", "second", "- DONE second"),
+            ("Home", "third", "- DONE third"),
+            ("Work", "first", "- DONE first"),
+            ("Home", "fourth", "- DONE fourth"),
+        ] {
+            let uuid = view
+                .read_with(cx, |v, _| {
+                    v.model()
+                        .rows
+                        .iter()
+                        .find(|r| r.title == title)
+                        .map(|r| r.uuid.clone())
+                })
+                .expect("the task is listed");
+            let selector: &'static str = Box::leak(format!("tasks-check-{uuid}").into_boxed_str());
+            let bounds = cx.debug_bounds(selector).expect("the checkbox is painted");
+            cx.simulate_click(bounds.center(), Default::default());
+            let file = graph.path().join(format!("pages/{page}.md"));
+            let mut disk = String::new();
+            for _ in 0..200 {
+                cx.run_until_parked();
+                let _ = link.queue.flush(Source::Ui);
+                disk = std::fs::read_to_string(&file).unwrap_or_default();
+                if disk.contains(done) {
+                    break;
+                }
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            assert!(disk.contains(done), "{title}: {disk}");
+        }
         let _ = session.shutdown(Duration::from_secs(10));
     }
 }
