@@ -132,7 +132,7 @@ impl MainView {
     /// Index id of the page on screen (the "this page" search scope).
     pub fn current_page_id(&self, cx: &App) -> Option<i64> {
         match self.route()? {
-            Route::Page(_) => self.page.read(cx).header().page_id,
+            Route::Page(_) | Route::PageAt { .. } => self.page.read(cx).header().page_id,
             Route::Journals | Route::AllPages | Route::Graph | Route::Tasks | Route::Block(_) => {
                 None
             }
@@ -182,7 +182,7 @@ impl MainView {
         Some(match self.route()? {
             Route::Journals => self.journals.read(cx).scroll(),
             Route::AllPages | Route::Graph | Route::Tasks => Scroll::default(),
-            Route::Page(_) | Route::Block(_) => self.page.read(cx).scroll(),
+            Route::Page(_) | Route::PageAt { .. } | Route::Block(_) => self.page.read(cx).scroll(),
         })
     }
 
@@ -214,7 +214,7 @@ impl MainView {
             Route::AllPages => self.all_pages.update(cx, |v, cx| v.show(handle, cx)),
             Route::Graph => self.graph.update(cx, |v, cx| v.show(handle, cx)),
             Route::Tasks => self.tasks.update(cx, |v, cx| v.show(handle, cx)),
-            Route::Page(_) | Route::Block(_) => {
+            Route::Page(_) | Route::PageAt { .. } | Route::Block(_) => {
                 self.page
                     .update(cx, |p, cx| p.show(handle, route, restore, cx));
             }
@@ -337,6 +337,10 @@ impl MainView {
             }
             NavTarget::Page(name) => Route::Page(name.clone()),
             NavTarget::Block(uuid) => Route::Block(uuid.clone()),
+            NavTarget::PageAt { page, block } => Route::PageAt {
+                page: page.clone(),
+                block: block.clone(),
+            },
         };
         match event {
             PageEvent::OpenInSidebar(_) => cx.emit(MainEvent::OpenInSidebar(route)),

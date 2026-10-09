@@ -1554,6 +1554,13 @@ impl Workspace {
         match target {
             NavTarget::Page(name) => self.navigate(Route::Page(name.clone()), cx),
             NavTarget::Block(uuid) => self.navigate(Route::Block(uuid.clone()), cx),
+            NavTarget::PageAt { page, block } => self.navigate(
+                Route::PageAt {
+                    page: page.clone(),
+                    block: block.clone(),
+                },
+                cx,
+            ),
             NavTarget::Url(url) => cx.open_url(url),
         }
     }
@@ -1567,6 +1574,13 @@ impl Workspace {
         match target {
             NavTarget::Page(name) => self.open_in_new_tab(Route::Page(name.clone()), cx),
             NavTarget::Block(uuid) => self.open_in_new_tab(Route::Block(uuid.clone()), cx),
+            NavTarget::PageAt { page, block } => self.open_in_new_tab(
+                Route::PageAt {
+                    page: page.clone(),
+                    block: block.clone(),
+                },
+                cx,
+            ),
             NavTarget::Url(url) => cx.open_url(url),
         }
     }

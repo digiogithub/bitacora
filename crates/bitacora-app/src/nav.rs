@@ -11,6 +11,14 @@ pub enum Route {
     Page(String),
     /// A block zoomed in, by UUID.
     Block(String),
+    /// A page opened with one of its blocks scrolled into view, highlighted and put in edit mode
+    /// (BIT-US-0187): the context of a task, a search hit or a reference.
+    PageAt {
+        /// Page title.
+        page: String,
+        /// UUID of the block to reveal.
+        block: String,
+    },
     /// The table of all pages.
     AllPages,
     /// The graph view (BIT-US-0157).

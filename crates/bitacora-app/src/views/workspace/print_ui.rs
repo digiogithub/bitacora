@@ -22,7 +22,7 @@ impl Workspace {
         self.graph_handle().is_some()
             && matches!(
                 self.main.read(cx).route(),
-                Some(Route::Page(_) | Route::Block(_))
+                Some(Route::Page(_) | Route::PageAt { .. } | Route::Block(_))
             )
     }
 
@@ -73,14 +73,14 @@ impl Workspace {
         let title = view.title().unwrap_or_default().to_owned();
         let mut rows: Vec<Row> = view.rows().to_vec();
         if view.has_more()
-            && let Route::Page(name) = route
+            && let Route::Page(name) | Route::PageAt { page: name, .. } = route
         {
             // The view fetched the first chunk only: read the whole page from the index.
             rows = data::open_page(handle, name, WHOLE_PAGE)?.rows;
         }
         let title = if title.is_empty() {
             match route {
-                Route::Page(name) => name.clone(),
+                Route::Page(name) | Route::PageAt { page: name, .. } => name.clone(),
                 _ => t!("print.untitled").to_string(),
             }
         } else {
