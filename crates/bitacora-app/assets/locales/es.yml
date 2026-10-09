@@ -18,6 +18,19 @@ sidebar:
   overdue: "%{count} tareas vencidas"
   pages_count: "%{count} páginas"
   mcp_active: Servidor MCP activo
+  mcp_tooltip: "Detalles de conexión MCP"
+  mcp_title: "Servidor MCP"
+  mcp_copy_url: "Copiar URL"
+  mcp_copy_json: "Copiar configuración JSON"
+  mcp_copy_command: "Copiar comando claude mcp add"
+  mcp_manage_tokens: "Gestionar tokens…"
+  mcp_no_token: "Crea un token para copiar la configuración del cliente. La URL sola no autentica."
+  mcp_create_token: "Crear token…"
+  mcp_off: "El servidor MCP está apagado. Actívalo en Ajustes > Agentes."
+  mcp_failed: "El servidor MCP no pudo arrancar (puede que el puerto esté en uso). Consulta Ajustes > Agentes."
+  mcp_open_settings: "Abrir Ajustes > Agentes"
+  mcp_copied: "Copiado"
+  mcp_secret_lost: "El secreto del token no está disponible. Rótalo en Ajustes > Agentes."
   go_to_date: Ir a fecha...
 calendar:
   prev_month: Mes anterior
