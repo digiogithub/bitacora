@@ -277,6 +277,13 @@ fn image_element(
     }
 }
 
+/// The line-number gutter of a code box: `1..=n` for the `n` lines of `text`.
+pub(crate) fn gutter_numbers(text: &str) -> Vec<String> {
+    (1..=text.split('\n').count())
+        .map(|n| n.to_string())
+        .collect()
+}
+
 pub(crate) fn code_element(
     ix: usize,
     code: &CodeBlock,
@@ -349,12 +356,28 @@ pub(crate) fn code_element(
                 .child(copy),
         )
         .child(
-            div()
+            h_flex()
+                .id(("code-body", ix))
+                .items_start()
+                .gap_3()
                 .font_family(theme.mono_font_family.clone())
                 .text_size(theme.mono_font_size)
                 .child(
+                    // Line-number gutter: right-aligned, muted, one number per code line.
+                    v_flex()
+                        .id(("code-gutter", ix))
+                        .flex_none()
+                        .items_end()
+                        .text_color(theme.muted_foreground)
+                        .children(
+                            gutter_numbers(&code.text)
+                                .into_iter()
+                                .map(|n| div().child(n)),
+                        ),
+                )
+                .child(div().flex_1().min_w_0().child(
                     StyledText::new(SharedString::from(code.text.clone())).with_highlights(styles),
-                ),
+                )),
         )
         .into_any_element()
 }
@@ -592,7 +615,12 @@ pub fn render_block_row(
         && block.priority.is_none()
         && matches!(block.body.first(), Some(BodyItem::Widget(_)))
         && actions.widgets.is_some();
-    if !widget_only {
+    // A fence opening the block has no title line above its code box.
+    let code_first = block.title.text.is_empty()
+        && block.marker.is_none()
+        && block.priority.is_none()
+        && matches!(block.body.first(), Some(BodyItem::Code(_)));
+    if !widget_only && !code_first {
         content = content.child(title_line);
     }
     for image in &block.title.images {
@@ -1102,6 +1130,28 @@ mod look_tests {
             }
             assert_eq!(titles.len(), kinds.len());
         }
+    }
+
+    #[test]
+    fn code_gutter_numbers_every_line() {
+        assert_eq!(gutter_numbers("a"), ["1"]);
+        assert_eq!(gutter_numbers("a\nb\n\nd"), ["1", "2", "3", "4"]);
+    }
+
+    #[test]
+    fn nested_fence_without_language_renders_code_inside_the_box() {
+        // BIT-US-0185: the code is the block's body item (drawn inside the box), not its title.
+        let b = BlockModel::from_content(
+            "```\nfastcgi_param HTTPS on;\nsecond;\n```",
+            &Default::default(),
+            &crate::render::inline::NoBlocks,
+        );
+        assert!(b.title.text.is_empty());
+        let [BodyItem::Code(c)] = b.body.as_slice() else {
+            panic!("one code item: {:?}", b.body)
+        };
+        assert_eq!(c.text, "fastcgi_param HTTPS on;\nsecond;");
+        assert_eq!(gutter_numbers(&c.text), ["1", "2"]);
     }
 
     #[test]

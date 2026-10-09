@@ -160,6 +160,14 @@ const SPEC_CASES: &[(&str, &str)] = &[
         "20 lowercase and unclosed regions",
         "- #+begin_note\n  n\n  #+end_note\n- ```python\n  print(1)\n  ```\n- #+BEGIN_NOTE\n  never closed\n- tail\n",
     ),
+    (
+        "21 nested tab-indented fence without language (BIT-US-0185)",
+        "\t- En la config de Nginx\n\t\t- ```\n\t\t  fastcgi_param HTTPS on;\n\t\t  ```\n",
+    ),
+    (
+        "21 nested tab-indented fence with language",
+        "\t- a\n\t\t- ```nginx\n\t\t  fastcgi_param HTTPS on;\n\t\t  ```\n\t\t- next\n",
+    ),
     ("no trailing newline", "- a\n- b"),
     ("empty", ""),
     ("only newline", "\n"),
