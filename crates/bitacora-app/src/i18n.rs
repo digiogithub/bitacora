@@ -12,12 +12,17 @@ pub const LANGUAGES: &[(&str, &str)] = &[
     ("en", "English"),
     ("es", "Espa\u{f1}ol"),
     ("fr", "Fran\u{e7}ais"),
+    ("zh", "\u{4e2d}\u{6587}"),
 ];
 
 /// The fallback language.
 pub const DEFAULT: &str = "en";
 
 /// Reduces a locale such as `es_ES.UTF-8` or `en-US` to a supported tag.
+///
+/// Only the primary language subtag is compared, so every Chinese variant (`zh_CN`, `zh-Hans`,
+/// `zh_SG` and also Traditional `zh_TW`, `zh-Hant`, `zh_HK`) maps to `zh`. Only Simplified
+/// Chinese ships; Traditional users get it as the closest available translation.
 pub fn match_tag(raw: &str) -> Option<&'static str> {
     let primary = raw
         .split(['-', '_', '.', '@'])
@@ -98,5 +103,24 @@ mod tests {
         assert_eq!(match_tag("xx"), None);
         assert_eq!(resolve(Some("es")), "es");
         assert_eq!(resolve(Some("xx")).len(), 2);
+    }
+
+    #[test]
+    fn every_chinese_variant_maps_to_simplified_chinese() {
+        for raw in [
+            "zh",
+            "zh_CN.UTF-8",
+            "zh-CN",
+            "zh-Hans",
+            "zh-Hans-CN",
+            "zh_SG",
+            "zh_TW.UTF-8",
+            "zh-Hant",
+            "zh_HK",
+            "ZH-cn",
+        ] {
+            assert_eq!(match_tag(raw), Some("zh"), "{raw}");
+        }
+        assert_eq!(resolve(Some("zh-Hans")), "zh");
     }
 }
