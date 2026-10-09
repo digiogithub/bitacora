@@ -2,7 +2,7 @@
 id: BIT-US-0184
 type: story
 title: AI journal review suggestions overflow the panel instead of scrolling
-status: in_review
+status: done
 priority: high
 parent: BIT-EP-0027
 milestone: BIT-M-0011
@@ -10,8 +10,9 @@ author: mcp
 labels: [bug, bitacora-app, ai, journals]
 estimate: 2
 created: 2026-10-09T11:23:31Z
-updated: 2026-10-09T11:35:41Z
+updated: 2026-10-09T12:12:48Z
 started: 2026-10-09T11:35:41Z
+closed: 2026-10-09T12:12:48Z
 ---
 
 ## Description

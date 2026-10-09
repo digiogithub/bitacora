@@ -2,10 +2,11 @@
 id: BIT-M-0011
 type: milestone
 title: "M10 — 2.1 owner improvements: printing, tab overflow, more languages"
-status: backlog
+status: done
 author: mcp
 created: 2026-10-09T07:10:05Z
-updated: 2026-10-09T07:10:05Z
+updated: 2026-10-09T12:12:53Z
+closed: 2026-10-09T12:12:53Z
 due: 2026-10-23
 ---
 
