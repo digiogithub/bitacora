@@ -2,7 +2,7 @@
 id: BIT-US-0185
 type: story
 title: Fenced code block in a nested block renders its text outside the code box, without line numbers
-status: backlog
+status: in_review
 priority: high
 parent: BIT-EP-0027
 milestone: BIT-M-0011
@@ -10,7 +10,8 @@ author: mcp
 labels: [bug, bitacora-app, editor, code-block]
 estimate: 3
 created: 2026-10-09T11:23:31Z
-updated: 2026-10-09T11:23:31Z
+updated: 2026-10-09T11:35:41Z
+started: 2026-10-09T11:35:41Z
 ---
 
 ## Description
