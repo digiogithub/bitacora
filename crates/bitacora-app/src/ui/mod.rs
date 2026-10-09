@@ -473,6 +473,21 @@ pub mod testing {
     pub fn platform_text_system() -> gpui_kit::TextSystem {
         gpui_kit::TextSystem::new(gpui_kit::platform::current_platform(true).text_system())
     }
+
+    /// Shapes `text` in `run`'s font and returns the glyph ids (0 is the missing-glyph box).
+    pub fn shaped_glyph_ids(
+        system: gpui_kit::TextSystem,
+        text: &str,
+        run: gpui_kit::TextRun,
+    ) -> Vec<u32> {
+        let window = gpui_kit::gpui::WindowTextSystem::new(std::sync::Arc::new(system));
+        let layout = window.layout_line(text, gpui_kit::gpui::px(14.0), &[run], None);
+        layout
+            .runs
+            .iter()
+            .flat_map(|r| r.glyphs.iter().map(|g| g.id.0))
+            .collect()
+    }
 }
 
 #[cfg(test)]

@@ -90,4 +90,40 @@ mod tests {
             system.resolve_font(&font);
         }
     }
+
+    // GPUI's cosmic-text stack (gpui-pre-wgpu `cosmic_text_system.rs`, `font_id_for_cosmic_id`)
+    // substitutes a system font for glyphs the requested family lacks, so no CJK fallback list
+    // is configured. Skipped when the host has no CJK font installed.
+    #[test]
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "needs the Linux cosmic-text font stack"
+    )]
+    fn chinese_text_falls_back_to_a_system_font() {
+        use crate::ui::text_edit::TextRun;
+        let system = platform_text_system();
+        add(&system);
+        let host_has_cjk = system
+            .all_font_names()
+            .iter()
+            .any(|n| n.contains("CJK") || n.contains("WenQuanYi") || n.contains("Han Sans"));
+        if !host_has_cjk {
+            return;
+        }
+        let text = "\u{8bbe}\u{7f6e}\u{641c}\u{7d22}";
+        let run = TextRun {
+            len: text.len(),
+            font: Font {
+                family: FONT_UI.into(),
+                ..Font::default()
+            },
+            color: Default::default(),
+            background_color: None,
+            underline: None,
+            strikethrough: None,
+        };
+        let ids = crate::ui::testing::shaped_glyph_ids(system, text, run);
+        assert_eq!(ids.len(), 4);
+        assert!(ids.iter().all(|id| *id != 0), "notdef glyph: {ids:?}");
+    }
 }

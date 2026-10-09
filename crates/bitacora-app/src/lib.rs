@@ -333,4 +333,16 @@ mod i18n_tests {
             "Esta página es de solo lectura."
         );
     }
+
+    #[test]
+    fn chinese_translations_resolve_through_rust_i18n() {
+        assert_eq!(
+            rust_i18n::t!("settings.section.appearance", locale = "zh"),
+            "\u{5916}\u{89c2}"
+        );
+        assert_eq!(
+            rust_i18n::t!("editor.refusal.read_only", locale = "zh"),
+            "\u{6b64}\u{9875}\u{9762}\u{4e3a}\u{53ea}\u{8bfb}\u{3002}"
+        );
+    }
 }

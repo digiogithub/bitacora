@@ -1,0 +1,19 @@
+widgets:
+  edit_source: "编辑"
+  query:
+    title: "查询结果"
+    count: "%{count} 条结果"
+    running: "正在运行……"
+    view_list: "列表"
+    view_table: "表格"
+    columns: "列"
+    refresh: "刷新"
+    empty: "没有结果"
+    error: "查询错误：%{message}"
+    unsupported: "不支持的查询：%{message}"
+    truncated: "仅显示前 %{count} 条结果。"
+  embed:
+    loading: "正在加载嵌入内容……"
+    missing: "未找到被嵌入的页面或块。"
+    circular: "循环嵌入"
+    too_deep: "嵌入层级过深（上限 %{max}）。"

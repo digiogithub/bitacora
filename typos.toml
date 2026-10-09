@@ -7,6 +7,9 @@ extend-exclude = [
     # Spanish translations are not English words
     "crates/bitacora-app/assets/locales/es.yml",
     "crates/bitacora-app/assets/locales/*.es.yml",
+    # Chinese translations are not English words
+    "crates/bitacora-app/assets/locales/zh.yml",
+    "crates/bitacora-app/assets/locales/*.zh.yml",
     # Vendored design system sources and docs are written in Spanish
     "design/**",
 ]
