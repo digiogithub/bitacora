@@ -18,6 +18,19 @@ sidebar:
   overdue: "%{count} overdue tasks"
   pages_count: "%{count} pages"
   mcp_active: MCP server active
+  mcp_tooltip: "MCP connection details"
+  mcp_title: "MCP server"
+  mcp_copy_url: "Copy URL"
+  mcp_copy_json: "Copy JSON config"
+  mcp_copy_command: "Copy claude mcp add command"
+  mcp_manage_tokens: "Manage tokens…"
+  mcp_no_token: "Create a token to copy a client configuration. The URL alone does not authenticate."
+  mcp_create_token: "Create token…"
+  mcp_off: "The MCP server is off. Turn it on in Settings > Agents."
+  mcp_failed: "The MCP server could not start (the port may be in use). See Settings > Agents."
+  mcp_open_settings: "Open Settings > Agents"
+  mcp_copied: "Copied"
+  mcp_secret_lost: "The token secret is not available. Rotate it in Settings > Agents."
   go_to_date: Go to date...
 calendar:
   prev_month: Previous month

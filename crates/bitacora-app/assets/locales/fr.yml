@@ -18,6 +18,19 @@ sidebar:
   overdue: "%{count} tâches en retard"
   pages_count: "%{count} pages"
   mcp_active: Serveur MCP actif
+  mcp_tooltip: "Détails de connexion MCP"
+  mcp_title: "Serveur MCP"
+  mcp_copy_url: "Copier l’URL"
+  mcp_copy_json: "Copier la configuration JSON"
+  mcp_copy_command: "Copier la commande claude mcp add"
+  mcp_manage_tokens: "Gérer les jetons…"
+  mcp_no_token: "Créez un jeton pour copier la configuration du client. L’URL seule n’authentifie pas."
+  mcp_create_token: "Créer un jeton…"
+  mcp_off: "Le serveur MCP est désactivé. Activez-le dans Réglages > Agents."
+  mcp_failed: "Le serveur MCP n’a pas pu démarrer (le port est peut-être utilisé). Voir Réglages > Agents."
+  mcp_open_settings: "Ouvrir Réglages > Agents"
+  mcp_copied: "Copié"
+  mcp_secret_lost: "Le secret du jeton est indisponible. Renouvelez-le dans Réglages > Agents."
   go_to_date: Aller à la date...
 calendar:
   prev_month: Mois précédent

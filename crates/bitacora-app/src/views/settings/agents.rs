@@ -29,6 +29,15 @@ pub enum SnippetKind {
     Command,
 }
 
+/// The client configuration for `endpoint` and `secret`, ready to paste. Shared by the Settings
+/// token table and the sidebar's MCP connection popover (BIT-US-0186) so both copy the same text.
+pub fn client_snippet(kind: SnippetKind, endpoint: &str, secret: &str) -> String {
+    match kind {
+        SnippetKind::Json => model::client_config_json(endpoint, secret),
+        SnippetKind::Command => model::client_config_command(endpoint, secret),
+    }
+}
+
 /// `YYYY-MM-DD` of unix seconds (UTC).
 fn day_of(secs: i64) -> String {
     bitacora_core::date::Date::from_unix_secs(secs, 0).map_or_else(String::new, |d| {
@@ -251,10 +260,7 @@ impl SettingsView {
     pub fn snippet(&self, name: &str, kind: SnippetKind) -> Option<String> {
         let endpoint = self.mcp.endpoint.as_deref()?;
         let secret = self.ctx.tokens.as_ref()?.secret_of(name)?;
-        Some(match kind {
-            SnippetKind::Json => model::client_config_json(endpoint, &secret),
-            SnippetKind::Command => model::client_config_command(endpoint, &secret),
-        })
+        Some(client_snippet(kind, endpoint, &secret))
     }
 
     fn copy_snippet(&mut self, name: &str, kind: SnippetKind, cx: &mut Context<Self>) {

@@ -8,24 +8,29 @@
 //! displayed month changes and, debounced, after index events.
 
 use std::rc::Rc;
+use std::sync::Arc;
 use std::time::Duration;
 
 use bitacora_core::date::Date;
+use bitacora_mcp::TokenStore;
 use rust_i18n::t;
 
 use crate::data::{self, GraphHandle, SidebarData};
 use crate::nav::{OpenIn, Route};
-use crate::ui::text_edit::FontWeight;
+use crate::ui::text_edit::{ClipboardItem, FontWeight};
 use crate::ui::theme::{ActiveBitacoraTheme as _, BitacoraTheme, TypeStyleExt as _};
 use crate::ui::{
-    AnyElement, App, ClickEvent, Context, ElementId, EventEmitter, FluentBuilder as _, Hsla,
-    InteractiveElement as _, IntoElement, ParentElement as _, Render,
-    StatefulInteractiveElement as _, Styled as _, Task, Window, div, h_flex, px, v_flex,
+    Anchor, AnyElement, App, ClickEvent, Context, ElementId, EventEmitter, FluentBuilder as _,
+    Hsla, InteractiveElement as _, IntoElement, Level, ParentElement as _, Render,
+    StatefulInteractiveElement as _, Styled as _, Task, Window, anchored, deferred, div, h_flex,
+    px, v_flex,
 };
 use crate::views::calendar::{
     CalendarHandlers, CalendarState, Month, month_bounds, render_calendar, shift_month,
 };
-use crate::views::kit::{Glyph, Overline, glyph};
+use crate::views::dims;
+use crate::views::kit::{Button, Glyph, Overline, PopoverShell, glyph};
+use crate::views::mcp_connect::{McpCopy, McpPopover, copy_text, popover_state};
 use crate::views::pando_status::PandoState;
 use crate::views::status_bar::SlotState;
 
@@ -71,6 +76,8 @@ pub enum SidebarEvent {
     GoToDate,
     /// The user clicked the Pando status row of the footer.
     OpenPando,
+    /// The user asked for Settings > Agents from the MCP connection popover (BIT-US-0186).
+    OpenMcpSettings,
 }
 
 /// Source of "today" (replaced in tests).
@@ -107,6 +114,9 @@ pub struct LeftSidebar {
     refresh_task: Option<Task<()>>,
     mcp: SlotState,
     mcp_endpoint: Option<String>,
+    /// Tokens of the running MCP server, for the connection popover (BIT-US-0186).
+    mcp_tokens: Option<Arc<TokenStore>>,
+    mcp_popover_open: bool,
     sync: SlotState,
     pando: PandoState,
 }
@@ -137,6 +147,8 @@ impl LeftSidebar {
             refresh_task: None,
             mcp: SlotState::Off,
             mcp_endpoint: None,
+            mcp_tokens: None,
+            mcp_popover_open: false,
             sync: SlotState::Off,
             pando: PandoState::NotConfigured,
         }
@@ -269,6 +281,207 @@ impl LeftSidebar {
             self.sync = sync;
             cx.notify();
         }
+    }
+
+    /// The token store of the running MCP server (what the connection popover copies from).
+    pub fn set_mcp_tokens(&mut self, tokens: Option<Arc<TokenStore>>, cx: &mut Context<Self>) {
+        self.mcp_tokens = tokens;
+        cx.notify();
+    }
+
+    /// Whether the MCP connection popover is open.
+    pub fn mcp_popover_open(&self) -> bool {
+        self.mcp_popover_open
+    }
+
+    /// Opens or closes the MCP connection popover.
+    pub fn set_mcp_popover(&mut self, open: bool, cx: &mut Context<Self>) {
+        if self.mcp_popover_open != open {
+            self.mcp_popover_open = open;
+            cx.notify();
+        }
+    }
+
+    /// Puts the text of `kind` on the clipboard, toasts the result and closes the popover.
+    /// Secrets only travel to the clipboard; nothing here is logged.
+    fn copy_mcp(
+        &mut self,
+        kind: McpCopy,
+        token: &str,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let text = self
+            .mcp_endpoint
+            .as_deref()
+            .and_then(|endpoint| copy_text(kind, endpoint, token, self.mcp_tokens.as_deref()));
+        match text {
+            Some(text) => {
+                cx.write_to_clipboard(ClipboardItem::new_string(text));
+                crate::ui::notify(
+                    window,
+                    cx,
+                    Level::Success,
+                    t!("sidebar.mcp_copied").to_string(),
+                );
+            }
+            None => crate::ui::notify(
+                window,
+                cx,
+                Level::Warning,
+                t!("sidebar.mcp_secret_lost").to_string(),
+            ),
+        }
+        self.set_mcp_popover(false, cx);
+    }
+
+    /// The popover anchored above the MCP row.
+    fn mcp_popover(&self, theme: &BitacoraTheme, cx: &mut Context<Self>) -> AnyElement {
+        let c = &theme.colors;
+        let m = &theme.metrics;
+        let tokens = self
+            .mcp_tokens
+            .as_ref()
+            .map(|t| t.summaries())
+            .unwrap_or_default();
+        let state = popover_state(self.mcp, self.mcp_endpoint.as_deref(), &tokens);
+        let settings_link = |id: &'static str, label: String, cx: &mut Context<Self>| {
+            Button::new(id)
+                .ghost()
+                .label(label)
+                .on_click(cx.listener(|this, _, _, cx| {
+                    this.set_mcp_popover(false, cx);
+                    cx.emit(SidebarEvent::OpenMcpSettings);
+                }))
+        };
+        let note = |id: &'static str, text: String| {
+            div()
+                .id(id)
+                .debug_selector(move || id.to_string())
+                .text_color(c.text_2)
+                .type_style(&theme.type_scale.ui_small)
+                .child(text)
+        };
+        let copy_button = |id: &'static str,
+                           label: String,
+                           kind: McpCopy,
+                           token: String,
+                           cx: &mut Context<Self>| {
+            Button::new(id)
+                .secondary()
+                .label(label)
+                .on_click(cx.listener(move |this, _, window, cx| {
+                    this.copy_mcp(kind, &token, window, cx);
+                }))
+        };
+        let mut body = v_flex().gap(m.space[4]).child(
+            div()
+                .type_style(&theme.type_scale.ui)
+                .child(t!("sidebar.mcp_title").to_string()),
+        );
+        if let McpPopover::Ready { endpoint, .. } | McpPopover::NoToken { endpoint } = &state {
+            body = body.child(
+                div()
+                    .id("mcp-popover-endpoint")
+                    .debug_selector(|| "mcp-popover-endpoint".to_string())
+                    .px(m.space[4])
+                    .py(m.space[3])
+                    .rounded(m.radius_control)
+                    .bg(c.hover)
+                    .text_color(c.text)
+                    .type_style(&theme.type_scale.mono)
+                    .child(endpoint.clone()),
+            );
+        }
+        match &state {
+            McpPopover::Ready { token, .. } => {
+                body = body.child(
+                    v_flex()
+                        .gap(m.space[3])
+                        .child(copy_button(
+                            "mcp-copy-url",
+                            t!("sidebar.mcp_copy_url").to_string(),
+                            McpCopy::Url,
+                            token.clone(),
+                            cx,
+                        ))
+                        .child(copy_button(
+                            "mcp-copy-json",
+                            t!("sidebar.mcp_copy_json").to_string(),
+                            McpCopy::Json,
+                            token.clone(),
+                            cx,
+                        ))
+                        .child(copy_button(
+                            "mcp-copy-command",
+                            t!("sidebar.mcp_copy_command").to_string(),
+                            McpCopy::Command,
+                            token.clone(),
+                            cx,
+                        ))
+                        .child(settings_link(
+                            "mcp-manage-tokens",
+                            t!("sidebar.mcp_manage_tokens").to_string(),
+                            cx,
+                        )),
+                );
+            }
+            McpPopover::NoToken { .. } => {
+                body = body
+                    .child(note(
+                        "mcp-popover-note",
+                        t!("sidebar.mcp_no_token").to_string(),
+                    ))
+                    .child(
+                        v_flex()
+                            .gap(m.space[3])
+                            .child(copy_button(
+                                "mcp-copy-url",
+                                t!("sidebar.mcp_copy_url").to_string(),
+                                McpCopy::Url,
+                                String::new(),
+                                cx,
+                            ))
+                            .child(settings_link(
+                                "mcp-create-token",
+                                t!("sidebar.mcp_create_token").to_string(),
+                                cx,
+                            )),
+                    );
+            }
+            McpPopover::Off | McpPopover::Failed => {
+                let text = if state == McpPopover::Off {
+                    t!("sidebar.mcp_off")
+                } else {
+                    t!("sidebar.mcp_failed")
+                };
+                body = body
+                    .child(note("mcp-popover-note", text.to_string()))
+                    .child(settings_link(
+                        "mcp-open-settings",
+                        t!("sidebar.mcp_open_settings").to_string(),
+                        cx,
+                    ));
+            }
+        }
+        let weak = cx.entity().downgrade();
+        deferred(
+            anchored()
+                .anchor(Anchor::BottomLeft)
+                .snap_to_window()
+                .child(
+                    div().mb(m.space[2]).child(
+                        PopoverShell::new("mcp-popover")
+                            .width(dims::PX_320)
+                            .on_dismiss(move |_, cx| {
+                                let _ = weak.update(cx, |this, cx| this.set_mcp_popover(false, cx));
+                            })
+                            .child(body),
+                    ),
+                ),
+        )
+        .priority(10)
+        .into_any_element()
     }
 
     /// The Pando connection state shown in the footer.
@@ -547,14 +760,29 @@ impl LeftSidebar {
             (SlotState::Idle | SlotState::Busy, Some(endpoint)) => Some(endpoint_label(endpoint)),
             _ => None,
         };
+        let mcp_open = self.mcp_popover_open;
         let mcp_row = h_flex()
             .id("sidebar-mcp")
             .debug_selector(|| "sidebar-mcp".to_string())
             .px(m.space[5])
             .gap(m.space[4])
             .items_center()
+            .rounded(m.radius_control)
+            .cursor_pointer()
+            .when(mcp_open, |d| d.bg(c.hover))
+            .hover({
+                let hover = c.hover;
+                move |s| s.bg(hover)
+            })
+            .tooltip(|window, cx| {
+                crate::ui::Tooltip::new(t!("sidebar.mcp_tooltip").to_string()).build(window, cx)
+            })
             .text_color(c.text_2)
             .type_style(&theme.type_scale.caption)
+            .on_click(cx.listener(|this, _, _, cx| {
+                let open = !this.mcp_popover_open;
+                this.set_mcp_popover(open, cx);
+            }))
             .child(dot(status_dot(self.mcp, theme)))
             .child(div().min_w_0().truncate().child(mcp_label))
             .when_some(transport, |d, text| {
@@ -567,6 +795,11 @@ impl LeftSidebar {
                         .child(text),
                 )
             });
+        let mcp_popover = self.mcp_popover_open.then(|| self.mcp_popover(theme, cx));
+        let mcp_row = div()
+            .relative()
+            .when_some(mcp_popover, |d, p| d.child(p))
+            .child(mcp_row);
         let sync_label = match self.sync {
             SlotState::Off => t!("status.sync.off"),
             SlotState::Idle => t!("status.sync.idle"),
@@ -903,6 +1136,33 @@ mod tests {
             sidebar.read_with(cx, |s, _| s.selected_day()),
             Some(20_261_003)
         );
+    }
+
+    #[gpui_test]
+    fn clicking_the_mcp_row_opens_the_connection_popover(cx: &mut TestAppContext) {
+        setup(cx);
+        let (sidebar, cx) = cx.add_window_view(|_, _| LeftSidebar::with_clock(None, fixed_clock()));
+        // Server off: the popover says so and links to the settings.
+        cx.run_until_parked();
+        let row = cx.debug_bounds("sidebar-mcp").expect("row painted");
+        cx.simulate_click(row.center(), Default::default());
+        assert!(sidebar.read_with(cx, |s, _| s.mcp_popover_open()));
+        assert!(cx.debug_bounds("mcp-popover-note").is_some());
+        assert!(cx.debug_bounds("mcp-popover-endpoint").is_none());
+        sidebar.update(cx, |s, cx| s.set_mcp_popover(false, cx));
+        // Running without a token: the URL is shown, with the hint to create a token.
+        sidebar.update(cx, |s, cx| {
+            s.set_footer_status(
+                SlotState::Idle,
+                Some("http://127.0.0.1:4711/mcp".into()),
+                SlotState::Idle,
+                cx,
+            );
+            s.set_mcp_popover(true, cx);
+        });
+        cx.run_until_parked();
+        assert!(cx.debug_bounds("mcp-popover-endpoint").is_some());
+        assert!(cx.debug_bounds("mcp-popover-note").is_some());
     }
 
     #[gpui_test]

@@ -163,6 +163,8 @@ pub struct Workspace {
     sync_prefs: SyncPrefs,
     sync_prefs_file: Option<PathBuf>,
     session_handle: Option<SessionHandle>,
+    /// Endpoint the sidebar's MCP token store was fetched for (BIT-US-0186).
+    sidebar_tokens_for: Option<String>,
     sync_conflicted: bool,
     handle: Option<GraphHandle>,
     graph_state: GraphState,
@@ -354,6 +356,7 @@ impl Workspace {
             sync_prefs: SyncPrefs::default(),
             sync_prefs_file: None,
             session_handle: None,
+            sidebar_tokens_for: None,
             sync_conflicted: false,
             handle: None,
             graph_state: GraphState::default(),
@@ -1299,6 +1302,9 @@ impl Workspace {
                 }
             }
             SidebarEvent::OpenPando => self.set_pando_popover(true, cx),
+            SidebarEvent::OpenMcpSettings => {
+                self.open_settings(Some(crate::views::settings::Section::Agents), window, cx);
+            }
             SidebarEvent::GoToDate => self
                 .palette
                 .update(cx, |palette, cx| palette.open_commands(window, cx)),
@@ -1312,6 +1318,26 @@ impl Workspace {
             (bar.slot(Slot::Mcp), bar.slot(Slot::Sync))
         };
         let endpoint = self.mcp_endpoint().map(str::to_owned);
+        // The token store lives as long as the server: fetch it once per endpoint.
+        if endpoint != self.sidebar_tokens_for {
+            self.sidebar_tokens_for = endpoint.clone();
+            let rx = endpoint
+                .as_ref()
+                .and_then(|_| self.session_handle.clone())
+                .map(|h| h.run(|s| s.mcp_tokens()));
+            match rx {
+                Some(rx) => cx
+                    .spawn(async move |this, cx| {
+                        if let Ok(tokens) = rx.recv().await {
+                            let _ = this.update(cx, |ws, cx| {
+                                ws.sidebar.update(cx, |s, cx| s.set_mcp_tokens(tokens, cx));
+                            });
+                        }
+                    })
+                    .detach(),
+                None => self.sidebar.update(cx, |s, cx| s.set_mcp_tokens(None, cx)),
+            }
+        }
         self.sidebar
             .update(cx, |s, cx| s.set_footer_status(mcp, endpoint, sync, cx));
     }

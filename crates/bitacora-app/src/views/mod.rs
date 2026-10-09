@@ -17,6 +17,7 @@ pub mod history;
 pub mod journals;
 pub mod kit;
 pub mod main_view;
+pub mod mcp_connect;
 pub mod modal;
 pub mod page_view;
 pub mod palette;

@@ -29,6 +29,7 @@ use bitacora_mcp::{TokenStore, WritePolicy};
 use bitacora_runtime::SyncStatusView;
 use rust_i18n::t;
 
+pub use agents::{SnippetKind, client_snippet};
 pub use graph_config::{
     ApplyMode, Edited, GraphConfigError, GraphEdit, GraphValues, date_preview, edit_config,
     validate_date_format,
