@@ -346,7 +346,7 @@ impl ReviewCard {
         range: &ReviewRange,
         report: &ReviewReport,
         cx: &mut Context<Self>,
-    ) -> AnyElement {
+    ) -> (AnyElement, AnyElement) {
         let bt = cx.bitacora().clone();
         let m = &bt.metrics;
         let review = &report.review;
@@ -442,38 +442,38 @@ impl ReviewCard {
             col = col.child(list);
         }
         let range = *range;
-        col.child(
-            h_flex()
-                .gap(m.space[3])
-                .child(
-                    Button::new("review-refresh")
-                        .label(t!("ai.review.refresh").to_string())
-                        .ghost()
-                        .compact()
-                        .disabled(self.unavailable_reason().is_some())
-                        .on_click(cx.listener(move |this, _, _, cx| {
-                            this.state = ReviewState::Idle;
-                            this.request(range, true, cx);
-                        })),
-                )
-                .child(
-                    Button::new("review-close")
-                        .label(t!("ai.close").to_string())
-                        .ghost()
-                        .compact()
-                        .on_click(cx.listener(|this, _, _, cx| this.close(cx))),
-                ),
-        )
-        .into_any_element()
+        let footer = h_flex()
+            .gap(m.space[3])
+            .child(
+                Button::new("review-refresh")
+                    .label(t!("ai.review.refresh").to_string())
+                    .ghost()
+                    .compact()
+                    .disabled(self.unavailable_reason().is_some())
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        this.state = ReviewState::Idle;
+                        this.request(range, true, cx);
+                    })),
+            )
+            .child(
+                Button::new("review-close")
+                    .label(t!("ai.close").to_string())
+                    .ghost()
+                    .compact()
+                    .on_click(cx.listener(|this, _, _, cx| this.close(cx))),
+            )
+            .into_any_element();
+        (col.into_any_element(), footer)
     }
 }
 
 impl Render for ReviewCard {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         if !self.visible() {
             return div().into_any_element();
         }
         let bt = cx.bitacora().clone();
+        let mut footer: Option<AnyElement> = None;
         let body: AnyElement = match self.state.clone() {
             ReviewState::Idle => self.entry_points(cx),
             ReviewState::Running { range } => v_flex()
@@ -490,7 +490,11 @@ impl Render for ReviewCard {
                         .on_click(cx.listener(|this, _, _, cx| this.cancel(cx))),
                 )
                 .into_any_element(),
-            ReviewState::Ready { range, report } => self.ready(&range, &report, cx),
+            ReviewState::Ready { range, report } => {
+                let (body, actions) = self.ready(&range, &report, cx);
+                footer = Some(actions);
+                body
+            }
             ReviewState::Failed { range, message } => v_flex()
                 .gap(bt.metrics.space[3])
                 .child(
@@ -522,19 +526,37 @@ impl Render for ReviewCard {
                 )
                 .into_any_element(),
         };
+        // The card is bounded by a fraction of the window; only the body scrolls, so the header
+        // and the footer buttons stay reachable however long the review is.
+        let max_h = window.viewport_size().height * dims::REVIEW_CARD_MAX_VIEWPORT_FRACTION;
         div()
             .id("journal-review-card")
             .flex_shrink_0()
-            .max_h(dims::PX_340)
-            .overflow_y_scroll()
             .px(bt.metrics.space[6])
             .pt(bt.metrics.space[5])
             .child(
                 Card::new().ai().child(
                     v_flex()
+                        .id("journal-review-card-inner")
+                        .debug_selector(|| "journal-review-card-inner".to_string())
+                        .max_h(max_h)
                         .gap(bt.metrics.space[4])
                         .child(self.header(cx))
-                        .child(body),
+                        .child(
+                            div()
+                                .id("journal-review-body")
+                                .debug_selector(|| "journal-review-body".to_string())
+                                .flex_1()
+                                .min_h_0()
+                                .overflow_y_scroll()
+                                .child(body),
+                        )
+                        .children(footer.map(|f| {
+                            div()
+                                .flex_shrink_0()
+                                .debug_selector(|| "journal-review-footer".to_string())
+                                .child(f)
+                        })),
                 ),
             )
             .into_any_element()
@@ -648,5 +670,39 @@ mod tests {
             c.close(cx);
             assert_eq!(c.state(), &ReviewState::Idle);
         });
+    }
+
+    #[gpui_test]
+    fn a_very_long_review_is_bounded_and_keeps_its_footer_visible(cx: &mut TestAppContext) {
+        setup(cx);
+        let (card, cx) = cx.add_window_view(|_, _| ReviewCard::new());
+        let range = ReviewRange::day(20_261_007);
+        let mut long = report(false);
+        long.review.summary = "A very long summary sentence. ".repeat(200);
+        long.review.next_actions = (0..60)
+            .map(|i| format!("Action number {i}: {}", "do the thing ".repeat(12)))
+            .collect();
+        card.update(cx, |c, cx| {
+            c.set_gate(
+                AiGate {
+                    enabled: true,
+                    connected: true,
+                },
+                cx,
+            );
+            c.finish(range, Ok(long), cx);
+        });
+        cx.run_until_parked();
+        let viewport = cx.update(|window, _| window.viewport_size());
+        let inner = cx.debug_bounds("journal-review-card-inner").unwrap();
+        let body = cx.debug_bounds("journal-review-body").unwrap();
+        let footer = cx.debug_bounds("journal-review-footer").unwrap();
+        assert!(inner.size.height <= viewport.height * dims::REVIEW_CARD_MAX_VIEWPORT_FRACTION);
+        assert!(
+            footer.origin.y >= inner.origin.y && footer.bottom() <= inner.bottom(),
+            "footer {footer:?} outside card {inner:?}"
+        );
+        assert!(footer.size.height > crate::ui::px(0.0));
+        assert!(body.bottom() <= footer.origin.y);
     }
 }
