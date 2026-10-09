@@ -20,6 +20,9 @@ pub const SYNTAX_KEYWORD: Hsla = hsla(0.75, 0.65, 0.7, 1.);
 /// Opacity of the admonition background (the palette tint tokens are accent/ai only).
 pub const CALLOUT_TINT: f32 = 0.13;
 
+/// Share of the window height the journal review card may take before its body scrolls.
+pub const REVIEW_CARD_MAX_VIEWPORT_FRACTION: f32 = 0.4;
+
 // Size literals without a metrics token.
 
 pub const PX_NEG_1: Pixels = px(-1.0);
