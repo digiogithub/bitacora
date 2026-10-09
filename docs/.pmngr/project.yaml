@@ -43,7 +43,7 @@ id_allocation:
     milestone: 11
     epic: 27
     spec: 12
-    story: 183
+    story: 185
     task: 509
 priorities:
   - critical
