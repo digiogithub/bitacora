@@ -2,6 +2,18 @@
 
 All notable changes to Bitacora. Format follows Keep a Changelog; versions follow SemVer.
 
+## [2.1.0] - 2026-10-09
+
+### Added
+- Print: the title-bar printer button, Ctrl/Cmd+P, the command palette and the app menu open a print view of the current page in the browser with the system print dialog (also "Save as PDF").
+- Title-bar tabs that do not fit collapse into one button with a dropdown listing every tab (activate or close each).
+- French and Simplified Chinese UI translations; the system language is detected (Traditional Chinese falls back to Simplified).
+- Code blocks show line numbers.
+
+### Fixed
+- A block that starts with a code fence renders its code inside the code box instead of a literal fence and an empty box.
+- The AI journal review card is bounded and scrolls its body; its header and actions stay visible.
+
 ## [2.0.3] - 2026-10-08
 
 ### Added
