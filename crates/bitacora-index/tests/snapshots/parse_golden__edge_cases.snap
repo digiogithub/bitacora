@@ -139,6 +139,11 @@ expression: out
   [0..0] d1 s0 pNone | "mixed line endings lf"
   [1..1] d1 s1 pNone | "then crlf"
   [2..2] d1 s2 pNone | "then lf again"
+== pages/nested-special-regions.md :: nested-special-regions (nested-special-regions)
+  [0..0] d1 s0 pNone | "Nested special regions"
+      pages: 2:+begin_note 2:+end_note
+  [1..1] d1 s1 pNone | "#+BEGIN_FOO bar"
+  [2..2] d1 s2 pNone | "#+BEGIN_EXPORT html"
 == pages/no-bullets.md :: no-bullets (no-bullets)
   [0..0] d1 s0 pNone PRE | "Just a paragraph with no bullets at all."
 == pages/no-trailing-newline.md :: no-trailing-newline (no-trailing-newline)

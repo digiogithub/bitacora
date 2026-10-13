@@ -42,6 +42,7 @@ Doc references: `02` = `docs/analysis/logseq/02-markdown-block-syntax.md`, `01` 
 | unicode-中文-🚀.md | CJK and emoji title and content, combining vs precomposed | 01 s3.1, s3.7 |
 | code-fence-unclosed.md | unclosed code fence swallows following bullets | 02 s8 |
 | code-fence-closed.md | closed ``` and ~~~ fences containing bullet-like text | 02 s6, s8 |
+| nested-special-regions.md | `#+BEGIN_QUOTE` holding a NOTE with list, heading and fence; unknown `#+BEGIN_FOO`; `#+BEGIN_EXPORT html` | 02 s6, s8 |
 | escaping.md | escaped `-`, `*`, `_`; quote and ordered-looking text | 02 s6, s8 |
 | star-plus-bullets.md | `*` and `+` bullets | 02 s2.1 |
 | org-page.org | `.org` page next to Markdown | 01 s7 |

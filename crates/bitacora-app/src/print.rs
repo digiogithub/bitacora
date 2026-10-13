@@ -258,7 +258,11 @@ fn meta_html(block: &BlockModel, out: &mut String) {
 }
 
 fn body_html(block: &BlockModel, graph_root: &Path, out: &mut String) {
-    for item in &block.body {
+    items_html(&block.body, graph_root, out);
+}
+
+fn items_html(items: &[BodyItem], graph_root: &Path, out: &mut String) {
+    for item in items {
         match item {
             BodyItem::Text(layout) => {
                 let _ = write!(out, "<div class=\"blk\">{}</div>", layout_html(layout));
@@ -279,22 +283,44 @@ fn body_html(block: &BlockModel, graph_root: &Path, out: &mut String) {
                     }
                 };
             }
-            BodyItem::Quote(layout) => {
-                let _ = write!(out, "<blockquote>{}</blockquote>", layout_html(layout));
+            BodyItem::Quote(body) => {
+                out.push_str("<blockquote>");
+                items_html(body, graph_root, out);
+                out.push_str("</blockquote>");
             }
-            BodyItem::Callout { kind, layout } => {
+            BodyItem::Callout { kind, body } => {
                 let name = format!("{kind:?}").to_ascii_lowercase();
-                let _ = write!(
-                    out,
-                    "<div class=\"callout {name}\">{}</div>",
-                    layout_html(layout)
-                );
+                let _ = write!(out, "<div class=\"callout {name}\">");
+                items_html(body, graph_root, out);
+                out.push_str("</div>");
             }
-            BodyItem::Center(layout) => {
-                let _ = write!(out, "<div class=\"center\">{}</div>", layout_html(layout));
+            BodyItem::Center(body) => {
+                out.push_str("<div class=\"center\">");
+                items_html(body, graph_root, out);
+                out.push_str("</div>");
             }
             BodyItem::Verse(layout) => {
                 let _ = write!(out, "<div class=\"verse\">{}</div>", layout_html(layout));
+            }
+            BodyItem::Container { body, .. } => {
+                out.push_str("<div class=\"container\">");
+                items_html(body, graph_root, out);
+                out.push_str("</div>");
+            }
+            BodyItem::Heading { level, layout } => {
+                let _ = write!(
+                    out,
+                    "<div class=\"blk h{}\">{}</div>",
+                    (*level).clamp(1, 6),
+                    layout_html(layout)
+                );
+            }
+            BodyItem::List(entries) => {
+                out.push_str("<ul>");
+                for entry in entries {
+                    let _ = write!(out, "<li>{}</li>", layout_html(&entry.layout));
+                }
+                out.push_str("</ul>");
             }
             // Live queries and embeds have no static text to print.
             BodyItem::Widget(_) => {}

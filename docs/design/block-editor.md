@@ -450,6 +450,15 @@ to DONE/TODO), priority badge, SCHEDULED/DEADLINE chips, a properties table that
 LOGBOOK. Embeds `{{embed ((uuid))}}` / `{{embed [[page]]}}` render nested outlines that can be edited in place, with a
 cycle guard and a depth limit. `{{query …}}` renders a placeholder in MVP and results later.
 
+Special regions (`#+BEGIN_NOTE/TIP/IMPORTANT/CAUTION/WARNING/PINNED/QUOTE/CENTER`, consecutive `> ` lines and any
+unknown `#+BEGIN_<name>`) render their body as structured markup built by the same body builder as block content
+(`render::model::nested_items`): paragraphs, lists, Markdown headings, code fences, quotes and nested regions, recursively
+(a NOTE inside a QUOTE). Same-name regions nest by depth counting. `VERSE` keeps its line breaks as one inline layout;
+an unknown name becomes `BodyItem::Container`, not a code block. Queries are not evaluated inside regions (source shown).
+`SRC`, `EXAMPLE`, `QUERY` and `COMMENT` keep their verbatim behaviour. This is view-only: the saved text never changes.
+`#+BEGIN_EXPORT <type>` has no HTML/KaTeX engine: it is a code view under a localized label (HTML / LaTeX / ASCII /
+plain "Export") with html/latex highlighting; divergence recorded in ADR-035 (Logseq: `block.cljs:3262-3280`).
+
 Journals view: a virtual list of journal pages, newest first, loading 7 more on scroll (Logseq
 `src/main/frontend/handler/page.cljs:676-679`). Today's journal is a **virtual page** (no file) with the default
 template applied in memory. Its first edit creates the file, matching Logseq's "Don't create the journal file until

@@ -138,6 +138,10 @@ page:
   callout_caution: "注意"
   callout_warning: "警告"
   callout_pinned: "置顶"
+  export_html: "HTML 导出"
+  export_latex: "LaTeX 导出"
+  export_ascii: "ASCII 导出"
+  export_plain: "导出"
 journals:
   today_badge: "今天"
   today_empty: "今天还没有写任何内容"
