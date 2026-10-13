@@ -214,11 +214,17 @@ impl Special {
     }
 
     /// Builds the item of a region whose body lines are `lines`.
-    fn item(self, name: &str, lines: &[(&str, usize)], resolver: &dyn BlockResolver) -> BodyItem {
+    fn item(
+        self,
+        name: &str,
+        lines: &[(&str, usize)],
+        resolver: &dyn BlockResolver,
+        depth: usize,
+    ) -> BodyItem {
         if self == Self::Verse {
             return BodyItem::Verse(layout_lines_at(lines.iter().copied(), resolver));
         }
-        let body = nested_items(lines, resolver);
+        let body = nested_items(lines, resolver, depth);
         match self {
             Self::Quote => BodyItem::Quote(body),
             Self::Callout(kind) => BodyItem::Callout { kind, body },
@@ -233,7 +239,65 @@ impl Special {
 
 /// An open `#+BEGIN_<name>` region: its kind, name, nesting depth of same-name regions and the
 /// `(line, offset)` pairs collected.
-type OpenSpecial<'a> = (Special, String, usize, Vec<(&'a str, usize)>);
+type OpenSpecial<'a> = (Special, String, RegionScan, Vec<(&'a str, usize)>);
+
+/// Maximum nesting of quotes and special regions that is parsed structurally; deeper lines are
+/// shown as plain text so hostile input cannot overflow the stack.
+const MAX_NEST_DEPTH: usize = 32;
+
+/// Tracks same-name nesting of an open special region, ignoring lines inside fences and raw
+/// regions (a `#+END_QUOTE` inside a code body does not close the quote).
+struct RegionScan {
+    depth: usize,
+    raw: Option<RawOpen>,
+}
+
+enum RawOpen {
+    Fence,
+    Begin(String),
+}
+
+impl RegionScan {
+    fn new() -> Self {
+        Self {
+            depth: 1,
+            raw: None,
+        }
+    }
+
+    /// Feeds one body line of region `name`; true when the line closes the region.
+    fn closes(&mut self, line: &str, name: &str) -> bool {
+        match &self.raw {
+            Some(RawOpen::Fence) => {
+                if line.trim_start().starts_with("```") {
+                    self.raw = None;
+                }
+                return false;
+            }
+            Some(RawOpen::Begin(raw)) => {
+                if is_end_of(line, raw) {
+                    self.raw = None;
+                }
+                return false;
+            }
+            None => {}
+        }
+        if line.trim_start().starts_with("```") {
+            self.raw = Some(RawOpen::Fence);
+        } else if is_end_of(line, name) {
+            self.depth -= 1;
+            return self.depth == 0;
+        } else if is_begin_of(line, name) {
+            self.depth += 1;
+        } else if let Some(rest) = strip_prefix_ci(line.trim(), "#+BEGIN_") {
+            let other = rest.split(char::is_whitespace).next().unwrap_or("");
+            if is_raw_region(other) {
+                self.raw = Some(RawOpen::Begin(other.to_owned()));
+            }
+        }
+        false
+    }
+}
 
 /// A line that closes `#+BEGIN_<name>`.
 fn is_end_of(line: &str, name: &str) -> bool {
@@ -505,16 +569,11 @@ impl BlockModel {
                 continue;
             }
             if let Some((_, name, depth, q)) = quote.as_mut() {
-                if is_end_of(line, name) && *depth == 1 {
+                if depth.closes(line, name) {
                     if let Some((special, name, _, lines)) = quote.take() {
-                        model.body.push(special.item(&name, &lines, resolver));
+                        model.body.push(special.item(&name, &lines, resolver, 1));
                     }
                 } else {
-                    if is_end_of(line, name) {
-                        *depth -= 1;
-                    } else if is_begin_of(line, name) {
-                        *depth += 1;
-                    }
                     q.push((line, start));
                 }
                 continue;
@@ -523,7 +582,7 @@ impl BlockModel {
                 let lines = std::mem::take(&mut gt_quote);
                 model
                     .body
-                    .push(BodyItem::Quote(nested_items(&lines, resolver)));
+                    .push(BodyItem::Quote(nested_items(&lines, resolver, 1)));
             }
             if overlaps(&skip, start, end)
                 || (!planning_spans.is_empty()
@@ -582,7 +641,7 @@ impl BlockModel {
                 let name = parts.next().unwrap_or("").to_owned();
                 let language = parts.next().unwrap_or("").trim().to_owned();
                 if let Some(special) = Special::from_name(&name) {
-                    quote = Some((special, name, 1, Vec::new()));
+                    quote = Some((special, name, RegionScan::new(), Vec::new()));
                 } else {
                     region = Some(Region::Begin {
                         name,
@@ -609,12 +668,12 @@ impl BlockModel {
             model.push_region(r);
         }
         if let Some((special, name, _, lines)) = quote.take() {
-            model.body.push(special.item(&name, &lines, resolver));
+            model.body.push(special.item(&name, &lines, resolver, 1));
         }
         if !gt_quote.is_empty() {
             model
                 .body
-                .push(BodyItem::Quote(nested_items(&gt_quote, resolver)));
+                .push(BodyItem::Quote(nested_items(&gt_quote, resolver, 1)));
         }
         flush_paragraph(&mut model, &mut paragraph);
         for item in &mut model.body {
@@ -734,7 +793,19 @@ fn heading_marker(line: &str) -> Option<(u8, usize)> {
 /// paragraphs, code, nested regions, quotes) plus lists and headings. Widgets are not
 /// evaluated inside regions; a query region shows its source instead. Rendering only: the
 /// saved text never changes.
-fn nested_items(lines: &[(&str, usize)], resolver: &dyn BlockResolver) -> Vec<BodyItem> {
+fn nested_items(
+    lines: &[(&str, usize)],
+    resolver: &dyn BlockResolver,
+    depth: usize,
+) -> Vec<BodyItem> {
+    if depth > MAX_NEST_DEPTH {
+        let layout = layout_lines_at(lines.iter().copied(), resolver);
+        return if layout.is_empty() {
+            Vec::new()
+        } else {
+            vec![BodyItem::Text(layout)]
+        };
+    }
     let mut out: Vec<BodyItem> = Vec::new();
     let mut paragraph: Vec<(&str, usize)> = Vec::new();
     let mut quote: Vec<(&str, usize)> = Vec::new();
@@ -745,6 +816,7 @@ fn nested_items(lines: &[(&str, usize)], resolver: &dyn BlockResolver) -> Vec<Bo
         quote: &mut Vec<(&str, usize)>,
         list: &mut Vec<ListEntry>,
         resolver: &dyn BlockResolver,
+        depth: usize,
     ) {
         if !paragraph.is_empty() {
             let layout = layout_lines_at(paragraph.drain(..), resolver);
@@ -754,7 +826,7 @@ fn nested_items(lines: &[(&str, usize)], resolver: &dyn BlockResolver) -> Vec<Bo
         }
         if !quote.is_empty() {
             let lines = std::mem::take(quote);
-            out.push(BodyItem::Quote(nested_items(&lines, resolver)));
+            out.push(BodyItem::Quote(nested_items(&lines, resolver, depth + 1)));
         }
         if !list.is_empty() {
             out.push(BodyItem::List(std::mem::take(list)));
@@ -766,10 +838,24 @@ fn nested_items(lines: &[(&str, usize)], resolver: &dyn BlockResolver) -> Vec<Bo
         i += 1;
         let trimmed = line.trim_start();
         if !trimmed.starts_with('>') && !quote.is_empty() {
-            flush(&mut out, &mut paragraph, &mut quote, &mut list, resolver);
+            flush(
+                &mut out,
+                &mut paragraph,
+                &mut quote,
+                &mut list,
+                resolver,
+                depth,
+            );
         }
         if let Some(rest) = trimmed.strip_prefix("```") {
-            flush(&mut out, &mut paragraph, &mut quote, &mut list, resolver);
+            flush(
+                &mut out,
+                &mut paragraph,
+                &mut quote,
+                &mut list,
+                resolver,
+                depth,
+            );
             let mut text = String::new();
             let mut starts = Vec::new();
             while i < lines.len() && !lines[i].0.trim().starts_with("```") {
@@ -787,28 +873,35 @@ fn nested_items(lines: &[(&str, usize)], resolver: &dyn BlockResolver) -> Vec<Bo
                 starts,
             }));
         } else if let Some(begin) = strip_prefix_ci(trimmed, "#+BEGIN_") {
-            flush(&mut out, &mut paragraph, &mut quote, &mut list, resolver);
+            flush(
+                &mut out,
+                &mut paragraph,
+                &mut quote,
+                &mut list,
+                resolver,
+                depth,
+            );
             let mut parts = begin.splitn(2, char::is_whitespace);
             let name = parts.next().unwrap_or("").to_owned();
             let language = parts.next().unwrap_or("").trim().to_owned();
             let special = Special::from_name(&name);
-            let mut depth = 1;
+            let mut scan = RegionScan::new();
             let mut body: Vec<(&str, usize)> = Vec::new();
             while i < lines.len() {
                 let (l, s) = lines[i];
                 i += 1;
-                if is_end_of(l, &name) {
-                    depth -= 1;
-                    if depth == 0 {
-                        break;
-                    }
-                } else if special.is_some() && is_begin_of(l, &name) {
-                    depth += 1;
+                let closed = if special.is_some() {
+                    scan.closes(l, &name)
+                } else {
+                    is_end_of(l, &name)
+                };
+                if closed {
+                    break;
                 }
                 body.push((l, s));
             }
             match special {
-                Some(special) => out.push(special.item(&name, &body, resolver)),
+                Some(special) => out.push(special.item(&name, &body, resolver, depth + 1)),
                 None => {
                     let text = body.iter().map(|(l, _)| *l).collect::<Vec<_>>().join("\n");
                     let item = region_item(Region::Begin {
@@ -832,19 +925,47 @@ fn nested_items(lines: &[(&str, usize)], resolver: &dyn BlockResolver) -> Vec<Bo
             }
         } else if let Some(rest) = trimmed.strip_prefix('>') {
             if !paragraph.is_empty() || !list.is_empty() {
-                flush(&mut out, &mut paragraph, &mut quote, &mut list, resolver);
+                flush(
+                    &mut out,
+                    &mut paragraph,
+                    &mut quote,
+                    &mut list,
+                    resolver,
+                    depth,
+                );
             }
             let rest = rest.strip_prefix(' ').unwrap_or(rest);
             quote.push((rest, start + (line.len() - rest.len())));
         } else if line.trim().is_empty() {
-            flush(&mut out, &mut paragraph, &mut quote, &mut list, resolver);
+            flush(
+                &mut out,
+                &mut paragraph,
+                &mut quote,
+                &mut list,
+                resolver,
+                depth,
+            );
         } else if let Some((level, at)) = heading_marker(line) {
-            flush(&mut out, &mut paragraph, &mut quote, &mut list, resolver);
+            flush(
+                &mut out,
+                &mut paragraph,
+                &mut quote,
+                &mut list,
+                resolver,
+                depth,
+            );
             let layout = layout_line_at(&line[at..], start + at, resolver);
             out.push(BodyItem::Heading { level, layout });
         } else if let Some((indent, number, at)) = list_marker(line) {
             if !paragraph.is_empty() {
-                flush(&mut out, &mut paragraph, &mut quote, &mut list, resolver);
+                flush(
+                    &mut out,
+                    &mut paragraph,
+                    &mut quote,
+                    &mut list,
+                    resolver,
+                    depth,
+                );
             }
             list.push(ListEntry {
                 depth: indent / 2,
@@ -853,12 +974,26 @@ fn nested_items(lines: &[(&str, usize)], resolver: &dyn BlockResolver) -> Vec<Bo
             });
         } else {
             if !list.is_empty() {
-                flush(&mut out, &mut paragraph, &mut quote, &mut list, resolver);
+                flush(
+                    &mut out,
+                    &mut paragraph,
+                    &mut quote,
+                    &mut list,
+                    resolver,
+                    depth,
+                );
             }
             paragraph.push((line, start));
         }
     }
-    flush(&mut out, &mut paragraph, &mut quote, &mut list, resolver);
+    flush(
+        &mut out,
+        &mut paragraph,
+        &mut quote,
+        &mut list,
+        resolver,
+        depth,
+    );
     out
 }
 
@@ -1158,6 +1293,43 @@ mod tests {
         assert!(matches!(&q[0], BodyItem::Quote(d) if only_text(d) == "deep"));
         assert!(matches!(&q[1], BodyItem::Text(t) if t.text == "mid"));
         assert!(matches!(&b.body[1], BodyItem::Text(t) if t.text == "after"));
+    }
+
+    #[test]
+    fn hostile_nesting_does_not_overflow_the_stack() {
+        let deep = format!("t\n{}", "#+BEGIN_QUOTE\n".repeat(10_000));
+        assert!(!block(&deep).body.is_empty());
+        let gt = format!("t\n{}", ">".repeat(10_000));
+        assert!(!block(&gt).body.is_empty());
+        let gt_nested = format!("t\n#+BEGIN_QUOTE\n{} x\n#+END_QUOTE", ">".repeat(10_000));
+        assert!(!block(&gt_nested).body.is_empty());
+    }
+
+    #[test]
+    fn end_line_inside_raw_bodies_does_not_close_the_quote() {
+        for raw in [
+            "```\n#+END_QUOTE\n```",
+            "#+BEGIN_SRC rust\n#+END_QUOTE\n#+END_SRC",
+            "#+BEGIN_EXAMPLE\n#+BEGIN_QUOTE\n#+END_EXAMPLE",
+        ] {
+            // Top level, then nested inside another quote.
+            let b = block(&format!("t\n#+BEGIN_QUOTE\n{raw}\n#+END_QUOTE\nafter"));
+            assert_eq!(b.body.len(), 2, "{raw}: {:?}", b.body);
+            let BodyItem::Quote(q) = &b.body[0] else {
+                panic!("quote: {raw}")
+            };
+            assert!(matches!(q.as_slice(), [BodyItem::Code(_)]), "{raw}: {q:?}");
+            let b = block(&format!(
+                "t\n#+BEGIN_NOTE\n#+BEGIN_QUOTE\n{raw}\n#+END_QUOTE\n#+END_NOTE"
+            ));
+            let BodyItem::Callout { body, .. } = &b.body[0] else {
+                panic!("callout: {raw}")
+            };
+            assert!(
+                matches!(body.as_slice(), [BodyItem::Quote(q)] if matches!(q.as_slice(), [BodyItem::Code(_)])),
+                "{raw}: {body:?}"
+            );
+        }
     }
 
     #[test]

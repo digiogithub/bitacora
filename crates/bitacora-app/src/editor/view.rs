@@ -3121,19 +3121,34 @@ impl EntityInputHandler for OutlineEditor {
             self.apply_pair_edit(edit, cx);
             return;
         }
-        // `《` followed by `〈` (an East-Asian input method's `<`) becomes `<`, like Logseq.
-        if range_utf16.is_none()
+        // `《` followed by `〈` (an East-Asian input method's `<`) becomes `<`, like Logseq. The
+        // committed text replaces the explicit range, the preedit or the caret, whichever applies;
+        // the swap is evaluated against the text that precedes that replacement, in one edit.
+        if new_text == "\u{3008}"
             && let Some(e) = &self.edit
-            && e.buf.marked().is_none()
-            && e.buf.selection().is_empty()
-            && let Some(swap) = completion::fullwidth_angle(e.buf.text(), e.buf.cursor(), new_text)
         {
-            let to = swap.start + 1;
-            self.edit_buffer(cx, |b| {
-                b.replace_range(swap, "<");
-                b.set_cursor(to);
-            });
-            return;
+            let text = e.buf.text();
+            let replaced = match &range_utf16 {
+                Some(r) => Some(range_from_utf16(text, r)),
+                None => e
+                    .buf
+                    .marked()
+                    .or_else(|| e.buf.selection().is_empty().then(|| e.buf.selection())),
+            };
+            if let Some(replaced) = replaced
+                && replaced.start <= replaced.end
+                && replaced.end <= text.len()
+                && text.is_char_boundary(replaced.end)
+                && let Some(swap) = completion::fullwidth_angle(text, replaced.start, new_text)
+            {
+                let to = swap.start + 1;
+                let whole = swap.start..replaced.end;
+                self.edit_buffer(cx, |b| {
+                    b.replace_range(whole, "<");
+                    b.set_cursor(to);
+                });
+                return;
+            }
         }
         self.edit_buffer(cx, |b| b.ime_replace(range_utf16, new_text));
     }

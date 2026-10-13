@@ -274,3 +274,18 @@ fn custom_commands_default_to_empty_and_tolerate_a_wrong_type() {
     let bad = EffectiveConfig::from_texts(None, Some("{:commands 5}")).custom_commands();
     assert!(bad.commands.is_empty());
 }
+
+#[test]
+fn custom_commands_last_definition_per_name_wins_in_first_seen_order() {
+    let cfg = EffectiveConfig::from_texts(
+        None,
+        Some(r#"{:commands [["a" "one"] ["b" "two"] ["a" "three"]]}"#),
+    );
+    let got = cfg.custom_commands();
+    let pairs: Vec<(&str, &str)> = got
+        .commands
+        .iter()
+        .map(|c| (c.name.as_str(), c.text.as_str()))
+        .collect();
+    assert_eq!(pairs, [("a", "three"), ("b", "two")]);
+}

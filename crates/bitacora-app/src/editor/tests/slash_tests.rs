@@ -370,3 +370,34 @@ fn full_width_angle_pair_becomes_an_angle_trigger_but_a_mid_word_less_than_does_
     cx.simulate_input("a<b");
     assert!(!ed.read_with(cx, |e, _| e.completion_open()));
 }
+
+#[gpui_test]
+fn full_width_angle_swap_also_applies_to_an_ime_commit_with_a_range(cx: &mut TestAppContext) {
+    let env = Env::new(&[(HOME, "- one\n")]);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    edit(&ed, 0, Caret::End, cx);
+    cx.simulate_input(" \u{300a}");
+    // The `〈` is composed first, then committed over its preedit with an explicit range.
+    ed.update_in(cx, |e, window, cx| {
+        e.replace_and_mark_text_in_range(None, "\u{3008}", None, window, cx);
+    });
+    assert_eq!(buffer(&ed, cx).as_deref(), Some("one \u{300a}\u{3008}"));
+    assert!(ed.read_with(cx, |e, _| e.marked_range()).is_some());
+    // UTF-16 units: "one " is 4, `《` is 1, the preedit `〈` is 1.
+    let marked = 5..6;
+    ed.update_in(cx, |e, window, cx| {
+        e.replace_text_in_range(Some(marked), "\u{3008}", window, cx);
+    });
+    assert_eq!(buffer(&ed, cx).as_deref(), Some("one <"));
+    assert_eq!(ed.read_with(cx, |e, _| e.marked_range()), None);
+    assert_eq!(ed.read_with(cx, |e, _| e.cursor_offset()), "one <".len());
+    assert!(labels(&ed, cx).iter().any(|l| l == "Quote"));
+    // An explicit empty range at the caret works too.
+    cx.simulate_keystrokes("escape");
+    cx.simulate_input("\u{300a}");
+    let at = "one <\u{300a}".encode_utf16().count();
+    ed.update_in(cx, |e, window, cx| {
+        e.replace_text_in_range(Some(at..at), "\u{3008}", window, cx);
+    });
+    assert_eq!(buffer(&ed, cx).as_deref(), Some("one <<"));
+}
