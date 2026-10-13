@@ -112,10 +112,14 @@ impl EffectiveConfig {
                 _ => None,
             };
             match pair {
-                Some((name, text)) => out.commands.push(CustomCommand {
-                    name: name.clone(),
-                    text: text.clone(),
-                }),
+                // A later definition overrides an earlier one but keeps its position.
+                Some((name, text)) => match out.commands.iter_mut().find(|c| c.name == *name) {
+                    Some(existing) => existing.text = text.clone(),
+                    None => out.commands.push(CustomCommand {
+                        name: name.clone(),
+                        text: text.clone(),
+                    }),
+                },
                 None => out.skipped += 1,
             }
         }

@@ -43,3 +43,11 @@ saved text.
 `cargo test -p bitacora-app --locked` (685 pass, new model tests for NOTE with list/fence/heading, QUOTE with NOTE,
 `#+BEGIN_FOO` container, VERSE breaks, one export test per type); `cargo test --workspace --locked --exclude bitacora-app`
 with the new snapshots; `cargo xtask fixtures verify`; clippy `-D warnings` on bitacora-app.
+
+## Review fixes (BIT-US-0188)
+
+- `render/model.rs`: `nested_items` and `Special::item` take a nesting depth; beyond `MAX_NEST_DEPTH` (32) the remaining lines are shown as one plain text item, so thousands of nested `#+BEGIN_QUOTE` lines or a very long `>>>>` line cannot overflow the stack.
+- `render/model.rs`: same-name BEGIN/END depth counting moved into `RegionScan`, which skips lines inside ``` fences and raw regions (SRC, EXAMPLE, EXPORT, QUERY, COMMENT); a `#+END_QUOTE` inside a code body no longer closes the quote. Used by both the top-level scanner and `nested_items`.
+- `editor/view.rs` (`replace_text_in_range`): the full-width `《〈` to `<` swap now also applies when the IME commits with an explicit range or over its preedit, evaluated against the text before the replaced range, as a single edit.
+- `bitacora-config` `custom_commands`: a later definition of the same name overrides the earlier text, keeping first-seen order.
+- Tests: `hostile_nesting_does_not_overflow_the_stack`, `end_line_inside_raw_bodies_does_not_close_the_quote` (model.rs), `full_width_angle_swap_also_applies_to_an_ime_commit_with_a_range` (slash_tests.rs), `custom_commands_last_definition_per_name_wins_in_first_seen_order` (config tests/load.rs).
