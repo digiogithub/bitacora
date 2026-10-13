@@ -15,7 +15,8 @@ pub mod graph_view;
 pub mod pando;
 
 pub use accessors::{
-    BulletIndentation, DefaultHome, NameFormat, PreferredFormat, PreferredWorkflow,
+    BulletIndentation, CustomCommand, CustomCommands, DefaultHome, NameFormat, PreferredFormat,
+    PreferredWorkflow,
 };
 pub use config::{
     DEFAULT_CONFIG_EDN, EffectiveConfig, default_config, global_config_path, merge_configs,

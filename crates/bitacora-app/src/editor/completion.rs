@@ -5,6 +5,7 @@
 
 use std::ops::Range;
 
+use bitacora_config::CustomCommand;
 use bitacora_core::editor::{CompletionProvider, PageSuggestion, page_candidates};
 use bitacora_index::search::{Scope, SearchHit, SearchOptions};
 
@@ -205,6 +206,20 @@ fn command_trigger(text: &str, cursor: usize) -> Option<Trigger> {
     }
 }
 
+/// The range to replace with `<` when the character `typed` is a full-width `〈` and the text
+/// before the caret ends with `《` (what an East-Asian input method produces for `<`). Logseq does
+/// the same swap and then opens the block-command menu; the `<` that results is then an ordinary
+/// angle trigger (`command_trigger`).
+#[must_use]
+pub fn fullwidth_angle(text: &str, cursor: usize, typed: &str) -> Option<Range<usize>> {
+    const OPEN: char = '\u{300a}';
+    if typed != "\u{3008}" || !text.is_char_boundary(cursor) {
+        return None;
+    }
+    let start = text[..cursor].strip_suffix(OPEN)?.len();
+    Some(start..cursor)
+}
+
 /// The text a page choice inserts for `trigger`.
 #[must_use]
 pub fn page_text(trigger: &Trigger, title: &str) -> String {
@@ -242,6 +257,13 @@ pub enum Item {
     },
     /// A slash or angle command.
     Command(Command),
+    /// A custom command of `:commands` in config.edn: inserts `text` verbatim.
+    Custom {
+        /// Name shown in the popup.
+        name: String,
+        /// Text that replaces the trigger and the typed query.
+        text: String,
+    },
     /// A template of the graph (`/template` list).
     Template {
         /// Name (`template:: name`).
@@ -261,7 +283,7 @@ impl Item {
             Self::Page { title, .. } => rust_i18n::t!("editor.new_page", title = title).to_string(),
             Self::Block { page, text, .. } => format!("{text}  ({page})"),
             Self::Command(c) => c.title(),
-            Self::Template { name } => name.clone(),
+            Self::Custom { name, .. } | Self::Template { name } => name.clone(),
         }
     }
 }
@@ -343,6 +365,7 @@ pub fn candidates(
     trigger: &Trigger,
     current_page: &str,
     own_text: &str,
+    custom: &[CustomCommand],
 ) -> Vec<Item> {
     let provider = IndexProvider(handle);
     match trigger {
@@ -357,15 +380,9 @@ pub fn candidates(
         }
         Trigger::Slash { query, .. } => match commands::template_query(query) {
             Some(q) => template_items(handle, q),
-            None => commands::filter(commands::SLASH, query)
-                .into_iter()
-                .map(Item::Command)
-                .collect(),
+            None => command_items(commands::SLASH, query, custom),
         },
-        Trigger::Angle { query, .. } => commands::filter(commands::ANGLE, query)
-            .into_iter()
-            .map(Item::Command)
-            .collect(),
+        Trigger::Angle { query, .. } => command_items(commands::ANGLE, query, custom),
         Trigger::Block { query, .. } => provider
             .search_blocks(query, MAX_ITEMS * 3)
             .into_iter()
@@ -378,6 +395,23 @@ pub fn candidates(
             })
             .collect(),
     }
+}
+
+/// Built-in commands of `menu` matching `query`, then the matching custom commands.
+#[must_use]
+pub fn command_items(menu: &[Command], query: &str, custom: &[CustomCommand]) -> Vec<Item> {
+    commands::filter(menu, query)
+        .into_iter()
+        .map(Item::Command)
+        .chain(
+            commands::filter_custom(custom, query)
+                .into_iter()
+                .map(|c| Item::Custom {
+                    name: c.name.clone(),
+                    text: c.text.clone(),
+                }),
+        )
+        .collect()
 }
 
 /// Templates of the graph matching `query`, best first.
@@ -492,6 +526,58 @@ mod tests {
         assert_eq!(detect("a<b", 3), None);
         // A page reference wins over a slash inside it.
         assert!(matches!(detect("[[a /b", 6), Some(Trigger::Page { .. })));
+    }
+
+    #[test]
+    fn custom_commands_follow_the_built_ins_in_both_menus() {
+        let custom = [CustomCommand {
+            name: "js".into(),
+            text: "Javascript".into(),
+        }];
+        for menu in [commands::SLASH, commands::ANGLE] {
+            let all = command_items(menu, "", &custom);
+            assert_eq!(all.len(), menu.len() + 1);
+            assert!(matches!(all.last(), Some(Item::Custom { name, .. }) if name == "js"));
+        }
+        let trig = detect("<js", 3).expect("angle");
+        assert_eq!(trig.query(), "js");
+        let items = command_items(commands::ANGLE, trig.query(), &custom);
+        assert!(items.iter().any(
+            |i| matches!(i, Item::Custom { name, text } if name == "js" && text == "Javascript")
+        ));
+    }
+
+    #[test]
+    fn full_width_brackets_become_an_angle_trigger() {
+        // `《` then `〈` is replaced by `<`, which then opens the menu.
+        let text = "a \u{300a}";
+        let range = fullwidth_angle(text, text.len(), "\u{3008}").expect("swap");
+        let mut out = text.to_owned();
+        out.replace_range(range.clone(), "<");
+        assert_eq!(out, "a <");
+        let t = detect(&out, out.len()).expect("angle");
+        assert_eq!(
+            t,
+            Trigger::Angle {
+                start: 2,
+                query: String::new()
+            }
+        );
+        // Only right after `《`, and only for `〈`.
+        assert_eq!(fullwidth_angle("a", 1, "\u{3008}"), None);
+        assert_eq!(fullwidth_angle("\u{300a}", 3, "x"), None);
+        assert_eq!(
+            fullwidth_angle("\u{300a}\u{300a}", 6, "\u{3008}"),
+            Some(3..6)
+        );
+    }
+
+    #[test]
+    fn a_less_than_inside_a_word_is_not_a_trigger() {
+        // Bitacora keeps `<` for word starts (Logseq opens the menu anywhere).
+        assert_eq!(detect("a<b", 3), None);
+        assert_eq!(detect("1<2", 3), None);
+        assert!(detect("a <b", 4).is_some());
     }
 
     #[test]

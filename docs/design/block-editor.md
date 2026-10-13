@@ -416,6 +416,18 @@ anchored to the caret rect and fed by the search index. Like Logseq, the query i
 caret, and choosing an item replaces that range. Commands are data (`Vec<Step>`), modelled on Logseq's step vectors
 (`src/main/frontend/commands.cljs:218-313`, `:724`), so users can extend them later.
 
+Slash and angle commands (BIT-US-0188):
+
+- **Custom commands.** `:commands [["js" "Javascript"]]` in `logseq/config.edn` is appended, after the built-ins, to
+  both the `/` and the `<` menus. Accepting an entry replaces the trigger and the typed query with the text
+  verbatim and puts the caret at its end. Only `[string string]` pairs are supported; entries whose value is a
+  vector (Logseq step vectors) or that are malformed are skipped with a warning and never fail the config load.
+  Parsed by `EffectiveConfig::custom_commands`, cached by the editor in `set_config`.
+- **Full-width trigger.** Typing `〈` right after `《` (an East-Asian input method's `<`) replaces the pair with `<`
+  and opens the `<` menu, as in Logseq (`handler/editor.cljs:3010-3018`). See `completion::fullwidth_angle`.
+- **Intentional divergence.** `<` (like `/`) only opens its menu at a word start, so `a<b` and `1<2` never pop up a
+  menu; Logseq opens it anywhere. Text such as comparisons or generics must stay uninterrupted.
+
 ### 7.5 Selection, drag and drop, clipboard
 
 - Selection is a set of `BlockId`s plus an anchor. Shift+click selects a range in DFS order and Mod+click toggles.

@@ -112,6 +112,18 @@ impl OutlineEditor {
         });
     }
 
+    /// Inserts the text of a custom `:commands` entry in place of the trigger text `range`.
+    pub(super) fn run_custom_command(
+        &mut self,
+        insert_text: &str,
+        range: Range<usize>,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(e) = &self.edit else { return };
+        let r = commands::apply_custom(e.buf.text(), &range, insert_text);
+        self.apply_rewrite(r, cx);
+    }
+
     /// Runs the menu entry `cmd` in place of the trigger text `range`.
     pub(super) fn run_command(
         &mut self,
