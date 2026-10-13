@@ -93,6 +93,43 @@ pub struct CodeBlock {
     pub tokens: Vec<(Range<usize>, TokenClass)>,
     /// Offset in the block text where each code line starts (click-to-caret).
     pub line_src: Vec<usize>,
+    /// Set for `#+BEGIN_EXPORT` regions: the view shows a localized kind label instead of the
+    /// language (BIT-T-0511).
+    pub export: Option<ExportKind>,
+}
+
+/// The target of a `#+BEGIN_EXPORT <type>` region. Bitacora has no HTML or KaTeX engine, so the
+/// source is shown as code (ADR-035).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExportKind {
+    /// `#+BEGIN_EXPORT html`.
+    Html,
+    /// `#+BEGIN_EXPORT latex`.
+    Latex,
+    /// `#+BEGIN_EXPORT ascii`.
+    Ascii,
+    /// No type or another one.
+    Other,
+}
+
+impl ExportKind {
+    fn from_type(ty: &str) -> Self {
+        match ty.trim().to_ascii_lowercase().as_str() {
+            "html" => Self::Html,
+            "latex" => Self::Latex,
+            "ascii" => Self::Ascii,
+            _ => Self::Other,
+        }
+    }
+
+    /// The highlighter language of the exported source.
+    fn highlight_language(self) -> &'static str {
+        match self {
+            Self::Html => "html",
+            Self::Latex => "latex",
+            Self::Ascii | Self::Other => "",
+        }
+    }
 }
 
 impl CodeBlock {
@@ -140,17 +177,30 @@ impl CalloutKind {
     }
 }
 
-/// How a `#+BEGIN_<name>` region with inline content is shown.
+/// How a `#+BEGIN_<name>` region with structured content is shown.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Special {
     Quote,
     Callout(CalloutKind),
     Center,
     Verse,
+    /// Any other name (`#+BEGIN_FOO`): a plain container with a structured body.
+    Container,
+}
+
+/// Region names whose body is verbatim text (code view, widget or hidden), never markup.
+fn is_raw_region(name: &str) -> bool {
+    ["SRC", "EXAMPLE", "EXPORT", "QUERY", "COMMENT"]
+        .iter()
+        .any(|n| name.eq_ignore_ascii_case(n))
 }
 
 impl Special {
+    /// `None` for the raw regions (see [`is_raw_region`]).
     fn from_name(name: &str) -> Option<Self> {
+        if is_raw_region(name) {
+            return None;
+        }
         if name.eq_ignore_ascii_case("QUOTE") {
             return Some(Self::Quote);
         }
@@ -160,21 +210,45 @@ impl Special {
         if name.eq_ignore_ascii_case("VERSE") {
             return Some(Self::Verse);
         }
-        CalloutKind::from_name(name).map(Self::Callout)
+        Some(CalloutKind::from_name(name).map_or(Self::Container, Self::Callout))
     }
 
-    fn item(self, layout: TextLayout) -> BodyItem {
+    /// Builds the item of a region whose body lines are `lines`.
+    fn item(self, name: &str, lines: &[(&str, usize)], resolver: &dyn BlockResolver) -> BodyItem {
+        if self == Self::Verse {
+            return BodyItem::Verse(layout_lines_at(lines.iter().copied(), resolver));
+        }
+        let body = nested_items(lines, resolver);
         match self {
-            Self::Quote => BodyItem::Quote(layout),
-            Self::Callout(kind) => BodyItem::Callout { kind, layout },
-            Self::Center => BodyItem::Center(layout),
-            Self::Verse => BodyItem::Verse(layout),
+            Self::Quote => BodyItem::Quote(body),
+            Self::Callout(kind) => BodyItem::Callout { kind, body },
+            Self::Center => BodyItem::Center(body),
+            Self::Verse | Self::Container => BodyItem::Container {
+                name: name.to_owned(),
+                body,
+            },
         }
     }
 }
 
-/// An open `#+BEGIN_<name>` region: its kind, name and the `(line, offset)` pairs collected.
-type OpenSpecial<'a> = (Special, String, Vec<(&'a str, usize)>);
+/// An open `#+BEGIN_<name>` region: its kind, name, nesting depth of same-name regions and the
+/// `(line, offset)` pairs collected.
+type OpenSpecial<'a> = (Special, String, usize, Vec<(&'a str, usize)>);
+
+/// A line that closes `#+BEGIN_<name>`.
+fn is_end_of(line: &str, name: &str) -> bool {
+    strip_prefix_ci(line.trim(), "#+END_")
+        .is_some_and(|rest| rest.trim().eq_ignore_ascii_case(name))
+}
+
+/// A line that opens a nested `#+BEGIN_<name>`.
+fn is_begin_of(line: &str, name: &str) -> bool {
+    strip_prefix_ci(line.trim(), "#+BEGIN_").is_some_and(|rest| {
+        rest.split(char::is_whitespace)
+            .next()
+            .is_some_and(|n| n.eq_ignore_ascii_case(name))
+    })
+}
 
 /// One item of a block body.
 #[derive(Debug, Clone, PartialEq)]
@@ -183,21 +257,48 @@ pub enum BodyItem {
     Text(TextLayout),
     /// A code fence or `#+BEGIN_SRC` region.
     Code(CodeBlock),
-    /// A `#+BEGIN_QUOTE` region or consecutive `> ` lines.
-    Quote(TextLayout),
+    /// A `#+BEGIN_QUOTE` region or consecutive `> ` lines; the body is structured markup.
+    Quote(Vec<BodyItem>),
     /// An admonition (`#+BEGIN_NOTE` ... `#+END_NOTE` and its siblings).
     Callout {
         /// Which admonition.
         kind: CalloutKind,
-        /// The content.
-        layout: TextLayout,
+        /// The content, as nested items.
+        body: Vec<BodyItem>,
     },
     /// A `#+BEGIN_CENTER` region.
-    Center(TextLayout),
-    /// A `#+BEGIN_VERSE` region (line breaks kept).
+    Center(Vec<BodyItem>),
+    /// A `#+BEGIN_VERSE` region (line breaks kept, so the body stays one inline layout).
     Verse(TextLayout),
+    /// Any other `#+BEGIN_<name>` region: a plain container around structured content.
+    Container {
+        /// The region name as written.
+        name: String,
+        /// The content, as nested items.
+        body: Vec<BodyItem>,
+    },
+    /// A Markdown heading line (`## Title`) inside a special region.
+    Heading {
+        /// Level 1-6.
+        level: u8,
+        /// The heading text.
+        layout: TextLayout,
+    },
+    /// A run of list lines (`- a`, `1. b`) inside a special region.
+    List(Vec<ListEntry>),
     /// A live query or an embed that fills its own line (BIT-US-0102, BIT-US-0104).
     Widget(Widget),
+}
+
+/// One line of a [`BodyItem::List`].
+#[derive(Debug, Clone, PartialEq)]
+pub struct ListEntry {
+    /// Nesting level from the line indentation (two columns per level).
+    pub depth: usize,
+    /// The numeral as written (`1.`) for ordered lists; `None` for bullets.
+    pub number: Option<String>,
+    /// The item text.
+    pub layout: TextLayout,
 }
 
 /// Everything shown for one block.
@@ -403,15 +504,17 @@ impl BlockModel {
                 }
                 continue;
             }
-            if let Some((_, name, q)) = quote.as_mut() {
-                let closes = strip_prefix_ci(line.trim(), "#+END_")
-                    .is_some_and(|rest| rest.trim().eq_ignore_ascii_case(name));
-                if closes {
-                    if let Some((special, _, lines)) = quote.take() {
-                        let layout = layout_lines_at(lines, resolver);
-                        model.body.push(special.item(layout));
+            if let Some((_, name, depth, q)) = quote.as_mut() {
+                if is_end_of(line, name) && *depth == 1 {
+                    if let Some((special, name, _, lines)) = quote.take() {
+                        model.body.push(special.item(&name, &lines, resolver));
                     }
                 } else {
+                    if is_end_of(line, name) {
+                        *depth -= 1;
+                    } else if is_begin_of(line, name) {
+                        *depth += 1;
+                    }
                     q.push((line, start));
                 }
                 continue;
@@ -420,7 +523,7 @@ impl BlockModel {
                 let lines = std::mem::take(&mut gt_quote);
                 model
                     .body
-                    .push(BodyItem::Quote(layout_lines_at(lines, resolver)));
+                    .push(BodyItem::Quote(nested_items(&lines, resolver)));
             }
             if overlaps(&skip, start, end)
                 || (!planning_spans.is_empty()
@@ -479,7 +582,7 @@ impl BlockModel {
                 let name = parts.next().unwrap_or("").to_owned();
                 let language = parts.next().unwrap_or("").trim().to_owned();
                 if let Some(special) = Special::from_name(&name) {
-                    quote = Some((special, name, Vec::new()));
+                    quote = Some((special, name, 1, Vec::new()));
                 } else {
                     region = Some(Region::Begin {
                         name,
@@ -505,15 +608,13 @@ impl BlockModel {
         if let Some(r) = region.take() {
             model.push_region(r);
         }
-        if let Some((special, _, lines)) = quote.take() {
-            model
-                .body
-                .push(special.item(layout_lines_at(lines, resolver)));
+        if let Some((special, name, _, lines)) = quote.take() {
+            model.body.push(special.item(&name, &lines, resolver));
         }
         if !gt_quote.is_empty() {
             model
                 .body
-                .push(BodyItem::Quote(layout_lines_at(gt_quote, resolver)));
+                .push(BodyItem::Quote(nested_items(&gt_quote, resolver)));
         }
         flush_paragraph(&mut model, &mut paragraph);
         for item in &mut model.body {
@@ -525,47 +626,240 @@ impl BlockModel {
     }
 
     fn push_region(&mut self, region: Region) {
-        let (name, language, text, line_src) = match region {
-            Region::Fence {
-                language,
-                text,
-                starts,
-            } => ("SRC".to_owned(), language, text, starts),
-            Region::Begin {
-                name,
-                language,
-                text,
-                starts,
-            } => (name, language, text, starts),
-        };
-        if name.eq_ignore_ascii_case("COMMENT") {
-            return;
+        if let Some(item) = region_item(region) {
+            self.body.push(item);
         }
-        if name.eq_ignore_ascii_case("QUERY") {
-            self.body
-                .push(BodyItem::Widget(widget::advanced_region(&text)));
-            return;
-        }
-        // `#+BEGIN_EXAMPLE` is verbatim text: monospace, no label, no highlighting.
-        let example = name.eq_ignore_ascii_case("EXAMPLE");
-        let language = (!language.is_empty() && !example).then_some(language);
-        let tokens = if example {
-            Vec::new()
-        } else {
-            highlight(&text, language.as_deref().unwrap_or(""))
-        };
-        self.body.push(BodyItem::Code(CodeBlock {
-            language,
-            text,
-            tokens,
-            line_src,
-        }));
     }
 
     /// Whether the title line is struck through (cancelled task).
     pub fn is_cancelled(&self) -> bool {
         self.marker.as_ref().is_some_and(|m| m.cancelled)
     }
+}
+
+/// The item of a verbatim region (`None` for hidden comments).
+fn region_item(region: Region) -> Option<BodyItem> {
+    let (name, language, text, line_src) = match region {
+        Region::Fence {
+            language,
+            text,
+            starts,
+        } => ("SRC".to_owned(), language, text, starts),
+        Region::Begin {
+            name,
+            language,
+            text,
+            starts,
+        } => (name, language, text, starts),
+    };
+    if name.eq_ignore_ascii_case("COMMENT") {
+        return None;
+    }
+    if name.eq_ignore_ascii_case("QUERY") {
+        return Some(BodyItem::Widget(widget::advanced_region(&text)));
+    }
+    // `#+BEGIN_EXPORT <type>` has no HTML or KaTeX engine here: it is shown as highlighted
+    // source under an explicit kind label (ADR-035).
+    if name.eq_ignore_ascii_case("EXPORT") {
+        let kind = ExportKind::from_type(&language);
+        let tokens = highlight(&text, kind.highlight_language());
+        return Some(BodyItem::Code(CodeBlock {
+            language: None,
+            text,
+            tokens,
+            line_src,
+            export: Some(kind),
+        }));
+    }
+    // `#+BEGIN_EXAMPLE` is verbatim text: monospace, no label, no highlighting.
+    let example = name.eq_ignore_ascii_case("EXAMPLE");
+    let language = (!language.is_empty() && !example).then_some(language);
+    let tokens = if example {
+        Vec::new()
+    } else {
+        highlight(&text, language.as_deref().unwrap_or(""))
+    };
+    Some(BodyItem::Code(CodeBlock {
+        language,
+        text,
+        tokens,
+        line_src,
+        export: None,
+    }))
+}
+
+/// The list marker at the start of `line`: `(indent columns, numeral, text offset)`.
+fn list_marker(line: &str) -> Option<(usize, Option<String>, usize)> {
+    let body = line.trim_start();
+    let indent = line[..line.len() - body.len()]
+        .chars()
+        .map(|c| if c == '\t' { 4 } else { 1 })
+        .sum();
+    let bytes = body.as_bytes();
+    let first = *bytes.first()?;
+    if matches!(first, b'-' | b'*' | b'+')
+        && bytes.get(1).is_some_and(|b| *b == b' ' || *b == b'\t')
+    {
+        return Some((indent, None, line.len() - body.len() + 2));
+    }
+    let digits = bytes.iter().take_while(|b| b.is_ascii_digit()).count();
+    if digits > 0
+        && digits <= 9
+        && matches!(bytes.get(digits), Some(b'.' | b')'))
+        && bytes
+            .get(digits + 1)
+            .is_some_and(|b| *b == b' ' || *b == b'\t')
+    {
+        return Some((
+            indent,
+            Some(body[..=digits].to_owned()),
+            line.len() - body.len() + digits + 2,
+        ));
+    }
+    None
+}
+
+/// A Markdown heading line: `(level, text offset)`.
+fn heading_marker(line: &str) -> Option<(u8, usize)> {
+    let body = line.trim_start();
+    let hashes = body.bytes().take_while(|b| *b == b'#').count();
+    if (1..=6).contains(&hashes) && body[hashes..].starts_with(' ') {
+        let lead = line.len() - body.len();
+        return Some((hashes as u8, lead + hashes + 1));
+    }
+    None
+}
+
+/// Builds the structured items of a special region body (the same markup a block body has:
+/// paragraphs, code, nested regions, quotes) plus lists and headings. Widgets are not
+/// evaluated inside regions; a query region shows its source instead. Rendering only: the
+/// saved text never changes.
+fn nested_items(lines: &[(&str, usize)], resolver: &dyn BlockResolver) -> Vec<BodyItem> {
+    let mut out: Vec<BodyItem> = Vec::new();
+    let mut paragraph: Vec<(&str, usize)> = Vec::new();
+    let mut quote: Vec<(&str, usize)> = Vec::new();
+    let mut list: Vec<ListEntry> = Vec::new();
+    fn flush(
+        out: &mut Vec<BodyItem>,
+        paragraph: &mut Vec<(&str, usize)>,
+        quote: &mut Vec<(&str, usize)>,
+        list: &mut Vec<ListEntry>,
+        resolver: &dyn BlockResolver,
+    ) {
+        if !paragraph.is_empty() {
+            let layout = layout_lines_at(paragraph.drain(..), resolver);
+            if !layout.is_empty() {
+                out.push(BodyItem::Text(layout));
+            }
+        }
+        if !quote.is_empty() {
+            let lines = std::mem::take(quote);
+            out.push(BodyItem::Quote(nested_items(&lines, resolver)));
+        }
+        if !list.is_empty() {
+            out.push(BodyItem::List(std::mem::take(list)));
+        }
+    }
+    let mut i = 0;
+    while i < lines.len() {
+        let (line, start) = lines[i];
+        i += 1;
+        let trimmed = line.trim_start();
+        if !trimmed.starts_with('>') && !quote.is_empty() {
+            flush(&mut out, &mut paragraph, &mut quote, &mut list, resolver);
+        }
+        if let Some(rest) = trimmed.strip_prefix("```") {
+            flush(&mut out, &mut paragraph, &mut quote, &mut list, resolver);
+            let mut text = String::new();
+            let mut starts = Vec::new();
+            while i < lines.len() && !lines[i].0.trim().starts_with("```") {
+                if !starts.is_empty() {
+                    text.push('\n');
+                }
+                starts.push(lines[i].1);
+                text.push_str(lines[i].0);
+                i += 1;
+            }
+            i += 1;
+            out.extend(region_item(Region::Fence {
+                language: rest.trim().to_owned(),
+                text,
+                starts,
+            }));
+        } else if let Some(begin) = strip_prefix_ci(trimmed, "#+BEGIN_") {
+            flush(&mut out, &mut paragraph, &mut quote, &mut list, resolver);
+            let mut parts = begin.splitn(2, char::is_whitespace);
+            let name = parts.next().unwrap_or("").to_owned();
+            let language = parts.next().unwrap_or("").trim().to_owned();
+            let special = Special::from_name(&name);
+            let mut depth = 1;
+            let mut body: Vec<(&str, usize)> = Vec::new();
+            while i < lines.len() {
+                let (l, s) = lines[i];
+                i += 1;
+                if is_end_of(l, &name) {
+                    depth -= 1;
+                    if depth == 0 {
+                        break;
+                    }
+                } else if special.is_some() && is_begin_of(l, &name) {
+                    depth += 1;
+                }
+                body.push((l, s));
+            }
+            match special {
+                Some(special) => out.push(special.item(&name, &body, resolver)),
+                None => {
+                    let text = body.iter().map(|(l, _)| *l).collect::<Vec<_>>().join("\n");
+                    let item = region_item(Region::Begin {
+                        name,
+                        language,
+                        text,
+                        starts: body.iter().map(|(_, s)| *s).collect(),
+                    });
+                    // A query is not evaluated inside a region: show its source.
+                    out.extend(item.map(|item| match item {
+                        BodyItem::Widget(_) => BodyItem::Code(CodeBlock {
+                            language: None,
+                            text: body.iter().map(|(l, _)| *l).collect::<Vec<_>>().join("\n"),
+                            tokens: Vec::new(),
+                            line_src: body.iter().map(|(_, s)| *s).collect(),
+                            export: None,
+                        }),
+                        other => other,
+                    }));
+                }
+            }
+        } else if let Some(rest) = trimmed.strip_prefix('>') {
+            if !paragraph.is_empty() || !list.is_empty() {
+                flush(&mut out, &mut paragraph, &mut quote, &mut list, resolver);
+            }
+            let rest = rest.strip_prefix(' ').unwrap_or(rest);
+            quote.push((rest, start + (line.len() - rest.len())));
+        } else if line.trim().is_empty() {
+            flush(&mut out, &mut paragraph, &mut quote, &mut list, resolver);
+        } else if let Some((level, at)) = heading_marker(line) {
+            flush(&mut out, &mut paragraph, &mut quote, &mut list, resolver);
+            let layout = layout_line_at(&line[at..], start + at, resolver);
+            out.push(BodyItem::Heading { level, layout });
+        } else if let Some((indent, number, at)) = list_marker(line) {
+            if !paragraph.is_empty() {
+                flush(&mut out, &mut paragraph, &mut quote, &mut list, resolver);
+            }
+            list.push(ListEntry {
+                depth: indent / 2,
+                number,
+                layout: layout_line_at(&line[at..], start + at, resolver),
+            });
+        } else {
+            if !list.is_empty() {
+                flush(&mut out, &mut paragraph, &mut quote, &mut list, resolver);
+            }
+            paragraph.push((line, start));
+        }
+    }
+    flush(&mut out, &mut paragraph, &mut quote, &mut list, resolver);
+    out
 }
 
 fn property_value(
@@ -808,6 +1102,100 @@ mod tests {
         );
     }
 
+    /// The text of a nested body made of exactly one paragraph.
+    fn only_text(items: &[BodyItem]) -> &str {
+        match items {
+            [BodyItem::Text(t)] => &t.text,
+            other => panic!("expected one paragraph, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn note_holds_list_fence_and_heading() {
+        let b = block(
+            "t\n#+BEGIN_NOTE\n## Title [[x]]\n- one\n  - two\n1. three\n```rust\nlet a = 1;\n```\nclosing\n#+END_NOTE\nafter",
+        );
+        assert_eq!(b.body.len(), 2);
+        let BodyItem::Callout { body, .. } = &b.body[0] else {
+            panic!("callout: {:?}", b.body)
+        };
+        assert!(
+            matches!(&body[0], BodyItem::Heading { level: 2, layout } if layout.text.starts_with("Title"))
+        );
+        let BodyItem::List(entries) = &body[1] else {
+            panic!("list: {body:?}")
+        };
+        assert_eq!(entries.len(), 3);
+        assert_eq!(entries[0].layout.text, "one");
+        assert_eq!(entries[1].depth, 1);
+        assert_eq!(entries[2].number.as_deref(), Some("1."));
+        assert!(
+            matches!(&body[2], BodyItem::Code(c) if c.language.as_deref() == Some("rust") && c.text == "let a = 1;")
+        );
+        assert!(matches!(&body[3], BodyItem::Text(t) if t.text == "closing"));
+        assert!(matches!(&b.body[1], BodyItem::Text(t) if t.text == "after"));
+    }
+
+    #[test]
+    fn quote_holds_a_nested_note() {
+        let content =
+            "t\n#+BEGIN_QUOTE\nintro\n#+BEGIN_NOTE\ninner\n#+END_NOTE\noutro\n#+END_QUOTE";
+        let b = block(content);
+        assert_eq!(b.body.len(), 1);
+        let BodyItem::Quote(q) = &b.body[0] else {
+            panic!("quote")
+        };
+        assert_eq!(q.len(), 3);
+        assert!(
+            matches!(&q[1], BodyItem::Callout { kind: CalloutKind::Note, body } if only_text(body) == "inner")
+        );
+        // The same name nested closes at the matching end.
+        let b =
+            block("t\n#+BEGIN_QUOTE\n#+BEGIN_QUOTE\ndeep\n#+END_QUOTE\nmid\n#+END_QUOTE\nafter");
+        let BodyItem::Quote(q) = &b.body[0] else {
+            panic!("quote")
+        };
+        assert!(matches!(&q[0], BodyItem::Quote(d) if only_text(d) == "deep"));
+        assert!(matches!(&q[1], BodyItem::Text(t) if t.text == "mid"));
+        assert!(matches!(&b.body[1], BodyItem::Text(t) if t.text == "after"));
+    }
+
+    #[test]
+    fn unknown_region_is_a_container() {
+        let b = block("t\n#+BEGIN_FOO bar\n- a\ntext\n#+END_FOO");
+        let BodyItem::Container { name, body } = &b.body[0] else {
+            panic!("container: {:?}", b.body)
+        };
+        assert_eq!(name, "FOO");
+        assert!(matches!(&body[0], BodyItem::List(l) if l.len() == 1));
+        assert!(matches!(&body[1], BodyItem::Text(t) if t.text == "text"));
+    }
+
+    #[test]
+    fn verse_keeps_line_breaks() {
+        let b = block("t\n#+BEGIN_VERSE\nroses\n  are red\n#+END_VERSE");
+        assert!(matches!(&b.body[0], BodyItem::Verse(l) if l.text.contains('\n')));
+    }
+
+    #[test]
+    fn export_regions_are_labelled_code() {
+        for (ty, kind, tokens) in [
+            ("html", ExportKind::Html, true),
+            ("LaTeX", ExportKind::Latex, true),
+            ("ascii", ExportKind::Ascii, false),
+            ("", ExportKind::Other, false),
+        ] {
+            let src = "<p class=\"a\">x</p> % c";
+            let b = block(&format!("t\n#+BEGIN_EXPORT {ty}\n{src}\n#+END_EXPORT"));
+            let BodyItem::Code(c) = &b.body[0] else {
+                panic!("code: {:?}", b.body)
+            };
+            assert_eq!(c.export, Some(kind), "{ty}");
+            assert_eq!(c.text, src);
+            assert_eq!(!c.tokens.is_empty(), tokens, "{ty}");
+        }
+    }
+
     #[test]
     fn code_fences_and_src_blocks() {
         let b = block("t\n```rust\nfn x() {}\n```\nafter\n#+BEGIN_SRC python\nx = 1\n#+END_SRC");
@@ -836,14 +1224,14 @@ mod tests {
                 "t\n#+BEGIN_{name}\nbody [[x]]\n#+END_{name}\nafter"
             ));
             assert!(
-                matches!(&b.body[0], BodyItem::Callout { kind: k, layout } if *k == kind && layout.text == "body [[x]]"),
+                matches!(&b.body[0], BodyItem::Callout { kind: k, body } if *k == kind && only_text(body) == "body [[x]]"),
                 "{name}: {:?}",
                 b.body
             );
             assert!(matches!(&b.body[1], BodyItem::Text(t) if t.text == "after"));
         }
         let b = block("t\n#+BEGIN_CENTER\nmid\n#+END_CENTER\n#+BEGIN_VERSE\na\nb\n#+END_VERSE");
-        assert!(matches!(&b.body[0], BodyItem::Center(l) if l.text == "mid"));
+        assert!(matches!(&b.body[0], BodyItem::Center(l) if only_text(l) == "mid"));
         assert!(matches!(&b.body[1], BodyItem::Verse(l) if l.text.contains('\n')));
         // Example is verbatim: monospace, no label, no highlighting; comments are hidden.
         let b = block(
@@ -868,21 +1256,21 @@ mod tests {
     fn greater_than_lines_form_a_quote() {
         let b = block("t\n> first\n> second [[x]]\nplain");
         assert!(
-            matches!(&b.body[0], BodyItem::Quote(q) if q.text.starts_with("first") && q.text.contains("second"))
+            matches!(&b.body[0], BodyItem::Quote(q) if only_text(q).starts_with("first") && only_text(q).contains("second"))
         );
         assert!(matches!(&b.body[1], BodyItem::Text(t) if t.text == "plain"));
         let b = block("t\ntext\n>tight");
         assert!(matches!(&b.body[0], BodyItem::Text(_)));
-        assert!(matches!(&b.body[1], BodyItem::Quote(q) if q.text == "tight"));
+        assert!(matches!(&b.body[1], BodyItem::Quote(q) if only_text(q) == "tight"));
         // A quote that ends the block is flushed.
         let b = block("t\n> last");
-        assert!(matches!(&b.body[0], BodyItem::Quote(q) if q.text == "last"));
+        assert!(matches!(&b.body[0], BodyItem::Quote(q) if only_text(q) == "last"));
     }
 
     #[test]
     fn quotes_and_unclosed_regions() {
         let b = block("t\n#+BEGIN_QUOTE\nwise [[x]]\n#+END_QUOTE");
-        assert!(matches!(&b.body[0], BodyItem::Quote(q) if q.text == "wise [[x]]"));
+        assert!(matches!(&b.body[0], BodyItem::Quote(q) if only_text(q) == "wise [[x]]"));
         let b = block("t\n```\nnever closed");
         assert!(matches!(&b.body[0], BodyItem::Code(c) if c.text == "never closed"));
     }

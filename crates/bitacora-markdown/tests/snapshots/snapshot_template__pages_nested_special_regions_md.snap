@@ -1,0 +1,25 @@
+---
+source: crates/bitacora-markdown/tests/snapshot_template.rs
+expression: "format!(\"{rel}\\n{lines:#?}\")"
+---
+pages/nested-special-regions.md
+[
+    "- Nested special regions\n",
+    "  #+BEGIN_QUOTE\n",
+    "  intro\n",
+    "  #+BEGIN_NOTE\n",
+    "  - item one\n",
+    "    - item two\n",
+    "  ## Heading in a note\n",
+    "  ```rust\n",
+    "  let a = 1;\n",
+    "  ```\n",
+    "  #+END_NOTE\n",
+    "  #+END_QUOTE\n",
+    "- #+BEGIN_FOO bar\n",
+    "  - inside an unknown region\n",
+    "  #+END_FOO\n",
+    "- #+BEGIN_EXPORT html\n",
+    "  <p>raw</p>\n",
+    "  #+END_EXPORT\n",
+]

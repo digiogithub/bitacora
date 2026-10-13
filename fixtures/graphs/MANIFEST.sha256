@@ -4,7 +4,7 @@ ae17ac3a4b55ba3159276e12e840642daa0795b8ebf12b7a6d5c6d7bf22c97e4  edge-cases-leg
 c1eac92d777e8d15cfa54f87fa18f9cd5204a9de9b012df0187a9dee95e143ff  edge-cases-legacy-names/pages/Q%3A why%3F.md
 a36726d50b9ff88a4c0900931c052c86b4e5f23266441e484ad61684b640cb87  edge-cases-legacy-names/pages/Version 1.0.md
 e7201564811b4129446cfc271d08cafe1209c68f494cb960c652263bb9101e57  edge-cases-legacy-names/pages/legacy-title-property.md
-019e9af557bc88fb9ae923879502332e885a225fed8b171692cb08907faa1157  edge-cases/PROVENANCE.md
+85ce55ce762b13770aecb0104b33259ca0669413e77f893ee0a8a54ecd2380fd  edge-cases/PROVENANCE.md
 f7fb9db9ecbbbe96dffdec14fb305f0b3449af398cdacac656e235adfde12d72  edge-cases/assets/pixel.png
 717ebc7933e6a6988092ae68f6fec822a04366d73f9ef7d1a33f4a333aa81546  edge-cases/journals/2024_05_01.md
 670bf7807694d89ed98439e0f3418db1a813ac924bbb1c887f479faf8a9f75bf  edge-cases/journals/2024_05_02.md
@@ -40,6 +40,7 @@ e2d27c8becc7714b167dc713a0465e195e63f3997f5677e070745a2f7041e584  edge-cases/pag
 fe891c1deed3c7cfd9861eff74636528b81e6e7ccba99c804788a31b2c7524c1  edge-cases/pages/inline-refs.md
 65f35996de394442b4be288b9b27fa10cdf212808267050e681b8f3ff8b3baff  edge-cases/pages/logbook-drawer.md
 ca85fea65cbd3b0b53b5ef688e2d29fceed4f15ec92ada488d68afb1dc6f6284  edge-cases/pages/mixed-line-endings.md
+0c6bed7f15febb9ef17f3462c37a3f8e3d6fdc14844d660dd17ad42b9c338ad9  edge-cases/pages/nested-special-regions.md
 196387b776380dbf553233d5983e6635a9faf0efbac4e224e9e5b4fb7bc4952c  edge-cases/pages/no-bullets.md
 70c80cf9ed109ad9013655b466ede2c4a3689968f661253dc32b060ae3695626  edge-cases/pages/no-trailing-newline.md
 f937a8e0bae8a6097e84fe894a2ec936b72e15a4cfdb229130c93a5b8f4611df  edge-cases/pages/org-page.org

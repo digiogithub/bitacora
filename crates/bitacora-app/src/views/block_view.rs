@@ -11,7 +11,9 @@ use crate::editor::row::{RowEdit, TextHook};
 use crate::nav::OpenIn;
 use crate::render::highlight::TokenClass;
 use crate::render::inline::{Emphasis, ImageRef, NavTarget, Role, TextLayout};
-use crate::render::model::{BlockModel, BodyItem, CalloutKind, CodeBlock, PropertyRow, Row};
+use crate::render::model::{
+    BlockModel, BodyItem, CalloutKind, CodeBlock, ExportKind, PropertyRow, Row,
+};
 use crate::ui::a11y;
 use crate::ui::text_edit::{
     FontStyle, FontWeight, HighlightStyle, InteractiveText, ObjectFit, StrikethroughStyle,
@@ -284,6 +286,17 @@ pub(crate) fn gutter_numbers(text: &str) -> Vec<String> {
         .collect()
 }
 
+/// The localized kind label of an `#+BEGIN_EXPORT` region.
+fn export_label(kind: ExportKind) -> String {
+    match kind {
+        ExportKind::Html => t!("page.export_html"),
+        ExportKind::Latex => t!("page.export_latex"),
+        ExportKind::Ascii => t!("page.export_ascii"),
+        ExportKind::Other => t!("page.export_plain"),
+    }
+    .to_string()
+}
+
 pub(crate) fn code_element(
     ix: usize,
     code: &CodeBlock,
@@ -348,10 +361,11 @@ pub(crate) fn code_element(
                 .justify_between()
                 .items_center()
                 .child(
-                    div()
-                        .text_xs()
-                        .text_color(theme.muted_foreground)
-                        .children(code.language.clone()),
+                    div().text_xs().text_color(theme.muted_foreground).children(
+                        code.export
+                            .map(export_label)
+                            .or_else(|| code.language.clone()),
+                    ),
                 )
                 .child(copy),
         )
@@ -414,6 +428,136 @@ fn callout_style(kind: CalloutKind, bt: &BitacoraTheme) -> (IconName, String, Hs
             IconName::Bell,
             t!("page.callout_pinned").to_string(),
             bt.colors.accent,
+        ),
+    }
+}
+
+/// Draws the structured body items of a special region (recursive: a note can hold a quote).
+fn nested_element(
+    part: usize,
+    items: &[BodyItem],
+    graph_root: Option<&Path>,
+    theme: &crate::ui::theme::Theme,
+    bt: &BitacoraTheme,
+    nav: &Nav,
+    on_text: Option<&TextHook>,
+) -> AnyElement {
+    let mut col = v_flex().w_full().min_w_0().gap_1();
+    for (n, item) in items.iter().enumerate() {
+        let sub = part * 100 + n;
+        col = col.child(match item {
+            BodyItem::Text(layout) => {
+                let mut cell = v_flex().child(text_element_owned(
+                    ("nested-text", sub),
+                    layout.clone(),
+                    theme,
+                    false,
+                    Some(nav.clone()),
+                    on_text.cloned(),
+                ));
+                for image in &layout.images {
+                    cell = cell.child(image_element(image, graph_root, theme));
+                }
+                cell.into_any_element()
+            }
+            BodyItem::Code(code) => code_element(sub, code, theme),
+            // Queries and embeds are not evaluated inside regions.
+            BodyItem::Widget(widget) => widget_source(widget, theme),
+            other => structured_item(sub, other, graph_root, theme, bt, nav, on_text),
+        });
+    }
+    col.into_any_element()
+}
+
+/// One structured body item: admonition card, quote rule, center, verse, container, heading
+/// or list.
+fn structured_item(
+    part: usize,
+    item: &BodyItem,
+    graph_root: Option<&Path>,
+    theme: &crate::ui::theme::Theme,
+    bt: &BitacoraTheme,
+    nav: &Nav,
+    on_text: Option<&TextHook>,
+) -> AnyElement {
+    let inline = |key: &'static str, layout: &TextLayout| {
+        text_element_owned(
+            (key, part),
+            layout.clone(),
+            theme,
+            false,
+            Some(nav.clone()),
+            on_text.cloned(),
+        )
+    };
+    let nest =
+        |items: &[BodyItem]| nested_element(part, items, graph_root, theme, bt, nav, on_text);
+    match item {
+        BodyItem::Callout { kind, body } => callout_element(part, *kind, nest(body), bt),
+        BodyItem::Center(body) => div()
+            .w_full()
+            .text_center()
+            .child(nest(body))
+            .into_any_element(),
+        BodyItem::Verse(layout) => div()
+            .pl_3()
+            .italic()
+            .child(inline("verse", layout))
+            .into_any_element(),
+        BodyItem::Quote(body) => div()
+            .pl_3()
+            .border_l_2()
+            .border_color(bt.colors.line_2)
+            .text_color(theme.muted_foreground)
+            .child(nest(body))
+            .into_any_element(),
+        BodyItem::Container { body, .. } => div()
+            .w_full()
+            .px_2()
+            .py_1()
+            .rounded(dims::PX_6)
+            .border_1()
+            .border_color(theme.border)
+            .child(nest(body))
+            .into_any_element(),
+        BodyItem::Heading { level, layout } => div()
+            .type_style(&heading_style(*level, bt))
+            .child(inline("heading", layout))
+            .into_any_element(),
+        BodyItem::List(entries) => {
+            let mut col = v_flex().w_full().gap_0p5();
+            for (n, entry) in entries.iter().enumerate() {
+                let bullet = entry
+                    .number
+                    .clone()
+                    .unwrap_or_else(|| "\u{2022}".to_owned());
+                col = col.child(
+                    h_flex()
+                        .items_start()
+                        .gap_2()
+                        .pl(dims::PX_12 * entry.depth as f32)
+                        .child(div().flex_none().child(bullet))
+                        .child(div().flex_1().min_w_0().child(text_element_owned(
+                            ("list", part * 1000 + n),
+                            entry.layout.clone(),
+                            theme,
+                            false,
+                            Some(nav.clone()),
+                            on_text.cloned(),
+                        ))),
+                );
+            }
+            col.into_any_element()
+        }
+        // Plain items are drawn by `nested_element`.
+        _ => nested_element(
+            part,
+            std::slice::from_ref(item),
+            graph_root,
+            theme,
+            bt,
+            nav,
+            on_text,
         ),
     }
 }
@@ -664,57 +808,22 @@ pub fn render_block_row(
                     None => widget_source(widget, theme),
                 });
             }
-            BodyItem::Callout { kind, layout } => {
-                content = content.child(callout_element(
+            BodyItem::Callout { .. }
+            | BodyItem::Center(_)
+            | BodyItem::Verse(_)
+            | BodyItem::Quote(_)
+            | BodyItem::Container { .. }
+            | BodyItem::Heading { .. }
+            | BodyItem::List(_) => {
+                content = content.child(structured_item(
                     part,
-                    *kind,
-                    text_element_owned(
-                        ("callout", part),
-                        layout.clone(),
-                        theme,
-                        false,
-                        Some(dispatch.clone()),
-                        on_text.clone(),
-                    ),
+                    item,
+                    graph_root,
+                    theme,
                     bt,
+                    dispatch,
+                    on_text.as_ref(),
                 ));
-            }
-            BodyItem::Center(layout) => {
-                content = content.child(div().w_full().text_center().child(text_element_owned(
-                    ("center", part),
-                    layout.clone(),
-                    theme,
-                    false,
-                    Some(dispatch.clone()),
-                    on_text.clone(),
-                )));
-            }
-            BodyItem::Verse(layout) => {
-                content = content.child(div().pl_3().italic().child(text_element_owned(
-                    ("verse", part),
-                    layout.clone(),
-                    theme,
-                    false,
-                    Some(dispatch.clone()),
-                    on_text.clone(),
-                )));
-            }
-            BodyItem::Quote(layout) => {
-                content = content.child(
-                    div()
-                        .pl_3()
-                        .border_l_2()
-                        .border_color(bt.colors.line_2)
-                        .text_color(theme.muted_foreground)
-                        .child(text_element_owned(
-                            ("quote", part),
-                            layout.clone(),
-                            theme,
-                            false,
-                            Some(dispatch.clone()),
-                            on_text.clone(),
-                        )),
-                );
             }
         }
     }
