@@ -135,6 +135,18 @@ fn lang(name: &str) -> Lang {
             block_comment: None,
             quotes: &['"'],
         },
+        "html" | "xml" | "svg" => Lang {
+            keywords: &[],
+            line_comment: &[],
+            block_comment: Some(("<!--", "-->")),
+            quotes: &['"', '\''],
+        },
+        "latex" | "tex" => Lang {
+            keywords: &[],
+            line_comment: &["%"],
+            block_comment: None,
+            quotes: &[],
+        },
         "" | "text" | "txt" | "plain" => Lang {
             keywords: &[],
             line_comment: &[],

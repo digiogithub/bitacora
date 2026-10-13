@@ -138,6 +138,10 @@ page:
   callout_caution: Precaución
   callout_warning: Advertencia
   callout_pinned: Fijado
+  export_html: "Exportación HTML"
+  export_latex: "Exportación LaTeX"
+  export_ascii: "Exportación ASCII"
+  export_plain: "Exportación"
 journals:
   today_badge: Hoy
   today_empty: Todavía no has escrito nada hoy
