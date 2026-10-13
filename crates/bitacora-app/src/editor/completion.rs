@@ -206,6 +206,20 @@ fn command_trigger(text: &str, cursor: usize) -> Option<Trigger> {
     }
 }
 
+/// The range to replace with `<` when the character `typed` is a full-width `〈` and the text
+/// before the caret ends with `《` (what an East-Asian input method produces for `<`). Logseq does
+/// the same swap and then opens the block-command menu; the `<` that results is then an ordinary
+/// angle trigger (`command_trigger`).
+#[must_use]
+pub fn fullwidth_angle(text: &str, cursor: usize, typed: &str) -> Option<Range<usize>> {
+    const OPEN: char = '\u{300a}';
+    if typed != "\u{3008}" || !text.is_char_boundary(cursor) {
+        return None;
+    }
+    let start = text[..cursor].strip_suffix(OPEN)?.len();
+    Some(start..cursor)
+}
+
 /// The text a page choice inserts for `trigger`.
 #[must_use]
 pub fn page_text(trigger: &Trigger, title: &str) -> String {
@@ -531,6 +545,39 @@ mod tests {
         assert!(items.iter().any(
             |i| matches!(i, Item::Custom { name, text } if name == "js" && text == "Javascript")
         ));
+    }
+
+    #[test]
+    fn full_width_brackets_become_an_angle_trigger() {
+        // `《` then `〈` is replaced by `<`, which then opens the menu.
+        let text = "a \u{300a}";
+        let range = fullwidth_angle(text, text.len(), "\u{3008}").expect("swap");
+        let mut out = text.to_owned();
+        out.replace_range(range.clone(), "<");
+        assert_eq!(out, "a <");
+        let t = detect(&out, out.len()).expect("angle");
+        assert_eq!(
+            t,
+            Trigger::Angle {
+                start: 2,
+                query: String::new()
+            }
+        );
+        // Only right after `《`, and only for `〈`.
+        assert_eq!(fullwidth_angle("a", 1, "\u{3008}"), None);
+        assert_eq!(fullwidth_angle("\u{300a}", 3, "x"), None);
+        assert_eq!(
+            fullwidth_angle("\u{300a}\u{300a}", 6, "\u{3008}"),
+            Some(3..6)
+        );
+    }
+
+    #[test]
+    fn a_less_than_inside_a_word_is_not_a_trigger() {
+        // Bitacora keeps `<` for word starts (Logseq opens the menu anywhere).
+        assert_eq!(detect("a<b", 3), None);
+        assert_eq!(detect("1<2", 3), None);
+        assert!(detect("a <b", 4).is_some());
     }
 
     #[test]

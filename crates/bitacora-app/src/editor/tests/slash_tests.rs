@@ -352,3 +352,21 @@ fn custom_config_commands_join_both_menus_and_insert_verbatim(cx: &mut TestAppCo
     let all = labels(&ed, cx);
     assert_eq!(all.last().map(String::as_str), Some("js"));
 }
+
+#[gpui_test]
+fn full_width_angle_pair_becomes_an_angle_trigger_but_a_mid_word_less_than_does_not(
+    cx: &mut TestAppContext,
+) {
+    let env = Env::new(&[(HOME, "- one\n")]);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    edit(&ed, 0, Caret::End, cx);
+    cx.simulate_input(" \u{300a}");
+    assert!(!ed.read_with(cx, |e, _| e.completion_open()));
+    cx.simulate_input("\u{3008}");
+    assert_eq!(buffer(&ed, cx).as_deref(), Some("one <"));
+    assert!(labels(&ed, cx).iter().any(|l| l == "Quote"));
+    // Bitacora only opens the `<` menu at a word start.
+    cx.simulate_keystrokes("escape");
+    cx.simulate_input("a<b");
+    assert!(!ed.read_with(cx, |e, _| e.completion_open()));
+}

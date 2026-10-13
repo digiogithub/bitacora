@@ -3121,6 +3121,20 @@ impl EntityInputHandler for OutlineEditor {
             self.apply_pair_edit(edit, cx);
             return;
         }
+        // `《` followed by `〈` (an East-Asian input method's `<`) becomes `<`, like Logseq.
+        if range_utf16.is_none()
+            && let Some(e) = &self.edit
+            && e.buf.marked().is_none()
+            && e.buf.selection().is_empty()
+            && let Some(swap) = completion::fullwidth_angle(e.buf.text(), e.buf.cursor(), new_text)
+        {
+            let to = swap.start + 1;
+            self.edit_buffer(cx, |b| {
+                b.replace_range(swap, "<");
+                b.set_cursor(to);
+            });
+            return;
+        }
         self.edit_buffer(cx, |b| b.ime_replace(range_utf16, new_text));
     }
 
