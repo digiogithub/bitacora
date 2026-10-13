@@ -208,3 +208,5 @@ Close each after the matching section passes on the OSes the item concerns.
 | BIT-US-0165 | Reopen the last graph; graph menu | V2 |
 | BIT-T-0487 (BIT-US-0163) | v2 user docs, release notes and v2.0.0 tag | owner step, see [[release-checklist-2.0]] |
 | BIT-T-0484, BIT-T-0485 (BIT-US-0161) | This verification and the performance pass | V8 and this file |
+| BIT-T-0510, BIT-T-0511, BIT-T-0514 (BIT-US-0188), BIT-T-0505 (BIT-US-0169) | `<` special blocks: nested markup in callouts/quotes, `#+BEGIN_FOO` container, EXPORT labels, light/dark | manual, see [[angle-block-commands-gaps-plan]] |
+| BIT-T-0513 (BIT-US-0188) | `《〈` with a real CJK IME (ibus/fcitx, macOS, Windows) opens the `<` menu | manual IME |

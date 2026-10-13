@@ -2,14 +2,14 @@
 id: BIT-T-0514
 type: task
 title: Manual visual check of special blocks and close BIT-US-0169
-status: backlog
+status: todo
 priority: medium
 parent: BIT-US-0188
 milestone: BIT-M-0006
 author: mcp
 estimate: 1
 created: 2026-10-13T07:57:55Z
-updated: 2026-10-13T07:57:55Z
+updated: 2026-10-13T08:29:22Z
 ---
 
 ## Description

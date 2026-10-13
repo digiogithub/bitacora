@@ -27,4 +27,6 @@ Menu (`editor/commands.rs` `ANGLE`, `begin_block`), trigger (`editor/completion.
 5. BIT-T-0514 — manual visual check; close BIT-US-0169.
 
 ## Progress
-- 2026-10-13: plan + backlog created; no code yet.
+- 2026-10-13: plan + backlog created.
+- 2026-10-13: BIT-T-0510/0511 merged (7b0949f), BIT-T-0512/0513 merged (34efe73), review fixes merged (ff7eca9: nesting cap, raw-aware region scan, IME commit swap, command override by name). Workspace 2121 tests pass, clippy clean, fixtures OK. Change docs: [[2026-10-13-angle-block-structured-regions]], [[2026-10-13-custom-commands-and-fullwidth-angle]].
+- Pending owner: BIT-T-0514 visual check (no graphical session on host) and real CJK IME check for BIT-T-0513. Known limit: config.edn `:commands` changes apply when the page editor is rebuilt (same as other config-driven editor settings).

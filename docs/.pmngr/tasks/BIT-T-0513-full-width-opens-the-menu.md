@@ -2,14 +2,15 @@
 id: BIT-T-0513
 type: task
 title: Full-width 《〈 opens the < menu
-status: backlog
+status: in_review
 priority: low
 parent: BIT-US-0188
 milestone: BIT-M-0006
 author: mcp
 estimate: 1
 created: 2026-10-13T07:57:55Z
-updated: 2026-10-13T07:57:55Z
+updated: 2026-10-13T08:17:37Z
+started: 2026-10-13T08:17:37Z
 ---
 
 ## Description

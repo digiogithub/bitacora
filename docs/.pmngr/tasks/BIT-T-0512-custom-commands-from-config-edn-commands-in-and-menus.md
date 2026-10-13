@@ -2,14 +2,16 @@
 id: BIT-T-0512
 type: task
 title: Custom commands from config.edn :commands in / and < menus
-status: backlog
+status: done
 priority: medium
 parent: BIT-US-0188
 milestone: BIT-M-0006
 author: mcp
 estimate: 3
 created: 2026-10-13T07:57:55Z
-updated: 2026-10-13T07:57:55Z
+updated: 2026-10-13T08:17:37Z
+started: 2026-10-13T08:09:22Z
+closed: 2026-10-13T08:17:37Z
 ---
 
 ## Description
