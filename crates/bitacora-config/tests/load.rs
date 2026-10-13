@@ -246,3 +246,31 @@ fn logseq_template_parses() {
     let cfg = EffectiveConfig::from_texts(None, Some(&text));
     assert!(cfg.diagnostics().is_empty(), "{:?}", cfg.diagnostics());
 }
+
+#[test]
+fn custom_commands_keep_string_pairs_and_skip_the_rest() {
+    let cfg = EffectiveConfig::from_texts(
+        None,
+        Some(
+            r#"{:commands [["js" "Javascript"] ["step" ["a" "b"]] ["lonely"] "bare" ["" "x"]
+                           ["multi" "line\ntext"]]}"#,
+        ),
+    );
+    let got = cfg.custom_commands();
+    let pairs: Vec<(&str, &str)> = got
+        .commands
+        .iter()
+        .map(|c| (c.name.as_str(), c.text.as_str()))
+        .collect();
+    assert_eq!(pairs, [("js", "Javascript"), ("multi", "line\ntext")]);
+    assert_eq!(got.skipped, 4);
+}
+
+#[test]
+fn custom_commands_default_to_empty_and_tolerate_a_wrong_type() {
+    let none = EffectiveConfig::from_texts(None, None).custom_commands();
+    assert!(none.commands.is_empty());
+    assert_eq!(none.skipped, 0);
+    let bad = EffectiveConfig::from_texts(None, Some("{:commands 5}")).custom_commands();
+    assert!(bad.commands.is_empty());
+}

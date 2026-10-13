@@ -5,6 +5,7 @@
 
 use std::ops::Range;
 
+use bitacora_config::CustomCommand;
 use bitacora_core::editor::TemplateContext;
 use bitacora_markdown::edit::state::{Timestamp, set_deadline, set_marker, set_scheduled};
 
@@ -224,6 +225,26 @@ pub fn filter(menu: &[Command], query: &str) -> Vec<Command> {
         .collect();
     scored.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)));
     scored.into_iter().map(|(_, _, cmd)| cmd).collect()
+}
+
+/// Custom commands of `:commands` (config.edn) matching `query`, best first (config order among
+/// equals). They are listed after the built-ins, like Logseq appends them to both menus.
+#[must_use]
+pub fn filter_custom<'a>(custom: &'a [CustomCommand], query: &str) -> Vec<&'a CustomCommand> {
+    let mut scored: Vec<(i32, usize, &CustomCommand)> = custom
+        .iter()
+        .enumerate()
+        .filter_map(|(i, c)| fuzzy_score(query, &c.name).map(|s| (s, i, c)))
+        .collect();
+    scored.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)));
+    scored.into_iter().map(|(_, _, c)| c).collect()
+}
+
+/// The edit a custom command makes: `insert_text` replaces the trigger and the typed query
+/// (`range`) verbatim, with the caret at its end.
+#[must_use]
+pub fn apply_custom(text: &str, range: &Range<usize>, insert_text: &str) -> Rewrite {
+    insert(text, range, insert_text, insert_text.len())
 }
 
 /// The text after `template` when `query` is the template list mode (`template foo`); `None`
@@ -484,6 +505,45 @@ mod tests {
         assert!(filter(SLASH, "zzzz").is_empty());
         // The empty-query order is the catalogue order.
         assert_eq!(labels(&all)[0], "TODO");
+    }
+
+    fn custom() -> Vec<CustomCommand> {
+        vec![
+            CustomCommand {
+                name: "js".into(),
+                text: "Javascript".into(),
+            },
+            CustomCommand {
+                name: "sig".into(),
+                text: "-- me".into(),
+            },
+        ]
+    }
+
+    #[test]
+    fn custom_commands_filter_and_insert_verbatim() {
+        let c = custom();
+        let names = |q: &str| -> Vec<String> {
+            filter_custom(&c, q)
+                .into_iter()
+                .map(|x| x.name.clone())
+                .collect()
+        };
+        assert_eq!(names(""), ["js", "sig"]);
+        assert_eq!(names("js"), ["js"]);
+        assert_eq!(names("SI"), ["sig"]);
+        assert!(names("zzz").is_empty());
+        let r = apply_custom("see <js", &(4..7), "Javascript");
+        assert_eq!(
+            r,
+            Rewrite {
+                text: "see Javascript".into(),
+                cursor: 14
+            }
+        );
+        let r = apply_custom("/si and more", &(0..3), "-- me");
+        assert_eq!(r.text, "-- me and more");
+        assert_eq!(r.cursor, 5);
     }
 
     #[test]

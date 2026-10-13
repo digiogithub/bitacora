@@ -136,6 +136,8 @@ struct EditState {
 pub struct OutlineEditor {
     queue: CommandQueue,
     config: std::sync::Arc<bitacora_config::EffectiveConfig>,
+    /// `:commands` of config.edn, parsed once per `set_config`.
+    custom_commands: Vec<bitacora_config::CustomCommand>,
     gate: Option<std::sync::Arc<crate::editing::EditingGate>>,
     handle: Option<GraphHandle>,
     props: PropertyConfig,
@@ -231,6 +233,7 @@ impl OutlineEditor {
             props: PropertyConfig::default(),
             queue,
             config: std::sync::Arc::default(),
+            custom_commands: Vec::new(),
             gate: None,
             handle: None,
             hidden,
@@ -317,6 +320,14 @@ impl OutlineEditor {
 
     /// The effective configuration (page paths of new pages).
     pub fn set_config(&mut self, config: std::sync::Arc<bitacora_config::EffectiveConfig>) {
+        let parsed = config.custom_commands();
+        if parsed.skipped > 0 {
+            tracing::warn!(
+                skipped = parsed.skipped,
+                "config.edn :commands: ignored entries that are not [\"name\" \"text\"] string pairs"
+            );
+        }
+        self.custom_commands = parsed.commands;
         self.config = config;
     }
 
@@ -1492,7 +1503,7 @@ impl OutlineEditor {
             .as_ref()
             .map(|o| o.snapshot().title.clone())
             .unwrap_or_default();
-        let items = completion::candidates(handle, &trigger, &page, &e.full);
+        let items = completion::candidates(handle, &trigger, &page, &e.full, &self.custom_commands);
         let selected = match &self.completion {
             Some(c) if c.trigger.start() == trigger.start() => c.selected,
             _ => 0,
@@ -2571,6 +2582,10 @@ impl OutlineEditor {
         let range = c.trigger.replace_range(cursor);
         match item {
             Item::Command(cmd) => self.run_command(cmd, range, window, cx),
+            Item::Custom { text, .. } => {
+                self.dismissed = Some(c.trigger.start());
+                self.run_custom_command(&text, range, cx);
+            }
             Item::Template { name } => self.insert_template(&name, range, window, cx),
             Item::Page { title, .. } => {
                 let text = completion::page_text(&c.trigger, &title);

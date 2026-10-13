@@ -327,3 +327,28 @@ fn upload_removes_the_trigger_and_asks_for_files(cx: &mut TestAppContext) {
     assert_eq!(buffer(&ed, cx).as_deref(), Some("one"));
     assert_eq!(editing_row(&ed, cx), Some(0));
 }
+
+#[gpui_test]
+fn custom_config_commands_join_both_menus_and_insert_verbatim(cx: &mut TestAppContext) {
+    let env = Env::new(&[(HOME, "- one\n")]);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    let cfg = bitacora_config::EffectiveConfig::from_texts(
+        None,
+        Some(r#"{:commands [["js" "Javascript"] ["bad" ["a" "b"]]]}"#),
+    );
+    ed.update(cx, |e, _| e.set_config(std::sync::Arc::new(cfg)));
+    edit(&ed, 0, Caret::End, cx);
+    cx.simulate_input(" <js");
+    assert_eq!(labels(&ed, cx), ["js"]);
+    cx.simulate_keystrokes("enter");
+    assert_eq!(buffer(&ed, cx).as_deref(), Some("one Javascript"));
+    assert!(!ed.read_with(cx, |e, _| e.completion_open()));
+    assert_eq!(
+        ed.read_with(cx, |e, _| e.cursor_offset()),
+        "one Javascript".len()
+    );
+    // The `/` menu lists it after the built-ins as well.
+    cx.simulate_input(" /");
+    let all = labels(&ed, cx);
+    assert_eq!(all.last().map(String::as_str), Some("js"));
+}

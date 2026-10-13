@@ -76,7 +76,52 @@ pub struct DefaultHome {
     pub sidebar: Option<Edn>,
 }
 
+/// One entry of `:commands` that inserts plain text (`["js" "Javascript"]`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CustomCommand {
+    /// Name shown in (and matched by) the `<` and `/` menus.
+    pub name: String,
+    /// Text inserted verbatim in place of the trigger and the typed query.
+    pub text: String,
+}
+
+/// Parsed `:commands`: the usable entries and how many were skipped.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct CustomCommands {
+    /// Entries that are a vector of two strings, in file order.
+    pub commands: Vec<CustomCommand>,
+    /// Entries ignored because they are malformed or their value is not a string (Logseq
+    /// also accepts vector/step values, which are not supported).
+    pub skipped: usize,
+}
+
 impl EffectiveConfig {
+    /// `:commands`, default empty. Never fails: a non-vector value or a malformed entry is
+    /// skipped and counted so the caller can warn.
+    pub fn custom_commands(&self) -> CustomCommands {
+        let mut out = CustomCommands::default();
+        let Some(items) = self.get("commands").and_then(Edn::as_items) else {
+            return out;
+        };
+        for entry in items {
+            let pair = match entry {
+                Edn::Vector(v) => match v.as_slice() {
+                    [Edn::Str(name), Edn::Str(text)] if !name.is_empty() => Some((name, text)),
+                    _ => None,
+                },
+                _ => None,
+            };
+            match pair {
+                Some((name, text)) => out.commands.push(CustomCommand {
+                    name: name.clone(),
+                    text: text.clone(),
+                }),
+                None => out.skipped += 1,
+            }
+        }
+        out
+    }
+
     fn string_or(&self, key: &str, default: &str) -> String {
         self.get(key)
             .and_then(Edn::as_str)
