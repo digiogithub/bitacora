@@ -1,6 +1,6 @@
 ---
-created_at: 2026-10-14T11:15:00Z
-updated_at: 2026-10-14T11:15:00Z
+created_at: 2026-10-14T11:10:20.807507615Z
+updated_at: 2026-10-14T11:10:34.094109733Z
 tags:
     - change
     - fix
@@ -31,4 +31,4 @@ Linux: `cargo clippy --workspace --all-targets --locked -D warnings`; `cargo tes
 -p bitacora-app` all pass. Windows: the full crate graph cannot be cross-checked on the Linux host (C deps need a
 mingw toolchain), so the new Windows-only code was compiled and clippy-checked (`-D warnings`, `unsafe_code = warn`)
 in an isolated crate for `x86_64-pc-windows-gnullvm`. CI Windows smoke steps pipe output, so they still wait for the
-process and capture its log. Manual check on Windows pending (BIT-T-0515 in review).
+process and capture its log. Manual check on Windows pending (BIT-T-0515 in review). Commit 7787644.
