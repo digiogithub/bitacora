@@ -2,6 +2,20 @@
 
 All notable changes to Bitacora. Format follows Keep a Changelog; versions follow SemVer.
 
+## [2.2.0] - 2026-10-14
+
+### Added
+- Special blocks (`#+BEGIN_NOTE/TIP/IMPORTANT/CAUTION/WARNING/PINNED/QUOTE/CENTER`, `> ` quotes and unknown `#+BEGIN_<name>`) render their content as full markup: paragraphs, lists, headings, code blocks and nested blocks.
+- Admonitions show their icon in a round badge on a tinted card; quotes get an accent rule on a soft panel.
+- `#+BEGIN_EXPORT html/latex/ascii` regions render as highlighted source under a clear label.
+- Custom commands from `:commands` in `logseq/config.edn` appear in the `/` and `<` menus.
+- Typing the full-width `《〈` (CJK input) opens the `<` block-command menu.
+
+### Fixed
+- A block that starts with `#+BEGIN_QUOTE`, `#+BEGIN_NOTE` (and the other special blocks) or `> ` renders the block instead of showing the raw begin/end markers.
+- Windows: the desktop app no longer opens a terminal window with internal logs (closing it used to quit the app), and git calls never flash a console window.
+- Deeply nested special blocks can no longer overflow the stack; an end marker inside a code block no longer closes the enclosing quote.
+
 ## [2.1.1] - 2026-10-09
 
 ### Added
