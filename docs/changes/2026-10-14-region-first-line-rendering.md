@@ -1,6 +1,6 @@
 ---
-created_at: 2026-10-14T11:10:00Z
-updated_at: 2026-10-14T11:10:00Z
+created_at: 2026-10-14T11:03:28.805471281Z
+updated_at: 2026-10-14T11:03:37.724107764Z
 tags:
     - change
     - editor
@@ -41,4 +41,4 @@ the common `- #+BEGIN_X` shape. View-only change, saved text untouched.
 
 `cargo test -p bitacora-app --locked` (696 pass), clippy `-D warnings` on bitacora-app, and a real-window screenshot
 (X11, temp XDG dirs) of a page with QUOTE, fence, NOTE, IMPORTANT, TIP, WARNING with list, CAUTION, PINNED, `>` quote
-and a titled block with a NOTE: no markers shown, cards rendered.
+and a titled block with a NOTE: no markers shown, cards rendered. Commit 460dbf5.
