@@ -100,7 +100,7 @@ pub fn detect_git(configured: Option<&Path>) -> GitDetection {
 }
 
 fn probe(binary: &Path) -> Option<GitVersion> {
-    let out = Command::new(binary)
+    let out = crate::process::hide_console(&mut Command::new(binary))
         .arg("--version")
         .env("LC_ALL", "C")
         .stdin(Stdio::null())

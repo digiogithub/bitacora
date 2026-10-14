@@ -543,7 +543,7 @@ impl SyncEngine {
         match external_operation(&git_dir) {
             None => {}
             Some(ExternalOperation::Rebase) => {
-                let out = std::process::Command::new("git")
+                let out = crate::process::hide_console(&mut std::process::Command::new("git"))
                     .args(["rebase", "--abort"])
                     .current_dir(&self.config.graph)
                     .stdin(std::process::Stdio::null())

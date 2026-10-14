@@ -188,6 +188,7 @@ fn run_with_env(
         })
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+    crate::process::hide_console(&mut cmd);
     // GIT_ASKPASS: the in-app helper if configured, otherwise empty so git neither prompts on a
     // terminal nor inherits a stray helper that would block.
     cmd.env(

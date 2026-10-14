@@ -10,6 +10,7 @@ pub mod engine;
 pub mod history;
 pub mod merge;
 pub mod onboarding;
+pub mod process;
 pub mod recovery;
 pub mod repo_setup;
 pub mod resolve;

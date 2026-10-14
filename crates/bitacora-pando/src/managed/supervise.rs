@@ -256,6 +256,7 @@ fn check_binary(
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::null());
+    sys::hide_console(&mut cmd);
     for (k, v) in env {
         cmd.env(k, v);
     }

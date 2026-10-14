@@ -18,6 +18,20 @@ pub const HAS_PDEATHSIG: bool = cfg!(target_os = "linux");
 #[cfg(unix)]
 pub use unix::*;
 
+/// Keeps a console child (pando) from opening its own console window: the desktop binary is a
+/// GUI-subsystem program on Windows with no console to share. No-op elsewhere.
+pub fn hide_console(cmd: &mut std::process::Command) {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt as _;
+        /// Windows `CREATE_NO_WINDOW`.
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    #[cfg(not(windows))]
+    let _ = cmd;
+}
+
 #[cfg(not(unix))]
 pub use other::*;
 
@@ -217,5 +231,7 @@ mod other {
         }
         pub fn started(&mut self) {}
     }
-    pub fn prepare(_cmd: &mut Command, _lifeline: Option<&Lifeline>) {}
+    pub fn prepare(cmd: &mut Command, _lifeline: Option<&Lifeline>) {
+        super::hide_console(cmd);
+    }
 }

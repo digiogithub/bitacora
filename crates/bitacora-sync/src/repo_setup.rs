@@ -74,7 +74,8 @@ pub fn hostname() -> String {
             return sanitize_host(v);
         }
     }
-    if let Ok(out) = std::process::Command::new("hostname").output()
+    if let Ok(out) =
+        crate::process::hide_console(&mut std::process::Command::new("hostname")).output()
         && out.status.success()
     {
         let v = String::from_utf8_lossy(&out.stdout).trim().to_string();
