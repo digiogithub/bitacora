@@ -36,13 +36,18 @@ pub enum Glyph {
     ArrowUp,
     CircleAlert,
     Settings,
+    Info,
+    Lightbulb,
+    OctagonAlert,
+    TriangleAlert,
+    Quote,
     /// The custom filled four-point sparkle used for everything AI.
     Sparkle,
 }
 
 impl Glyph {
     /// Every glyph, in declaration order.
-    pub const ALL: [Glyph; 23] = [
+    pub const ALL: [Glyph; 28] = [
         Glyph::PanelLeft,
         Glyph::PanelRight,
         Glyph::ChevronLeft,
@@ -65,6 +70,11 @@ impl Glyph {
         Glyph::ArrowUp,
         Glyph::CircleAlert,
         Glyph::Settings,
+        Glyph::Info,
+        Glyph::Lightbulb,
+        Glyph::OctagonAlert,
+        Glyph::TriangleAlert,
+        Glyph::Quote,
         Glyph::Sparkle,
     ];
 
@@ -94,6 +104,11 @@ impl Glyph {
             Glyph::ArrowUp => "icons/arrow-up.svg",
             Glyph::CircleAlert => "icons/circle-alert.svg",
             Glyph::Settings => "icons/settings.svg",
+            Glyph::Info => "icons/info.svg",
+            Glyph::Lightbulb => "icons/lightbulb.svg",
+            Glyph::OctagonAlert => "icons/octagon-alert.svg",
+            Glyph::TriangleAlert => "icons/triangle-alert.svg",
+            Glyph::Quote => "icons/quote.svg",
             Glyph::Sparkle => return None,
         })
     }

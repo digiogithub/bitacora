@@ -188,6 +188,14 @@ enum Special {
     Container,
 }
 
+/// Whether a line opens a fence, a `#+BEGIN_<name>` region or a `> ` quote.
+fn opens_region(line: &str) -> bool {
+    let trimmed = line.trim_start();
+    trimmed.starts_with("```")
+        || trimmed.starts_with('>')
+        || strip_prefix_ci(trimmed, "#+BEGIN_").is_some()
+}
+
 /// Region names whose body is verbatim text (code view, widget or hidden), never markup.
 fn is_raw_region(name: &str) -> bool {
     ["SRC", "EXAMPLE", "EXPORT", "QUERY", "COMMENT"]
@@ -539,9 +547,9 @@ impl BlockModel {
             }
         };
         for (index, raw) in content.split_inclusive('\n').enumerate() {
-            let start = offset;
+            let mut start = offset;
             offset += raw.len();
-            let line = raw.trim_end_matches(['\n', '\r']);
+            let mut line = raw.trim_end_matches(['\n', '\r']);
             let end = start + line.len();
             if let Some(r) = region.as_mut() {
                 let trimmed = line.trim();
@@ -598,34 +606,19 @@ impl BlockModel {
             if !title_done {
                 title_done = true;
                 let from = analysis.head.title_start.min(end).max(start);
-                // `- #+BEGIN_QUERY` on the first line opens the region right away.
-                if let Some(rest) =
-                    strip_prefix_ci(content[from..end].trim_start(), "#+BEGIN_QUERY")
-                    && rest.trim().is_empty()
-                {
-                    region = Some(Region::Begin {
-                        name: "QUERY".to_owned(),
-                        language: String::new(),
-                        text: String::new(),
-                        starts: Vec::new(),
-                    });
+                let head = &content[from..end];
+                // A region opening the block (`- #+BEGIN_NOTE`, `- ```lang`, `- > quote`) is
+                // rendered, not shown as a title: the block has no title line, as in Logseq.
+                if !opens_region(head) {
+                    if let Some(w) = widget::detect_line(head) {
+                        model.body.push(BodyItem::Widget(w));
+                    } else {
+                        model.title = layout_line_at(head, from, resolver);
+                    }
                     continue;
                 }
-                // `- ```lang` on the first line opens the fence right away: the block has no title.
-                if let Some(rest) = content[from..end].trim_start().strip_prefix("```") {
-                    region = Some(Region::Fence {
-                        language: rest.trim().to_owned(),
-                        text: String::new(),
-                        starts: Vec::new(),
-                    });
-                    continue;
-                }
-                if let Some(w) = widget::detect_line(&content[from..end]) {
-                    model.body.push(BodyItem::Widget(w));
-                } else {
-                    model.title = layout_line_at(&content[from..end], from, resolver);
-                }
-                continue;
+                line = head;
+                start = from;
             }
             let trimmed = line.trim_start();
             if let Some(rest) = trimmed.strip_prefix("```") {
@@ -1566,6 +1559,57 @@ mod tests {
         // A macro inside a sentence stays inline text.
         let b = block("see {{embed [[Other]]}} here");
         assert!(b.body.is_empty());
+    }
+
+    #[test]
+    fn regions_opening_the_block_render_without_a_title_line() {
+        let b = block("#+BEGIN_QUOTE\nhola\n#+END_QUOTE");
+        assert!(b.title.is_empty(), "title: {:?}", b.title.text);
+        let [BodyItem::Quote(body)] = b.body.as_slice() else {
+            panic!("one quote: {:?}", b.body);
+        };
+        assert!(matches!(body.as_slice(), [BodyItem::Text(t)] if t.text == "hola"));
+
+        for (src, kind) in [
+            ("#+BEGIN_NOTE\nNote\n#+END_NOTE", CalloutKind::Note),
+            (
+                "#+BEGIN_IMPORTANT\nImportant\n#+END_IMPORTANT",
+                CalloutKind::Important,
+            ),
+            ("#+begin_tip\ntest tip\n#+end_tip", CalloutKind::Tip),
+        ] {
+            let b = block(src);
+            assert!(b.title.is_empty(), "{src}: {:?}", b.title.text);
+            assert!(
+                matches!(b.body.as_slice(), [BodyItem::Callout { kind: k, .. }] if *k == kind),
+                "{src}: {:?}",
+                b.body
+            );
+        }
+
+        let b = block(">  Blockquote");
+        assert!(b.title.is_empty());
+        let [BodyItem::Quote(body)] = b.body.as_slice() else {
+            panic!("one quote: {:?}", b.body);
+        };
+        assert!(matches!(body.as_slice(), [BodyItem::Text(t)] if t.text.trim() == "Blockquote"));
+
+        let b = block("#+BEGIN_CENTER\nmiddle\n#+END_CENTER\nafter");
+        assert!(b.title.is_empty());
+        assert!(
+            matches!(b.body.as_slice(), [BodyItem::Center(_), BodyItem::Text(t)] if t.text == "after")
+        );
+
+        // A task marker stays on the row; the region still renders.
+        let b = block("TODO #+BEGIN_NOTE\nbody\n#+END_NOTE");
+        assert!(b.marker.is_some());
+        assert!(b.title.is_empty());
+        assert!(matches!(b.body.as_slice(), [BodyItem::Callout { .. }]));
+
+        // Text before the region keeps its title.
+        let b = block("Intro\n#+BEGIN_NOTE\nbody\n#+END_NOTE");
+        assert_eq!(b.title.text, "Intro");
+        assert!(matches!(b.body.as_slice(), [BodyItem::Callout { .. }]));
     }
 
     #[test]

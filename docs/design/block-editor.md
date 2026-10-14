@@ -458,6 +458,11 @@ an unknown name becomes `BodyItem::Container`, not a code block. Queries are not
 `SRC`, `EXAMPLE`, `QUERY` and `COMMENT` keep their verbatim behaviour. This is view-only: the saved text never changes.
 `#+BEGIN_EXPORT <type>` has no HTML/KaTeX engine: it is a code view under a localized label (HTML / LaTeX / ASCII /
 plain "Export") with html/latex highlighting; divergence recorded in ADR-035 (Logseq: `block.cljs:3262-3280`).
+A region, fence or `> ` line on the block's first line (`- #+BEGIN_NOTE`, the shape the `<` menu inserts) is not the
+title: the row shows only the rendered box, never the `#+BEGIN_`/`#+END_` markers (raw text appears only while editing).
+Admonitions are tinted cards with a tone outline, the kind's Lucide icon in a round badge (info, lightbulb,
+circle-alert, octagon-alert, triangle-alert, pin) and a small localized title; quotes are an accent rule on a soft
+panel in secondary text.
 
 Journals view: a virtual list of journal pages, newest first, loading 7 more on scroll (Logseq
 `src/main/frontend/handler/page.cljs:676-679`). Today's journal is a **virtual page** (no file) with the default

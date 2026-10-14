@@ -21,12 +21,12 @@ use crate::ui::text_edit::{
 };
 use crate::ui::theme::{BitacoraTheme, TypeStyle, TypeStyleExt as _};
 use crate::ui::{
-    AnyElement, App, AppContext as _, Div, FluentBuilder as _, Hsla, IconName,
+    AnyElement, App, AppContext as _, Div, FluentBuilder as _, Hsla, Icon, IconName,
     InteractiveElement as _, IntoElement, ParentElement as _, SharedString,
     StatefulInteractiveElement as _, Styled as _, StyledImage as _, Window, div, h_flex, icon, px,
     v_flex,
 };
-use crate::views::kit::{Chip, ChipTone, TaskMarker, marker_spec};
+use crate::views::kit::{Chip, ChipTone, Glyph, TaskMarker, marker_spec};
 use bitacora_markdown::tasks::head::Marker;
 
 /// Resolves an image `src` (`../assets/a.png`) to a file inside the graph. Remote URLs and
@@ -397,38 +397,46 @@ pub(crate) fn code_element(
 }
 
 /// Icon, title and tone of one admonition kind.
-fn callout_style(kind: CalloutKind, bt: &BitacoraTheme) -> (IconName, String, Hsla) {
+fn callout_style(kind: CalloutKind, bt: &BitacoraTheme) -> (Glyph, String, Hsla) {
     match kind {
         CalloutKind::Note => (
-            IconName::Info,
+            Glyph::Info,
             t!("page.callout_note").to_string(),
             bt.colors.accent,
         ),
         CalloutKind::Tip => (
-            IconName::Star,
+            Glyph::Lightbulb,
             t!("page.callout_tip").to_string(),
             bt.colors.accent,
         ),
         CalloutKind::Important => (
-            IconName::CircleAlert,
+            Glyph::CircleAlert,
             t!("page.callout_important").to_string(),
             bt.colors.warn,
         ),
         CalloutKind::Caution => (
-            IconName::TriangleAlert,
+            Glyph::OctagonAlert,
             t!("page.callout_caution").to_string(),
             bt.colors.warn,
         ),
         CalloutKind::Warning => (
-            IconName::TriangleAlert,
+            Glyph::TriangleAlert,
             t!("page.callout_warning").to_string(),
             bt.colors.warn,
         ),
         CalloutKind::Pinned => (
-            IconName::Bell,
+            Glyph::Pin,
             t!("page.callout_pinned").to_string(),
             bt.colors.accent,
         ),
+    }
+}
+
+/// A design-system glyph painted with the theme stroke (no `App` needed, unlike `kit::glyph`).
+fn glyph_icon(g: Glyph, bt: &BitacoraTheme) -> Icon {
+    match g.svg(bt.metrics.icon_stroke) {
+        Some(bytes) => Icon::empty().data(&bytes),
+        None => Icon::empty(),
     }
 }
 
@@ -504,13 +512,7 @@ fn structured_item(
             .italic()
             .child(inline("verse", layout))
             .into_any_element(),
-        BodyItem::Quote(body) => div()
-            .pl_3()
-            .border_l_2()
-            .border_color(bt.colors.line_2)
-            .text_color(theme.muted_foreground)
-            .child(nest(body))
-            .into_any_element(),
+        BodyItem::Quote(body) => quote_element(part, nest(body), bt),
         BodyItem::Container { body, .. } => div()
             .w_full()
             .px_2()
@@ -562,34 +564,70 @@ fn structured_item(
     }
 }
 
-/// An admonition: tinted card with a coloured left rule, an icon and the kind's title.
+/// An admonition: tinted card with a tone outline and left rule, the kind's icon in a round
+/// badge beside a small title, and the structured body under the title.
 pub(crate) fn callout_element(
     ix: usize,
     kind: CalloutKind,
     body: AnyElement,
     bt: &BitacoraTheme,
 ) -> AnyElement {
-    let (glyph, title, tone) = callout_style(kind, bt);
-    v_flex()
+    let (g, title, tone) = callout_style(kind, bt);
+    let badge = div()
+        .flex_none()
+        .size(dims::PX_24)
+        .rounded_full()
+        .flex()
+        .items_center()
+        .justify_center()
+        .bg(tone.opacity(dims::CALLOUT_BADGE_TINT))
+        .text_color(tone)
+        .child(glyph_icon(g, bt).size(dims::PX_14));
+    h_flex()
         .id(("callout", ix))
         .w_full()
-        .gap_1()
+        .my_0p5()
+        .items_start()
+        .gap_3()
         .py_2()
         .px_3()
-        .rounded(dims::PX_6)
+        .rounded(dims::PX_8)
+        .border_1()
         .border_l_2()
-        .border_color(tone)
+        .border_color(tone.opacity(dims::CALLOUT_BORDER))
         .bg(tone.opacity(dims::CALLOUT_TINT))
+        .child(badge)
         .child(
-            h_flex()
-                .gap_1()
-                .items_center()
-                .text_xs()
-                .font_weight(FontWeight::SEMIBOLD)
-                .text_color(tone)
-                .child(icon(glyph).size(dims::PX_14))
-                .child(title),
+            v_flex()
+                .flex_1()
+                .min_w_0()
+                .gap_0p5()
+                .child(
+                    div()
+                        .text_xs()
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(tone)
+                        .child(title),
+                )
+                .child(div().text_color(bt.colors.text).child(body)),
         )
+        .into_any_element()
+}
+
+/// A quote (`#+BEGIN_QUOTE` or `> ` lines): accent rule on a soft panel, secondary text.
+fn quote_element(ix: usize, body: AnyElement, bt: &BitacoraTheme) -> AnyElement {
+    div()
+        .id(("quote", ix))
+        .w_full()
+        .my_0p5()
+        .py_1p5()
+        .pl_3()
+        .pr_3()
+        .rounded_r(dims::PX_6)
+        .border_l_2()
+        .border_color(bt.colors.accent.opacity(dims::QUOTE_RULE))
+        .bg(bt.colors.hover.opacity(dims::QUOTE_TINT))
+        .text_color(bt.colors.text_2)
         .child(body)
         .into_any_element()
 }
@@ -759,12 +797,8 @@ pub fn render_block_row(
         && block.priority.is_none()
         && matches!(block.body.first(), Some(BodyItem::Widget(_)))
         && actions.widgets.is_some();
-    // A fence opening the block has no title line above its code box.
-    let code_first = block.title.text.is_empty()
-        && block.marker.is_none()
-        && block.priority.is_none()
-        && matches!(block.body.first(), Some(BodyItem::Code(_)));
-    if !widget_only && !code_first {
+    let region_first = region_opens_block(block);
+    if !widget_only && !region_first {
         content = content.child(title_line);
     }
     for image in &block.title.images {
@@ -1132,6 +1166,18 @@ pub fn render_block_row(
         .into_any_element()
 }
 
+/// Whether a fence, admonition, quote or other region opens the block: the row then has no
+/// title line above the rendered box (Logseq shows only the region, never its markers).
+fn region_opens_block(block: &BlockModel) -> bool {
+    block.title.text.is_empty()
+        && block.marker.is_none()
+        && block.priority.is_none()
+        && block
+            .body
+            .first()
+            .is_some_and(|item| !matches!(item, BodyItem::Text(_) | BodyItem::Widget(_)))
+}
+
 /// The vertical guide line under the bullet of the ancestor at depth `level`, drawn in the
 /// row of one of its descendants (consecutive rows join into a continuous line).
 fn guide_line(level: usize, bt: &BitacoraTheme) -> Div {
@@ -1238,6 +1284,33 @@ mod look_tests {
                 titles.insert(title);
             }
             assert_eq!(titles.len(), kinds.len());
+        }
+    }
+
+    #[test]
+    fn a_region_opening_the_block_hides_the_title_line() {
+        let model = |src: &str| {
+            BlockModel::from_content(
+                src,
+                &bitacora_markdown::properties::PropertyConfig::default(),
+                &crate::render::inline::NoBlocks,
+            )
+        };
+        for src in [
+            "#+BEGIN_QUOTE\nhola\n#+END_QUOTE",
+            "#+BEGIN_NOTE\nNote\n#+END_NOTE",
+            "```\ndfdd\n```",
+            ">  Blockquote",
+        ] {
+            assert!(region_opens_block(&model(src)), "{src}");
+        }
+        for src in [
+            "Intro\n#+BEGIN_NOTE\nbody\n#+END_NOTE",
+            "TODO #+BEGIN_NOTE\nbody\n#+END_NOTE",
+            "plain",
+            "",
+        ] {
+            assert!(!region_opens_block(&model(src)), "{src}");
         }
     }
 

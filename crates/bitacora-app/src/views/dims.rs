@@ -19,6 +19,13 @@ pub const SYNTAX_KEYWORD: Hsla = hsla(0.75, 0.65, 0.7, 1.);
 
 /// Opacity of the admonition background (the palette tint tokens are accent/ai only).
 pub const CALLOUT_TINT: f32 = 0.13;
+/// Opacity of the admonition outline (the left rule is the full tone).
+pub const CALLOUT_BORDER: f32 = 0.28;
+/// Opacity of the round badge behind an admonition icon.
+pub const CALLOUT_BADGE_TINT: f32 = 0.22;
+/// Opacity of the quote rule (accent) and of its background (hover).
+pub const QUOTE_RULE: f32 = 0.6;
+pub const QUOTE_TINT: f32 = 0.55;
 
 /// Share of the window height the journal review card may take before its body scrolls.
 pub const REVIEW_CARD_MAX_VIEWPORT_FRACTION: f32 = 0.4;
