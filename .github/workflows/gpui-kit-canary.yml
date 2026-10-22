@@ -1,10 +1,8 @@
 name: GPUI Kit canary
 
-# Weekly: try the newest gpui-kit on crates.io against bitacora-app. Never pushes code
+# Manual: try the newest gpui-kit on crates.io against bitacora-app. Never pushes code
 # or opens PRs; it only creates/updates a single issue with the result (ADR-001, risks R1/R2).
 on:
-  schedule:
-    - cron: "41 6 * * 1"
   workflow_dispatch:
     inputs:
       version:

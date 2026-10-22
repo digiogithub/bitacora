@@ -1,11 +1,9 @@
 name: Coverage
 
-# Optional job: run manually or weekly. Produces lcov.info as a workflow artifact;
+# Optional job: run manually. Produces lcov.info as a workflow artifact;
 # nothing is uploaded to third-party services.
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "17 4 * * 1"
 
 permissions:
   contents: read

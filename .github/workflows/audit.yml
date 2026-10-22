@@ -1,10 +1,14 @@
 name: Audit
 
-# Daily RustSec advisory check; fails loudly on new advisories.
+# RustSec advisory check when dependencies change (no schedule); fails loudly on new advisories.
 on:
-  schedule:
-    - cron: "23 5 * * *"
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - Cargo.lock
+      - deny.toml
+      - .github/workflows/audit.yml
   pull_request:
     paths:
       - Cargo.lock
