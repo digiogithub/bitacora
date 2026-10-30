@@ -2,6 +2,11 @@
 
 All notable changes to Bitacora. Format follows Keep a Changelog; versions follow SemVer.
 
+## [2.2.1] - 2026-10-30
+
+### Fixed
+- Images wider than 640px no longer leave blank space below them: the block takes only the height of the scaled image.
+
 ## [2.2.0] - 2026-10-14
 
 ### Added
