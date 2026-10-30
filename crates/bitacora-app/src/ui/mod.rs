@@ -414,11 +414,12 @@ pub mod text_edit {
     pub use gpui_kit::{
         AvailableSpace, ClipboardEntry, ClipboardItem, CursorStyle, Element, ElementId,
         ElementInputHandler, EntityInputHandler, ExternalPaths, Font, FontStyle, FontWeight,
-        GlobalElementId, HighlightStyle, Image, ImageFormat, InspectorElementId, InteractiveText,
-        IntoElement, LayoutId, ListAlignment, ListOffset, ListState, Modifiers, MouseButton,
-        MouseDownEvent, MouseMoveEvent, MouseUpEvent, ObjectFit, PaintQuad, Rgba,
-        StrikethroughStyle, Style, StyledImage, StyledText, TextAlign, TextLayout, TextRun,
-        UTF16Selection, UnderlineStyle, WrappedLine, fill, hsla, img, list, relative, rgba,
+        GlobalElementId, HighlightStyle, Image, ImageFormat, ImgResourceLoader, InspectorElementId,
+        InteractiveText, IntoElement, LayoutId, ListAlignment, ListOffset, ListState, Modifiers,
+        MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, ObjectFit, PaintQuad, Resource,
+        Rgba, SMOOTH_SVG_SCALE_FACTOR, StrikethroughStyle, Style, StyledImage, StyledText,
+        TextAlign, TextLayout, TextRun, UTF16Selection, UnderlineStyle, WrappedLine, fill, hsla,
+        img, list, relative, rgba,
     };
 }
 

@@ -16,13 +16,13 @@ use crate::render::model::{
 };
 use crate::ui::a11y;
 use crate::ui::text_edit::{
-    FontStyle, FontWeight, HighlightStyle, InteractiveText, ObjectFit, StrikethroughStyle,
-    StyledText, UnderlineStyle, img,
+    FontStyle, FontWeight, HighlightStyle, ImgResourceLoader, InteractiveText, ObjectFit, Resource,
+    SMOOTH_SVG_SCALE_FACTOR, StrikethroughStyle, StyledText, UnderlineStyle, img,
 };
 use crate::ui::theme::{BitacoraTheme, TypeStyle, TypeStyleExt as _};
 use crate::ui::{
     AnyElement, App, AppContext as _, Div, FluentBuilder as _, Hsla, Icon, IconName,
-    InteractiveElement as _, IntoElement, ParentElement as _, SharedString,
+    InteractiveElement as _, IntoElement, ParentElement as _, RenderOnce, SharedString,
     StatefulInteractiveElement as _, Styled as _, StyledImage as _, Window, div, h_flex, icon, px,
     v_flex,
 };
@@ -253,19 +253,12 @@ fn image_element(
 ) -> AnyElement {
     let local = graph_root.and_then(|root| resolve_asset(root, &image.src));
     match local {
-        Some(path) => {
-            let mut el = img(path)
-                .object_fit(ObjectFit::Contain)
-                .max_w(dims::PX_640)
-                .rounded(dims::PX_4);
-            if let Some(w) = image.width {
-                el = el.w(px(w));
-            }
-            if let Some(h) = image.height {
-                el = el.h(px(h));
-            }
-            el.into_any_element()
+        Some(path) => BlockImage {
+            path,
+            width: image.width,
+            height: image.height,
         }
+        .into_any_element(),
         None => h_flex()
             .gap_1()
             .text_color(theme.muted_foreground)
@@ -276,6 +269,78 @@ fn image_element(
                 image.alt.clone()
             })
             .into_any_element(),
+    }
+}
+
+/// A local image, sized from its decoded dimensions once they are known.
+#[derive(IntoElement)]
+struct BlockImage {
+    path: PathBuf,
+    width: Option<f32>,
+    height: Option<f32>,
+}
+
+impl RenderOnce for BlockImage {
+    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        let natural = window
+            .use_asset::<ImgResourceLoader>(&Resource::Path(self.path.clone().into()), cx)
+            .and_then(Result::ok)
+            .map(|data| data.size(0));
+        // GPUI rasterizes SVGs at a higher scale than the size it lays them out at.
+        let is_svg = self
+            .path
+            .extension()
+            .is_some_and(|e| e.eq_ignore_ascii_case("svg"));
+        let scale = if is_svg { SMOOTH_SVG_SCALE_FACTOR } else { 1.0 };
+        let el = img(self.path)
+            .object_fit(ObjectFit::Contain)
+            .rounded(dims::PX_4);
+        match natural {
+            // Both sides are set: GPUI gives an auto image its natural height, which stays
+            // when `max_w` caps the width and leaves the row that much taller.
+            Some(natural) => {
+                let (w, h) = fitted_image_size(
+                    (
+                        natural.width.0 as f32 / scale,
+                        natural.height.0 as f32 / scale,
+                    ),
+                    self.width,
+                    self.height,
+                    f32::from(dims::PX_640),
+                );
+                el.w(px(w)).h(px(h))
+            }
+            None => el
+                .max_w(dims::PX_640)
+                .when_some(self.width, |el, w| el.w(px(w)))
+                .when_some(self.height, |el, h| el.h(px(h))),
+        }
+    }
+}
+
+/// The on-screen size of an image: the `{:width :height}` of the block, else its natural size
+/// keeping the aspect ratio, scaled down to `max_w` when wider.
+fn fitted_image_size(
+    (natural_w, natural_h): (f32, f32),
+    width: Option<f32>,
+    height: Option<f32>,
+    max_w: f32,
+) -> (f32, f32) {
+    let ratio = if natural_w > 0.0 && natural_h > 0.0 {
+        natural_h / natural_w
+    } else {
+        1.0
+    };
+    let (w, h) = match (width, height) {
+        (Some(w), Some(h)) => (w, h),
+        (Some(w), None) => (w, w * ratio),
+        (None, Some(h)) => (h / ratio, h),
+        (None, None) => (natural_w, natural_h),
+    };
+    if w > max_w {
+        (max_w, h * max_w / w)
+    } else {
+        (w, h)
     }
 }
 
@@ -1254,6 +1319,89 @@ pub fn properties_table(
 #[cfg(test)]
 mod look_tests {
     use super::*;
+    use crate::ui::canvas::canvas;
+    use crate::ui::testing::{TestAppContext, gpui_test};
+    use crate::ui::text_edit::{ListAlignment, ListState, list};
+    use crate::ui::{Context, Pixels, Render};
+    use std::cell::Cell;
+    use std::rc::Rc;
+
+    /// The list rows of a page: the image under test, then a probe for where the next one starts.
+    struct ImageRows {
+        rows: ListState,
+        next_row_y: Rc<Cell<Pixels>>,
+        image: Rc<dyn Fn() -> AnyElement>,
+    }
+
+    impl Render for ImageRows {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            let next_row_y = self.next_row_y.clone();
+            let image = self.image.clone();
+            list(self.rows.clone(), move |ix, _, _| {
+                if ix == 0 {
+                    return v_flex().child((image)()).into_any_element();
+                }
+                let next_row_y = next_row_y.clone();
+                canvas(move |b, _, _| next_row_y.set(b.origin.y), |_, _, _, _| {})
+                    .h(px(1.0))
+                    .into_any_element()
+            })
+            .size_full()
+        }
+    }
+
+    fn next_row_y(
+        cx: &mut TestAppContext,
+        path: PathBuf,
+        image: impl Fn() -> AnyElement + 'static,
+    ) -> Pixels {
+        let next_row_y = Rc::new(Cell::new(px(0.0)));
+        let seen = next_row_y.clone();
+        let image = Rc::new(image);
+        let (_, cx) = cx.add_window_view(|_, _| ImageRows {
+            rows: ListState::new(2, ListAlignment::Top, px(100.0)),
+            next_row_y: seen,
+            image,
+        });
+        cx.update(|window, cx| {
+            window.get_asset::<ImgResourceLoader>(&Resource::Path(path.into()), cx);
+        });
+        cx.run_until_parked();
+        cx.update(|window, _| window.refresh());
+        cx.run_until_parked();
+        next_row_y.get()
+    }
+
+    #[gpui_test]
+    fn a_capped_image_takes_only_its_scaled_height(cx: &mut TestAppContext) {
+        let path =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../packaging/icons/1024x1024.png");
+        let source = path.clone();
+        let y = next_row_y(cx, path, move || {
+            BlockImage {
+                path: source.clone(),
+                width: None,
+                height: None,
+            }
+            .into_any_element()
+        });
+        assert_eq!(y, px(640.0));
+    }
+
+    #[test]
+    fn image_size_keeps_the_aspect_ratio_within_the_cap() {
+        let fit = |w, h| fitted_image_size((1600.0, 900.0), w, h, 640.0);
+        assert_eq!(fit(None, None), (640.0, 360.0));
+        assert_eq!(fit(Some(320.0), None), (320.0, 180.0));
+        assert_eq!(fit(None, Some(180.0)), (320.0, 180.0));
+        assert_eq!(fit(Some(300.0), Some(150.0)), (300.0, 150.0));
+        assert_eq!(fit(Some(1280.0), Some(100.0)), (640.0, 50.0));
+        // Small images are not upscaled.
+        assert_eq!(
+            fitted_image_size((100.0, 50.0), None, None, 640.0),
+            (100.0, 50.0)
+        );
+    }
 
     #[test]
     fn heading_levels_follow_the_block_scale() {
