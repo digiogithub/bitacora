@@ -31,7 +31,7 @@ jobs:
           tool: cargo-llvm-cov
       - name: Generate lcov (GPUI app excluded)
         run: cargo llvm-cov --workspace --exclude bitacora-app --locked --lcov --output-path lcov.info
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: lcov
           path: lcov.info
