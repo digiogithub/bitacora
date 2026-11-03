@@ -16,6 +16,13 @@ pub const SCRIM: Hsla = hsla(0., 0., 0., 0.4);
 pub const HIGHLIGHT_BG: Hsla = hsla(0.14, 0.9, 0.55, 0.35);
 /// Keyword colour of code-block syntax highlighting (other classes use theme colours).
 pub const SYNTAX_KEYWORD: Hsla = hsla(0.75, 0.65, 0.7, 1.);
+/// Backdrop of the full-window image viewer (darker than [`SCRIM`], the image is the focus).
+pub const VIEWER_BACKDROP: Hsla = hsla(0., 0., 0., 0.88);
+/// Text and icons drawn over an image or the viewer backdrop.
+pub const ON_IMAGE_FG: Hsla = hsla(0., 0., 1., 0.92);
+/// Chip behind a button drawn over an image, and its hover state.
+pub const ON_IMAGE_CHIP: Hsla = hsla(0., 0., 0., 0.55);
+pub const ON_IMAGE_CHIP_HOVER: Hsla = hsla(0., 0., 0., 0.8);
 
 /// Opacity of the admonition background (the palette tint tokens are accent/ai only).
 pub const CALLOUT_TINT: f32 = 0.13;

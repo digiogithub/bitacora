@@ -450,6 +450,11 @@ to DONE/TODO), priority badge, SCHEDULED/DEADLINE chips, a properties table that
 LOGBOOK. Embeds `{{embed ((uuid))}}` / `{{embed [[page]]}}` render nested outlines that can be edited in place, with a
 cycle guard and a depth limit. `{{query …}}` renders a placeholder in MVP and results later.
 
+Local block images show a maximize button on hover (`views/block_view.rs`, `BlockImage`). It opens the full-window
+image viewer (`views/image_viewer.rs`, owned by the workspace and reached through the `ImageViewerSlot` global): the
+image is fitted to 92% of the window without upscaling, the mouse wheel zooms around the pointer (0.1x-20x), dragging
+pans, `+`/`-`/`0` and double-click zoom or reset, and Escape or the close button leaves and gives the focus back.
+
 Special regions (`#+BEGIN_NOTE/TIP/IMPORTANT/CAUTION/WARNING/PINNED/QUOTE/CENTER`, consecutive `> ` lines and any
 unknown `#+BEGIN_<name>`) render their body as structured markup built by the same body builder as block content
 (`render::model::nested_items`): paragraphs, lists, Markdown headings, code fences, quotes and nested regions, recursively

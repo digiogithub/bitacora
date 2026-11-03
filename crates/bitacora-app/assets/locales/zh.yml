@@ -579,3 +579,7 @@ planning:
   remove: "移除日期"
   scheduled: "计划"
   deadline: "截止"
+image_viewer:
+  open: "放大查看"
+  close: "关闭"
+  title: "图片查看器"

@@ -292,10 +292,10 @@ impl RenderOnce for BlockImage {
             .extension()
             .is_some_and(|e| e.eq_ignore_ascii_case("svg"));
         let scale = if is_svg { SMOOTH_SVG_SCALE_FACTOR } else { 1.0 };
-        let el = img(self.path)
+        let el = img(self.path.clone())
             .object_fit(ObjectFit::Contain)
             .rounded(dims::PX_4);
-        match natural {
+        let el = match natural {
             // Both sides are set: GPUI gives an auto image its natural height, which stays
             // when `max_w` caps the width and leaves the row that much taller.
             Some(natural) => {
@@ -314,9 +314,51 @@ impl RenderOnce for BlockImage {
                 .max_w(dims::PX_640)
                 .when_some(self.width, |el, w| el.w(px(w)))
                 .when_some(self.height, |el, h| el.h(px(h))),
-        }
+        };
+        // A hover button opens the image in the full-window viewer.
+        let path = self.path;
+        let id = SharedString::from(format!("block-image-zoom:{}", path.display()));
+        let label = t!("image_viewer.open").to_string();
+        let tip = label.clone();
+        div()
+            .relative()
+            .flex_none()
+            .group(BLOCK_IMAGE_GROUP)
+            .child(el)
+            .child(
+                div()
+                    .id(id)
+                    .role(a11y::Role::Button)
+                    .aria_label(label)
+                    .tooltip(move |window, cx| {
+                        crate::ui::Tooltip::new(tip.clone()).build(window, cx)
+                    })
+                    .absolute()
+                    .top(dims::PX_4)
+                    .right(dims::PX_4)
+                    .p_1()
+                    .rounded_md()
+                    .cursor_pointer()
+                    .text_color(dims::ON_IMAGE_FG)
+                    .bg(dims::ON_IMAGE_CHIP)
+                    .hover(|s| s.bg(dims::ON_IMAGE_CHIP_HOVER))
+                    .invisible()
+                    .group_hover(BLOCK_IMAGE_GROUP, |s| s.visible())
+                    // A press on the image row enters edit mode: keep it on the button.
+                    .on_mouse_down(crate::ui::text_edit::MouseButton::Left, |_, _, cx| {
+                        cx.stop_propagation()
+                    })
+                    .on_click(move |_, window, cx| {
+                        cx.stop_propagation();
+                        crate::views::image_viewer::open_image(path.clone(), window, cx);
+                    })
+                    .child(icon(IconName::Maximize).size_4()),
+            )
     }
 }
+
+/// Hover group of a block image and its zoom button.
+const BLOCK_IMAGE_GROUP: &str = "block-image";
 
 /// The on-screen size of an image: the `{:width :height}` of the block, else its natural size
 /// keeping the aspect ratio, scaled down to `max_w` when wider.

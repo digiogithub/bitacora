@@ -579,3 +579,7 @@ planning:
   remove: "Quitar la fecha"
   scheduled: Programada
   deadline: "Fecha límite"
+image_viewer:
+  open: "Ver más grande"
+  close: "Cerrar"
+  title: "Visor de imágenes"

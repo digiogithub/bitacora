@@ -14,6 +14,7 @@ pub mod graph_view;
 #[cfg(test)]
 mod graph_view_tests;
 pub mod history;
+pub mod image_viewer;
 pub mod journals;
 pub mod kit;
 pub mod main_view;

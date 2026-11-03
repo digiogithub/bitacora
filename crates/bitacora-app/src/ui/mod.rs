@@ -427,7 +427,7 @@ pub mod text_edit {
 pub mod canvas {
     pub use gpui_kit::gpui::{
         BorderStyle, Corners, Edges, MouseDownEvent, MouseMoveEvent, MouseUpEvent, Path,
-        PathBuilder, ScrollWheelEvent, canvas, quad,
+        PathBuilder, ScrollDelta, ScrollWheelEvent, TouchPhase, canvas, quad,
     };
 }
 

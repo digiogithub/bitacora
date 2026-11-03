@@ -579,3 +579,7 @@ planning:
   remove: "Remove date"
   scheduled: Scheduled
   deadline: Deadline
+image_viewer:
+  open: "View larger"
+  close: "Close"
+  title: "Image viewer"

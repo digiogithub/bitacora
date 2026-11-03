@@ -151,6 +151,7 @@ pub struct Workspace {
     sync_panel: Entity<SyncPanel>,
     settings: Entity<SettingsView>,
     history: Entity<HistoryView>,
+    image_viewer: Entity<crate::views::image_viewer::ImageViewer>,
     activity: Entity<AgentActivityView>,
     pando_activity: Entity<PandoActivityView>,
     pando_ui: pando_ui::PandoUi,
@@ -229,6 +230,10 @@ impl Workspace {
         let sync_panel = cx.new(|_| SyncPanel::new());
         let settings = cx.new(|cx| SettingsView::new(window, cx));
         let history = cx.new(|_| HistoryView::new());
+        let image_viewer = cx.new(crate::views::image_viewer::ImageViewer::new);
+        cx.set_global(crate::views::image_viewer::ImageViewerSlot(
+            image_viewer.downgrade(),
+        ));
         let activity = cx.new(|_| AgentActivityView::new());
         let pando_activity = cx.new(|_| PandoActivityView::new());
         let conflicts = cx.new(|cx| ConflictsView::new(window, cx));
@@ -344,6 +349,7 @@ impl Workspace {
             sync_panel,
             settings,
             history,
+            image_viewer,
             activity,
             pando_activity,
             pando_ui: pando_ui::PandoUi::default(),
@@ -2325,7 +2331,9 @@ impl Workspace {
 
     /// Closes the topmost sync overlay on Escape; `true` when one was open.
     fn close_topmost_overlay(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
-        if self.credential_dialog.read(cx).is_open() {
+        if self.image_viewer.read(cx).is_open() {
+            self.image_viewer.update(cx, |v, cx| v.close(window, cx));
+        } else if self.credential_dialog.read(cx).is_open() {
             // Escape declines the credential prompt, like its Cancel button.
             self.credential_dialog
                 .update(cx, |d, cx| d.cancel(window, cx));
@@ -2818,6 +2826,7 @@ impl Render for Workspace {
             .child(self.disk_diff.clone())
             .child(self.sync_dialog.clone())
             .child(self.credential_dialog.clone())
+            .child(self.image_viewer.clone())
             .when(crate::perf::enabled(), |d| d.child(crate::perf::FrameEnd));
         // Client-side shadow ring, resize bands and tiling insets (ADR-033); a no-op under
         // server decorations.
@@ -3364,6 +3373,43 @@ mod tests {
                 collapsed: false
             }]
         );
+    }
+
+    #[gpui_test]
+    fn image_viewer_zooms_with_the_wheel_and_closes_on_escape(cx: &mut TestAppContext) {
+        use crate::ui::canvas::{ScrollDelta, ScrollWheelEvent, TouchPhase};
+        use crate::ui::point;
+        setup(cx);
+        let (ws, cx) = open(cx, None);
+        let viewer = ws.read_with(cx, |w, _| w.image_viewer.clone());
+        let png = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../packaging/icons/1024x1024.png");
+        cx.update(|window, cx| {
+            crate::views::image_viewer::open_image(png.clone(), window, cx);
+        });
+        assert_eq!(viewer.read_with(cx, |v, _| v.path().cloned()), Some(png));
+        for _ in 0..3 {
+            cx.update(|window, cx| {
+                let needed = window.draw(cx);
+                needed.clear(cx);
+            });
+            cx.run_until_parked();
+        }
+        let center = cx.update(|window, _| {
+            let size = window.viewport_size();
+            point(size.width / 2.0, size.height / 2.0)
+        });
+        // Wheel up zooms in (positive y delta), around the pointer.
+        cx.simulate_event(ScrollWheelEvent {
+            position: center,
+            delta: ScrollDelta::Pixels(point(px(0.0), px(200.0))),
+            modifiers: Default::default(),
+            touch_phase: TouchPhase::Moved,
+        });
+        let zoom = viewer.read_with(cx, |v, _| v.zoom());
+        assert!(zoom > 1.0, "wheel must zoom in, got {zoom}");
+        cx.simulate_keystrokes("escape");
+        assert!(!viewer.read_with(cx, |v, _| v.is_open()));
     }
 
     #[gpui_test]

@@ -579,3 +579,7 @@ planning:
   remove: "Retirer la date"
   scheduled: Prévu
   deadline: Échéance
+image_viewer:
+  open: "Agrandir"
+  close: "Fermer"
+  title: "Visionneuse d'images"
