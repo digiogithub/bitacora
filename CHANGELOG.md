@@ -2,6 +2,11 @@
 
 All notable changes to Bitacora. Format follows Keep a Changelog; versions follow SemVer.
 
+## [2.3.0] - 2026-11-03
+
+### Added
+- Image viewer: hover a block image and click the maximize button to see it over the whole window. The mouse wheel zooms around the pointer, dragging pans, `+`/`-`/`0` and double-click zoom or reset, and Escape or the close button closes it.
+
 ## [2.2.1] - 2026-10-30
 
 ### Fixed
