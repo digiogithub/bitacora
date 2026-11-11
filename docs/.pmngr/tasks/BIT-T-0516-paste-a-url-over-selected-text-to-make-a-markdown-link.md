@@ -2,13 +2,14 @@
 id: BIT-T-0516
 type: task
 title: Paste a URL over selected text to make a Markdown link
-status: in_progress
+status: done
 priority: medium
 author: mcp
 labels: [editor, bitacora-app, bitacora-core, logseq-compat]
 created: 2026-11-11T20:32:59Z
-updated: 2026-11-11T20:32:59Z
+updated: 2026-11-11T20:59:04Z
 started: 2026-11-11T20:32:59Z
+closed: 2026-11-11T20:59:04Z
 ---
 
 ## Description

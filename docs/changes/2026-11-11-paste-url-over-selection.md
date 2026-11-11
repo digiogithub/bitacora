@@ -1,4 +1,6 @@
 ---
+created_at: 2026-11-11T20:57:30.8899531Z
+updated_at: 2026-11-11T20:59:04.70026431Z
 tags:
     - change
     - feature
@@ -6,7 +8,7 @@ tags:
 ---
 # 2026-11-11 — Paste a URL over selected text makes a Markdown link
 
-Owner request, backlog item BIT-T-0516 (part of BIT-SP-0004.R13, paste). Continues [[block-editor]].
+Owner request, backlog item BIT-T-0516 (part of BIT-SP-0004.R13, paste). Continues [[block-editor]]. Released in [[2026-11-11-release-2.4.0]].
 
 ## What changed
 - `crates/bitacora-core/src/editor/clipboard.rs`: new pure `link_paste(before, selected, after, pasted)` and private `is_link_url`; re-exported from `crates/bitacora-core/src/editor/mod.rs`.
