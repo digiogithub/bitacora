@@ -6,7 +6,8 @@
 
 use bitacora_core::editor::{
     BlockId, ClipBlock, Cmd, CommitError, EditorSettings, EnterAction, PasteKind, Refusal,
-    Workflow, Workspace, classify_paste, enter_action, export_blocks, parse_outline, parse_private,
+    Workflow, Workspace, classify_paste, enter_action, export_blocks, link_paste, parse_outline,
+    parse_private,
 };
 use bitacora_core::graph::PageKey;
 use bitacora_core::graph_path::GraphPath;
@@ -745,6 +746,41 @@ fn paste_after_copy_gets_fresh_identity() {
     let out = ser(&ws);
     assert_eq!(out.matches(U1).count(), 1, "the copy has no id::\n{out}");
     assert!(out.ends_with("- b\n"), "{out}");
+}
+
+#[test]
+fn pasting_a_url_over_a_selection_makes_a_markdown_link() {
+    let url = "https://example.org/a?b=1";
+    assert_eq!(
+        link_paste("see ", "the docs", " now", url).as_deref(),
+        Some("[the docs](https://example.org/a?b=1)")
+    );
+    // Clipboard URLs often carry a trailing newline.
+    assert_eq!(
+        link_paste("", "docs", "", "  HTTP://example.org\n").as_deref(),
+        Some("[docs](HTTP://example.org)")
+    );
+    // Text over a selected URL labels it.
+    assert_eq!(
+        link_paste("", url, "", "the docs").as_deref(),
+        Some("[the docs](https://example.org/a?b=1)")
+    );
+    // Ordinary pastes: no URL, both URLs, blank selection, multi-line, non-web schemes.
+    assert_eq!(link_paste("", "docs", "", "plain"), None);
+    assert_eq!(link_paste("", url, "", "https://other.example"), None);
+    assert_eq!(link_paste("", "  ", "", url), None);
+    assert_eq!(link_paste("", "", "", url), None);
+    assert_eq!(link_paste("", "a\nb", "", url), None);
+    assert_eq!(
+        link_paste("", "docs", "", "https://a.example\nhttps://b.example"),
+        None
+    );
+    assert_eq!(link_paste("", "docs", "", "mailto:me@example.org"), None);
+    assert_eq!(link_paste("", "docs", "", "file:///tmp/x"), None);
+    assert_eq!(link_paste("", "docs", "", "https://"), None);
+    // The label or the target of an existing link is replaced, not nested.
+    assert_eq!(link_paste("[docs](", "https://old.example", ")", url), None);
+    assert_eq!(link_paste("[", "docs", "](https://old.example)", url), None);
 }
 
 #[test]

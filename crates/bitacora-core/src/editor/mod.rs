@@ -26,7 +26,7 @@ pub mod workspace;
 
 pub use clipboard::{
     ClipBlock, ClipboardPayload, PRIVATE_MIME, PasteKind, classify_paste, export_blocks,
-    parse_outline, parse_private, to_markdown,
+    link_paste, parse_outline, parse_private, to_markdown,
 };
 pub use cmd::{Cmd, NewAsset, Planned, Refusal, Target, plan, plan_full};
 pub use complete::{

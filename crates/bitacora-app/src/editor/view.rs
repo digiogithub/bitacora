@@ -13,7 +13,7 @@ use std::time::Duration;
 
 use bitacora_core::editor::{
     BlockId, Cmd, CommitError, EditProjection, EditorSettings, HiddenKeys, HistoryError,
-    PRIVATE_MIME, PasteKind, Refusal, classify_paste, clipboard, parse_private,
+    PRIVATE_MIME, PasteKind, Refusal, classify_paste, clipboard, link_paste, parse_private,
 };
 use bitacora_core::graph::PageKey;
 use bitacora_core::queue::{CommandQueue, QueueError, Request, Source};
@@ -2503,6 +2503,19 @@ impl OutlineEditor {
                 let Some(cursor) = self.full_selection() else {
                     return;
                 };
+                // A URL pasted over selected text (or text over a selected URL) makes a link.
+                let link = (!raw)
+                    .then(|| {
+                        let buf = &self.edit.as_ref()?.buf;
+                        let (all, sel) = (buf.text(), buf.selection());
+                        let selected = all.get(sel.clone())?;
+                        link_paste(all.get(..sel.start)?, selected, all.get(sel.end..)?, &text)
+                    })
+                    .flatten();
+                if let Some(link) = link {
+                    self.edit_buffer(cx, |b| b.replace_range(b.selection(), &link));
+                    return;
+                }
                 // Keep the buffer as the user sees it when the paste is plain inline text.
                 if matches!(classify_paste(&text, raw), PasteKind::Inline(_)) {
                     let inline = text.replace("\r\n", "\n").replace('\r', "\n");

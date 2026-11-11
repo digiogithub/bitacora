@@ -2,6 +2,11 @@
 
 All notable changes to Bitacora. Format follows Keep a Changelog; versions follow SemVer.
 
+## [2.4.0] - 2026-11-11
+
+### Added
+- Pasting a URL over selected text turns it into a Markdown link `[selected text](url)`, as Logseq does. Pasting text over a selected URL labels it the same way; raw paste (`Mod+Shift+V`) still replaces the selection verbatim.
+
 ## [2.3.0] - 2026-11-03
 
 ### Added

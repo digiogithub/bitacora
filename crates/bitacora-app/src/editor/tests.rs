@@ -747,6 +747,42 @@ fn pasting_a_markdown_list_while_editing_creates_blocks_and_plain_text_goes_inli
 }
 
 #[gpui_test]
+fn pasting_a_url_over_selected_text_makes_a_link(cx: &mut TestAppContext) {
+    let env = Env::new(&[(
+        HOME,
+        "- read the docs
+- tail
+",
+    )]);
+    let (_view, ed, cx) = open_page(cx, &env, "Home");
+    edit(&ed, 0, Caret::End, cx);
+    cx.simulate_keystrokes(&kw("ctrl-shift-left"));
+    assert_eq!(ed.read_with(cx, |e, _| e.selection_range()), 9..13);
+    cx.write_to_clipboard(crate::ui::text_edit::ClipboardItem::new_string(
+        "https://example.org/docs\n".to_owned(),
+    ));
+    cx.simulate_keystrokes(&k("ctrl-v"));
+    assert_eq!(
+        buffer(&ed, cx).as_deref(),
+        Some("read the [docs](https://example.org/docs)")
+    );
+    assert_eq!(ed.read_with(cx, |e, _| e.selection_range()), 41..41);
+    flush(&ed, cx);
+    assert_eq!(
+        env.snapshot_texts("Home")[0],
+        pair(1, "read the [docs](https://example.org/docs)")
+    );
+    // Raw paste replaces the selection verbatim.
+    edit(&ed, 1, Caret::End, cx);
+    cx.simulate_keystrokes(&kw("ctrl-shift-left"));
+    cx.write_to_clipboard(crate::ui::text_edit::ClipboardItem::new_string(
+        "https://example.org".to_owned(),
+    ));
+    cx.simulate_keystrokes(&k("ctrl-shift-v"));
+    assert_eq!(buffer(&ed, cx).as_deref(), Some("https://example.org"));
+}
+
+#[gpui_test]
 fn undo_and_redo_restore_the_text_the_caret_and_the_bytes(cx: &mut TestAppContext) {
     let env = Env::new(&[(HOME, "- hello\n- other\n")]);
     let (_view, ed, cx) = open_page(cx, &env, "Home");

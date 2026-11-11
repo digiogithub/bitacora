@@ -318,6 +318,54 @@ pub fn classify_paste(text: &str, raw: bool) -> PasteKind {
     PasteKind::Inline(text)
 }
 
+/// Whether `s` is a single `scheme://host…` URL of the kind Logseq turns into a link on paste
+/// (`gp-util/url?`, `deps/graph-parser/src/logseq/graph_parser/util.cljs:82`: only schemes with
+/// an origin, so no `mailto:` or `file:`).
+fn is_link_url(s: &str) -> bool {
+    if s.chars().any(char::is_whitespace) {
+        return false;
+    }
+    let Some((scheme, rest)) = s.split_once("://") else {
+        return false;
+    };
+    ["http", "https", "ftp", "ws", "wss"]
+        .iter()
+        .any(|k| scheme.eq_ignore_ascii_case(k))
+        && rest.chars().next().is_some_and(|c| c != '/')
+}
+
+/// Pasting over a non-empty selection of the edited block: the Markdown link that replaces the
+/// selection, or `None` when the paste is an ordinary one.
+///
+/// A URL pasted over text gives `[text](url)` and text pasted over a selected URL gives
+/// `[text](url)` too. A URL over a URL, and a selection that already is the label or the target
+/// of a link (`before`/`after` are the text around it), stay plain replacements
+/// (`src/main/frontend/handler/paste.cljs:137-146`).
+#[must_use]
+pub fn link_paste(before: &str, selected: &str, after: &str, pasted: &str) -> Option<String> {
+    let pasted = pasted.trim();
+    if pasted.is_empty() || selected.trim().is_empty() {
+        return None;
+    }
+    if pasted.contains(['\n', '\r']) || selected.contains(['\n', '\r']) {
+        return None;
+    }
+    let (text_url, selection_url) = (is_link_url(pasted), is_link_url(selected.trim()));
+    if text_url == selection_url {
+        return None;
+    }
+    let is_target = before.ends_with("](") && after.starts_with(')');
+    let is_label = before.ends_with('[') && after.starts_with("](");
+    if is_target || is_label {
+        return None;
+    }
+    Some(if text_url {
+        format!("[{selected}]({pasted})")
+    } else {
+        format!("[{pasted}]({})", selected.trim())
+    })
+}
+
 struct Builder<'a> {
     ws: &'a Workspace,
     keep: bool,
