@@ -2,14 +2,15 @@
 id: BIT-US-0166
 type: story
 title: Auto-approve read tools and remember write decisions in chat
-status: in_review
+status: done
 priority: high
 parent: BIT-EP-0022
 milestone: BIT-M-0008
 author: mcp
 created: 2026-10-07T15:49:54Z
-updated: 2026-10-07T16:03:49Z
+updated: 2026-11-11T20:31:27Z
 started: 2026-10-07T15:49:54Z
+closed: 2026-11-11T20:31:27Z
 ---
 
 ## Description

@@ -2,15 +2,16 @@
 id: BIT-US-0188
 type: story
 title: "Angle (<) block commands: close remaining gaps with Logseq 0.10.15"
-status: in_review
+status: done
 priority: medium
 parent: BIT-EP-0017
 milestone: BIT-M-0006
 author: mcp
 labels: [v2, editor, ui, bitacora-app, logseq-compat]
 created: 2026-10-13T07:57:36Z
-updated: 2026-10-13T08:29:22Z
+updated: 2026-11-11T20:30:20Z
 started: 2026-10-13T08:09:22Z
+closed: 2026-11-11T20:30:20Z
 ---
 
 ## Description

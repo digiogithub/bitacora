@@ -2,7 +2,7 @@
 id: BIT-T-0484
 type: task
 title: Run v2 manual checklists on all OSes
-status: in_review
+status: done
 priority: high
 parent: BIT-US-0161
 milestone: BIT-M-0009
@@ -10,8 +10,9 @@ author: mcp
 labels: [v2, release, qa]
 estimate: 3
 created: 2026-10-07T09:20:35Z
-updated: 2026-10-07T13:43:47Z
+updated: 2026-11-11T20:31:27Z
 started: 2026-10-07T13:23:42Z
+closed: 2026-11-11T20:31:27Z
 ---
 
 ## Description

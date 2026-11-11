@@ -2,7 +2,7 @@
 id: BIT-US-0135
 type: story
 title: bitacora-pando crate wired into the runtime
-status: in_review
+status: done
 priority: high
 parent: BIT-EP-0020
 milestone: BIT-M-0007
@@ -10,8 +10,9 @@ author: mcp
 labels: [v2, pando, bitacora-pando, bitacora-runtime]
 estimate: 5
 created: 2026-10-07T09:15:49Z
-updated: 2026-10-07T10:29:46Z
+updated: 2026-11-11T20:31:33Z
 started: 2026-10-07T10:29:46Z
+closed: 2026-11-11T20:31:33Z
 ---
 
 ## Description

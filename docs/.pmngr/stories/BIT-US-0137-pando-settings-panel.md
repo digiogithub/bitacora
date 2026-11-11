@@ -2,7 +2,7 @@
 id: BIT-US-0137
 type: story
 title: Pando settings panel
-status: in_review
+status: done
 priority: high
 parent: BIT-EP-0020
 milestone: BIT-M-0007
@@ -10,8 +10,9 @@ author: mcp
 labels: [v2, pando, settings, bitacora-app]
 estimate: 5
 created: 2026-10-07T09:15:49Z
-updated: 2026-10-07T12:03:03Z
+updated: 2026-11-11T20:31:29Z
 started: 2026-10-07T12:03:03Z
+closed: 2026-11-11T20:31:29Z
 ---
 
 ## Description

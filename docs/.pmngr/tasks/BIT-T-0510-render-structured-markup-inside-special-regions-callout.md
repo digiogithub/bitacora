@@ -2,15 +2,16 @@
 id: BIT-T-0510
 type: task
 title: Render structured markup inside special regions (callout, quote, center, verse, unknown)
-status: in_review
+status: done
 priority: high
 parent: BIT-US-0188
 milestone: BIT-M-0006
 author: mcp
 estimate: 5
 created: 2026-10-13T07:57:55Z
-updated: 2026-10-13T08:29:22Z
+updated: 2026-11-11T20:30:20Z
 started: 2026-10-13T08:09:22Z
+closed: 2026-11-11T20:30:20Z
 ---
 
 ## Description

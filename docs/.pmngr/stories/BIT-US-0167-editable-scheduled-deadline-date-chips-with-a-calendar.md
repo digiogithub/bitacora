@@ -2,15 +2,16 @@
 id: BIT-US-0167
 type: story
 title: Editable SCHEDULED/DEADLINE date chips with a calendar picker
-status: in_review
+status: done
 priority: medium
 parent: BIT-EP-0017
 milestone: BIT-M-0006
 author: mcp
 labels: [v2, ux, editor, bitacora-app, bitacora-markdown]
 created: 2026-10-07T17:31:17Z
-updated: 2026-10-07T17:33:29Z
+updated: 2026-11-11T20:31:27Z
 started: 2026-10-07T17:31:17Z
+closed: 2026-11-11T20:31:27Z
 ---
 
 ## Description

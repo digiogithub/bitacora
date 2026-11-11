@@ -2,7 +2,7 @@
 id: BIT-T-0454
 type: task
 title: Thread list, resume and delete
-status: in_review
+status: done
 priority: medium
 parent: BIT-US-0147
 milestone: BIT-M-0008
@@ -10,8 +10,9 @@ author: mcp
 labels: [v2, ai, bitacora-app]
 estimate: 2
 created: 2026-10-07T09:19:06Z
-updated: 2026-10-07T12:25:52Z
+updated: 2026-11-11T20:31:28Z
 started: 2026-10-07T12:17:20Z
+closed: 2026-11-11T20:31:28Z
 ---
 
 ## Description

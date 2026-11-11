@@ -2,15 +2,16 @@
 id: BIT-T-0511
 type: task
 title: "EXPORT regions: labelled html/latex/ascii rendering"
-status: in_review
+status: done
 priority: medium
 parent: BIT-US-0188
 milestone: BIT-M-0006
 author: mcp
 estimate: 2
 created: 2026-10-13T07:57:55Z
-updated: 2026-10-13T08:29:22Z
+updated: 2026-11-11T20:30:20Z
 started: 2026-10-13T08:29:22Z
+closed: 2026-11-11T20:30:20Z
 ---
 
 ## Description

@@ -2,15 +2,16 @@
 id: BIT-US-0169
 type: story
 title: "Special blocks: code, quote and admonition rendering and editing"
-status: in_review
+status: done
 priority: medium
 parent: BIT-EP-0017
 milestone: BIT-M-0006
 author: mcp
 labels: [v2, ui, editor, bitacora-app]
 created: 2026-10-07T19:20:02Z
-updated: 2026-10-07T19:32:25Z
+updated: 2026-11-11T20:31:27Z
 started: 2026-10-07T19:32:25Z
+closed: 2026-11-11T20:31:27Z
 ---
 
 ## Description

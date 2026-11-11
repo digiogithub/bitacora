@@ -2,7 +2,7 @@
 id: BIT-T-0406
 type: task
 title: Responsive breakpoints, focus order and reduce-motion
-status: in_review
+status: done
 priority: low
 parent: BIT-US-0128
 milestone: BIT-M-0006
@@ -10,8 +10,9 @@ author: mcp
 labels: [v2, ui, a11y]
 estimate: 3
 created: 2026-10-07T09:13:46Z
-updated: 2026-10-07T11:52:48Z
+updated: 2026-11-11T20:31:30Z
 started: 2026-10-07T11:52:48Z
+closed: 2026-11-11T20:31:30Z
 ---
 
 ## Description

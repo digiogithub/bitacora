@@ -2,7 +2,7 @@
 id: BIT-US-0149
 type: story
 title: Approval cards and propose_edit for agent writes
-status: in_review
+status: done
 priority: high
 parent: BIT-EP-0022
 milestone: BIT-M-0008
@@ -10,8 +10,9 @@ author: mcp
 labels: [v2, ai, agui, security, bitacora-app, bitacora-core]
 estimate: 8
 created: 2026-10-07T09:18:16Z
-updated: 2026-10-07T12:26:01Z
+updated: 2026-11-11T20:31:28Z
 started: 2026-10-07T12:17:11Z
+closed: 2026-11-11T20:31:28Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-US-0116
 type: story
 title: Bridge design tokens to the gpui-kit theme
-status: in_review
+status: done
 priority: high
 parent: BIT-EP-0015
 milestone: BIT-M-0006
@@ -10,8 +10,9 @@ author: mcp
 labels: [v2, design-system, bitacora-app, theme]
 estimate: 5
 created: 2026-10-07T09:11:26Z
-updated: 2026-10-07T10:40:54Z
+updated: 2026-11-11T20:31:33Z
 started: 2026-10-07T10:40:54Z
+closed: 2026-11-11T20:31:33Z
 ---
 
 ## Description

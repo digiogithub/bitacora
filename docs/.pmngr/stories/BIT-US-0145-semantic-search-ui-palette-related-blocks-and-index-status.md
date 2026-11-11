@@ -2,7 +2,7 @@
 id: BIT-US-0145
 type: story
 title: "Semantic search UI: palette, related blocks and index status"
-status: in_review
+status: done
 priority: medium
 parent: BIT-EP-0021
 milestone: BIT-M-0007
@@ -10,8 +10,9 @@ author: mcp
 labels: [v2, search, bitacora-app]
 estimate: 5
 created: 2026-10-07T09:16:57Z
-updated: 2026-10-07T12:23:18Z
+updated: 2026-11-11T20:31:29Z
 started: 2026-10-07T12:23:18Z
+closed: 2026-11-11T20:31:29Z
 ---
 
 ## Description

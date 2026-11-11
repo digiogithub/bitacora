@@ -2,7 +2,7 @@
 id: BIT-T-0414
 type: task
 title: pando-rs docs, semver policy and crates.io publication
-status: in_review
+status: done
 priority: low
 parent: BIT-US-0131
 milestone: BIT-M-0007
@@ -10,8 +10,9 @@ author: mcp
 labels: [v2, pando-repo, release]
 estimate: 1
 created: 2026-10-07T09:15:16Z
-updated: 2026-10-07T10:45:40Z
+updated: 2026-11-11T20:31:33Z
 started: 2026-10-07T10:41:12Z
+closed: 2026-11-11T20:31:33Z
 ---
 
 ## Description

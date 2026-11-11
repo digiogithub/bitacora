@@ -2,7 +2,7 @@
 id: BIT-US-0121
 type: story
 title: Window resize edges, tiling insets and per-OS checklist
-status: in_review
+status: done
 priority: medium
 parent: BIT-EP-0016
 milestone: BIT-M-0006
@@ -10,8 +10,9 @@ author: mcp
 labels: [v2, frameless, bitacora-app, docs]
 estimate: 3
 created: 2026-10-07T09:12:22Z
-updated: 2026-10-07T10:39:17Z
+updated: 2026-11-11T20:31:33Z
 started: 2026-10-07T10:39:17Z
+closed: 2026-11-11T20:31:33Z
 ---
 
 ## Description

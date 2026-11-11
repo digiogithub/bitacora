@@ -2,7 +2,7 @@
 id: BIT-US-0153
 type: story
 title: Inline AI ghost text and Compose with AI box
-status: in_review
+status: done
 priority: low
 parent: BIT-EP-0023
 milestone: BIT-M-0008
@@ -10,8 +10,9 @@ author: mcp
 labels: [v2, ai, editor, bitacora-app]
 estimate: 8
 created: 2026-10-07T09:18:16Z
-updated: 2026-10-07T12:50:53Z
+updated: 2026-11-11T20:31:28Z
 started: 2026-10-07T12:50:47Z
+closed: 2026-11-11T20:31:28Z
 ---
 
 ## Description

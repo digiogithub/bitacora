@@ -2,13 +2,14 @@
 id: BIT-US-0170
 type: story
 title: Keyboard shortcuts panel polish and Mod+1/2/3 task-marker shortcuts
-status: in_review
+status: done
 parent: BIT-EP-0017
 milestone: BIT-M-0006
 author: mcp
 created: 2026-10-07T19:25:14Z
-updated: 2026-10-07T19:25:30Z
+updated: 2026-11-11T20:31:27Z
 started: 2026-10-07T19:25:14Z
+closed: 2026-11-11T20:31:27Z
 ---
 
 ## Description

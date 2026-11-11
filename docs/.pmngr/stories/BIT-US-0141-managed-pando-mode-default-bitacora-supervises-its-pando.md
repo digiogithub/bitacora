@@ -2,7 +2,7 @@
 id: BIT-US-0141
 type: story
 title: "Managed Pando mode (default): Bitacora supervises its Pando instance"
-status: in_review
+status: done
 priority: high
 parent: BIT-EP-0020
 milestone: BIT-M-0007
@@ -10,8 +10,9 @@ author: mcp
 labels: [v2, pando, bitacora-pando, managed]
 estimate: 8
 created: 2026-10-07T09:15:49Z
-updated: 2026-10-07T11:03:33Z
+updated: 2026-11-11T20:31:32Z
 started: 2026-10-07T10:35:51Z
+closed: 2026-11-11T20:31:32Z
 ---
 
 ## Description

@@ -2,7 +2,7 @@
 id: BIT-US-0131
 type: story
 title: pando-rs conformance tests, docs and release
-status: in_review
+status: done
 priority: medium
 parent: BIT-EP-0018
 milestone: BIT-M-0007
@@ -10,8 +10,9 @@ author: mcp
 labels: [v2, pando-repo, sdk, release]
 estimate: 3
 created: 2026-10-07T09:14:29Z
-updated: 2026-10-07T10:45:40Z
+updated: 2026-11-11T20:31:33Z
 started: 2026-10-07T10:41:12Z
+closed: 2026-11-11T20:31:33Z
 ---
 
 ## Description

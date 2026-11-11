@@ -2,7 +2,7 @@
 id: BIT-US-0122
 type: story
 title: Top bar content and tabs inside the title bar
-status: in_review
+status: done
 priority: high
 parent: BIT-EP-0017
 milestone: BIT-M-0006
@@ -10,8 +10,9 @@ author: mcp
 labels: [v2, ui, bitacora-app]
 estimate: 8
 created: 2026-10-07T09:13:09Z
-updated: 2026-10-07T11:19:50Z
+updated: 2026-11-11T20:31:31Z
 started: 2026-10-07T11:19:41Z
+closed: 2026-11-11T20:31:31Z
 ---
 
 ## Description

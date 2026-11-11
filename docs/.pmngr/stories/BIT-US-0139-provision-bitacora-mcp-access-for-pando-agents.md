@@ -2,7 +2,7 @@
 id: BIT-US-0139
 type: story
 title: Provision Bitacora MCP access for Pando agents
-status: in_review
+status: done
 priority: high
 parent: BIT-EP-0020
 milestone: BIT-M-0007
@@ -10,8 +10,9 @@ author: mcp
 labels: [v2, pando, mcp, bitacora-mcp, security]
 estimate: 5
 created: 2026-10-07T09:15:49Z
-updated: 2026-10-07T11:03:33Z
+updated: 2026-11-11T20:31:32Z
 started: 2026-10-07T10:35:50Z
+closed: 2026-11-11T20:31:32Z
 ---
 
 ## Description

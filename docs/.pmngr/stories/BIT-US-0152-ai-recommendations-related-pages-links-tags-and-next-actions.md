@@ -2,7 +2,7 @@
 id: BIT-US-0152
 type: story
 title: "AI recommendations: related pages, links, tags and next actions"
-status: in_review
+status: done
 priority: medium
 parent: BIT-EP-0023
 milestone: BIT-M-0008
@@ -10,8 +10,9 @@ author: mcp
 labels: [v2, ai, bitacora-app, bitacora-pando]
 estimate: 8
 created: 2026-10-07T09:18:16Z
-updated: 2026-10-07T12:54:55Z
+updated: 2026-11-11T20:31:28Z
 started: 2026-10-07T12:54:55Z
+closed: 2026-11-11T20:31:28Z
 ---
 
 ## Description

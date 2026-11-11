@@ -2,7 +2,7 @@
 id: BIT-US-0119
 type: story
 title: "Spike: client-side decorations on Linux, macOS and Windows"
-status: in_review
+status: done
 priority: high
 parent: BIT-EP-0016
 milestone: BIT-M-0006
@@ -10,8 +10,9 @@ author: mcp
 labels: [v2, frameless, spike, bitacora-app]
 estimate: 3
 created: 2026-10-07T09:12:22Z
-updated: 2026-10-07T10:22:16Z
+updated: 2026-11-11T20:31:33Z
 started: 2026-10-07T10:22:16Z
+closed: 2026-11-11T20:31:33Z
 ---
 
 ## Description

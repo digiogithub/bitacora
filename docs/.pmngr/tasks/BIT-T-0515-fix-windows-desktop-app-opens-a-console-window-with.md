@@ -2,15 +2,16 @@
 id: BIT-T-0515
 type: task
 title: "Fix: Windows desktop app opens a console window with internal logs"
-status: in_review
+status: done
 priority: high
 parent: BIT-US-0161
 milestone: BIT-M-0009
 author: mcp
 labels: [bitacora-app, windows, bug]
 created: 2026-10-14T11:10:04Z
-updated: 2026-10-14T11:10:04Z
+updated: 2026-11-11T20:30:19Z
 started: 2026-10-14T11:10:04Z
+closed: 2026-11-11T20:30:19Z
 ---
 
 ## Description
