@@ -2844,7 +2844,16 @@ mod tests {
     use crate::views::sidebar::{SidebarEvent, Target};
     use crate::views::status_bar::StatusEvent;
 
+    /// Upper bound of the polling loops that wait for the session thread (10 ms per turn).
+    /// Generous on purpose: loaded CI runners take seconds to index a one-page graph, and the
+    /// loops leave as soon as the condition holds.
+    const SETTLE_TURNS: usize = 3000;
+
     fn setup(cx: &mut TestAppContext) {
+        // Graph sessions run on their own thread and wake the foreground executor from there;
+        // the test scheduler only accepts that once parking is allowed, so allow it before any
+        // test can open a graph (a session that reported first made the test panic).
+        cx.executor().allow_parking();
         cx.update(|cx| {
             crate::ui::init(cx);
             crate::views::panels::register_panels(cx);
@@ -2902,7 +2911,7 @@ mod tests {
         ws.update_in(cx, |w, window, cx| w.open_graph(path, window, cx));
         cx.executor().allow_parking();
         let bar = ws.read_with(cx, |w, _| w.status_bar().clone());
-        for _ in 0..200 {
+        for _ in 0..SETTLE_TURNS {
             cx.run_until_parked();
             if bar.read_with(cx, |b, _| b.slot(Slot::Index)) == SlotState::Idle {
                 break;
@@ -3050,7 +3059,7 @@ mod tests {
     fn settle(ws: &Entity<Workspace>, cx: &mut VisualTestContext) {
         cx.executor().allow_parking();
         let bar = ws.read_with(cx, |w, _| w.status_bar().clone());
-        for _ in 0..200 {
+        for _ in 0..SETTLE_TURNS {
             cx.run_until_parked();
             if bar.read_with(cx, |b, _| b.slot(Slot::Index)) == SlotState::Idle {
                 break;
@@ -3195,7 +3204,7 @@ mod tests {
         // The session thread and the page read run off the foreground executor.
         cx.executor().allow_parking();
         let bar = ws.read_with(cx, |w, _| w.status_bar().clone());
-        for _ in 0..200 {
+        for _ in 0..SETTLE_TURNS {
             cx.run_until_parked();
             if bar.read_with(cx, |b, _| b.slot(Slot::Index)) == SlotState::Idle {
                 break;
@@ -3208,7 +3217,7 @@ mod tests {
         );
         assert_eq!(bar.read_with(cx, |b, _| b.index_progress()), None);
         let page = ws.read_with(cx, |w, cx| w.page_view(cx));
-        for _ in 0..200 {
+        for _ in 0..SETTLE_TURNS {
             cx.run_until_parked();
             if page.read_with(cx, |p, _| p.rows().len() == 1) {
                 break;
@@ -3298,7 +3307,7 @@ mod tests {
         ws.update_in(cx, |w, window, cx| w.open_graph(path, window, cx));
         cx.executor().allow_parking();
         let page = ws.read_with(cx, |w, cx| w.page_view(cx));
-        for _ in 0..400 {
+        for _ in 0..SETTLE_TURNS {
             cx.run_until_parked();
             if page.read_with(cx, |p, _| p.title() == Some("Home")) {
                 break;
@@ -3328,7 +3337,7 @@ mod tests {
         .expect("config");
         let (ws, cx) = open_in_graph(cx, &data, &g);
         // The session thread exposes the command queue and the MCP state once it is up.
-        for _ in 0..200 {
+        for _ in 0..SETTLE_TURNS {
             cx.run_until_parked();
             if ws.read_with(cx, |w, _| w.queue().is_some()) {
                 break;
@@ -3476,7 +3485,7 @@ mod tests {
         mut done: impl FnMut(&mut VisualTestContext) -> bool,
     ) {
         cx.executor().allow_parking();
-        for _ in 0..600 {
+        for _ in 0..SETTLE_TURNS {
             cx.run_until_parked();
             if done(cx) {
                 return;

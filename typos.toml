@@ -28,6 +28,8 @@ rela = "rela"
 caf = "caf"
 Caf = "Caf"
 CAF = "CAF"
+# French for "Appearance", asserted by the fr locale test in bitacora-app
+Apparence = "Apparence"
 ANDed = "ANDed"
 Ded = "Ded"
 flate = "flate"
