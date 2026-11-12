@@ -2,6 +2,14 @@
 
 All notable changes to Bitacora. Format follows Keep a Changelog; versions follow SemVer.
 
+## [2.4.1] - 2026-11-12
+
+### Security
+- Updated dependencies with published advisories: the MCP server library (rmcp 3.9), the bundled SQLite (rusqlite 0.42), TLS (rustls 0.23.46 and the bundled root certificates), tokio, zip and others.
+
+### Changed
+- Git sync uses gix 0.89.
+
 ## [2.4.0] - 2026-11-11
 
 ### Added

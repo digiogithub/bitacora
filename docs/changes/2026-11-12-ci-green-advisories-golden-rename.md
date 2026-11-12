@@ -1,4 +1,6 @@
 ---
+created_at: 2026-11-12T17:03:58.318298905Z
+updated_at: 2026-11-12T17:04:57.574752122Z
 tags:
     - change
     - ci
@@ -15,10 +17,7 @@ Owner asked to finish every open point after [[2026-11-11-release-2.4.0]]. Plan:
 - **gix 0.89** (`crates/bitacora-sync/src/backend/gix_net.rs` push fast-forward check, `gix_read.rs` `merge_base`): `Repository::merge_base` now returns `Option<Id>`.
 - **Flaky workspace tests** (`crates/bitacora-app/src/views/workspace.rs`, test module: `setup`, `SETTLE_TURNS`, `settle`, `wait_until`): the `bitacora-session` thread could wake the foreground executor before the test called `allow_parking()`, which the GPUI test scheduler reports as non-determinism ("Detected activity on thread bitacora-session"); the polling loops (2–6 s) were also too short on loaded machines. Parking is now allowed in `setup` and the loops share one 30 s bound.
 - **BIT-T-0131** rename golden graph: `fixtures/graphs/rename` (ours), `fixtures/graphs/rename.expected` (written by Logseq 0.10.15, procedure in its `PROVENANCE.md`), `crates/bitacora-core/tests/rename_golden.rs`, `fixtures/graphs/MANIFEST.sha256`. Divergences are listed in the test with reasons: three choices (favourites renamed in place, `tags::` values follow the rename, `[[old]]` is case-insensitive) and two gaps filed as BIT-T-0517 (page whose title nests the reference is not moved) and BIT-T-0518 (`{{query [[Old]]}}` not rewritten).
-- **BIT-T-0514** visual check and the URL-paste check of BIT-T-0516, on the 2.4.0+ build running headless (Xvfb, llvmpipe, isolated profile, input through xdotool):
-  - all 16 `<` commands insert the expected markers (`#+BEGIN_X`/`#+END_X`, `EXPORT latex`/`EXPORT ascii`, a fence for Src) and render in dark and light: quote rule, code copy button, callout icon and title per kind, example/export labels, verse, center, hidden comment. No bug found. The Query sample shows the query error box because `sample query` is not a query.
-  - pasting a URL over the selected word gives `[docs](https://example.org/docs)` on disk and a link in read mode.
-  - Screenshots: `docs/changes/img/2026-11-12-special-blocks-dark.png`, `-light.png`, `2026-11-12-angle-menu.png`, `2026-11-12-paste-url.png`.
+- **BIT-T-0514** visual check and the URL-paste check of BIT-T-0516, on the 2.4.0+ build running headless (Xvfb, llvmpipe, isolated profile, input through xdotool): all 16 `<` commands insert the expected markers and render in dark and light; pasting a URL over the selected word gives `[docs](https://example.org/docs)` on disk and a link in read mode. Screenshots under `docs/changes/img/2026-11-12-*.png`.
 
 ## Verification
 - `cargo deny check`: advisories ok, bans ok, licenses ok, sources ok. `typos`: clean. `cargo fmt --all --check`: clean.
@@ -28,3 +27,6 @@ Owner asked to finish every open point after [[2026-11-11-release-2.4.0]]. Plan:
 
 ## Not done
 - Dependabot PR #10 (actions/upload-artifact v7, download-artifact v8) left open: it changes the release workflow and was not exercised.
+
+## How to repeat the headless checks
+Logseq oracle: extracted 0.10.15 AppImage under `xvfb-run` with its own `HOME` and `--user-data-dir`, `--remote-debugging-port` plus `--inspect`; patch `dialog.showOpenDialog` in the main process, click "Add graph", then `logseq.api.rename_page`. Bitacora: `Xvfb`, `VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json`, `WAYLAND_DISPLAY` unset, private `HOME`/`XDG_*` (otherwise the launch is forwarded to the owner's running instance), `xdotool` for input, `import` for screenshots. Never run `cargo test --workspace` on the owner's host: about 46 test binaries link at once and stall the disk; test per package with `-j 6`.
