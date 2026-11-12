@@ -2,14 +2,15 @@
 id: BIT-T-0131
 type: task
 title: Rename golden fixture graph captured from Logseq 0.10.15
-status: todo
+status: done
 parent: BIT-US-0082
 milestone: BIT-M-0003
 author: mcp
 labels: [bitacora-core, test, rename, fixtures]
 estimate: 3
 created: 2026-10-06T14:29:56Z
-updated: 2026-10-06T19:30:10Z
+updated: 2026-11-12T17:04:38Z
+closed: 2026-11-12T17:04:38Z
 ---
 
 ## Description
