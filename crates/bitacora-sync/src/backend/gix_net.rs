@@ -345,7 +345,7 @@ impl GitBackend for GixBackend {
             let ff = known
                 && repo
                     .merge_base(tip, head)
-                    .map(|b| b.detach() == tip)
+                    .map(|b| b.map(gix::Id::detach) == Some(tip))
                     .unwrap_or(false);
             if !ff {
                 return Err(GitError::NonFastForward);

@@ -58,7 +58,7 @@ gpui-kit = { version = "=0.7.1" }
 # Async / HTTP / MCP (never in bitacora-core; ADR-012)
 tokio = { version = "1.53", features = ["rt-multi-thread", "macros", "net", "sync", "time", "signal"] }
 axum = "0.8.9"
-rmcp = { version = "~3.5", features = ["server", "macros", "schemars", "transport-streamable-http-server", "transport-streamable-http-server-session", "transport-io"] }
+rmcp = { version = "~3.9", features = ["server", "macros", "schemars", "transport-streamable-http-server", "transport-streamable-http-server-session", "transport-io"] }
 schemars = "1"
 subtle = "2.6"
 getrandom = "0.4"
@@ -67,7 +67,7 @@ async-channel = "2.5"
 reqwest = { version = "0.13", default-features = false, features = ["json", "query", "rustls"] }
 
 # Storage
-rusqlite = { version = "0.40", features = ["bundled", "functions", "hooks", "backup"] }
+rusqlite = { version = "0.42", features = ["bundled", "functions", "hooks", "backup"] }
 rusqlite_migration = "2.6"
 
 # Parsing / diff
@@ -78,7 +78,7 @@ similar = "3.2"
 edn-rs = "0.19"
 
 # Git (ADR-007 / ADR-020): gix incl. network client for the gix-only fallback
-gix = { version = "0.88", default-features = false, features = ["max-performance-safe", "blocking-network-client", "blocking-http-transport-reqwest-rust-tls", "credentials", "merge", "blob-diff", "status", "index", "revision", "sha1", "worktree-mutation"] }
+gix = { version = "0.89", default-features = false, features = ["max-performance-safe", "blocking-network-client", "blocking-http-transport-reqwest-rust-tls", "credentials", "merge", "blob-diff", "status", "index", "revision", "sha1", "worktree-mutation"] }
 
 # Push without system git (ADR-023): libgit2 behind GitBackend; vendored so no system libgit2/OpenSSL
 git2 = { version = "0.21", default-features = false, features = ["https", "ssh", "vendored-libgit2", "vendored-openssl"] }
@@ -136,7 +136,7 @@ sha2 = "0.11"
 ureq = { version = "3.4", default-features = false, features = ["rustls", "gzip"] }
 tar = { version = "0.4", default-features = false }
 flate2 = "1.1"
-zip = { version = "8.6", default-features = false, features = ["deflate"] }
+zip = { version = "9.5", default-features = false, features = ["deflate"] }
 
 # Dev / test
 insta = "1.49"

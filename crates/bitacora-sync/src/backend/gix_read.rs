@@ -22,7 +22,8 @@ pub(super) fn tree_of<'r>(repo: &'r gix::Repository, id: &Oid) -> Result<gix::Tr
 
 pub(super) fn merge_base(repo: &gix::Repository, a: &Oid, b: &Oid) -> Result<Option<Oid>> {
     match repo.merge_base(to_gix(a)?, to_gix(b)?) {
-        Ok(id) => Ok(Some(from_gix(id.detach()))),
+        // gix 0.89 reports unrelated histories as `Ok(None)`.
+        Ok(id) => Ok(id.map(|id| from_gix(id.detach()))),
         // gix reports "no merge base" as an error; objects missing from the odb are a real failure.
         Err(e) => {
             let msg = e.to_string();
