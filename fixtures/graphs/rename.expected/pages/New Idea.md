@@ -1,0 +1,2 @@
+- The page that gets renamed.
+- It links to itself: [[New Idea]].

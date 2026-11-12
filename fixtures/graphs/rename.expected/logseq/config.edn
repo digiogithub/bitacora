@@ -1,0 +1,8 @@
+;; Hand-authored for Bitacora test fixtures.
+{:meta/version 1
+ :preferred-format :markdown
+ :file/name-format :triple-lowbar
+ :journal/page-title-format "yyyy-MM-dd"
+ :journal/file-name-format "yyyy_MM_dd"
+ :favorites ["new idea" "Old" "Other"]
+ :default-home {:page "New Idea"}}

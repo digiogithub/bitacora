@@ -1,0 +1,2 @@
+- Child page in the namespace.
+- Back to the parent [[Old]].
