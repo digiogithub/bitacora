@@ -104,7 +104,7 @@ jobs:
             'Unsigned build: SmartScreen may warn on first run.' \
             'Run: bitacora.exe --graph C:\path\to\logseq\graph' > dist/README.txt
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: bitacora-${{ runner.os }}
           path: dist/
